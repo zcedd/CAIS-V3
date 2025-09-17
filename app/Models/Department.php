@@ -2,18 +2,15 @@
 
 namespace App\Models;
 
-use Spatie\Searchable\Searchable;
 use Spatie\Searchable\SearchResult;
 use Illuminate\Database\Eloquent\Model;
-use Laravel\Scout\Searchable as Search;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Department extends Model implements Searchable
+class Department extends Model
 {
     use HasFactory;
-    use Search;
     use SoftDeletes;
 
     protected $fillable = ['name'];
@@ -24,23 +21,12 @@ class Department extends Model implements Searchable
         return $array;
     }
 
-    public function getSearchResult(): SearchResult
-    {
-        $url = route('department.project-list', $this->id);
-
-        return new SearchResult(
-            $this,
-            $this->name,
-            $url
-        );
-    }
-
     public function project()
     {
         return $this->hasMany(Project::class);
     }
 
-    public function suprvisor()
+    public function supervisor()
     {
         return $this->belongsToMany(User::class)->withTimestamps();
     }

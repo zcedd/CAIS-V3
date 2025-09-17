@@ -1,46 +1,11 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import AppLayout from '@/layouts/app-layout';
 import { create, index, show } from '@/routes/project';
 import { type BreadcrumbItem } from '@/types';
 import { Project } from '@/types/model';
 import { Head, Link } from '@inertiajs/react';
-import { Pie, PieChart } from 'recharts';
-
-const chartData = [
-    { browser: 'chrome', visitors: 0, fill: 'var(--color-chrome)' },
-    { browser: 'safari', visitors: 0, fill: 'var(--color-safari)' },
-    { browser: 'firefox', visitors: 3, fill: 'var(--color-firefox)' },
-    { browser: 'edge', visitors: 0, fill: 'var(--color-edge)' },
-    { browser: 'other', visitors: 1, fill: 'var(--color-other)' },
-];
-
-const chartConfig = {
-    visitors: {
-        label: 'Visitors',
-    },
-    chrome: {
-        label: 'Chrome',
-        color: 'var(--chart-1)',
-    },
-    safari: {
-        label: 'Safari',
-        color: 'var(--chart-2)',
-    },
-    firefox: {
-        label: 'Firefox',
-        color: 'var(--chart-3)',
-    },
-    edge: {
-        label: 'Edge',
-        color: 'var(--chart-4)',
-    },
-    other: {
-        label: 'Other',
-        color: 'var(--chart-5)',
-    },
-} satisfies ChartConfig;
+import ChartStatus, { ChartData } from './chart-status';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -50,6 +15,33 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ProjectList({ Projects }: { Projects: Project[] }) {
+    const getChartData = (Project: Project) => {
+        let chartData: Array<ChartData> = [
+            {
+                status: 'Pending',
+                count: Project.pending_assistance ? Project.pending_assistance.length : 0,
+                fill: 'var(--color-pending)',
+            },
+            {
+                status: 'Verified',
+                count: Project.verified_assistance ? Project.verified_assistance.length : 0,
+                fill: 'var(--color-verified)',
+            },
+            {
+                status: 'Delivered',
+                count: Project.delivered_assistance ? Project.delivered_assistance.length : 0,
+                fill: 'var(--color-delivered)',
+            },
+            {
+                status: 'Denied',
+                count: Project.denied_assistance ? Project.denied_assistance.length : 0,
+                fill: 'var(--color-denied)',
+            },
+        ];
+
+        return chartData;
+    };
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Project" />
@@ -57,12 +49,12 @@ export default function ProjectList({ Projects }: { Projects: Project[] }) {
                 <Button asChild>
                     <Link href={create().url}>Create Project</Link>
                 </Button>
-                <div className="grid auto-rows-min gap-4 md:grid-cols-4">
+                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
                     {Projects &&
                         Projects.map((project, idx) => (
                             <div key={project.id ?? idx}>
                                 <Link href={show(project.id).url}>
-                                    <Card>
+                                    <Card className="h-100">
                                         <CardHeader className="gap-0">
                                             <CardTitle className="text-lg">{project.name}</CardTitle>
                                             <CardDescription>{project.is_organization ? 'Organization' : 'Personal'}</CardDescription>
@@ -79,14 +71,21 @@ export default function ProjectList({ Projects }: { Projects: Project[] }) {
                                                         <span className="font-bold">Date: </span>
                                                         {project.dateStarted} {project.dateEnded ? '- ' + project.dateEnded : ''}
                                                     </p>
+                                                    <p>
+                                                        <span className="font-bold">No. of pending request: </span>
+                                                        {project.pending_assistance ? project.pending_assistance.length : 0}
+                                                    </p>
+                                                    <p>
+                                                        <span className="font-bold">No. of delivered request: </span>
+                                                        {project.delivered_assistance ? project.delivered_assistance.length : 0}
+                                                    </p>
+                                                    <p>
+                                                        <span className="font-bold">No. of denied request: </span>
+                                                        {project.denied_assistance ? project.denied_assistance.length : 0}
+                                                    </p>
                                                 </div>
                                                 <div className="">
-                                                    <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
-                                                        <PieChart>
-                                                            <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-                                                            <Pie data={chartData} dataKey="visitors" nameKey="browser" />
-                                                        </PieChart>
-                                                    </ChartContainer>
+                                                    <ChartStatus chartData={getChartData(project)} />
                                                 </div>
                                             </div>
                                         </CardContent>

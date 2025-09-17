@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Project;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Service\Project\AssistanceCount;
 
 class ProjectController extends Controller
 {
@@ -14,10 +16,12 @@ class ProjectController extends Controller
      */
     public function index()
     {
-        $project = Project::where('department_id', Auth::user()->department_id)->get();
+        $projects = Project::with('assistance', 'pendingAssistance', 'verifiedAssistance', 'deliveredAssistance', 'deniedAssistance')
+            ->where('department_id', Auth::user()->department_id)
+            ->get();
 
         return Inertia::render('project/project-list', [
-            'Projects' => $project
+            'Projects' => $projects,
         ]);
     }
 

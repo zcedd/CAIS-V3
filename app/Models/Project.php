@@ -43,9 +43,29 @@ class Project extends Model
         return $this->hasMany(Assistance::class);
     }
 
+    public function pendingAssistance(): HasMany
+    {
+        return $this->hasMany(Assistance::class)->pending();
+    }
+
+    public function verifiedAssistance(): HasMany
+    {
+        return $this->hasMany(Assistance::class)->verified();
+    }
+
+    public function deliveredAssistance(): HasMany
+    {
+        return $this->hasMany(Assistance::class);
+    }
+
+    public function deniedAssistance(): HasMany
+    {
+        return $this->hasMany(Assistance::class)->denied();
+    }
+
     public function sourceOfFund(): BelongsToMany
     {
-        return $this->belongsToMany(SourceOfFund::class);
+        return $this->belongsToMany(SourceOfFund::class)->delivered();
     }
 
     public function item(): BelongsToMany

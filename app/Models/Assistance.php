@@ -3,9 +3,9 @@
 namespace App\Models;
 
 use Laravel\Scout\Searchable;
-// use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
-use DDZobov\PivotSoftDeletes\Model;
+// use DDZobov\PivotSoftDeletes\Model;
 use Illuminate\Database\Query\Builder;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -18,25 +18,13 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 class Assistance extends Model
 {
     use HasFactory;
-    use Searchable;
     use SoftDeletes;
-    use LogsActivity;
 
     protected $fillable = ['project_id', 'beneficiary_id', 'organization_id', 'mode_of_request_id', 'dateVerified', 'dateRequested', 'dateDenied', 'dateDelivered', 'user_id', 'remark', 'created_at', 'updated_at'];
 
     protected function makeAllSearchableUsing($query)
     {
         return $query->with('project', 'beneficiary');
-    }
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            // ->logFillable()
-            ->logOnly(['project_id', 'beneficiary_id', 'organization_id', 'mode_of_request_id', 'dateVerified', 'dateRequested', 'dateDenied', 'dateDelivered', 'user_id', 'remark', 'item'])
-            ->useLogName('Assistance')
-            ->setDescriptionForEvent(fn(string $eventName) => "This assistance model has been {$eventName}")
-            ->dontSubmitEmptyLogs();
     }
 
     public function project()
@@ -57,6 +45,11 @@ class Assistance extends Model
     public function item()
     {
         return $this->belongsToMany(Item::class)->withPivot('is_received', 'specification')->withSoftDeletes()->withTimestamps()->using(AssistanceItem::class);
+    }
+
+    public function assistanceItem(): HasMany
+    {
+        return $this->hasMany(AssistanceItem::class);
     }
 
     public function itemPivot()
@@ -91,6 +84,9 @@ class Assistance extends Model
         return $query;
     }
 
+    /**
+     * @deprecated Use scopePending instead.
+     */
     public function scopeWherePending($query)
     {
         $query->whereNull("dateDelivered")
@@ -99,21 +95,58 @@ class Assistance extends Model
             ->whereNotNull('dateRequested');
     }
 
+    /**
+     * @deprecated Use scopeVerified instead.
+     */
     public function scopeWhereVerified($query)
     {
         $query->whereNull("dateDelivered")
             ->whereNotNull("dateVerified");
     }
 
+    /**
+     * @deprecated Use scopeDelivered instead.
+     */
     public function scopeWhereDelivered(EloquentBuilder $query)
     {
+        // This method is deprecated. Use scopeDelivered instead.
         $query->whereNotNull("dateDelivered")
             ->whereHas('item', function (EloquentBuilder $query) {
                 $query->where('is_received', true);
             });
     }
 
+    /**
+     * @deprecated Use scopeDenied instead.
+     */
     public function scopeWhereDenied($query)
+    {
+        $query->whereNotNull("dateDenied");
+    }
+
+    public function scopePending($query)
+    {
+        $query->whereNull("dateDelivered")
+            ->whereNull("dateDenied")
+            ->whereNull("dateVerified")
+            ->whereNotNull('dateRequested');
+    }
+
+    public function scopeVerified($query)
+    {
+        $query->whereNull("dateDelivered")
+            ->whereNotNull("dateVerified");
+    }
+
+    public function scopeDelivered(EloquentBuilder $query)
+    {
+        $query->whereNotNull("dateDelivered")
+            ->whereHas('assistanceItem', function (EloquentBuilder $query) {
+                $query->where('is_received', true);
+            });
+    }
+
+    public function scopeDenied($query)
     {
         $query->whereNotNull("dateDenied");
     }
