@@ -2,7 +2,7 @@ import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
 import AppLayout from '@/layouts/app-layout';
 import { index, show } from '@/routes/project';
 import { type BreadcrumbItem } from '@/types';
-import { Project } from '@/types/model';
+import { Project } from '@/types/project';
 import { Head } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -16,7 +16,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function ProjectProfile({ Project }: { Project: Project[] }) {
+export default function Index({ Project }: { Project: Project[] }) {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Project" />

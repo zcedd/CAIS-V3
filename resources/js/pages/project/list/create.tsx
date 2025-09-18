@@ -14,7 +14,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function ProjectCreate() {
+export default function Create() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Project" />

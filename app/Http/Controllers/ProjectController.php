@@ -5,22 +5,28 @@ namespace App\Http\Controllers;
 use Inertia\Inertia;
 use App\Models\Project;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
-use App\Service\Project\AssistanceCount;
 
 class ProjectController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $projects = Project::with('assistance', 'pendingAssistance', 'verifiedAssistance', 'deliveredAssistance', 'deniedAssistance')
-            ->where('department_id', Auth::user()->department_id)
-            ->get();
+        $page = request()->input('page', 1);
+        $perPage = request()->input('per_page', 12);
 
-        return Inertia::render('project/project-list', [
+        $projects = Project::with('assistance', 'pendingAssistance', 'verifiedAssistance', 'deliveredAssistance', 'deniedAssistance')
+            ->when($request->search, function ($query) use ($request) {
+                $query->where('name', 'LIKE', '%' . $request->search . "%");
+            })
+            ->where('department_id', Auth::user()->department_id)
+            ->get()
+            ->take($perPage);
+
+        return Inertia::render('project/list/index', [
+            // 'Projects' => Inertia::defer(fn() => $projects->paginate($perPage, page: $page))->deepMerge(),
             'Projects' => $projects,
         ]);
     }
@@ -30,7 +36,7 @@ class ProjectController extends Controller
      */
     public function create()
     {
-        return Inertia::render('project/project-create');
+        return Inertia::render('project/list/create');
     }
 
     /**
@@ -47,7 +53,7 @@ class ProjectController extends Controller
     public function show(string $id)
     {
         $project = Project::findOrFail($id);
-        return Inertia::render('project/project-profile', [
+        return Inertia::render('project/profile/index', [
             'Project' => $project
         ]);
     }

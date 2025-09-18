@@ -17,6 +17,18 @@ export interface Project {
     denied_assistance?: Assistance[];
 }
 
+export interface PaginatedProject {
+    current_page: number;
+    data: Project[];
+    links: PaginateLink[];
+}
+
+export interface PaginateLink {
+    url: string;
+    label: string;
+    active: boolean;
+}
+
 export interface Assistance {
     id: number;
     project_id: number;
