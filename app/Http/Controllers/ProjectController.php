@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Item;
 use Inertia\Inertia;
 use App\Models\Project;
+use App\Models\SourceOfFund;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\QueryException;
 
 class ProjectController extends Controller
 {
@@ -36,7 +40,13 @@ class ProjectController extends Controller
      */
     public function create()
     {
-        return Inertia::render('project/list/create');
+        $user = Auth::user();
+        $sourceOfFunds = SourceOfFund::where('department_id', $user->department_id)->orderBy('name')->get();
+        $items = Item::where('department_id', $user->department_id)->orderBy('name')->get();
+        return Inertia::render('project/list/create', [
+            'SourceOfFunds' => $sourceOfFunds,
+            'Items' => $items,
+        ]);
     }
 
     /**
@@ -44,7 +54,29 @@ class ProjectController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'descriptions' => 'required|string|max:255',
+            'date_started' => 'required|date',
+            'date_ended' => 'nullable|date',
+            'is_organization' => 'nullable|boolean',
+        ]);
+
+        try {
+            Project::create([
+                'name' => $validated['name'],
+                'descriptions' => $validated['descriptions'],
+                'dateStarted' => $validated['date_started'],
+                'dateEnded' => $validated['date_ended'],
+                'department_id' => Auth::user()->department_id,
+                'is_organization' => $validated['is_organization'] ?? false,
+            ]);
+
+            return back()->with('success', 'Report created successfully.');
+        } catch (QueryException $th) {
+            Log::error($th->getMessage());
+            return back()->withErrors(['error' => 'Something went wrong.']);
+        }
     }
 
     /**

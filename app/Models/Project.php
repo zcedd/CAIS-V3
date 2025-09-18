@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Spatie\Activitylog\LogOptions;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,23 +14,23 @@ class Project extends Model
 {
     use HasFactory;
     use SoftDeletes;
-    use LogsActivity;
 
-    protected $fillable = ['name', 'descriptions', 'source_of_fund', 'dateStarted', 'dateEnded', 'department_id', 'is_closed', 'created_at', 'updated_at'];
+    protected $fillable = [
+        'name',
+        'descriptions',
+        'dateStarted',
+        'dateEnded',
+        'department_id',
+        'is_closed',
+        'created_at',
+        'updated_at',
+        'is_organization'
+    ];
 
     protected $casts = [
         'dateStarted' => 'datetime:M d, Y',
         'dateEnded' => 'datetime:M d, Y',
     ];
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logFillable()
-            ->useLogName('Project')
-            ->setDescriptionForEvent(fn(string $eventName) => "This Project model has been {$eventName}")
-            ->dontSubmitEmptyLogs();
-    }
 
     public function department(): BelongsTo
     {
