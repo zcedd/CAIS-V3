@@ -21,7 +21,7 @@ class ProjectController extends Controller
         $page = request()->input('page', 1);
         $perPage = request()->input('per_page', 12);
 
-        $projects = Project::with('assistance', 'pendingAssistance', 'verifiedAssistance', 'deliveredAssistance', 'deniedAssistance')
+        $projects = Project::with('pendingAssistance', 'verifiedAssistance', 'deliveredAssistance', 'deniedAssistance')
             ->when($request->search, function ($query) use ($request) {
                 $query->where('name', 'LIKE', '%' . $request->search . "%");
             })
@@ -60,17 +60,32 @@ class ProjectController extends Controller
             'date_started' => 'required|date',
             'date_ended' => 'nullable|date',
             'is_organization' => 'nullable|boolean',
+            'source_of_fund_ids' => 'required|array',
+            'source_of_fund_ids.*' => 'exists:source_of_funds,id',
+            'item_ids' => 'required|array',
+            'item_ids.*' => 'exists:items,id',
+        ], [], [
+            'name' => 'project name',
+            'descriptions' => 'project description',
+            'date_started' => 'date started',
+            'date_ended' => 'date ended',
+            'is_organization' => 'is organization',
+            'source_of_fund_ids' => 'source of funds',
+            'item_ids' => 'items',
         ]);
 
         try {
-            Project::create([
+            $project = Project::create([
                 'name' => $validated['name'],
                 'descriptions' => $validated['descriptions'],
-                'dateStarted' => $validated['date_started'],
-                'dateEnded' => $validated['date_ended'],
+                'dateStarted' => date('Y-m-d', strtotime($validated['date_started'])),
+                'dateEnded' => isset($validated['date_ended']) && $validated['date_ended'] ? date('Y-m-d', strtotime($validated['date_ended'])) : null,
                 'department_id' => Auth::user()->department_id,
                 'is_organization' => $validated['is_organization'] ?? false,
             ]);
+
+            $project->sourceOfFund()->attach($validated['source_of_fund_ids']);
+            $project->item()->attach($validated['item_ids']);
 
             return back()->with('success', 'Report created successfully.');
         } catch (QueryException $th) {

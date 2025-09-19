@@ -54,7 +54,7 @@ class Project extends Model
 
     public function deliveredAssistance(): HasMany
     {
-        return $this->hasMany(Assistance::class);
+        return $this->hasMany(Assistance::class); //todo:->delivered();
     }
 
     public function deniedAssistance(): HasMany
@@ -64,11 +64,11 @@ class Project extends Model
 
     public function sourceOfFund(): BelongsToMany
     {
-        return $this->belongsToMany(SourceOfFund::class)->delivered();
+        return $this->belongsToMany(SourceOfFund::class);
     }
 
     public function item(): BelongsToMany
     {
-        return $this->belongsToMany(Item::class)->using(ItemProject::class);
+        return $this->belongsToMany(Item::class);
     }
 }

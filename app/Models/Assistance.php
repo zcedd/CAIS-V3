@@ -111,7 +111,7 @@ class Assistance extends Model
     {
         // This method is deprecated. Use scopeDelivered instead.
         $query->whereNotNull("dateDelivered")
-            ->whereHas('item', function (EloquentBuilder $query) {
+            ->whereHas('assistanceItem', function (EloquentBuilder $query) {
                 $query->where('is_received', true);
             });
     }
