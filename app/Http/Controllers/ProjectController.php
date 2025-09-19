@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Assistance;
 use App\Models\Item;
 use Inertia\Inertia;
 use App\Models\Project;
@@ -99,9 +100,16 @@ class ProjectController extends Controller
      */
     public function show(string $id)
     {
-        $project = Project::findOrFail($id);
+        $project = Project::with('sourceOfFund', 'item')->FindOrFail($id);
+        $pendingAssistance = Assistance::where('project_id', $id)
+            ->pending()
+            ->wherePersonalAssistance()
+            ->get();
+
+        // dd($pendingAssistance);
         return Inertia::render('project/profile/index', [
-            'Project' => $project
+            'Project' => $project,
+            'PendingAssistance' => $pendingAssistance,
         ]);
     }
 

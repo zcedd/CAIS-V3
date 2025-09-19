@@ -1,8 +1,10 @@
+import { SourceOfFund } from '@/pages/project/list/create';
+
 export interface Project {
     id: number;
     name: string;
     descriptions: string;
-    source_of_fund: number;
+    source_of_fund_id: number;
     dateStarted: string;
     dateEnded: string;
     department_id: number;
@@ -11,6 +13,8 @@ export interface Project {
     is_organization: boolean;
     created_at: string;
     updated_at: string;
+    source_of_fund?: SourceOfFund[];
+    item?: Item[];
     pending_assistance?: Assistance[];
     verified_assistance?: Assistance[];
     delivered_assistance?: Assistance[];
@@ -41,6 +45,21 @@ export interface Assistance {
     dateDelivered: string;
     user_id: number;
     remark: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface SourceOfFund {
+    id: number;
+    name: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Item {
+    id: number;
+    name: string;
+    unit: string;
     created_at: string;
     updated_at: string;
 }
