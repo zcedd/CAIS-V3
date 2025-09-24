@@ -18,7 +18,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-export default function Index({ Projects, search, perPage }: { Projects: Project[]; search: string; perPage: string }) {
+export default function Index({ projects, search, perPage }: { projects: Project[]; search: string; perPage: string }) {
     const getChartData = (Project: Project) => {
         let chartData: Array<ChartData> = [
             {
@@ -128,7 +128,7 @@ export default function Index({ Projects, search, perPage }: { Projects: Project
                     </div>
                 </div>
                 <InfiniteScroll
-                    dataLength={Projects.length} //This is important field to render the next data
+                    dataLength={projects.length} //This is important field to render the next data
                     next={fetchData}
                     hasMore={true}
                     loader={
@@ -145,8 +145,8 @@ export default function Index({ Projects, search, perPage }: { Projects: Project
                     }
                 >
                     <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                        {Projects &&
-                            Projects.map((project, idx) => (
+                        {projects &&
+                            projects.map((project, idx) => (
                                 <div key={project.id ?? idx}>
                                     <Link href={show(project.id).url}>
                                         <Card className="h-100">

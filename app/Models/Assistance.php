@@ -2,12 +2,7 @@
 
 namespace App\Models;
 
-use Laravel\Scout\Searchable;
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\LogOptions;
-// use DDZobov\PivotSoftDeletes\Model;
-use Illuminate\Database\Query\Builder;
-use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -40,6 +35,11 @@ class Assistance extends Model
     public function organization()
     {
         return $this->belongsTo(Organization::class, 'organization_id');
+    }
+
+    public function modeOfRequest(): BelongsTo
+    {
+        return $this->belongsTo(ModeOfRequest::class);
     }
 
     public function item()
@@ -157,12 +157,28 @@ class Assistance extends Model
             ->whereNull('dateDenied');
     }
 
+    /**
+     * @deprecated Use scopePersonalAssistance instead.
+     */
     public function scopeWherePersonalAssistance($query)
     {
         $query->whereNotNull('beneficiary_id');
     }
 
+    public function scopePersonalAssistance($query)
+    {
+        $query->whereNotNull('beneficiary_id');
+    }
+
+    /**
+     * @deprecated Use scopeOrganizationalAssistance instead.
+     */
     public function scopeWhereOrganizationalAssistance($query)
+    {
+        $query->whereNotNull('organization_id');
+    }
+
+    public function scopeOrganizationalAssistance($query)
     {
         $query->whereNotNull('organization_id');
     }

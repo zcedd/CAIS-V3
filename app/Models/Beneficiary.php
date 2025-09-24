@@ -2,12 +2,8 @@
 
 namespace App\Models;
 
-use Spatie\Searchable\Searchable;
-// use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
-use DDZobov\PivotSoftDeletes\Model;
-use Spatie\Searchable\SearchResult;
-use Laravel\Scout\Searchable as Search;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,10 +11,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Beneficiary extends Model implements Searchable
+class Beneficiary extends Model
 {
     use HasFactory;
-    use Search;
     use SoftDeletes;
     use LogsActivity;
 
@@ -43,32 +38,6 @@ class Beneficiary extends Model implements Searchable
         'created_at',
         'updated_at'
     ];
-
-    public function toSearchableArray()
-    {
-        // $array = $this->toArray();
-        $array['cais_number'] = $this->cais_number;
-        $array['firstName'] = $this->firstName;
-        $array['middleName'] = $this->middleName;
-        $array['lastName'] = $this->lastName;
-        $array['fullname'] = $this->firstName . ' ' . $this->middleName . ' ' . $this->lastName . ' ' . $this->suffix;
-        $array['fullname3'] = $this->firstName . ' ' . $this->middleName . ' ' . $this->lastName;
-        $array['fullname1'] = $this->firstName . ' ' . $this->lastName . ' ' . $this->suffix;
-        $array['fullname2'] = $this->firstName . ' ' . $this->lastName;
-        // return array('id' => $array['id'], 'firstName' => $array['firstName'], 'middleName' => $array['middleName'], 'lastName' => $array['lastName']);
-        return $array;
-    }
-
-    public function getSearchResult(): SearchResult
-    {
-        $url = route('beneficiary.profile', $this->id);
-
-        return new SearchResult(
-            $this,
-            $this->firstName . ' ' . $this->middleName . ' ' . $this->lastName . ' ' . $this->suffix,
-            $url
-        );
-    }
 
     public function getActivitylogOptions(): LogOptions
     {

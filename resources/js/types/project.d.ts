@@ -47,6 +47,31 @@ export interface Assistance {
     remark: string;
     created_at: string;
     updated_at: string;
+    modeOfRequest?: ModeOfRequest;
+    beneficiary?: Beneficiary;
+    organization?: Organization;
+    item?: Item;
+}
+
+export interface ModeOfRequest {
+    id: number;
+    name: string;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Beneficiary {
+    id: number;
+    firstName: string;
+    lastName: string;
+    middleName: string;
+    suffix: string;
+    birthDate: string;
+}
+
+export interface Organization {
+    id: number;
+    name: string;
 }
 
 export interface SourceOfFund {

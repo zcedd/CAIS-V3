@@ -47,7 +47,7 @@ class ProjectController extends Controller
 
         return Inertia::render('project/list/index', [
             // 'Projects' => Inertia::defer(fn() => $projects->paginate($perPage, page: $page))->deepMerge(),
-            'Projects' => $projects,
+            'projects' => $projects,
         ]);
     }
 
@@ -115,16 +115,67 @@ class ProjectController extends Controller
      */
     public function show(string $id)
     {
-        $project = Project::with('sourceOfFund', 'item')->FindOrFail($id);
-        $pendingAssistance = Assistance::where('project_id', $id)
-            ->pending()
-            ->wherePersonalAssistance()
+        $project = Project::with([
+            'sourceOfFund' => function ($query) {
+                $query->select('name');
+            },
+        ])
+            ->FindOrFail($id);
+
+        $pendingAssistance = Assistance::with([
+            'organization' => function ($query) {
+                $query->select('id', 'name');
+            },
+            'beneficiary' => function ($query) {
+                $query->select('id', 'firstName', 'lastName');
+            },
+            'assistanceItem.item' => function ($query) {
+                $query->select('id', 'name');
+            },
+            'modeOfRequest' => function ($query) {
+                $query->select('id', 'name');
+            },
+        ])
+            ->select(
+                'id',
+                'project_id',
+                'organization_id',
+                'beneficiary_id',
+                'dateRequested',
+                'dateVerified',
+                'dateDelivered',
+                'dateDenied',
+                'mode_of_request_id',
+                'remark',
+            )
+            ->where('project_id', $id)
+            ->pending();
+
+        $personalPendingAssistance = (clone $pendingAssistance)
+            ->with([
+                'organization' => function ($query) {
+                    $query->select('id', 'name');
+                },
+                'beneficiary' => function ($query) {
+                    $query->select('id', 'firstName', 'lastName');
+                },
+            ])
+            ->personalAssistance()
             ->get();
 
-        // dd($pendingAssistance);
+        $organizationalPendingAssistance = (clone $pendingAssistance)
+            ->with([
+                'organization' => function ($query) {
+                    $query->select('id', 'name');
+                },
+            ])
+            ->organizationalAssistance()
+            ->get();
+
         return Inertia::render('project/profile/index', [
-            'Project' => $project,
-            'PendingAssistance' => $pendingAssistance,
+            'project' => $project,
+            'personalPendingAssistance' => $personalPendingAssistance,
+            'organizationalPendingAssistance' => $organizationalPendingAssistance,
         ]);
     }
 
