@@ -22,7 +22,22 @@ class ProjectController extends Controller
         $page = request()->input('page', 1);
         $perPage = request()->input('per_page', 12);
 
-        $projects = Project::with('pendingAssistance', 'verifiedAssistance', 'deliveredAssistance', 'deniedAssistance')
+        $projects = Project::with(
+            [
+                'pendingAssistance' => function ($query) {
+                    $query->select('id', 'project_id', 'dateRequested', 'dateVerified', 'dateDelivered', 'dateDenied');
+                },
+                'verifiedAssistance' => function ($query) {
+                    $query->select('id', 'project_id', 'dateRequested', 'dateVerified', 'dateDelivered', 'dateDenied');
+                },
+                'deliveredAssistance' => function ($query) {
+                    $query->select('id', 'project_id', 'dateRequested', 'dateVerified', 'dateDelivered', 'dateDenied');
+                },
+                'deniedAssistance' => function ($query) {
+                    $query->select('id', 'project_id', 'dateRequested', 'dateVerified', 'dateDelivered', 'dateDenied');
+                }
+            ]
+        )
             ->when($request->search, function ($query) use ($request) {
                 $query->where('name', 'LIKE', '%' . $request->search . "%");
             })

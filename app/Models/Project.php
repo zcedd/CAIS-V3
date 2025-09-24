@@ -54,7 +54,7 @@ class Project extends Model
 
     public function deliveredAssistance(): HasMany
     {
-        return $this->hasMany(Assistance::class); //todo:->delivered();
+        return $this->hasMany(Assistance::class)->delivered();
     }
 
     public function deniedAssistance(): HasMany

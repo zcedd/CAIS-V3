@@ -15,6 +15,8 @@ class AssistanceItem extends Model
     use LogsActivity;
     use SoftDeletes;
 
+    protected $table = 'assistance_item';
+
     protected $fillable = ['assistance_id', 'item_id', 'is_received', 'specification'];
     public $incrementing = true;
 
