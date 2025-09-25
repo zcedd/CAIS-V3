@@ -5,7 +5,7 @@ import { Assistance } from '@/types/project';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 
-export const organizationalAssistanceColumns: ColumnDef<Assistance>[] = [
+export const personalPendingColumns: ColumnDef<Assistance>[] = [
     {
         accessorKey: 'id',
         header: ({ column }) => {
@@ -18,11 +18,22 @@ export const organizationalAssistanceColumns: ColumnDef<Assistance>[] = [
         },
     },
     {
-        accessorKey: 'organization.name',
+        accessorKey: 'beneficiary.firstName',
         header: ({ column }) => {
             return (
                 <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
                     Name
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            );
+        },
+    },
+    {
+        accessorKey: 'beneficiary.lastName',
+        header: ({ column }) => {
+            return (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Last name
                     <ArrowUpDown className="ml-2 h-4 w-4" />
                 </Button>
             );

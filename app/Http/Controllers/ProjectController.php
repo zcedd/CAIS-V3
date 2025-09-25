@@ -122,7 +122,7 @@ class ProjectController extends Controller
         ])
             ->FindOrFail($id);
 
-        $pendingAssistance = Assistance::with([
+        $assistance = Assistance::with([
             'organization' => function ($query) {
                 $query->select('id', 'name');
             },
@@ -148,34 +148,54 @@ class ProjectController extends Controller
                 'mode_of_request_id',
                 'remark',
             )
-            ->where('project_id', $id)
-            ->pending();
+            ->where('project_id', $id);
 
-        $personalPendingAssistance = (clone $pendingAssistance)
+        $personalPendingAssistance = (clone $assistance)
             ->with([
-                'organization' => function ($query) {
-                    $query->select('id', 'name');
-                },
                 'beneficiary' => function ($query) {
                     $query->select('id', 'firstName', 'lastName');
                 },
             ])
             ->personalAssistance()
+            ->pending()
             ->get();
 
-        $organizationalPendingAssistance = (clone $pendingAssistance)
+        $organizationalPendingAssistance = (clone $assistance)
             ->with([
                 'organization' => function ($query) {
                     $query->select('id', 'name');
                 },
             ])
             ->organizationalAssistance()
+            ->pending()
+            ->get();
+
+        $personalDeliveredAssistance = (clone $assistance)
+            ->with([
+                'beneficiary' => function ($query) {
+                    $query->select('id', 'firstName', 'lastName');
+                },
+            ])
+            ->personalAssistance()
+            ->delivered()
+            ->get();
+
+        $organizationalDeliveredAssistance = (clone $assistance)
+            ->with([
+                'organization' => function ($query) {
+                    $query->select('id', 'name');
+                },
+            ])
+            ->organizationalAssistance()
+            ->delivered()
             ->get();
 
         return Inertia::render('project/profile/index', [
             'project' => $project,
-            'personalPendingAssistance' => $personalPendingAssistance,
-            'organizationalPendingAssistance' => $organizationalPendingAssistance,
+            'personalPendingAssistance' => Inertia::defer(fn() => $personalPendingAssistance),
+            'organizationalPendingAssistance' => Inertia::defer(fn() => $organizationalPendingAssistance),
+            'personalDeliveredAssistance' => Inertia::defer(fn() => $personalDeliveredAssistance),
+            'organizationalDeliveredAssistance' => Inertia::defer(fn() => $organizationalDeliveredAssistance),
         ]);
     }
 
