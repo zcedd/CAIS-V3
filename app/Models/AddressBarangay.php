@@ -6,10 +6,15 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-class AddrsCity extends Model
+class AddressBarangay extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'zipcode', 'excel_name'];
+    protected $fillable = ['address_city_id', 'name'];
+
+    public function city()
+    {
+        return $this->belongsTo(AddressCity::class, 'address_city_id', 'id');
+    }
 }

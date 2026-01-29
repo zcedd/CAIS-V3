@@ -10,26 +10,26 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 
-class Assistance extends Model
+class AssistanceRequest extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['project_id', 'beneficiary_id', 'organization_id', 'mode_of_request_id', 'dateVerified', 'dateRequested', 'dateDenied', 'dateDelivered', 'user_id', 'remark', 'created_at', 'updated_at'];
+    protected $fillable = ['program_id', 'beneficiary_id', 'organization_id', 'mode_of_request_id', 'date_verified', 'date_requested', 'date_denied', 'date_delivered', 'user_id', 'remark', 'created_at', 'updated_at'];
 
     protected function makeAllSearchableUsing($query)
     {
-        return $query->with('project', 'beneficiary');
+        return $query->with('program', 'beneficiary');
     }
 
-    public function project()
+    public function program()
     {
-        return $this->belongsTo(Project::class, 'project_id', 'id');
+        return $this->belongsTo(Program::class, 'program_id', 'id');
     }
 
-    public function beneficiary()
+    public function individual()
     {
-        return $this->belongsTo(Beneficiary::class, 'beneficiary_id', 'id');
+        return $this->belongsTo(Individual::class, 'beneficiary_id', 'id');
     }
 
     public function organization()
@@ -44,17 +44,17 @@ class Assistance extends Model
 
     public function item()
     {
-        return $this->belongsToMany(Item::class)->withPivot('is_received', 'specification')->withSoftDeletes()->withTimestamps()->using(AssistanceItem::class);
+        return $this->belongsToMany(Item::class)->withPivot('is_received', 'specification')->withSoftDeletes()->withTimestamps()->using(AssistanceRequestItem::class);
     }
 
     public function assistanceItem(): HasMany
     {
-        return $this->hasMany(AssistanceItem::class);
+        return $this->hasMany(AssistanceRequestItem::class);
     }
 
     public function itemPivot()
     {
-        return $this->hasMany(AssistanceItem::class);
+        return $this->hasMany(AssistanceRequestItem::class);
     }
 
     /**

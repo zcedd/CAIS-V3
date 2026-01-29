@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Organization extends Model
 {
@@ -31,28 +34,28 @@ class Organization extends Model
             ->dontSubmitEmptyLogs();
     }
 
-    public function beneficiary()
+    public function beneficiary(): BelongsToMany
     {
-        return $this->belongsToMany(Beneficiary::class)->withTimestamps()->withSoftDeletes()->using(BeneficiaryOrganization::class);
+        return $this->belongsToMany(Individual::class)->withTimestamps()->withSoftDeletes()->using(OrganizationMember::class);
     }
 
-    public function president()
+    public function president(): BelongsTo
     {
-        return $this->belongsTo(Beneficiary::class, 'beneficiary_id', 'id');
+        return $this->belongsTo(Individual::class, 'beneficiary_id', 'id');
     }
 
-    public function address()
+    public function address(): BelongsTo
     {
-        return $this->belongsTo(AddrsBrgy::class, 'addrs_brgy_id', 'id');
+        return $this->belongsTo(AddressBarangay::class, 'address_barangay_id', 'id');
     }
 
-    public function assistance()
+    public function assistance(): HasMany
     {
-        return $this->hasMany(Assistance::class);
+        return $this->hasMany(AssistanceRequest::class);
     }
 
-    public function beneficiaryPivot()
+    public function memberPivot(): HasMany
     {
-        return $this->hasMany(BeneficiaryOrganization::class);
+        return $this->hasMany(OrganizationMember::class);
     }
 }

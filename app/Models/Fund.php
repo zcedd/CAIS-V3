@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class SourceOfFund extends Model
+class Fund extends Model
 {
     use HasFactory;
 
@@ -17,12 +17,12 @@ class SourceOfFund extends Model
         return $this->belongsTo(Department::class, 'department_id', 'id');
     }
     /**
-     * The project that belong to the SourceOfFund
+     * The program that belong to the Fund
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
-    public function project(): BelongsToMany
+    public function program(): BelongsToMany
     {
-        return $this->belongsToMany(Project::class);
+        return $this->belongsToMany(Program::class);
     }
 }

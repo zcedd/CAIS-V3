@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Project extends Model
+class Program extends Model
 {
     use HasFactory;
     use SoftDeletes;
@@ -18,8 +18,8 @@ class Project extends Model
     protected $fillable = [
         'name',
         'descriptions',
-        'dateStarted',
-        'dateEnded',
+        'date_started',
+        'date_ended',
         'department_id',
         'is_closed',
         'created_at',
@@ -28,8 +28,8 @@ class Project extends Model
     ];
 
     protected $casts = [
-        'dateStarted' => 'datetime:M d, Y',
-        'dateEnded' => 'datetime:M d, Y',
+        'date_started' => 'datetime:M d, Y',
+        'date_ended' => 'datetime:M d, Y',
     ];
 
     public function department(): BelongsTo
@@ -39,32 +39,32 @@ class Project extends Model
 
     public function assistance(): HasMany
     {
-        return $this->hasMany(Assistance::class);
+        return $this->hasMany(AssistanceRequest::class);
     }
 
     public function pendingAssistance(): HasMany
     {
-        return $this->hasMany(Assistance::class)->pending();
+        return $this->hasMany(AssistanceRequest::class)->pending();
     }
 
     public function verifiedAssistance(): HasMany
     {
-        return $this->hasMany(Assistance::class)->verified();
+        return $this->hasMany(AssistanceRequest::class)->verified();
     }
 
     public function deliveredAssistance(): HasMany
     {
-        return $this->hasMany(Assistance::class)->delivered();
+        return $this->hasMany(AssistanceRequest::class)->delivered();
     }
 
     public function deniedAssistance(): HasMany
     {
-        return $this->hasMany(Assistance::class)->denied();
+        return $this->hasMany(AssistanceRequest::class)->denied();
     }
 
     public function sourceOfFund(): BelongsToMany
     {
-        return $this->belongsToMany(SourceOfFund::class);
+        return $this->belongsToMany(Fund::class);
     }
 
     public function item(): BelongsToMany

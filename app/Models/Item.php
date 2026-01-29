@@ -8,6 +8,8 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Item extends Model
 {
@@ -26,9 +28,9 @@ class Item extends Model
             ->dontSubmitEmptyLogs();
     }
 
-    public function assistance()
+    public function assistance(): BelongsToMany
     {
-        return $this->belongsToMany(Assistance::class)->withSoftDeletes()->using(AssistanceItem::class);
+        return $this->belongsToMany(AssistanceRequest::class)->withSoftDeletes()->using(AssistanceRequestItem::class);
     }
 
     /**
@@ -36,13 +38,13 @@ class Item extends Model
      *
      * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
-    public function project()
+    public function project(): BelongsToMany
     {
-        return $this->belongsToMany(Project::class)->using(ItemProject::class);
+        return $this->belongsToMany(Program::class)->using(ProgramItem::class);
     }
 
-    public function department()
+    public function department(): BelongsTo
     {
-        return $this->belongsTo(Department::class, 'department_id', 'id');
+        return $this->belongsTo(Department::class);
     }
 }

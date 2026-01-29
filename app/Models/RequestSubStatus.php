@@ -19,7 +19,7 @@ class RequestSubStatus extends Model
      */
     public function assistance(): BelongsToMany
     {
-        return $this->belongsToMany(Assistance::class)->withTimestamps()->using(AssistanceRequestSubStatus::class);
+        return $this->belongsToMany(AssistanceRequest::class)->withTimestamps()->using(AssistanceRequestSubStatus::class);
     }
 
     /**

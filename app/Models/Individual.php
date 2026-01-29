@@ -11,7 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Beneficiary extends Model
+class Individual extends Model
 {
     use HasFactory;
     use SoftDeletes;
@@ -50,7 +50,7 @@ class Beneficiary extends Model
 
     public function address(): BelongsTo
     {
-        return $this->belongsTo(AddrsBrgy::class, 'brgy_id', 'id');
+        return $this->belongsTo(AddressBarangay::class, 'address_barangay_id', 'id');
     }
 
     /**
@@ -60,22 +60,22 @@ class Beneficiary extends Model
      */
     public function barangay(): BelongsTo
     {
-        return $this->belongsTo(AddrsBrgy::class, 'brgy_id', 'id');
+        return $this->belongsTo(AddressBarangay::class, 'address_barangay_id', 'id');
     }
 
     public function beneficiaryIdentification(): HasMany
     {
-        return $this->hasMany(BeneficiaryIdentification::class);
+        return $this->hasMany(IndividualIdentification::class);
     }
 
     public function identification(): BelongsToMany
     {
-        return $this->belongsToMany(Identification::class)->withPivot('number')->withTimestamps()->withSoftDeletes()->using(BeneficiaryIdentification::class);
+        return $this->belongsToMany(Identification::class)->withPivot('number')->withTimestamps()->withSoftDeletes()->using(IndividualIdentification::class);
     }
 
     public function organization(): BelongsToMany
     {
-        return $this->belongsToMany(Organization::class)->withTimestamps()->withSoftDeletes()->using(BeneficiaryOrganization::class);
+        return $this->belongsToMany(Organization::class)->withTimestamps()->withSoftDeletes()->using(OrganizationMember::class);
     }
 
     public function civilStatus(): BelongsTo
@@ -85,11 +85,11 @@ class Beneficiary extends Model
 
     public function assistance(): HasMany
     {
-        return $this->hasMany(Assistance::class);
+        return $this->hasMany(AssistanceRequest::class);
     }
 
     public function organizationPivot(): HasMany
     {
-        return $this->hasMany(BeneficiaryOrganization::class);
+        return $this->hasMany(OrganizationMember::class);
     }
 }
