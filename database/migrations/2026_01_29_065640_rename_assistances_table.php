@@ -26,6 +26,8 @@ return new class extends Migration
             $table->foreignId('organization_id')->nullable()->after('individual_id')->change();
             $table->foreignId('mode_of_request_id')->nullable()->after('organization_id')->change();
             $table->foreignId('user_id')->nullable()->after('mode_of_request_id')->change();
+
+            $table->foreignId('beneficiary_id')->nullable()->after('program_id')->constrained('beneficiaries');
         });
     }
 
@@ -43,6 +45,9 @@ return new class extends Migration
             $table->renameColumn('date_delivered', 'dateDelivered');
             $table->renameColumn('program_id', 'project_id');
             $table->renameColumn('individual_id', 'beneficiary_id');
+
+            $table->dropForeign(['beneficiary_id']);
+            $table->dropColumn('beneficiary_id');
         });
     }
 };

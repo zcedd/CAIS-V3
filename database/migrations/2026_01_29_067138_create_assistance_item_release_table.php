@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('assistance_request_id')->constrained('assistance_requests');
             $table->foreignId('item_id')->constrained('items');
-            $table->integer('quantity')->default(1);
-            $table->date('date_released');
+            $table->integer('quantity')->nullable();
+            $table->date('date_released')->nullable();
             $table->string('release_remarks')->nullable();
             $table->foreignId('user_id')->constrained('users');
             $table->timestamps();
