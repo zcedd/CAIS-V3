@@ -15,7 +15,9 @@ return new class extends Migration
         Schema::rename('addrs_cities', 'address_cities');
 
         Schema::table('address_barangays', function (Blueprint $table) {
-            $table->renameColumn('addrs_cities_id', 'address_city_id');
+            $table->renameColumn('addrs_city_id', 'address_city_id');
+
+            $table->foreignId('address_city_id')->nullable()->after('name')->change();
         });
     }
 

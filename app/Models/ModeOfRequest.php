@@ -14,6 +14,6 @@ class ModeOfRequest extends Model
 
     public function assistance(): HasMany
     {
-        return $this->hasMany(Assistance::class);
+        return $this->hasMany(AssistanceRequest::class);
     }
 }

@@ -89,10 +89,10 @@ class AssistanceRequest extends Model
      */
     public function scopeWherePending($query)
     {
-        $query->whereNull("dateDelivered")
-            ->whereNull("dateDenied")
-            ->whereNull("dateVerified")
-            ->whereNotNull('dateRequested');
+        $query->whereNull("date_delivered")
+            ->whereNull("date_denied")
+            ->whereNull("date_verified")
+            ->whereNotNull('date_requested');
     }
 
     /**
@@ -100,8 +100,8 @@ class AssistanceRequest extends Model
      */
     public function scopeWhereVerified($query)
     {
-        $query->whereNull("dateDelivered")
-            ->whereNotNull("dateVerified");
+        $query->whereNull("date_delivered")
+            ->whereNotNull("date_verified");
     }
 
     /**
@@ -110,7 +110,7 @@ class AssistanceRequest extends Model
     public function scopeWhereDelivered(EloquentBuilder $query)
     {
         // This method is deprecated. Use scopeDelivered instead.
-        $query->whereNotNull("dateDelivered")
+        $query->whereNotNull("date_delivered")
             ->whereHas('assistanceItem', function (EloquentBuilder $query) {
                 $query->where('is_received', true);
             });
@@ -121,26 +121,26 @@ class AssistanceRequest extends Model
      */
     public function scopeWhereDenied($query)
     {
-        $query->whereNotNull("dateDenied");
+        $query->whereNotNull("date_denied");
     }
 
     public function scopePending($query)
     {
-        $query->whereNull("dateDelivered")
-            ->whereNull("dateDenied")
-            ->whereNull("dateVerified")
-            ->whereNotNull('dateRequested');
+        $query->whereNull("date_delivered")
+            ->whereNull("date_denied")
+            ->whereNull("date_verified")
+            ->whereNotNull('date_requested');
     }
 
     public function scopeVerified($query)
     {
-        $query->whereNull("dateDelivered")
-            ->whereNotNull("dateVerified");
+        $query->whereNull("date_delivered")
+            ->whereNotNull("date_verified");
     }
 
     public function scopeDelivered(EloquentBuilder $query)
     {
-        $query->whereNotNull("dateDelivered")
+        $query->whereNotNull("date_delivered")
             ->whereHas('assistanceItem', function (EloquentBuilder $query) {
                 $query->where('is_received', true);
             });
@@ -148,13 +148,13 @@ class AssistanceRequest extends Model
 
     public function scopeDenied($query)
     {
-        $query->whereNotNull("dateDenied");
+        $query->whereNotNull("date_denied");
     }
 
     public function scopeWhereWithoutAction($query)
     {
-        $query->whereNull('dateDelivered')
-            ->whereNull('dateDenied');
+        $query->whereNull('date_delivered')
+            ->whereNull('date_denied');
     }
 
     /**
@@ -162,12 +162,12 @@ class AssistanceRequest extends Model
      */
     public function scopeWherePersonalAssistance($query)
     {
-        $query->whereNotNull('beneficiary_id');
+        $query->whereNotNull('individual_id');
     }
 
     public function scopePersonalAssistance($query)
     {
-        $query->whereNotNull('beneficiary_id');
+        $query->whereNotNull('individual_id');
     }
 
     /**

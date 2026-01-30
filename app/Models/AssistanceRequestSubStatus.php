@@ -2,16 +2,16 @@
 
 namespace App\Models;
 
-use DDZobov\PivotSoftDeletes\Relations\Pivot;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class AssistanceRequestSubStatus extends Pivot
+class AssistanceRequestSubStatus extends model
 {
     use HasFactory;
 
-    public function assistance()
+    public function assistanceRequest(): BelongsTo
     {
-        return $this->belongsTo(Assistance::class, 'assistance_id');
+        return $this->belongsTo(AssistanceRequest::class, 'assistance_request_id');
     }
 }

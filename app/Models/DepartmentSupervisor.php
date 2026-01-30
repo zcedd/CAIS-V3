@@ -4,9 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use DDZobov\PivotSoftDeletes\Relations\Pivot;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class DepartmentUser extends Pivot
+class DepartmentSupervisor extends model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 }

@@ -22,8 +22,8 @@ return new class extends Migration
             $table->renameColumn('beneficiary_id', 'individual_id');
 
             $table->foreignId('program_id')->after('id')->change();
-            $table->foreignId('beneficiary_id')->nullable()->after('program_id')->change();
-            $table->foreignId('organization_id')->nullable()->after('beneficiary_id')->change();
+            $table->foreignId('individual_id')->nullable()->after('program_id')->change();
+            $table->foreignId('organization_id')->nullable()->after('individual_id')->change();
             $table->foreignId('mode_of_request_id')->nullable()->after('organization_id')->change();
             $table->foreignId('user_id')->nullable()->after('mode_of_request_id')->change();
         });
