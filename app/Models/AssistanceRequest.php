@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class AssistanceRequest extends Model
 {
@@ -24,6 +23,11 @@ class AssistanceRequest extends Model
     public function beneficiary(): BelongsTo
     {
         return $this->belongsTo(Beneficiary::class);
+    }
+
+    public function organization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class);
     }
 
     public function modeOfRequest(): BelongsTo
@@ -48,29 +52,29 @@ class AssistanceRequest extends Model
 
     public function scopePending($query)
     {
-        $query->whereNull("date_delivered")
-            ->whereNull("date_denied")
-            ->whereNull("date_verified")
+        $query->whereNull('date_delivered')
+            ->whereNull('date_denied')
+            ->whereNull('date_verified')
             ->whereNotNull('date_requested');
     }
 
     public function scopeVerified($query)
     {
-        $query->whereNull("date_delivered")
-            ->whereNotNull("date_verified");
+        $query->whereNull('date_delivered')
+            ->whereNotNull('date_verified');
     }
 
     public function scopeDelivered(EloquentBuilder $query)
     {
-        $query->whereNotNull("date_delivered")
-            ->whereHas('assistanceItem', function (EloquentBuilder $query) {
-                $query->where('is_received', true);
+        $query->whereNotNull('date_delivered')
+            ->whereHas('requestItem', function (EloquentBuilder $q) {
+                $q->where('is_received', true);
             });
     }
 
     public function scopeDenied($query)
     {
-        $query->whereNotNull("date_denied");
+        $query->whereNotNull('date_denied');
     }
 
     public function scopeWhereWithoutAction($query)
@@ -84,12 +88,12 @@ class AssistanceRequest extends Model
      */
     public function scopeWherePersonalAssistance($query)
     {
-        $query->whereNotNull('individual_id');
+        $query->whereNotNull('beneficiary_id');
     }
 
     public function scopePersonalAssistance($query)
     {
-        $query->whereNotNull('individual_id');
+        $query->whereNotNull('beneficiary_id');
     }
 
     /**

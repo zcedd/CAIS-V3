@@ -4,70 +4,68 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
-import { index, show } from '@/routes/project';
+import { index, show } from '@/routes/program';
 import { type BreadcrumbItem } from '@/types';
-import { Assistance, Project } from '@/types/project';
+import { type Assistance, type Program } from '@/types/program';
 import { Head, WhenVisible } from '@inertiajs/react';
 import { organizationalDeliveredColumns } from './delivered-assistance/organization-delivered-column';
 import { personalDeliveredColumns } from './delivered-assistance/personal-delivered-column';
 import { organizationalPendingColumns } from './pending-assistance/organization-pending-column';
 import { personalPendingColumns } from './pending-assistance/personal-pending-column';
 
-const breadcrumbs: BreadcrumbItem[] = [
-    {
-        title: 'Project List',
-        href: index().url,
-    },
-    {
-        title: 'Profile',
-        href: show(1).url,
-    },
-];
-
 export default function Index({
-    project,
+    program,
     personalPendingAssistance,
     organizationalPendingAssistance,
     personalDeliveredAssistance,
     organizationalDeliveredAssistance,
+    personalDeniedAssistance,
+    organizationalDeniedAssistance,
 }: {
-    project: Project;
+    program: Program;
     personalPendingAssistance: Assistance[];
     organizationalPendingAssistance: Assistance[];
     personalDeliveredAssistance: Assistance[];
     organizationalDeliveredAssistance: Assistance[];
+    personalDeniedAssistance: Assistance[];
+    organizationalDeniedAssistance: Assistance[];
 }) {
+    const breadcrumbs: BreadcrumbItem[] = [
+        { title: 'Program List', href: index().url },
+        { title: 'Profile', href: show(program.id).url },
+    ];
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Project Profile" />
+            <Head title="Program Profile" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <Card>
-                    <WhenVisible data="project" fallback={() => <Table />}>
+                    <WhenVisible data="program" fallback={() => <Table />}>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
-                                {project.name}
-                                <Badge variant="secondary">{project.is_organization ? 'Organization' : 'Personal'}</Badge>
+                                {program.name}
+                                <Badge variant="secondary">{program.is_organization ? 'Organization' : 'Personal'}</Badge>
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="mb-2">
                                 <span className="font-semibold">Description:</span>
-                                <span className="ml-2 text-muted-foreground">{project.descriptions || 'No description provided.'}</span>
+                                <span className="ml-2 text-muted-foreground">{program.descriptions || 'No description provided.'}</span>
                             </div>
                             <div className="mb-2">
                                 <span className="font-semibold">Date:</span>
                                 <span className="ml-2 text-muted-foreground">
-                                    <span>{project.dateStarted ?? 'N/A'}</span>
-                                    <span>{project.dateEnded ? ' - ' + project.dateEnded : ''}</span>
+                                    <span>{program.date_started ?? 'N/A'}</span>
+                                    <span>{program.date_ended ? ' - ' + program.date_ended : ''}</span>
                                 </span>
                             </div>
                             <div className="mb-2">
                                 <span className="font-semibold">Source of fund:</span>
                                 <span className="ml-2 text-muted-foreground">
-                                    {project.source_of_fund && project.source_of_fund.length > 0
-                                        ? project.source_of_fund.map((project, idx: number) => (
+                                    {program.sourceOfFund && program.sourceOfFund.length > 0
+                                        ? program.sourceOfFund.map((fund: { name: string }, idx: number) => (
                                               <div key={idx} className="">
-                                                  {project.name}
+                                                  {fund.name}
                                               </div>
                                           ))
                                         : 'N/A'}
@@ -86,7 +84,7 @@ export default function Index({
                             <TabsTrigger value="denied">Denied</TabsTrigger>
                         </TabsList>
                         <TabsContent value="pending">
-                            {project.is_organization ? (
+                            {program.is_organization ? (
                                 <WhenVisible data="organizationalPendingAssistance" fallback={() => <Table />}>
                                     <DataTable columns={organizationalPendingColumns} data={organizationalPendingAssistance} />
                                 </WhenVisible>
@@ -98,7 +96,7 @@ export default function Index({
                         </TabsContent>
                         <TabsContent value="verified">Verified.</TabsContent>
                         <TabsContent value="delivered">
-                            {project.is_organization ? (
+                            {program.is_organization ? (
                                 <WhenVisible data="organizationalDeliveredAssistance" fallback={() => <Table />}>
                                     <DataTable columns={organizationalDeliveredColumns} data={organizationalDeliveredAssistance} />
                                 </WhenVisible>
@@ -108,7 +106,17 @@ export default function Index({
                                 </WhenVisible>
                             )}
                         </TabsContent>
-                        <TabsContent value="denied">Denied.</TabsContent>
+                        <TabsContent value="denied">
+                            {program.is_organization ? (
+                                <WhenVisible data="organizationalDeniedAssistance" fallback={() => <Table />}>
+                                    <DataTable columns={organizationalPendingColumns} data={organizationalDeniedAssistance} />
+                                </WhenVisible>
+                            ) : (
+                                <WhenVisible data="personalDeniedAssistance" fallback={() => <Table />}>
+                                    <DataTable columns={personalPendingColumns} data={personalDeniedAssistance} />
+                                </WhenVisible>
+                            )}
+                        </TabsContent>
                     </Tabs>
                 </div>
             </div>

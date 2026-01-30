@@ -3,9 +3,9 @@ import { ProjectCard } from '@/components/skeleton/project-card';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import AppLayout from '@/layouts/app-layout';
-import { create, index, show } from '@/routes/project';
+import { create, index, show } from '@/routes/program';
 import { type BreadcrumbItem } from '@/types';
-import { Project } from '@/types/project';
+import { Program } from '@/types/program';
 import { Head, Link, router, WhenVisible } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -13,32 +13,32 @@ import ChartStatus, { ChartData } from './chart-status';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Project List',
+        title: 'Program List',
         href: index().url,
     },
 ];
 
-export default function Index({ projects, search, perPage }: { projects: Project[]; search: string; perPage: string }) {
-    const getChartData = (Project: Project) => {
-        let chartData: Array<ChartData> = [
+export default function Index({ programs, search, perPage }: { programs: Program[]; search?: string; perPage?: string }) {
+    const getChartData = (program: Program) => {
+        const chartData: Array<ChartData> = [
             {
                 status: 'Pending',
-                count: Project.pending_assistance ? Project.pending_assistance.length : 0,
+                count: program.pendingAssistance?.length ?? 0,
                 fill: 'var(--color-pending)',
             },
             {
                 status: 'Verified',
-                count: Project.verified_assistance ? Project.verified_assistance.length : 0,
+                count: program.verifiedAssistance?.length ?? 0,
                 fill: 'var(--color-verified)',
             },
             {
                 status: 'Delivered',
-                count: Project.delivered_assistance ? Project.delivered_assistance.length : 0,
+                count: program.deliveredAssistance?.length ?? 0,
                 fill: 'var(--color-delivered)',
             },
             {
                 status: 'Denied',
-                count: Project.denied_assistance ? Project.denied_assistance.length : 0,
+                count: program.deniedAssistance?.length ?? 0,
                 fill: 'var(--color-denied)',
             },
         ];
@@ -48,49 +48,46 @@ export default function Index({ projects, search, perPage }: { projects: Project
 
     const fetchData = () => {
         setPerPageQuery('15');
-        const params: { search?: string; perPage?: string } = {};
+        const params: { search?: string; per_page?: string } = {};
 
         if (searchQuery.trim()) {
             params.search = searchQuery;
         }
 
         if (perPage) {
-            params.perPage = perPageQuery;
+            params.per_page = perPageQuery;
         }
 
-        console.log(params);
         router.get(index().url, params, {
             preserveState: true,
             replace: true,
             preserveScroll: true,
-            only: ['Projects'],
+            only: ['programs'],
             showProgress: false,
         });
     };
 
-    const [searchQuery, setSearchQuery] = useState(search || '');
+    const [searchQuery, setSearchQuery] = useState(search ?? '');
 
-    const [perPageQuery, setPerPageQuery] = useState(perPage || '');
+    const [perPageQuery, setPerPageQuery] = useState(perPage ?? '');
 
     useEffect(() => {
         const handler = setTimeout(() => {
-            const params: { search?: string; perPage?: string } = {};
+            const params: { search?: string; per_page?: string } = {};
 
             if (searchQuery.trim()) {
                 params.search = searchQuery;
             }
 
             if (perPage) {
-                params.perPage = perPage;
+                params.per_page = perPage;
             }
-
-            console.log(perPage);
 
             router.get(index().url, params, {
                 preserveState: true,
                 replace: true,
                 preserveScroll: true,
-                only: ['Projects'],
+                only: ['programs'],
                 showProgress: false,
             });
         }, 500);
@@ -99,16 +96,16 @@ export default function Index({ projects, search, perPage }: { projects: Project
     }, [searchQuery, perPage]);
 
     useEffect(() => {
-        setSearchQuery(search || '');
+        setSearchQuery(search ?? '');
     }, [search]);
 
     useEffect(() => {
-        setPerPageQuery(perPage || '0');
+        setPerPageQuery(perPage ?? '');
     }, [perPage]);
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Project" />
+            <Head title="Programs" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="grid grid-cols-2">
                     <div className="flex justify-start">
@@ -123,12 +120,12 @@ export default function Index({ projects, search, perPage }: { projects: Project
                     </div>
                     <div className="flex justify-end">
                         <Button asChild>
-                            <Link href={create().url}>Create Project</Link>
+                            <Link href={create().url}>Create Program</Link>
                         </Button>
                     </div>
                 </div>
                 <InfiniteScroll
-                    dataLength={projects.length} //This is important field to render the next data
+                    dataLength={programs.length}
                     next={fetchData}
                     hasMore={true}
                     loader={
@@ -145,43 +142,43 @@ export default function Index({ projects, search, perPage }: { projects: Project
                     }
                 >
                     <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                        {projects &&
-                            projects.map((project, idx) => (
-                                <div key={project.id ?? idx}>
-                                    <Link href={show(project.id).url}>
+                        {programs &&
+                            programs.map((program, idx) => (
+                                <div key={program.id ?? idx}>
+                                    <Link href={show(program.id).url}>
                                         <Card className="h-100">
                                             <CardHeader className="gap-0">
-                                                <CardTitle className="text-lg">{project.name}</CardTitle>
-                                                <CardDescription>{project.is_organization ? 'Organization' : 'Personal'}</CardDescription>
+                                                <CardTitle className="text-lg">{program.name}</CardTitle>
+                                                <CardDescription>{program.is_organization ? 'Organization' : 'Personal'}</CardDescription>
                                             </CardHeader>
                                             <CardContent className="text-sm">
                                                 <div className="grid grid-cols-2 gap-2">
                                                     <div className="">
                                                         <p>
                                                             <span className="font-bold">Details: </span>
-                                                            {project.descriptions?.slice(0, 50)}
-                                                            {project.descriptions && project.descriptions.length > 50 ? '...' : ''}
+                                                            {program.descriptions?.slice(0, 50)}
+                                                            {program.descriptions && program.descriptions.length > 50 ? '...' : ''}
                                                         </p>
                                                         <p>
                                                             <span className="font-bold">Date: </span>
-                                                            {project.dateStarted} {project.dateEnded ? '- ' + project.dateEnded : ''}
+                                                            {program.date_started} {program.date_ended ? '- ' + program.date_ended : ''}
                                                         </p>
                                                         <p>
                                                             <span className="font-bold">No. of pending request: </span>
-                                                            {project.pending_assistance ? project.pending_assistance.length : 0}
+                                                            {program.pendingAssistance?.length ?? 0}
                                                         </p>
                                                         <p>
                                                             <span className="font-bold">No. of delivered request: </span>
-                                                            {project.delivered_assistance ? project.delivered_assistance.length : 0}
+                                                            {program.deliveredAssistance?.length ?? 0}
                                                         </p>
                                                         <p>
                                                             <span className="font-bold">No. of denied request: </span>
-                                                            {project.denied_assistance ? project.denied_assistance.length : 0}
+                                                            {program.deniedAssistance?.length ?? 0}
                                                         </p>
                                                     </div>
                                                     <div className="">
-                                                        <WhenVisible data="project" fallback={() => <Chart />} key={project.id}>
-                                                            <ChartStatus chartData={getChartData(project)} />
+                                                        <WhenVisible data="program" fallback={() => <Chart />} key={program.id}>
+                                                            <ChartStatus chartData={getChartData(program)} />
                                                         </WhenVisible>
                                                     </div>
                                                 </div>

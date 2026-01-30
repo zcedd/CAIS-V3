@@ -6,7 +6,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
-import { create, index, store } from '@/routes/project';
+import { create, index, store } from '@/routes/program';
 import { type BreadcrumbItem } from '@/types';
 import { Form, Head, Link } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
-        title: 'Project List',
+        title: 'Program List',
         href: index().url,
     },
     {
@@ -38,8 +38,8 @@ export interface Item {
     department_id: string;
 }
 
-export default function Create({ SourceOfFunds, Items }: { SourceOfFunds: SourceOfFund[]; Items: Item[] }) {
-    const sourceOfFundOptions = [...SourceOfFunds.map((fund) => ({ value: String(fund.id), label: fund.name }))];
+export default function Create({ Funds, Items }: { Funds: SourceOfFund[]; Items: Item[] }) {
+    const sourceOfFundOptions = [...Funds.map((fund) => ({ value: String(fund.id), label: fund.name }))];
     const [selectedSourceOfFunds, setSelectedSourceOfFunds] = React.useState<string[]>([]);
 
     const itemOptions = [...Items.map((item) => ({ value: String(item.id), label: item.name }))];
@@ -104,7 +104,7 @@ export default function Create({ SourceOfFunds, Items }: { SourceOfFunds: Source
 
                                 <div className="md:col-span-2">
                                     <Label htmlFor="descriptions">Descriptions</Label>
-                                    <Textarea id="descriptions" name="descriptions" placeholder="Describe the project" />
+                                    <Textarea id="descriptions" name="descriptions" placeholder="Describe the program" />
                                     {errors.descriptions && <p className="mt-1 text-sm text-red-600">{errors.descriptions}</p>}
                                 </div>
 
@@ -232,7 +232,7 @@ export default function Create({ SourceOfFunds, Items }: { SourceOfFunds: Source
                                         className="flex flex-col text-sm font-medium text-neutral-700 dark:text-neutral-200"
                                     >
                                         Mark as organization
-                                        <small>This will determine if the project or program is for a personal or an organization.</small>
+                                        <small>This will determine if the program is for personal or organizational assistance.</small>
                                     </Label>
                                 </div>
                             </div>

@@ -1,11 +1,11 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Assistance } from '@/types/project';
+import { type Assistance } from '@/types/program';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 
-export const organizationalPendingColumns: ColumnDef<Assistance>[] = [
+export const personalPendingColumns: ColumnDef<Assistance>[] = [
     {
         accessorKey: 'id',
         header: ({ column }) => {
@@ -18,7 +18,7 @@ export const organizationalPendingColumns: ColumnDef<Assistance>[] = [
         },
     },
     {
-        accessorKey: 'organization.name',
+        accessorKey: 'beneficiary.individual.firstName',
         header: ({ column }) => {
             return (
                 <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
@@ -29,7 +29,18 @@ export const organizationalPendingColumns: ColumnDef<Assistance>[] = [
         },
     },
     {
-        accessorKey: 'dateRequested',
+        accessorKey: 'beneficiary.individual.lastName',
+        header: ({ column }) => {
+            return (
+                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+                    Last name
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+            );
+        },
+    },
+    {
+        accessorKey: 'date_requested',
         header: ({ column }) => {
             return (
                 <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
@@ -40,7 +51,7 @@ export const organizationalPendingColumns: ColumnDef<Assistance>[] = [
         },
     },
     {
-        accessorKey: 'mode_of_request.name',
+        accessorKey: 'modeOfRequest.name',
         header: ({ column }) => {
             return (
                 <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>

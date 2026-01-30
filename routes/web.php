@@ -1,6 +1,6 @@
 <?php
 
-use App\Http\Controllers\ProjectController;
+use App\Http\Controllers\ProgramController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -13,7 +13,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('dashboard');
     })->name('dashboard');
 
-    Route::resource('project', ProjectController::class)->only([
+    Route::resource('program', ProgramController::class)->only([
         'index',
         'show',
         'create',
@@ -21,14 +21,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // 'edit',
         // 'update'
     ])->names([
-        'index' => 'project.index',
-        'show' => 'project.show',
-        'create' => 'project.create',
-        'store' => 'project.store',
-        // 'edit' => 'project.edit',
-        // 'update' => 'project.update',
+        'index' => 'program.index',
+        'show' => 'program.show',
+        'create' => 'program.create',
+        'store' => 'program.store',
+        // 'edit' => 'program.edit',
+        // 'update' => 'program.update',
     ]);
 });
 
-require __DIR__ . '/settings.php';
-require __DIR__ . '/auth.php';
+require __DIR__.'/settings.php';
+require __DIR__.'/auth.php';

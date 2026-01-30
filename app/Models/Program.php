@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-use Spatie\Activitylog\LogOptions;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Program extends Model
 {
@@ -24,7 +23,7 @@ class Program extends Model
         'is_closed',
         'created_at',
         'updated_at',
-        'is_organization'
+        'is_organization',
     ];
 
     protected $casts = [
@@ -64,7 +63,7 @@ class Program extends Model
 
     public function sourceOfFund(): BelongsToMany
     {
-        return $this->belongsToMany(Fund::class);
+        return $this->belongsToMany(Fund::class, 'program_funds');
     }
 
     public function item(): BelongsToMany

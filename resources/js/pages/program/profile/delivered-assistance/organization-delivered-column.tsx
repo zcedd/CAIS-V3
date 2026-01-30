@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Assistance } from '@/types/project';
+import { type Assistance } from '@/types/program';
 import { ColumnDef } from '@tanstack/react-table';
 import { ArrowUpDown } from 'lucide-react';
 
@@ -29,7 +29,7 @@ export const organizationalDeliveredColumns: ColumnDef<Assistance>[] = [
         },
     },
     {
-        accessorKey: 'dateRequested',
+        accessorKey: 'date_requested',
         header: ({ column }) => {
             return (
                 <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
@@ -40,7 +40,7 @@ export const organizationalDeliveredColumns: ColumnDef<Assistance>[] = [
         },
     },
     {
-        accessorKey: 'mode_of_request.name',
+        accessorKey: 'modeOfRequest.name',
         header: ({ column }) => {
             return (
                 <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
