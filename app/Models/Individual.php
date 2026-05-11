@@ -2,16 +2,23 @@
 
 namespace App\Models;
 
-use Spatie\Activitylog\LogOptions;
-use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\AddrsBrgy;
+use App\Models\Assistance;
+use App\Models\BeneficiaryIdentification;
+use App\Models\BeneficiaryOrganization;
+use App\Models\CivilStatus;
+use App\Models\Identification;
+use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
-class Beneficiary extends Model
+class Individual extends Model
 {
     use HasFactory;
     use SoftDeletes;
@@ -19,22 +26,22 @@ class Beneficiary extends Model
 
     protected $fillable = [
         'cais_number',
-        'first_name',
-        'middle_name',
-        'last_name',
+        'firstName',
+        'middleName',
+        'lastName',
         'suffix',
         'birthday',
         'sex',
         'other_address',
         'civil_status_id',
-        'mobile_number',
+        'mobileNumber',
         'indigenous',
         'ethnicity',
         'pwd',
         'is_4ps_beneficiary',
         'is_solo_parent',
         'spouse',
-        'address_barangay_id',
+        'brgy_id',
         'created_at',
         'updated_at'
     ];

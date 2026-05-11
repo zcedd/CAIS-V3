@@ -3,12 +3,15 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-// use Illuminate\Database\Eloquent\Model;
-// use Illuminate\Database\Eloquent\Relations\Pivot;
-use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Spatie\Activitylog\LogOptions;
-use DDZobov\PivotSoftDeletes\Relations\Pivot;
+use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @deprecated This class is deprecated and should not be used in new code. 
+ * Use IndividualOrganization instead.
+ */
+#[\AllowDynamicProperties]
 class BeneficiaryOrganization extends Pivot
 {
     use HasFactory;
@@ -30,8 +33,8 @@ class BeneficiaryOrganization extends Pivot
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-        ->logFillable()
-        ->useLogName('BeneficiaryOrganization')
-        ->setDescriptionForEvent(fn(string $eventName) => "This BeneficiaryOrganization model has been {$eventName}");
+            ->logFillable()
+            ->useLogName('BeneficiaryOrganization')
+            ->setDescriptionForEvent(fn(string $eventName) => "This BeneficiaryOrganization model has been {$eventName}");
     }
 }
