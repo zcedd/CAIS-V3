@@ -1,0 +1,560 @@
+addrs_city_id,name
+1,Adams (Pob.)
+2,Bani
+2,Buyon
+2,Cabaruan
+2,Cabulalaan
+2,Cabusligan
+2,Cadaratan
+2,Calioet-Libong
+2,Casilian
+2,Corocor
+2,Duripes
+2,Ganagan
+2,Libtong
+2,Macupit
+2,Nambaran
+2,Natba
+2,Paninaan
+2,Pasiocan
+2,Pasngal
+2,Pipias
+2,Pulangi
+2,Pungto
+2,San Agustin I (Pob.)
+2,San Agustin II (Pob.)
+2,San Andres I (Pob.)
+2,San Andres II (Pob.)
+2,San Gabriel I (Pob.)
+2,San Gabriel II (Pob.)
+2,San Pedro I (Pob.)
+2,San Pedro II (Pob.)
+2,San Roque I (Pob.)
+2,San Roque II (Pob.)
+2,San Simon I (Pob.)
+2,San Simon II (Pob.)
+2,San Vicente (Pob.)
+2,Sangil
+2,Santa Filomena I (Pob.)
+2,Santa Filomena II (Pob.)
+2,Santa Rita (Pob.)
+2,Santo Cristo I (Pob.)
+2,Santo Cristo II (Pob.)
+2,Tambidao
+2,Teppang
+2,Tubburan
+3,Alay-Nangbabaan (Alay 15-B)
+3,Alogoog
+3,Ar-arusip
+3,Aring
+3,Balbaldez
+3,Bato
+3,Camanga
+3,Canaan (Pob.)
+3,Caraitan
+3,Gabut Norte
+3,Gabut Sur
+3,Garreta (Pob.)
+3,Labut
+3,Lacuben
+3,Lubigan
+3,Mabusag Norte
+3,Mabusag Sur
+3,Madupayas
+3,Morong
+3,Nagrebcan
+3,Napu
+3,La Virgen Milagrosa (Paguetpet)
+3,Pagsanahan Norte
+3,Pagsanahan Sur
+3,Paltit
+3,Parang
+3,Pasuc
+3,Santa Cruz Norte
+3,Santa Cruz Sur
+3,Saud
+3,Turod
+4,Abaca
+4,Bacsil
+4,Banban
+4,Baruyen
+4,Dadaor
+4,Lanao
+4,Malasin
+4,Manayon
+4,Masikil
+4,Nagbalagan
+4,Payac
+4,San Lorenzo (Pob.)
+4,Taguiporo
+4,Utol
+5,Aglipay (Pob.)
+5,Baay
+5,Baligat
+5,Bungon
+5,Baoa East
+5,Baoa West
+5,Barani (Pob.)
+5,Ben-agan (Pob.)
+5,Bil-loca
+5,Biningan
+5,Callaguip (Pob.)
+5,Camandingan
+5,Camguidan
+5,Cangrunaan (Pob.)
+5,Capacuan
+5,Caunayan (Pob.)
+5,Valdez Pob. (Caoayan)
+5,Colo
+5,Pimentel (Cubol)
+5,Dariwdiw
+5,Acosta Pob. (Iloilo)
+5,Ablan Pob. ( Labucao)
+5,Lacub (Pob.)
+5,Mabaleng
+5,Magnuang
+5,Maipalig
+5,Nagbacalan
+5,Naguirangan
+5,Ricarte Pob. (Nalasin)
+5,Palongpong
+5,Palpalicong (Pob.)
+5,Parangopong
+5,Payao
+5,Quiling Norte
+5,Quiling Sur
+5,Quiom
+5,Rayuray
+5,San Julian (Pob.)
+5,San Mateo
+5,San Pedro
+5,Suabit (Pob.)
+5,Sumader
+5,Tabug
+6,Ablan Sarat
+6,Agaga
+6,Bayog
+6,Bobon
+6,Buduan (Malituek)
+6,Nagsurot
+6,Paayas
+6,Pagali
+6,Poblacion
+6,Saoit
+6,Tanap
+7,Angset
+7,Barbaqueso (Pob.)
+7,Virbira
+8,Anggapang Norte
+8,Anggapang Sur
+8,Bimmanga
+8,Cabuusan
+8,Comcomloong
+8,Gaang
+8,Lang-ayan-Baramban
+8,Lioes
+8,Maglaoi Centro
+8,Maglaoi Norte
+8,Maglaoi Sur
+8,Paguludan-Salindeg
+8,Pangil
+8,Pias Norte
+8,Pias Sur
+8,Poblacion I
+8,Poblacion II
+8,Salugan
+8,San Simeon
+8,Santa Cruz
+8,Tapao-Tigue
+8,Torre
+8,Victoria
+9,Albano (Pob.)
+9,Bacsil
+9,Bagut
+9,Parado (Bangay)
+9,Baresbes
+9,Barong
+9,Bungcag
+9,Cali
+9,Capasan
+9,Dancel (Pob.)
+9,Foz
+9,Guerrero (Pob.)
+9,Lanas
+9,Lumbad
+9,Madamba (Pob.)
+9,Mandaloque
+9,Medina
+9,Ver (Naglayaan)
+9,San Marcelino (Padong)
+9,Puruganan (Pob.)
+9,Peralta (Pob.)
+9,Root (Baldias)
+9,Sagpatan
+9,Saludares
+9,San Esteban
+9,Espiritu
+9,Sulquiano (Sidiran)
+9,San Francisco (Surrate)
+9,Suyo
+9,San Marcos
+9,Elizabeth
+10,Cabaritan (Dumalneg)
+10,San Isidro
+10,Kalaw (Dumalneg)
+10,Quibel (Dumalneg)
+11,Balioeg
+11,Bangsar
+11,Barbarangay
+11,Bomitog
+11,Bugasi
+11,Caestebanan
+11,Caribquib
+11,Catagtaguen
+11,Crispina
+11,Hilario (Pob.)
+11,Imelda
+11,Lorenzo (Pob.)
+11,Macayepyep
+11,Marcos (Pob.)
+11,Nagpatayan
+11,Valdez
+11,Sinamar
+11,Tabtabagan
+11,Valenciano (Pob.)
+11,Binacag
+12,"Bgy. No. 42, Apaya"
+12,"Bgy. No. 36, Araniw"
+12,"Bgy. No. 56-A, Bacsil North"
+12,"Bgy. No. 56-B, Bacsil South"
+12,"Bgy. No. 41, Balacad"
+12,"Bgy. No. 40, Balatong"
+12,"Bgy. No. 55-A, Barit-Pandan"
+12,"Bgy. No. 47, Bengcag"
+12,"Bgy. No. 50, Buttong"
+12,"Bgy. No. 60-A, Caaoacan"
+12,"Bry. No. 48-A, Cabungaan North"
+12,"Bgy. No. 48-B, Cabungaan South"
+12,"Bgy. No. 37, Calayab"
+12,"Bgy. No. 54-B, Camangaan"
+12,"Bgy. No. 58, Casili"
+12,"Bgy. No. 61, Cataban"
+12,"Bgy. No. 43, Cavit"
+12,"Bgy. No. 49-A, Darayday"
+12,"Bgy. No. 59-B, Dibua North"
+12,"Bgy. No. 59-A, Dibua South"
+12,"Bgy. No. 34-B, Gabu Norte East"
+12,"Bgy. No. 34-A, Gabu Norte West"
+12,"Bgy. No. 35, Gabu Sur"
+12,Bgy. No. 32-C La Paz East
+12,"Bgy. No. 33-B, La Paz Proper"
+12,"Bgy. No. 32-B, La Paz West"
+12,"Bgy. No. 54-A, Lagui-Sail"
+12,"Bgy. No. 32-A, La Paz East"
+12,"Bgy. No. 33-A, La Paz Proper"
+12,"Bgy. No. 52-B, Lataag"
+12,"Bgy. No. 60-B, Madiladig"
+12,"Bgy. No. 38-A, Mangato East"
+12,"Bgy. No. 38-B, Mangato West"
+12,"Bgy. No. 62-A, Navotas North"
+12,"Bgy. No. 62-B, Navotas South"
+12,"Bgy. No. 46, Nalbo"
+12,"Bgy. No. 51-A, Nangalisan East"
+12,"Bgy. No. 51-B, Nangalisan West"
+12,"Bgy. No. 24, Nstra. Sra. De Consolacion (Pob.)"
+12,"Bgy. No. 7-A, Nstra. Sra. De Natividad (Pob.)"
+12,"Bgy. No. 7-B, Nstra. Sra. De Natividad (Pob.)"
+12,"Bgy. No. 27, Nstra. Sra. De Soledad (Pob.)"
+12,"Bgy. No. 13, Nstra. Sra. De Visitacion (Pob.)"
+12,"Bgy. No. 3, Nstra. Sra. Del Rosario (Pob.)"
+12,"Bgy. No. 57, Pila"
+12,"Bgy. No. 49-B, Raraburan"
+12,"Bgy. No. 53, Rioeng"
+12,"Bgy. No. 55-B, Salet-Bulangon"
+12,"Bgy. No. 6, San Agustin (Pob.)"
+12,"Bgy. No. 22, San Andres (Pob.)"
+12,"Bgy. No. 28, San Bernardo (Pob.)"
+12,"Bgy. No. 17, San Francisco (Pob.)"
+12,"Bgy. No. 4, San Guillermo (Pob.)"
+12,"Bgy. No. 15, San Guillermo (Pob.)"
+12,"Bgy. No. 12, San Isidro (Pob.)"
+12,"Bgy. No. 16, San Jacinto (Pob.)"
+12,"Bgy. No. 10, San Jose (Pob.)"
+12,"Bgy. No. 1, San Lorenzo (Pob.)"
+12,"Bgy. No. 26, San Marcelino (Pob.)"
+12,"Bgy. No. 52-A, San Mateo"
+12,"Bgy. No. 23, San Matias (Pob.)"
+12,"Bgy. No. 20, San Miguel (Pob.)"
+12,"Bgy. No. 21, San Pedro (Pob.)"
+12,"Bgy. No. 5, San Pedro (Pob.)"
+12,"Bry. No. 18, San Quirino (Pob.)"
+12,"Bgy. No. 8, San Vicente (Pob.)"
+12,"Bgy. No. 9, Santa Angela (Pob.)"
+12,"Bgy. No. 11, Santa Balbina (Pob.)"
+12,"Bgy. No. 25, Santa Cayetana (Pob.)"
+12,"Bgy. No. 2, Santa Joaquina (Pob.)"
+12,"Bgy. No. 19, Santa Marcela (Pob.)"
+12,"Bgy. No. 30-B, Santa Maria"
+12,"Bgy. No. 39, Santa Rosa"
+12,"Bgy. No. 14, Santo Tomas (Pob.)"
+12,"Bgy. No. 29, Santo Tomas (Pob.)"
+12,"Bgy. No. 30-A, Suyo"
+12,"Bgy. No. 31, Talingaan"
+12,"Bgy. No. 45, Tangid"
+12,"Bgy. No. 55-C, Vira"
+12,"Bgy. No. 44, Zamboanga"
+13,Pacifico (Agunit)
+13,Imelda (Capariaan)
+13,Elizabeth (Culao)
+13,Daquioag
+13,Escoda
+13,Ferdinand
+13,Fortuna
+13,Lydia (Pob.)
+13,Mabuti
+13,Valdez (Biding)
+13,Tabucbuc (Ragas)
+13,Santiago
+13,Cacafean
+14,Acnam
+14,Barangobong
+14,Barikir
+14,Bugayong
+14,Cabittauran
+14,Caray
+14,Garnaden
+14,Naguillan (Pagpag-ong)
+14,Poblacion
+14,Santo Niño
+14,Uguis
+15,Aggasi
+15,Baduang
+15,Balaoi
+15,Burayoc
+15,Caunayan
+15,Dampig
+15,Ligaya
+15,Pancian
+15,Pasaleng
+15,Poblacion 1
+15,Poblacion 2
+15,Saguigui
+15,Saud
+15,Subec
+15,Tarrag
+15,Caparispisan
+16,Bacsil
+16,Cabagoan
+16,Cabangaran
+16,Callaguip
+16,Cayubog
+16,Dolores
+16,Laoa
+16,Masintoc
+16,Monte
+16,Mumulaan
+16,Nagbacalan
+16,Nalasin
+16,Nanguyudan
+16,Oaig-Upay-Abulao
+16,Pambaran
+16,Pannaratan (Pob.)
+16,Paratong
+16,Pasil
+16,Salbang (Pob.)
+16,San Agustin
+16,San Blas (Pob.)
+16,San Juan
+16,San Pedro
+16,San Roque (Pob.)
+16,Sangladan Pob. (Nalbuan)
+16,Santa Rita (Pob.)
+16,Sideg
+16,Suba
+16,Sungadan
+16,Surgui
+16,Veronica
+17,Batuli
+17,Binsang
+17,Nalvo (Cababaan-Nalvo)
+17,Caruan
+17,Carusikis
+17,Carusipan
+17,Dadaeman
+17,Darupidip
+17,Davila
+17,Dilanis
+17,Dilavo
+17,Estancia
+17,Naglicuan
+17,Nagsanga
+17,Ngabangab
+17,Pangil
+17,Poblacion 1
+17,Poblacion 2
+17,Poblacion 3
+17,Poblacion 4
+17,Pragata (Pragata-Bungro)
+17,Puyupuyan
+17,Sulongan
+17,Salpad
+17,San Juan
+17,Santa Catalina
+17,Santa Matilde
+17,Sapat
+17,Sulbec
+17,Surong
+17,Susugaen
+17,Tabungao
+17,Tadao
+18,Ab-abut
+18,Abucay
+18,Anao (Pob.)
+18,Arua-ay
+18,Bimmanga
+18,Boyboy
+18,Cabaroan (Pob.)
+18,Calambeg
+18,Callusa
+18,Dupitac
+18,Estancia
+18,Gayamat
+18,Lagandit
+18,Libnaoan
+18,Loing (Pob.)
+18,Maab-abaca
+18,Mangitayag
+18,Maruaya
+18,San Antonio
+18,Santa Maria
+18,Sucsuquen
+18,Tangaoan
+18,Tonoton
+19,Aglipay
+19,Apatut-Lubong
+19,Badio
+19,Barbar
+19,Buanga
+19,Bulbulala
+19,Bungro
+19,Cabaroan
+19,Capangdanan
+19,Dalayap
+19,Darat
+19,Gulpeng
+19,Liliputen
+19,Lumbaan-Bicbica
+19,Nagtrigoan
+19,Pagdilao (Pob.)
+19,Pugaoan
+19,Puritac
+19,Sacritan
+19,Salanap
+19,Santo Tomas
+19,Tartarabang
+19,Puzol
+19,Upon
+19,Valbuena (Pob.)
+20,San Francisco (Pob.)
+20,San Ildefonso (Pob.)
+20,San Agustin
+20,San Baltazar (Pob.)
+20,San Bartolome (Pob.)
+20,San Cayetano (Pob.)
+20,San Eugenio (Pob.)
+20,San Fernando (Pob.)
+20,San Gregorio (Pob.)
+20,San Guillermo
+20,San Jose (Pob.)
+20,San Juan Bautista (Pob.)
+20,San Lorenzo
+20,San Lucas (Pob.)
+20,San Marcos (Payas)
+20,San Miguel (Pob.)
+20,San Pablo
+20,San Paulo (Pob.)
+20,San Pedro (Bingao)
+20,San Rufino (Pob.)
+20,San Silvestre (Pob.)
+20,Santa Asuncion (Samac)
+20,Santa Cecilia (Barabar)
+20,Santa Monica (Nagrebcan)
+21,San Agustin (Pob.)
+21,San Andres
+21,San Antonio
+21,San Bernabe
+21,San Cristobal
+21,San Felipe
+21,San Francisco (Pob.)
+21,San Isidro
+21,San Joaquin (Pob.)
+21,San Jose
+21,San Juan
+21,San Leandro (Pob.)
+21,San Lorenzo
+21,San Manuel
+21,San Marcos
+21,San Nicolas
+21,San Pedro
+21,San Roque
+21,San Vicente (Pob.)
+21,Santa Barbara (Pob.)
+21,Santa Magdalena
+21,Santa Rosa
+21,Santo Santiago
+21,Santo Tomas
+22,Aguitap
+22,Bagbag
+22,Bagbago
+22,Barcelona
+22,Bubuos
+22,Capurictan
+22,Catangraran
+22,Darasdas
+22,Juan (Pob.)
+22,Laureta (Pob.)
+22,Lipay
+22,Maananteng
+22,Manalpac
+22,Mariquet
+22,Nagpatpatan
+22,Nalasin
+22,Puttao
+22,San Juan
+22,San Julian
+22,Santa Ana
+22,Santiago
+22,Talugtog
+23,Abkir
+23,Alsem
+23,Bago
+23,Bulbulala
+23,Cabangaran
+23,Cabayo
+23,Cabisocolan
+23,Canaam
+23,Columbia
+23,Dagupan
+23,Pedro F. Alviar (Diaton)
+23,Dipilat
+23,Esperanza
+23,Ester
+23,Isic Isic
+23,Lubnac
+23,Mabanbanag
+23,Alejo Malasig
+23,Manarang
+23,Margaay
+23,Namoroc
+23,Malampa (Peninaan-Malampa)
+23,Parparoroc
+23,Parut
+23,Salsalamagui
+23,San Jose (Lipay)
+23,San Nicolas (Pob.)
+23,San Pedro (Pob.)
+23,San Ramon (Pob.)
+23,San Roque (Pob.)
+23,Santa Maria (Pob.)
+23,Tamdagan
+23,Visaya
