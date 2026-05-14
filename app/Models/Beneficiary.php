@@ -19,22 +19,22 @@ class Beneficiary extends Model
 
     protected $fillable = [
         'cais_number',
-        'firstName',
-        'middleName',
-        'lastName',
+        'first_name',
+        'middle_name',
+        'last_name',
         'suffix',
         'birthday',
         'sex',
         'other_address',
         'civil_status_id',
-        'mobileNumber',
+        'mobile_number',
         'indigenous',
         'ethnicity',
         'pwd',
         'is_4ps_beneficiary',
         'is_solo_parent',
         'spouse',
-        'brgy_id',
+        'address_barangay_id',
         'created_at',
         'updated_at'
     ];

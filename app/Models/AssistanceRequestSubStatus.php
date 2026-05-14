@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use DDZobov\PivotSoftDeletes\Relations\Pivot;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class AssistanceRequestSubStatus extends Pivot
 {

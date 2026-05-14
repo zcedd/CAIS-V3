@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Activitylog\LogOptions;
-use DDZobov\PivotSoftDeletes\Relations\Pivot;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class ItemProject extends Pivot
 {
@@ -29,8 +29,8 @@ class ItemProject extends Pivot
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-        ->logFillable()
-        ->useLogName('BeneficiaryOrganization')
-        ->setDescriptionForEvent(fn(string $eventName) => "This BeneficiaryOrganization model has been {$eventName}");
+            ->logFillable()
+            ->useLogName('BeneficiaryOrganization')
+            ->setDescriptionForEvent(fn(string $eventName) => "This BeneficiaryOrganization model has been {$eventName}");
     }
 }

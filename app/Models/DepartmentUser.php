@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use DDZobov\PivotSoftDeletes\Relations\Pivot;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class DepartmentUser extends Pivot
 {
