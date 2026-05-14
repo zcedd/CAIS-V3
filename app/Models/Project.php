@@ -2,13 +2,12 @@
 
 namespace App\Models;
 
-use Spatie\Activitylog\LogOptions;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Project extends Model
 {
@@ -18,18 +17,19 @@ class Project extends Model
     protected $fillable = [
         'name',
         'descriptions',
-        'dateStarted',
-        'dateEnded',
+        'start_at',
+        'end_at',
         'department_id',
         'is_closed',
+        'is_organization',
+        'source_of_fund_id',
         'created_at',
         'updated_at',
-        'is_organization'
     ];
 
     protected $casts = [
-        'dateStarted' => 'datetime:M d, Y',
-        'dateEnded' => 'datetime:M d, Y',
+        'start_at' => 'datetime:M d, Y',
+        'end_at' => 'datetime:M d, Y',
     ];
 
     public function department(): BelongsTo
