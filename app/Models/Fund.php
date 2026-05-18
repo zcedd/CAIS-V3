@@ -2,15 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-/**
- * @deprecated This class is deprecated and should not be used in new code.
- * Use Fund instead.
- */
-class SourceOfFund extends Model
+class Fund extends Model
 {
     use HasFactory;
 

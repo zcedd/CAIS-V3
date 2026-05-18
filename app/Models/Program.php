@@ -2,6 +2,10 @@
 
 namespace App\Models;
 
+use App\Models\Assistance;
+use App\Models\Department;
+use App\Models\Item;
+use App\Models\SourceOfFund;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,12 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
-/**
- * @deprecated This class is deprecated and should not be used in new code.
- * Use Program instead.
- */
-
-class Project extends Model
+class Program extends Model
 {
     use HasFactory;
     use SoftDeletes;

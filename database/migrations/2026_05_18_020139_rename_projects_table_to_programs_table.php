@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::rename('beneficiary_identification', 'individual_identification');
+        Schema::rename('projects', 'programs');
     }
 
     /**
@@ -19,6 +19,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::rename('individual_identification', 'beneficiary_identification');
+        Schema::rename('programs', 'projects');
     }
 };
