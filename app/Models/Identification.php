@@ -11,6 +11,10 @@ class Identification extends Model
 
     public function beneficiary()
     {
-        return $this->belongsToMany(Beneficiary::class)->withTimestamps()->withSoftDeletes()->using(BeneficiaryIdentification::class);
+        return $this->belongsToMany(Individual::class, 'individual_identification', 'identification_id', 'beneficiary_id')
+            ->withPivot('number')
+            ->withTimestamps()
+            ->withSoftDeletes()
+            ->using(BeneficiaryIdentification::class);
     }
 }

@@ -5,16 +5,16 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Assistance;
 use App\Models\Department;
-use App\Models\Project;
+use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
-class ProjectController extends Controller
+class ProgramController extends Controller
 {
     /**
-     * Display projects belonging to the authenticated user's department.
+     * Display programs belonging to the authenticated user's department.
      */
     public function index(Request $request, Department $department): Response
     {
@@ -28,7 +28,7 @@ class ProjectController extends Controller
 
         $search = isset($validated['search']) ? trim($validated['search']) : '';
 
-        $projects = Project::query()
+        $programs = Program::query()
             ->select([
                 'id',
                 'name',
@@ -45,27 +45,31 @@ class ProjectController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return Inertia::render('user/projects/index', [
-            'projects' => $projects,
+        return Inertia::render('user/programs/index', [
+            'programs' => $programs,
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
         ]);
     }
 
     /**
-     * Display a single project for the authenticated user's department.
+     * Display a single program for the authenticated user's department.
      */
-    public function show(Request $request, Department $department, Project $project): Response
+    public function show(Request $request, Department $department, Program $program): Response
     {
         $user = $request->user();
 
         abort_unless($user->department_id === $department->id, 403);
-        abort_unless($project->department_id === $department->id, 404);
+        abort_unless($program->department_id === $department->id, 404);
 
-        $project->loadMissing(['department:id,name,slug']);
+        $program->loadMissing(['department:id,name,slug']);
+
+        $request->validate([
+            'page' => ['nullable', 'integer', 'min:1'],
+        ]);
 
         $assistances = Assistance::query()
-            ->where('project_id', $project->id)
+            ->where('program_id', $program->id)
             ->select([
                 'id',
                 'beneficiary_id',
@@ -81,10 +85,14 @@ class ProjectController extends Controller
                 'beneficiary:id,cais_number',
                 'organization:id,name',
                 'modeOfRequest:id,name',
+                'assistanceItem:id,assistance_id,item_id,quantity,specification',
+                'assistanceItem.item:id,name,item_unit_measurement_id',
+                'assistanceItem.item.unitMeasurement:id,name',
             ])
             ->orderByDesc('id')
-            ->get()
-            ->map(static function (Assistance $assistance): array {
+            ->paginate(15)
+            ->withQueryString()
+            ->through(static function (Assistance $assistance): array {
                 $formatDate = static function ($value): ?string {
                     if ($value === null) {
                         return null;
@@ -103,14 +111,17 @@ class ProjectController extends Controller
 
                 return [
                     'id' => $assistance->id,
-                    'party' => $assistance->organization?->name
-                        ?? ($assistance->beneficiary?->cais_number !== null
-                            ? (string) $assistance->beneficiary->cais_number
-                            : null)
+                    'cais_number' => $assistance->beneficiary?->cais_number
                         ?? '—',
-                    'party_type' => $assistance->organization_id !== null
-                        ? 'Organization'
-                        : ($assistance->beneficiary_id !== null ? 'Beneficiary' : '—'),
+                    'items' => $assistance->assistanceItem
+                        ->map(static fn ($assistanceItem): array => [
+                            'name' => $assistanceItem->item?->name ?? '—',
+                            'quantity' => $assistanceItem->quantity,
+                            'unit' => $assistanceItem->item?->unitMeasurement?->name,
+                            'specification' => $assistanceItem->specification,
+                        ])
+                        ->values()
+                        ->all(),
                     'mode_of_request' => $assistance->modeOfRequest?->name ?? '—',
                     'date_requested' => $formatDate($assistance->date_requested),
                     'date_verified' => $formatDate($assistance->date_verified),
@@ -119,13 +130,11 @@ class ProjectController extends Controller
                     'status' => $status,
                     'remark' => $assistance->remark,
                 ];
-            })
-            ->values()
-            ->all();
+            });
 
-        return Inertia::render('user/projects/show', [
-            'project' => [
-                ...$project->only([
+        return Inertia::render('user/programs/show', [
+            'program' => [
+                ...$program->only([
                     'id',
                     'name',
                     'descriptions',
@@ -135,7 +144,7 @@ class ProjectController extends Controller
                     'is_organization',
                     'department_id',
                 ]),
-                'department' => $project->department?->only(['id', 'name', 'slug']),
+                'department' => $program->department?->only(['id', 'name', 'slug']),
             ],
             'department' => $department->only(['id', 'name', 'slug']),
             'assistances' => $assistances,

@@ -1,6 +1,6 @@
-import { SourceOfFund } from '@/pages/project/list/create';
+import { SourceOfFund } from '@/pages/programs/list/create';
 
-export interface Project {
+export interface Program {
     id: number;
     name: string;
     descriptions: string;
@@ -21,9 +21,9 @@ export interface Project {
     denied_assistance?: Assistance[];
 }
 
-export interface PaginatedProject {
+export interface PaginatedProgram {
     current_page: number;
-    data: Project[];
+    data: Program[];
     links: PaginateLink[];
 }
 
@@ -35,7 +35,7 @@ export interface PaginateLink {
 
 export interface Assistance {
     id: number;
-    project_id: number;
+    program_id: number;
     beneficiary_id: number;
     organization_id: number;
     mode_of_request_id: number;

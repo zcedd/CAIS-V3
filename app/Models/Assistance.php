@@ -2,34 +2,34 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Assistance extends Model
 {
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['project_id', 'beneficiary_id', 'organization_id', 'mode_of_request_id', 'date_verified', 'date_requested', 'date_denied', 'date_delivered', 'user_id', 'remark', 'created_at', 'updated_at'];
+    protected $fillable = ['program_id', 'beneficiary_id', 'organization_id', 'mode_of_request_id', 'date_verified', 'date_requested', 'date_denied', 'date_delivered', 'user_id', 'remark', 'created_at', 'updated_at'];
 
     protected function makeAllSearchableUsing($query)
     {
         return $query->with('project', 'beneficiary');
     }
 
-    public function project()
+    public function program()
     {
-        return $this->belongsTo(Project::class, 'project_id', 'id');
+        return $this->belongsTo(Program::class);
     }
 
     public function beneficiary()
     {
-        return $this->belongsTo(Beneficiary::class, 'beneficiary_id', 'id');
+        return $this->belongsTo(Beneficiary::class);
     }
 
     public function organization()
@@ -59,8 +59,6 @@ class Assistance extends Model
 
     /**
      * Get the requestSubStatus that owns the Assistance
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
     public function requestSubStatus(): BelongsToMany
     {
@@ -77,7 +75,7 @@ class Assistance extends Model
     {
         if (array_key_exists(1, $filterDate)) {
             $query->whereBetween($column, $filterDate);
-        } else if ($filterDate) {
+        } elseif ($filterDate) {
             $query->whereDate($column, $filterDate[0]);
         }
 
@@ -89,9 +87,9 @@ class Assistance extends Model
      */
     public function scopeWherePending($query)
     {
-        $query->whereNull("date_delivered")
-            ->whereNull("date_denied")
-            ->whereNull("date_verified")
+        $query->whereNull('date_delivered')
+            ->whereNull('date_denied')
+            ->whereNull('date_verified')
             ->whereNotNull('date_requested');
     }
 
@@ -100,8 +98,8 @@ class Assistance extends Model
      */
     public function scopeWhereVerified($query)
     {
-        $query->whereNull("date_delivered")
-            ->whereNotNull("date_verified");
+        $query->whereNull('date_delivered')
+            ->whereNotNull('date_verified');
     }
 
     /**
@@ -110,7 +108,7 @@ class Assistance extends Model
     public function scopeWhereDelivered(EloquentBuilder $query)
     {
         // This method is deprecated. Use scopeDelivered instead.
-        $query->whereNotNull("date_delivered")
+        $query->whereNotNull('date_delivered')
             ->whereHas('assistanceItem', function (EloquentBuilder $query) {
                 $query->where('is_received', true);
             });
@@ -121,26 +119,26 @@ class Assistance extends Model
      */
     public function scopeWhereDenied($query)
     {
-        $query->whereNotNull("date_denied");
+        $query->whereNotNull('date_denied');
     }
 
     public function scopePending($query)
     {
-        $query->whereNull("date_delivered")
-            ->whereNull("date_denied")
-            ->whereNull("date_verified")
+        $query->whereNull('date_delivered')
+            ->whereNull('date_denied')
+            ->whereNull('date_verified')
             ->whereNotNull('date_requested');
     }
 
     public function scopeVerified($query)
     {
-        $query->whereNull("date_delivered")
-            ->whereNotNull("date_verified");
+        $query->whereNull('date_delivered')
+            ->whereNotNull('date_verified');
     }
 
     public function scopeDelivered(EloquentBuilder $query)
     {
-        $query->whereNotNull("date_delivered")
+        $query->whereNotNull('date_delivered')
             ->whereHas('assistanceItem', function (EloquentBuilder $query) {
                 $query->where('is_received', true);
             });
@@ -148,7 +146,7 @@ class Assistance extends Model
 
     public function scopeDenied($query)
     {
-        $query->whereNotNull("date_denied");
+        $query->whereNotNull('date_denied');
     }
 
     public function scopeWhereWithoutAction($query)

@@ -10,9 +10,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { dashboard } from '@/routes';
 import {
-    index as departmentProjectsIndex,
-    show as departmentProjectShow,
-} from '@/routes/user/projects';
+    index as departmentProgramsIndex,
+    show as departmentProgramShow,
+} from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
@@ -23,7 +23,7 @@ type DepartmentSummary = {
     slug: string;
 };
 
-type ProjectRow = {
+type ProgramRow = {
     id: number;
     name: string;
     descriptions: string | null;
@@ -34,12 +34,12 @@ type ProjectRow = {
     department?: DepartmentSummary | null;
 };
 
-export default function UserProjectsIndex({
-    projects,
+export default function UserProgramsIndex({
+    programs,
     department,
     search: initialSearch,
 }: {
-    projects: ProjectRow[];
+    programs: ProgramRow[];
     department: DepartmentSummary | null;
     search: string;
 }) {
@@ -50,12 +50,12 @@ export default function UserProjectsIndex({
     }, [initialSearch]);
 
     if (department?.slug) {
-        const projectsHref = departmentProjectsIndex.url(department.slug);
+        const programsHref = departmentProgramsIndex.url(department.slug);
         setLayoutProps({
             breadcrumbs: [
                 {
-                    title: 'Projects',
-                    href: projectsHref,
+                    title: 'Programs',
+                    href: programsHref,
                 },
             ] satisfies BreadcrumbItem[],
         });
@@ -69,7 +69,7 @@ export default function UserProjectsIndex({
 
         const handle = window.setTimeout(() => {
             router.get(
-                departmentProjectsIndex.url(
+                departmentProgramsIndex.url(
                     { department: department.slug },
                     trimmed === '' ? undefined : { query: { search: trimmed } },
                 ),
@@ -77,7 +77,7 @@ export default function UserProjectsIndex({
                 {
                     preserveState: true,
                     replace: true,
-                    only: ['projects', 'search', 'department'],
+                    only: ['programs', 'search', 'department'],
                 },
             );
         }, 400);
@@ -85,11 +85,11 @@ export default function UserProjectsIndex({
         return () => window.clearTimeout(handle);
     }, [searchQuery, initialSearch, department?.slug]);
 
-    const heading = department ? `${department.name} projects` : 'Projects';
+    const heading = department ? `${department.name} programs` : 'Programs';
 
     return (
         <>
-            <Head title="Department projects" />
+            <Head title="Department programs" />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -98,8 +98,8 @@ export default function UserProjectsIndex({
                         </h1>
                         <p className="text-sm text-muted-foreground">
                             {department
-                                ? 'Projects assigned to your department.'
-                                : 'You are not linked to a department yet, so no projects are shown.'}
+                                ? 'Programs assigned to your department.'
+                                : 'You are not linked to a department yet, so no programs are shown.'}
                         </p>
                     </div>
                 </div>
@@ -107,35 +107,35 @@ export default function UserProjectsIndex({
                     <Input
                         type="search"
                         name="search"
-                        placeholder="Search by project name"
+                        placeholder="Search by program name"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="max-w-md"
                     />
                     <Button variant="outline" asChild>
-                        <Link href={dashboard().url}>Create project</Link>
+                        <Link href={dashboard().url}>Create program</Link>
                     </Button>
                 </div>
-                {projects.length === 0 ? (
+                {programs.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
-                        No projects match your filters.
+                        No programs match your filters.
                     </p>
                 ) : (
                     <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {projects.map((project) => {
+                        {programs.map((program) => {
                             const card = (
                                 <Card className="flex h-full flex-col bg-card transition-colors hover:border-primary/50 hover:shadow-sm">
                                     <CardHeader className="gap-1">
                                         <CardTitle className="text-lg">
-                                            {project.name}
+                                            {program.name}
                                         </CardTitle>
                                         <CardDescription>
                                             <span className="font-medium text-foreground">
-                                                {project.is_organization
+                                                {program.is_organization
                                                     ? 'Organization'
                                                     : 'Personal'}
                                             </span>
-                                            {project.is_closed ? (
+                                            {program.is_closed ? (
                                                 <Badge variant="destructive">
                                                     Closed
                                                 </Badge>
@@ -148,15 +148,15 @@ export default function UserProjectsIndex({
                                     </CardHeader>
                                     <CardContent className="flex flex-1 flex-col gap-2 text-sm text-muted-foreground">
                                         <p className="line-clamp-4">
-                                            {project.descriptions}
+                                            {program.descriptions}
                                         </p>
                                         <p>
                                             <span className="font-medium text-foreground">
                                                 Period:{' '}
                                             </span>
-                                            {project.start_at ?? '—'}
-                                            {project.end_at
-                                                ? ` – ${project.end_at}`
+                                            {program.start_at ?? '—'}
+                                            {program.end_at
+                                                ? ` – ${program.end_at}`
                                                 : ''}
                                         </p>
                                     </CardContent>
@@ -165,10 +165,10 @@ export default function UserProjectsIndex({
 
                             return department?.slug ? (
                                 <Link
-                                    key={project.id}
-                                    href={departmentProjectShow.url({
+                                    key={program.id}
+                                    href={departmentProgramShow.url({
                                         department: department.slug,
-                                        project: project.id,
+                                        program: program.id,
                                     })}
                                     prefetch
                                     className="block h-full rounded-xl ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -176,7 +176,7 @@ export default function UserProjectsIndex({
                                     {card}
                                 </Link>
                             ) : (
-                                <div key={project.id}>{card}</div>
+                                <div key={program.id}>{card}</div>
                             );
                         })}
                     </div>

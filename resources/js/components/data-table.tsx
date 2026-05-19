@@ -10,16 +10,22 @@ interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
     data: TData[];
     emptyMessage?: string;
+    manualPagination?: boolean;
 }
 
-export function DataTable<TData, TValue>({ columns, data, emptyMessage = 'No results.' }: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({
+    columns,
+    data,
+    emptyMessage = 'No results.',
+    manualPagination = false,
+}: DataTableProps<TData, TValue>) {
     const [sorting, setSorting] = React.useState<SortingState>([]);
 
     const table = useReactTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        ...(manualPagination ? {} : { getPaginationRowModel: getPaginationRowModel() }),
         onSortingChange: setSorting,
         getSortedRowModel: getSortedRowModel(),
         state: {
@@ -61,14 +67,16 @@ export function DataTable<TData, TValue>({ columns, data, emptyMessage = 'No res
                     )}
                 </TableBody>
             </Table>
-            <div className="flex items-center justify-end space-x-2 py-4">
-                <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-                    Previous
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-                    Next
-                </Button>
-            </div>
+            {!manualPagination ? (
+                <div className="flex items-center justify-end space-x-2 py-4">
+                    <Button variant="outline" size="sm" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
+                        Previous
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
+                        Next
+                    </Button>
+                </div>
+            ) : null}
         </div>
     );
 }

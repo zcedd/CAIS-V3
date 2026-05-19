@@ -13,11 +13,12 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @deprecated This class is deprecated and should not be used in new code.
  * Use Program instead.
  */
-
 class Project extends Model
 {
     use HasFactory;
     use SoftDeletes;
+
+    protected $table = 'programs';
 
     protected $fillable = [
         'name',

@@ -15,7 +15,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { index as departmentProjectsIndex } from '@/routes/user/projects';
+import { index as departmentProgramsIndex } from '@/routes/user/programs';
 import type { NavItem } from '@/types';
 import type { User } from '@/types/auth';
 
@@ -53,8 +53,8 @@ export function AppSidebar() {
         const slug = props.auth.user?.department?.slug;
         if (slug) {
             items.push({
-                title: 'Projects',
-                href: departmentProjectsIndex(slug),
+                title: 'Programs',
+                href: departmentProgramsIndex(slug),
                 icon: FolderKanban,
             });
         }

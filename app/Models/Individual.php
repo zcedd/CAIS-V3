@@ -2,13 +2,6 @@
 
 namespace App\Models;
 
-use App\Models\AddrsBrgy;
-use App\Models\Assistance;
-use App\Models\BeneficiaryIdentification;
-use App\Models\BeneficiaryOrganization;
-use App\Models\CivilStatus;
-use App\Models\Identification;
-use App\Models\Organization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,8 +14,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Individual extends Model
 {
     use HasFactory;
-    use SoftDeletes;
     use LogsActivity;
+    use SoftDeletes;
 
     protected $fillable = [
         'cais_number',
@@ -43,7 +36,7 @@ class Individual extends Model
         'spouse',
         'brgy_id',
         'created_at',
-        'updated_at'
+        'updated_at',
     ];
 
     public function getActivitylogOptions(): LogOptions
@@ -51,7 +44,7 @@ class Individual extends Model
         return LogOptions::defaults()
             ->logFillable()
             ->useLogName('Beneficiary')
-            ->setDescriptionForEvent(fn(string $eventName) => "This Beneficiary model has been {$eventName}")
+            ->setDescriptionForEvent(fn (string $eventName) => "This Beneficiary model has been {$eventName}")
             ->dontSubmitEmptyLogs();
     }
 
@@ -62,8 +55,6 @@ class Individual extends Model
 
     /**
      * Get the barangay that owns the Beneficiary
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
     public function barangay(): BelongsTo
     {
@@ -82,7 +73,10 @@ class Individual extends Model
 
     public function organization(): BelongsToMany
     {
-        return $this->belongsToMany(Organization::class)->withTimestamps()->withSoftDeletes()->using(BeneficiaryOrganization::class);
+        return $this->belongsToMany(Organization::class, 'individual_organizations', 'beneficiary_id', 'organization_id')
+            ->withTimestamps()
+            ->withSoftDeletes()
+            ->using(BeneficiaryOrganization::class);
     }
 
     public function civilStatus(): BelongsTo
@@ -92,7 +86,7 @@ class Individual extends Model
 
     public function assistance(): HasMany
     {
-        return $this->hasMany(Assistance::class);
+        return $this->hasMany(Assistance::class, 'individual_id');
     }
 
     public function organizationPivot(): HasMany
