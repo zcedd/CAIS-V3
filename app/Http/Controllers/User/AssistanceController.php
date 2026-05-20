@@ -118,9 +118,9 @@ class AssistanceController extends Controller
 
         if ($beneficiable instanceof Individual) {
             return collect([
-                $beneficiable->firstName,
-                $beneficiable->middleName,
-                $beneficiable->lastName,
+                $beneficiable->first_name,
+                $beneficiable->middle_name,
+                $beneficiable->last_name,
                 $beneficiable->suffix,
             ])
                 ->filter(static fn(?string $part): bool => $part !== null && trim($part) !== '')

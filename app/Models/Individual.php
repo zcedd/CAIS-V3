@@ -19,22 +19,22 @@ class Individual extends Model
 
     protected $fillable = [
         'cais_number',
-        'firstName',
-        'middleName',
-        'lastName',
+        'first_name',
+        'middle_name',
+        'last_name',
         'suffix',
         'birthday',
         'sex',
         'other_address',
         'civil_status_id',
-        'mobileNumber',
+        'mobile_number',
         'indigenous',
         'ethnicity',
         'pwd',
         'is_4ps_beneficiary',
         'is_solo_parent',
         'spouse',
-        'brgy_id',
+        'address_barangay_id',
         'created_at',
         'updated_at',
     ];
@@ -44,13 +44,13 @@ class Individual extends Model
         return LogOptions::defaults()
             ->logFillable()
             ->useLogName('Beneficiary')
-            ->setDescriptionForEvent(fn (string $eventName) => "This Beneficiary model has been {$eventName}")
+            ->setDescriptionForEvent(fn(string $eventName) => "This Beneficiary model has been {$eventName}")
             ->dontSubmitEmptyLogs();
     }
 
     public function address(): BelongsTo
     {
-        return $this->belongsTo(AddrsBrgy::class, 'brgy_id', 'id');
+        return $this->belongsTo(AddressBarangay::class, 'address_barangay_id', 'id');
     }
 
     /**
@@ -58,17 +58,17 @@ class Individual extends Model
      */
     public function barangay(): BelongsTo
     {
-        return $this->belongsTo(AddrsBrgy::class, 'brgy_id', 'id');
+        return $this->belongsTo(AddressBarangay::class, 'address_barangay_id', 'id');
     }
 
     public function beneficiaryIdentification(): HasMany
     {
-        return $this->hasMany(BeneficiaryIdentification::class);
+        return $this->hasMany(IndividualIdentification::class);
     }
 
     public function identification(): BelongsToMany
     {
-        return $this->belongsToMany(Identification::class)->withPivot('number')->withTimestamps()->withSoftDeletes()->using(BeneficiaryIdentification::class);
+        return $this->belongsToMany(Identification::class)->withPivot('number')->withTimestamps()->withSoftDeletes()->using(IndividualIdentification::class);
     }
 
     public function organization(): BelongsToMany
@@ -76,7 +76,7 @@ class Individual extends Model
         return $this->belongsToMany(Organization::class, 'individual_organizations', 'beneficiary_id', 'organization_id')
             ->withTimestamps()
             ->withSoftDeletes()
-            ->using(BeneficiaryOrganization::class);
+            ->using(IndividualOrganization::class);
     }
 
     public function civilStatus(): BelongsTo
@@ -91,6 +91,6 @@ class Individual extends Model
 
     public function organizationPivot(): HasMany
     {
-        return $this->hasMany(BeneficiaryOrganization::class);
+        return $this->hasMany(IndividualOrganization::class);
     }
 }
