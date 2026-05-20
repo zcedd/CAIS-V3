@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Actions\User\ApplyAssistanceTableFilters;
+use App\Actions\User\ApplyAssistanceTableSort;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\ProgramAssistanceTableRequest;
 use App\Models\Assistance;
 use App\Models\Department;
+use App\Models\ModeOfRequest;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -55,8 +59,13 @@ class ProgramController extends Controller
     /**
      * Display a single program for the authenticated user's department.
      */
-    public function show(Request $request, Department $department, Program $program): Response
-    {
+    public function show(
+        ProgramAssistanceTableRequest $request,
+        Department $department,
+        Program $program,
+        ApplyAssistanceTableSort $applyAssistanceTableSort,
+        ApplyAssistanceTableFilters $applyAssistanceTableFilters,
+    ): Response {
         $user = $request->user();
 
         abort_unless($user->department_id === $department->id, 403);
@@ -64,11 +73,32 @@ class ProgramController extends Controller
 
         $program->loadMissing(['department:id,name,slug']);
 
-        $request->validate([
-            'page' => ['nullable', 'integer', 'min:1'],
-        ]);
+        $sort = $request->sort();
+        $direction = $request->direction();
+        $perPage = $request->perPage();
+        $search = $request->search();
+        $statuses = $request->statuses();
+        $modes = $request->modes();
 
-        $assistances = Assistance::query()
+        $modeOptions = ModeOfRequest::query()
+            ->whereIn(
+                'id',
+                Assistance::query()
+                    ->where('program_id', $program->id)
+                    ->whereNotNull('mode_of_request_id')
+                    ->distinct()
+                    ->pluck('mode_of_request_id'),
+            )
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(static fn (string $name): array => [
+                'label' => $name,
+                'value' => $name,
+            ])
+            ->values()
+            ->all();
+
+        $assistancesQuery = Assistance::query()
             ->where('program_id', $program->id)
             ->select([
                 'id',
@@ -88,9 +118,13 @@ class ProgramController extends Controller
                 'assistanceItem:id,assistance_id,item_id,quantity,specification',
                 'assistanceItem.item:id,name,item_unit_measurement_id',
                 'assistanceItem.item.unitMeasurement:id,name',
-            ])
-            ->orderByDesc('id')
-            ->paginate(15)
+            ]);
+
+        $applyAssistanceTableFilters($assistancesQuery, $search, $statuses, $modes);
+        $applyAssistanceTableSort($assistancesQuery, $sort, $direction);
+
+        $assistances = $assistancesQuery
+            ->paginate($perPage)
             ->withQueryString()
             ->through(static function (Assistance $assistance): array {
                 $formatDate = static function ($value): ?string {
@@ -148,6 +182,13 @@ class ProgramController extends Controller
             ],
             'department' => $department->only(['id', 'name', 'slug']),
             'assistances' => $assistances,
+            'sort' => $sort,
+            'direction' => $direction,
+            'per_page' => $perPage,
+            'search' => $search,
+            'status' => $statuses,
+            'mode' => $modes,
+            'mode_options' => $modeOptions,
         ]);
     }
 }

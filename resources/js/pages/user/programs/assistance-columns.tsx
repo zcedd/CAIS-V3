@@ -1,9 +1,11 @@
 'use client';
 
+import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
+import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-row-actions';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowUpDown } from 'lucide-react';
 
 export type UserProgramAssistanceItem = {
     name: string;
@@ -41,171 +43,252 @@ export type UserProgramAssistanceRow = {
     remark: string | null;
 };
 
-function sortHeader(label: string) {
-    return ({
-        column,
-    }: {
-        column: {
-            toggleSorting: (desc: boolean) => void;
-            getIsSorted: () => false | 'asc' | 'desc';
-        };
-    }) => (
-        <Button
-            variant="ghost"
-            className="-ml-4 h-8 px-2 lg:px-3"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-            {label}
-            <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-    );
-}
-
-function statusVariant(
-    status: string,
-): 'default' | 'secondary' | 'destructive' | 'outline' {
-    switch (status) {
-        case 'Denied':
-            return 'destructive';
-        case 'Delivered':
-            return 'secondary';
-        case 'Verified':
-            return 'default';
-        case 'Pending':
-            return 'outline';
-        default:
-            return 'secondary';
+function itemsSummary(items: UserProgramAssistanceItem[]): string {
+    if (items.length === 0) {
+        return 'No items listed';
     }
+
+    const first = items[0];
+    const amount = formatItemAmount(first);
+    let summary = first.name;
+
+    if (amount) {
+        summary += ` ${amount}`;
+    }
+
+    if (items.length > 1) {
+        summary += ` (+${items.length - 1} more)`;
+    }
+
+    return summary;
 }
 
 export const userProgramAssistanceColumns: ColumnDef<UserProgramAssistanceRow>[] =
     [
         {
-            accessorKey: 'id',
-            header: sortHeader('ID'),
-            cell: ({ row }) => (
-                <span className="text-muted-foreground tabular-nums">
-                    {row.getValue('id')}
-                </span>
+            id: 'select',
+            header: ({ table }) => (
+                <Checkbox
+                    checked={
+                        table.getIsAllPageRowsSelected() ||
+                        (table.getIsSomePageRowsSelected() && 'indeterminate')
+                    }
+                    onCheckedChange={(value) =>
+                        table.toggleAllPageRowsSelected(!!value)
+                    }
+                    aria-label="Select all"
+                    className="translate-y-[2px]"
+                />
             ),
+            cell: ({ row }) => (
+                <Checkbox
+                    checked={row.getIsSelected()}
+                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    aria-label="Select row"
+                    className="translate-y-[2px]"
+                />
+            ),
+            enableSorting: false,
+            enableHiding: false,
         },
         {
             accessorKey: 'cais_number',
-            header: sortHeader('CAIS Number'),
+            meta: { title: 'CAIS Number' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="CAIS Number" />
+            ),
             cell: ({ row }) => (
-                <span className="max-w-[min(20rem,40vw)] truncate font-medium">
+                <span className="w-[120px] font-mono text-xs font-medium">
                     {row.getValue('cais_number')}
                 </span>
             ),
         },
         {
-            accessorKey: 'items',
-            header: 'Items requested',
+            id: 'items',
+            accessorFn: (row) => itemsSummary(row.items),
+            enableSorting: false,
+            meta: {
+                title: 'Items requested',
+                cellClassName: 'whitespace-normal',
+            },
+            header: ({ column }) => (
+                <DataTableColumnHeader
+                    column={column}
+                    title="Items requested"
+                />
+            ),
             cell: ({ row }) => {
-                const items = row.getValue(
-                    'items',
-                ) as UserProgramAssistanceItem[];
+                const items = row.original.items;
 
                 if (items.length === 0) {
-                    return (
-                        <span className="text-muted-foreground">—</span>
-                    );
+                    return <span className="text-muted-foreground">—</span>;
                 }
 
-                return (
-                    <ul className="max-w-[min(24rem,50vw)] list-none space-y-1 text-sm">
-                        {items.map((item, index) => {
-                            const amount = formatItemAmount(item);
+                const first = items[0];
+                const amount = formatItemAmount(first);
 
-                            return (
-                            <li key={`${item.name}-${index}`}>
-                                <span className="font-medium">{item.name}</span>
-                                {amount ? (
-                                    <span className="tabular-nums text-muted-foreground">
-                                        {' '}
-                                        {amount}
-                                    </span>
-                                ) : null}
-                                {item.specification?.trim() ? (
-                                    <span className="text-muted-foreground">
-                                        {' '}
-                                        ({item.specification})
-                                    </span>
-                                ) : null}
-                            </li>
-                            );
-                        })}
-                    </ul>
+                return (
+                    <div className="flex max-w-[min(28rem,50vw)] flex-col gap-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="font-normal">
+                                {row.original.mode_of_request}
+                            </Badge>
+                            {items.length > 1 ? (
+                                <Badge
+                                    variant="secondary"
+                                    className="font-normal"
+                                >
+                                    +{items.length - 1} item
+                                    {items.length - 1 === 1 ? '' : 's'}
+                                </Badge>
+                            ) : null}
+                        </div>
+                        <span className="font-medium">{first.name}</span>
+                        {amount ? (
+                            <span className="text-sm text-muted-foreground tabular-nums">
+                                {amount}
+                                {first.specification?.trim()
+                                    ? ` · ${first.specification}`
+                                    : ''}
+                            </span>
+                        ) : first.specification?.trim() ? (
+                            <span className="text-sm text-muted-foreground">
+                                {first.specification}
+                            </span>
+                        ) : null}
+                    </div>
+                );
+            },
+        },
+        {
+            accessorKey: 'status',
+            meta: { title: 'Status' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Status" />
+            ),
+            cell: ({ row }) => {
+                const status = row.getValue('status') as string;
+                const option = assistanceStatuses.find(
+                    (entry) => entry.value === status,
+                );
+                const Icon = option?.icon;
+
+                return (
+                    <div className="flex w-[120px] items-center gap-2">
+                        {Icon ? (
+                            <Icon className="h-4 w-4 text-muted-foreground" />
+                        ) : null}
+                        <span>{option?.label ?? status}</span>
+                    </div>
                 );
             },
         },
         {
             accessorKey: 'mode_of_request',
-            header: sortHeader('Mode of request'),
-        },
-        {
-            accessorKey: 'status',
-            header: sortHeader('Status'),
-            cell: ({ row }) => {
-                const status = row.getValue('status') as string;
-
-                return (
-                    <Badge
-                        variant={statusVariant(status)}
-                        className="font-normal"
-                    >
-                        {status}
-                    </Badge>
-                );
-            },
+            meta: { title: 'Mode of request' },
+            header: ({ column }) => (
+                <DataTableColumnHeader
+                    column={column}
+                    title="Mode of request"
+                />
+            ),
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {row.getValue('mode_of_request')}
+                </span>
+            ),
         },
         {
             accessorKey: 'date_requested',
-            header: sortHeader('Requested'),
+            meta: { title: 'Requested' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Requested" />
+            ),
             cell: ({ row }) => {
-                const v = row.getValue('date_requested') as string | null;
-
-                return <span className="tabular-nums">{v ?? '—'}</span>;
-            },
-        },
-        {
-            accessorKey: 'date_verified',
-            header: sortHeader('Verified'),
-            cell: ({ row }) => {
-                const v = row.getValue('date_verified') as string | null;
-
-                return <span className="tabular-nums">{v ?? '—'}</span>;
-            },
-        },
-        {
-            accessorKey: 'date_delivered',
-            header: sortHeader('Delivered'),
-            cell: ({ row }) => {
-                const v = row.getValue('date_delivered') as string | null;
-
-                return <span className="tabular-nums">{v ?? '—'}</span>;
-            },
-        },
-        {
-            accessorKey: 'date_denied',
-            header: sortHeader('Denied'),
-            cell: ({ row }) => {
-                const v = row.getValue('date_denied') as string | null;
-
-                return <span className="tabular-nums">{v ?? '—'}</span>;
-            },
-        },
-        {
-            accessorKey: 'remark',
-            header: 'Remark',
-            cell: ({ row }) => {
-                const v = row.getValue('remark') as string | null;
+                const value = row.getValue('date_requested') as string | null;
 
                 return (
-                    <span className="max-w-[min(24rem,50vw)] whitespace-normal text-muted-foreground">
-                        {v?.trim() ? v : '—'}
+                    <span className="text-muted-foreground tabular-nums">
+                        {value ?? '—'}
                     </span>
                 );
             },
         },
+        {
+            accessorKey: 'date_verified',
+            meta: { title: 'Verified' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Verified" />
+            ),
+            cell: ({ row }) => {
+                const value = row.getValue('date_verified') as string | null;
+
+                return (
+                    <span className="text-muted-foreground tabular-nums">
+                        {value ?? '—'}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: 'date_delivered',
+            meta: { title: 'Delivered' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Delivered" />
+            ),
+            cell: ({ row }) => {
+                const value = row.getValue('date_delivered') as string | null;
+
+                return (
+                    <span className="text-muted-foreground tabular-nums">
+                        {value ?? '—'}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: 'date_denied',
+            meta: { title: 'Denied' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Denied" />
+            ),
+            cell: ({ row }) => {
+                const value = row.getValue('date_denied') as string | null;
+
+                return (
+                    <span className="text-muted-foreground tabular-nums">
+                        {value ?? '—'}
+                    </span>
+                );
+            },
+        },
+        {
+            accessorKey: 'remark',
+            meta: { title: 'Remark', cellClassName: 'whitespace-normal' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Remark" />
+            ),
+            cell: ({ row }) => {
+                const value = row.getValue('remark') as string | null;
+
+                return (
+                    <span className="max-w-[min(24rem,50vw)] whitespace-normal text-muted-foreground">
+                        {value?.trim() ? value : '—'}
+                    </span>
+                );
+            },
+        },
+        {
+            id: 'actions',
+            enableHiding: false,
+            cell: ({ row }) => <AssistanceDataTableRowActions row={row} />,
+        },
     ];
+
+export const userProgramAssistanceInitialColumnVisibility = {
+    mode_of_request: true,
+    date_verified: true,
+    date_delivered: true,
+    date_denied: true,
+    remark: true,
+};
