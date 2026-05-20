@@ -9,15 +9,21 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
+import { show as assistanceShow } from '@/routes/user/assistances';
+import { Link } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
-import { Copy, MoreHorizontal } from 'lucide-react';
+import { Copy, Eye, MoreHorizontal } from 'lucide-react';
 
 interface AssistanceDataTableRowActionsProps {
     row: Row<UserProgramAssistanceRow>;
+    departmentSlug: string;
+    programId: number;
 }
 
 export function AssistanceDataTableRowActions({
     row,
+    departmentSlug,
+    programId,
 }: AssistanceDataTableRowActionsProps) {
     const record = row.original;
 
@@ -33,6 +39,19 @@ export function AssistanceDataTableRowActions({
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[180px]">
+                <DropdownMenuItem asChild>
+                    <Link
+                        href={assistanceShow.url({
+                            department: departmentSlug,
+                            program: programId,
+                            assistance: record.id,
+                        })}
+                    >
+                        <Eye className="mr-2 h-4 w-4" />
+                        View profile
+                    </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
                     onClick={() => {
                         void navigator.clipboard.writeText(record.cais_number);

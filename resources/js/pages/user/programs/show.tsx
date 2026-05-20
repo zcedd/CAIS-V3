@@ -8,7 +8,7 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import {
-    userProgramAssistanceColumns,
+    createUserProgramAssistanceColumns,
     userProgramAssistanceInitialColumnVisibility,
     type UserProgramAssistanceRow,
 } from '@/pages/user/programs/assistance-columns';
@@ -23,7 +23,7 @@ import {
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 type DepartmentSummary = {
     id: number;
@@ -124,6 +124,17 @@ export default function UserProgramShow({
         status,
         mode,
     };
+
+    const assistanceColumns = useMemo(() => {
+        if (!department?.slug) {
+            return [];
+        }
+
+        return createUserProgramAssistanceColumns({
+            departmentSlug: department.slug,
+            programId: program.id,
+        });
+    }, [department?.slug, program.id]);
 
     useEffect(() => {
         if (!department?.slug) {
@@ -271,7 +282,7 @@ export default function UserProgramShow({
                     </CardHeader>
                     <CardContent>
                         <DataTable
-                            columns={userProgramAssistanceColumns}
+                            columns={assistanceColumns}
                             data={assistances.data}
                             emptyMessage="No assistance records for this program."
                             manualPagination

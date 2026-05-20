@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
 import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-row-actions';
+import { show as assistanceShow } from '@/routes/user/assistances';
+import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
 
 export type UserProgramAssistanceItem = {
@@ -63,8 +65,16 @@ function itemsSummary(items: UserProgramAssistanceItem[]): string {
     return summary;
 }
 
-export const userProgramAssistanceColumns: ColumnDef<UserProgramAssistanceRow>[] =
-    [
+export type UserProgramAssistanceTableContext = {
+    departmentSlug: string;
+    programId: number;
+};
+
+export function createUserProgramAssistanceColumns({
+    departmentSlug,
+    programId,
+}: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
+    return [
         {
             id: 'select',
             header: ({ table }) => (
@@ -97,11 +107,22 @@ export const userProgramAssistanceColumns: ColumnDef<UserProgramAssistanceRow>[]
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="CAIS Number" />
             ),
-            cell: ({ row }) => (
-                <span className="w-[120px] font-mono text-xs font-medium">
-                    {row.getValue('cais_number')}
-                </span>
-            ),
+            cell: ({ row }) => {
+                const caisNumber = row.getValue('cais_number') as string;
+
+                return (
+                    <Link
+                        href={assistanceShow.url({
+                            department: departmentSlug,
+                            program: programId,
+                            assistance: row.original.id,
+                        })}
+                        className="w-[120px] font-mono text-xs font-medium hover:underline"
+                    >
+                        {caisNumber}
+                    </Link>
+                );
+            },
         },
         {
             id: 'items',
@@ -281,9 +302,16 @@ export const userProgramAssistanceColumns: ColumnDef<UserProgramAssistanceRow>[]
         {
             id: 'actions',
             enableHiding: false,
-            cell: ({ row }) => <AssistanceDataTableRowActions row={row} />,
+            cell: ({ row }) => (
+                <AssistanceDataTableRowActions
+                    row={row}
+                    departmentSlug={departmentSlug}
+                    programId={programId}
+                />
+            ),
         },
     ];
+}
 
 export const userProgramAssistanceInitialColumnVisibility = {
     mode_of_request: true,
