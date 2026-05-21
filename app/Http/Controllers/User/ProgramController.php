@@ -6,6 +6,7 @@ use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\ProgramAssistanceTableRequest;
+use App\Http\Requests\User\ProgramIndexRequest;
 use App\Http\Requests\User\StoreProgramRequest;
 use App\Models\Assistance;
 use App\Models\Department;
@@ -14,27 +15,26 @@ use App\Models\Item;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProgramController extends Controller
 {
+    private const PROGRAMS_PER_PAGE = 12;
+
     /**
      * Display programs belonging to the authenticated user's department.
      */
-    public function index(Request $request, Department $department): Response
+    public function index(ProgramIndexRequest $request, Department $department): Response
     {
         $user = $request->user();
 
         abort_unless($user->department_id === $department->id, 403);
 
-        $validated = $request->validate([
-            'search' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $search = isset($validated['search']) ? trim($validated['search']) : '';
+        $search = $request->search();
+        $types = $request->types();
+        $statuses = $request->statuses();
 
         $programs = Program::query()
             ->select([
@@ -49,9 +49,26 @@ class ProgramController extends Controller
             ])
             ->with(['department:id,name,slug'])
             ->where('department_id', $department->id)
-            ->when($search !== '', fn($query) => $query->where('name', 'like', '%' . $search . '%'))
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+            ->when(
+                count($types) === 1 && in_array('individual', $types, true),
+                fn ($query) => $query->where('is_organization', false),
+            )
+            ->when(
+                count($types) === 1 && in_array('organization', $types, true),
+                fn ($query) => $query->where('is_organization', true),
+            )
+            ->when(
+                count($statuses) === 1 && in_array('open', $statuses, true),
+                fn ($query) => $query->where('is_closed', false),
+            )
+            ->when(
+                count($statuses) === 1 && in_array('closed', $statuses, true),
+                fn ($query) => $query->where('is_closed', true),
+            )
             ->orderByDesc('id')
-            ->get();
+            ->paginate(self::PROGRAMS_PER_PAGE)
+            ->withQueryString();
 
         $funds = Fund::query()
             ->where('department_id', $department->id)
@@ -73,9 +90,11 @@ class ProgramController extends Controller
         });
 
         return Inertia::render('user/programs/index', [
-            'programs' => $programs,
+            'programs' => Inertia::scroll($programs),
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
+            'type' => $types,
+            'status' => $statuses,
             'funds' => $funds,
             'items' => $items,
         ]);
@@ -145,7 +164,7 @@ class ProgramController extends Controller
             )
             ->orderBy('name')
             ->pluck('name')
-            ->map(static fn(string $name): array => [
+            ->map(static fn (string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -202,7 +221,7 @@ class ProgramController extends Controller
                     'cais_number' => $assistance->beneficiary?->cais_number
                         ?? '—',
                     'items' => $assistance->assistanceItem
-                        ->map(static fn($assistanceItem): array => [
+                        ->map(static fn ($assistanceItem): array => [
                             'name' => $assistanceItem->item?->name ?? '—',
                             'quantity' => $assistanceItem->quantity,
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,

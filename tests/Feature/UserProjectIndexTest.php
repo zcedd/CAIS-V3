@@ -47,12 +47,94 @@ test('authenticated users only see programs for their department', function () {
     $response->assertOk();
     $response->assertInertia(fn (Assert $page) => $page
         ->component('user/programs/index')
-        ->has('programs', 1)
-        ->where('programs.0.id', $programInA->id)
-        ->where('programs.0.name', 'Alpha Program')
+        ->has('programs.data', 1)
+        ->where('programs.data.0.id', $programInA->id)
+        ->where('programs.data.0.name', 'Alpha Program')
         ->where('department.id', $departmentA->id)
         ->where('department.name', 'Department A')
-        ->where('department.slug', $departmentA->slug));
+        ->where('department.slug', $departmentA->slug)
+        ->where('type', [])
+        ->where('status', []));
+});
+
+test('users can filter programs by type and status', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $individualOpen = Program::create([
+        'name' => 'Individual Open',
+        'descriptions' => 'Individual assistance',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    Program::create([
+        'name' => 'Organization Closed',
+        'descriptions' => 'Organization assistance',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => true,
+        'is_organization' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.programs.index', [
+            'department' => $department->slug,
+            'type' => ['individual'],
+            'status' => ['open'],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('user/programs/index')
+            ->has('programs.data', 1)
+            ->where('programs.data.0.id', $individualOpen->id)
+            ->where('type', ['individual'])
+            ->where('status', ['open']));
+});
+
+test('users can load additional programs via pagination', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    foreach (range(1, 13) as $index) {
+        Program::create([
+            'name' => "Program {$index}",
+            'descriptions' => "Description {$index}",
+            'start_at' => now()->toDateString(),
+            'end_at' => null,
+            'department_id' => $department->id,
+            'is_closed' => false,
+            'is_organization' => false,
+        ]);
+    }
+
+    $this->actingAs($user)
+        ->get(route('user.programs.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('programs.data', 12)
+            ->where('programs.current_page', 1));
+
+    $this->actingAs($user)
+        ->get(route('user.programs.index', [
+            'department' => $department->slug,
+            'page' => 2,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('programs.data', 1)
+            ->where('programs.current_page', 2)
+            ->where('programs.data.0.name', 'Program 13'));
 });
 
 test('authenticated users cannot view another departments program list', function () {

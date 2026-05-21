@@ -1,4 +1,6 @@
+import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import InputError from '@/components/input-error';
+import { ProjectCard } from '@/components/skeleton/project-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -33,9 +35,17 @@ import {
     store as storeProgram,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { CalendarDays, ChevronDownIcon, Plus, RotateCcw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { cn } from '@/lib/utils';
+import {
+    Form,
+    Head,
+    InfiniteScroll,
+    Link,
+    router,
+    setLayoutProps,
+} from '@inertiajs/react';
+import { CalendarDays, ChevronDownIcon, Plus, RotateCcw, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 type DepartmentSummary = {
@@ -61,6 +71,47 @@ type ProgramRow = {
     is_organization: boolean | null;
     department?: DepartmentSummary | null;
 };
+
+type PaginatedPrograms = {
+    data: ProgramRow[];
+};
+
+type ProgramListFilters = {
+    search: string;
+    type: string[];
+    status: string[];
+};
+
+const programTypeOptions = [
+    { label: 'Individual', value: 'individual' },
+    { label: 'Organization', value: 'organization' },
+] as const;
+
+const programStatusOptions = [
+    { label: 'Open', value: 'open' },
+    { label: 'Closed', value: 'closed' },
+] as const;
+
+function buildProgramsQuery(
+    filters: ProgramListFilters,
+): Record<string, string | string[]> {
+    const query: Record<string, string | string[]> = {};
+    const search = filters.search.trim();
+
+    if (search !== '') {
+        query.search = search;
+    }
+
+    if (filters.type.length > 0) {
+        query.type = filters.type;
+    }
+
+    if (filters.status.length > 0) {
+        query.status = filters.status;
+    }
+
+    return query;
+}
 
 function formatDateForSubmit(date: Date | undefined): string | undefined {
     if (!date) {
@@ -156,12 +207,16 @@ export default function UserProgramsIndex({
     programs,
     department,
     search: initialSearch,
+    type: initialType,
+    status: initialStatus,
     funds,
     items,
 }: {
-    programs: ProgramRow[];
+    programs: PaginatedPrograms;
     department: DepartmentSummary | null;
     search: string;
+    type: string[];
+    status: string[];
     funds: SelectOption[];
     items: SelectOption[];
 }) {
@@ -203,6 +258,46 @@ export default function UserProgramsIndex({
         }
     }, [createOpen]);
 
+    const navigateWithFilters = useCallback(
+        (overrides: Partial<ProgramListFilters> = {}) => {
+            if (!department?.slug) {
+                return;
+            }
+
+            const next: ProgramListFilters = {
+                search: overrides.search ?? searchQuery,
+                type: overrides.type ?? initialType,
+                status: overrides.status ?? initialStatus,
+            };
+
+            router.get(
+                departmentProgramsIndex.url(
+                    { department: department.slug },
+                    { query: buildProgramsQuery(next) },
+                ),
+                {},
+                {
+                    preserveState: true,
+                    replace: true,
+                    only: [
+                        'programs',
+                        'search',
+                        'type',
+                        'status',
+                        'department',
+                    ],
+                    reset: ['programs'],
+                },
+            );
+        },
+        [
+            department?.slug,
+            searchQuery,
+            initialType,
+            initialStatus,
+        ],
+    );
+
     if (department?.slug) {
         const programsHref = departmentProgramsIndex.url(department.slug);
         setLayoutProps({
@@ -217,30 +312,29 @@ export default function UserProgramsIndex({
 
     useEffect(() => {
         const trimmed = searchQuery.trim();
+
         if (trimmed === initialSearch.trim() || !department?.slug) {
             return;
         }
 
         const handle = window.setTimeout(() => {
-            router.get(
-                departmentProgramsIndex.url(
-                    { department: department.slug },
-                    trimmed === '' ? undefined : { query: { search: trimmed } },
-                ),
-                {},
-                {
-                    preserveState: true,
-                    replace: true,
-                    only: ['programs', 'search', 'department'],
-                },
-            );
+            navigateWithFilters({ search: trimmed });
         }, 400);
 
         return () => window.clearTimeout(handle);
-    }, [searchQuery, initialSearch, department?.slug]);
+    }, [
+        searchQuery,
+        initialSearch,
+        department?.slug,
+        navigateWithFilters,
+    ]);
 
     const heading = department ? `${department.name} programs` : 'Programs';
     const canCreate = Boolean(department?.slug);
+    const isFiltered =
+        initialSearch.trim() !== '' ||
+        initialType.length > 0 ||
+        initialStatus.length > 0;
 
     return (
         <>
@@ -259,14 +353,55 @@ export default function UserProgramsIndex({
                     </div>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <Input
-                        type="search"
-                        name="search"
-                        placeholder="Search by program name"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="max-w-md"
-                    />
+                    <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                        <Input
+                            type="text"
+                            name="search"
+                            autoComplete="off"
+                            placeholder="Search by program name"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className={cn(
+                                'max-w-md',
+                                searchQuery.trim().length > 0 &&
+                                    'border-primary bg-primary/5 ring-1 ring-primary/30',
+                            )}
+                        />
+                        <DataTableFacetedFilter
+                            filterValue={initialType}
+                            title="Type"
+                            options={[...programTypeOptions]}
+                            onFilterChange={(values) =>
+                                navigateWithFilters({ type: values })
+                            }
+                        />
+                        <DataTableFacetedFilter
+                            filterValue={initialStatus}
+                            title="Status"
+                            options={[...programStatusOptions]}
+                            onFilterChange={(values) =>
+                                navigateWithFilters({ status: values })
+                            }
+                        />
+                        {isFiltered ? (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                className="h-8 px-2 lg:px-3"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    navigateWithFilters({
+                                        search: '',
+                                        type: [],
+                                        status: [],
+                                    });
+                                }}
+                            >
+                                Reset
+                                <X className="ml-2 size-4" />
+                            </Button>
+                        ) : null}
+                    </div>
                     <Button
                         type="button"
                         disabled={!canCreate}
@@ -276,70 +411,84 @@ export default function UserProgramsIndex({
                         Create program
                     </Button>
                 </div>
-                {programs.length === 0 ? (
+                {programs.data.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                         No programs match your filters.
                     </p>
                 ) : (
-                    <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {programs.map((program) => {
-                            const card = (
-                                <Card className="flex h-full flex-col bg-card transition-colors hover:border-primary/50 hover:shadow-sm">
-                                    <CardHeader className="gap-1">
-                                        <CardTitle className="text-lg">
-                                            {program.name}
-                                        </CardTitle>
-                                        <CardDescription>
-                                            <span className="font-medium text-foreground">
-                                                {program.is_organization
-                                                    ? 'Organization'
-                                                    : 'Personal'}
-                                            </span>
-                                            {program.is_closed ? (
-                                                <Badge variant="destructive">
-                                                    Closed
-                                                </Badge>
-                                            ) : (
-                                                <Badge variant="default">
-                                                    Open
-                                                </Badge>
-                                            )}
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="flex flex-1 flex-col gap-2 text-sm text-muted-foreground">
-                                        <p className="line-clamp-4">
-                                            {program.descriptions}
-                                        </p>
-                                        <p>
-                                            <span className="font-medium text-foreground">
-                                                Period:{' '}
-                                            </span>
-                                            {program.start_at ?? '—'}
-                                            {program.end_at
-                                                ? ` – ${program.end_at}`
-                                                : ''}
-                                        </p>
-                                    </CardContent>
-                                </Card>
-                            );
+                    <InfiniteScroll
+                        data="programs"
+                        onlyNext
+                        next={({ loading }) =>
+                            loading ? (
+                                <div className="mt-4 grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
+                                    <ProjectCard />
+                                    <ProjectCard />
+                                    <ProjectCard />
+                                </div>
+                            ) : null
+                        }
+                    >
+                        <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {programs.data.map((program) => {
+                                const card = (
+                                    <Card className="flex h-full flex-col bg-card transition-colors hover:border-primary/50 hover:shadow-sm">
+                                        <CardHeader className="gap-1">
+                                            <CardTitle className="text-lg">
+                                                {program.name}
+                                            </CardTitle>
+                                            <CardDescription>
+                                                <span className="font-medium text-foreground">
+                                                    {program.is_organization
+                                                        ? 'Organization'
+                                                        : 'Individual'}
+                                                </span>
+                                                {program.is_closed ? (
+                                                    <Badge variant="destructive">
+                                                        Closed
+                                                    </Badge>
+                                                ) : (
+                                                    <Badge variant="default">
+                                                        Open
+                                                    </Badge>
+                                                )}
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="flex flex-1 flex-col gap-2 text-sm text-muted-foreground">
+                                            <p className="line-clamp-4">
+                                                {program.descriptions}
+                                            </p>
+                                            <p>
+                                                <span className="font-medium text-foreground">
+                                                    Period:{' '}
+                                                </span>
+                                                {program.start_at ?? '—'}
+                                                {program.end_at
+                                                    ? ` – ${program.end_at}`
+                                                    : ''}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                );
 
-                            return department?.slug ? (
-                                <Link
-                                    key={program.id}
-                                    href={departmentProgramShow.url({
-                                        department: department.slug,
-                                        program: program.id,
-                                    })}
-                                    prefetch
-                                    className="block h-full rounded-xl ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                >
-                                    {card}
-                                </Link>
-                            ) : (
-                                <div key={program.id}>{card}</div>
-                            );
-                        })}
-                    </div>
+                                return department?.slug ? (
+                                    <Link
+                                        key={program.id}
+                                        href={departmentProgramShow.url({
+                                            department: department.slug,
+                                            program: program.id,
+                                        })}
+                                        prefetch
+                                        className="block h-full rounded-xl ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                    >
+                                        {card}
+                                    </Link>
+                                ) : (
+                                    <div key={program.id}>{card}</div>
+                                );
+                            })}
+                        </div>
+                    </InfiniteScroll>
                 )}
             </div>
 
