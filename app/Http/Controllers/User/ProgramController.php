@@ -6,10 +6,14 @@ use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\ProgramAssistanceTableRequest;
+use App\Http\Requests\User\StoreProgramRequest;
 use App\Models\Assistance;
 use App\Models\Department;
+use App\Models\Fund;
+use App\Models\Item;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -45,15 +49,65 @@ class ProgramController extends Controller
             ])
             ->with(['department:id,name,slug'])
             ->where('department_id', $department->id)
-            ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+            ->when($search !== '', fn($query) => $query->where('name', 'like', '%' . $search . '%'))
             ->orderByDesc('id')
             ->get();
+
+        $funds = Fund::query()
+            ->where('department_id', $department->id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'year']);
+
+        $items = Item::query()
+            ->where('department_id', $department->id)
+            ->orderBy('name')
+            ->with('unitMeasurement:id,name')
+            ->get(['id', 'name']);
+
+        $items = $items->map(function ($item) {
+            return [
+                'id' => $item->id,
+                'name' => $item->name,
+                'unit' => $item->unitMeasurement?->name,
+            ];
+        });
 
         return Inertia::render('user/programs/index', [
             'programs' => $programs,
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
+            'funds' => $funds,
+            'items' => $items,
         ]);
+    }
+
+    /**
+     * Store a newly created program for the authenticated user's department.
+     */
+    public function store(StoreProgramRequest $request, Department $department): RedirectResponse
+    {
+        $user = $request->user();
+
+        abort_unless($user->department_id === $department->id, 403);
+
+        $validated = $request->validated();
+
+        $program = Program::query()->create([
+            'name' => $validated['name'],
+            'descriptions' => $validated['descriptions'],
+            'start_at' => $validated['start_at'],
+            'end_at' => $validated['end_at'] ?? null,
+            'department_id' => $department->id,
+            'is_closed' => false,
+            'is_organization' => $validated['is_organization'] ?? false,
+        ]);
+
+        $program->fund()->attach($validated['fund_ids']);
+        $program->item()->attach($validated['item_ids']);
+
+        return redirect()
+            ->route('user.programs.index', ['department' => $department->slug])
+            ->with('success', 'Program created successfully.');
     }
 
     /**
@@ -91,7 +145,7 @@ class ProgramController extends Controller
             )
             ->orderBy('name')
             ->pluck('name')
-            ->map(static fn (string $name): array => [
+            ->map(static fn(string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -148,7 +202,7 @@ class ProgramController extends Controller
                     'cais_number' => $assistance->beneficiary?->cais_number
                         ?? '—',
                     'items' => $assistance->assistanceItem
-                        ->map(static fn ($assistanceItem): array => [
+                        ->map(static fn($assistanceItem): array => [
                             'name' => $assistanceItem->item?->name ?? '—',
                             'quantity' => $assistanceItem->quantity,
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,

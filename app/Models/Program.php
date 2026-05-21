@@ -63,11 +63,11 @@ class Program extends Model
 
     public function fund(): BelongsToMany
     {
-        return $this->belongsToMany(Fund::class);
+        return $this->belongsToMany(Fund::class, 'fund_program', 'program_id', 'fund_id');
     }
 
     public function item(): BelongsToMany
     {
-        return $this->belongsToMany(Item::class);
+        return $this->belongsToMany(Item::class, 'item_program', 'program_id', 'item_id');
     }
 }
