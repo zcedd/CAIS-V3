@@ -12,6 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::rename('source_of_funds', 'funds');
+
+        Schema::table('funds', function (Blueprint $table) {
+            $table->softDeletes();
+        });
     }
 
     /**
@@ -20,5 +24,9 @@ return new class extends Migration
     public function down(): void
     {
         Schema::rename('funds', 'source_of_funds');
+
+        Schema::table('source_of_funds', function (Blueprint $table) {
+            $table->dropSoftDeletes();
+        });
     }
 };
