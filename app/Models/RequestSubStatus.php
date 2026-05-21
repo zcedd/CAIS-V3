@@ -2,11 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Query\Builder;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Query\Builder;
 
 class RequestSubStatus extends Model
 {
@@ -14,8 +14,6 @@ class RequestSubStatus extends Model
 
     /**
      * The assistance that belong to the RequestSubStatus
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
      */
     public function assistance(): BelongsToMany
     {
@@ -24,8 +22,6 @@ class RequestSubStatus extends Model
 
     /**
      * Get the status associated with the RequestSubStatus
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne
      */
     public function requestStatus(): HasOne
     {
@@ -34,9 +30,9 @@ class RequestSubStatus extends Model
 
     public function scopeLatestStatus($query)
     {
-        $query->whereIn('assistance_request_sub_status.created_at', function (Builder $query) {
+        $query->whereIn('assistance_request_sub_status.recorded_at', function (Builder $query) {
             $query->from('assistance_request_sub_status')
-                ->selectRaw('max(`created_at`)')
+                ->selectRaw('max(`recorded_at`)')
                 ->groupBy('assistance_request_sub_status.assistance_id');
         });
     }

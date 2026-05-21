@@ -62,8 +62,8 @@ class Assistance extends Model
      */
     public function requestSubStatus(): BelongsToMany
     {
-        return $this->belongsToMany(RequestSubStatus::class)->withPivot('remark', 'created_at', 'updated_at')
-            ->orderByDesc('pivot_created_at')
+        return $this->belongsToMany(RequestSubStatus::class)->withPivot('remark', 'recorded_at')
+            ->orderByDesc('pivot_recorded_at')
             ->withTimestamps()
             ->using(AssistanceRequestSubStatus::class);
     }

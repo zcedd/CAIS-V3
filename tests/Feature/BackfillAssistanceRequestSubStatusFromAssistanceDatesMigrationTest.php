@@ -109,34 +109,34 @@ test('backfill creates a pivot row for every non-null assistance date column', f
         ->get()
         ->map(static fn ($pivot): array => [
             'request_sub_status_id' => (int) $pivot->request_sub_status_id,
-            'created_at' => Carbon::parse($pivot->created_at)->toDateString(),
+            'recorded_at' => Carbon::parse($pivot->recorded_at)->toDateString(),
         ])
         ->all();
 
     expect($pivots)->toHaveCount(6);
     expect($pivots)->toContain([
         'request_sub_status_id' => $subStatusIds['Awaiting Review'],
-        'created_at' => '2024-01-10',
+        'recorded_at' => '2024-01-10',
     ]);
     expect($pivots)->toContain([
         'request_sub_status_id' => $subStatusIds['Verified'],
-        'created_at' => '2024-01-15',
+        'recorded_at' => '2024-01-15',
     ]);
     expect($pivots)->toContain([
         'request_sub_status_id' => $subStatusIds['Successfully Delivered'],
-        'created_at' => '2024-01-20',
+        'recorded_at' => '2024-01-20',
     ]);
     expect($pivots)->toContain([
         'request_sub_status_id' => $subStatusIds['Closed after Resolution'],
-        'created_at' => '2024-01-20',
+        'recorded_at' => '2024-01-20',
     ]);
     expect($pivots)->toContain([
         'request_sub_status_id' => $subStatusIds['Eligibility Denied'],
-        'created_at' => '2024-01-25',
+        'recorded_at' => '2024-01-25',
     ]);
     expect($pivots)->toContain([
         'request_sub_status_id' => $subStatusIds['Closed after Denial'],
-        'created_at' => '2024-01-25',
+        'recorded_at' => '2024-01-25',
     ]);
 });
 
@@ -172,6 +172,7 @@ test('backfill is idempotent and does not duplicate existing pivot rows for the 
         'assistance_id' => $assistanceId,
         'request_sub_status_id' => $subStatusIds['Awaiting Review'],
         'remark' => 'Recorded through the new flow',
+        'recorded_at' => Carbon::parse('2024-03-05 10:00:00'),
         'created_at' => Carbon::parse('2024-03-05 10:00:00'),
         'updated_at' => Carbon::parse('2024-03-05 10:00:00'),
         'deleted_at' => null,
@@ -201,6 +202,7 @@ test('rollback removes only the backfilled pivot rows', function () {
         'assistance_id' => $assistanceId,
         'request_sub_status_id' => $subStatusIds['Verified'],
         'remark' => 'Manual entry preserved on rollback',
+        'recorded_at' => now(),
         'created_at' => now(),
         'updated_at' => now(),
         'deleted_at' => null,

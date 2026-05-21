@@ -72,7 +72,7 @@ return new class extends Migration
     }
 
     /**
-     * Legacy assistances.date_* values must fit pivot timestamps() columns. MySQL
+     * Legacy assistances.date_* values must fit pivot recorded_at (timestamp). MySQL
      * rejects years before 1000 for DATETIME and has a narrower range for TIMESTAMP
      * (e.g. bogus 0022-12-09 from bad imports).
      */
@@ -87,7 +87,7 @@ return new class extends Migration
     private function backfillColumn(string $column, int $subStatusId): void
     {
         DB::table('assistance_request_sub_status')->insertUsing(
-            ['assistance_id', 'request_sub_status_id', 'remark', 'created_at', 'updated_at', 'deleted_at'],
+            ['assistance_id', 'request_sub_status_id', 'remark', 'recorded_at', 'created_at', 'updated_at', 'deleted_at'],
             function (Builder $query) use ($column, $subStatusId): void {
                 $query->from('assistances as a')
                     ->leftJoin('assistance_request_sub_status as existing', function (JoinClause $join) use ($subStatusId): void {
@@ -104,7 +104,8 @@ return new class extends Migration
                         new Expression((string) $subStatusId),
                         new Expression('NULL'),
                         'a.'.$column,
-                        'a.'.$column,
+                        new Expression('NOW()'),
+                        new Expression('NOW()'),
                         new Expression('NULL'),
                     ]);
             }
@@ -117,7 +118,7 @@ return new class extends Migration
             ->join('assistances as a', 'a.id', '=', 'pivot.assistance_id')
             ->where('pivot.request_sub_status_id', $subStatusId)
             ->whereNull('pivot.remark')
-            ->whereColumn('pivot.created_at', 'a.'.$column)
+            ->whereColumn('pivot.recorded_at', 'a.'.$column)
             ->delete();
     }
 
