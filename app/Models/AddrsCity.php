@@ -17,5 +17,7 @@ class AddrsCity extends Model
     use HasFactory;
     use SoftDeletes;
 
+    protected $table = 'address_cities';
+
     protected $fillable = ['name', 'zipcode', 'excel_name'];
 }

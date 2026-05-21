@@ -16,10 +16,12 @@ class AddrsBrgy extends Model
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['addrs_cities_id', 'name'];
+    protected $table = 'address_barangays';
+
+    protected $fillable = ['address_city_id', 'name'];
 
     public function city()
     {
-        return $this->belongsTo(AddrsCity::class, 'addrs_city_id', 'id');
+        return $this->belongsTo(AddressCity::class, 'address_city_id', 'id');
     }
 }
