@@ -52,14 +52,30 @@ export function AssistanceDataTableRowActions({
                     </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                    onClick={() => {
-                        void navigator.clipboard.writeText(record.cais_number);
-                    }}
-                >
-                    <Copy className="mr-2 h-4 w-4" />
-                    Copy CAIS number
-                </DropdownMenuItem>
+                {record.cais_number !== '—' ? (
+                    <DropdownMenuItem
+                        onClick={() => {
+                            void navigator.clipboard.writeText(
+                                record.cais_number,
+                            );
+                        }}
+                    >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy CAIS number
+                    </DropdownMenuItem>
+                ) : null}
+                {record.beneficiary_name !== '—' ? (
+                    <DropdownMenuItem
+                        onClick={() => {
+                            void navigator.clipboard.writeText(
+                                record.beneficiary_name,
+                            );
+                        }}
+                    >
+                        <Copy className="mr-2 h-4 w-4" />
+                        Copy name
+                    </DropdownMenuItem>
+                ) : null}
                 {record.remark?.trim() ? (
                     <>
                         <DropdownMenuSeparator />

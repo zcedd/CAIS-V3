@@ -1,4 +1,5 @@
 import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -23,8 +24,20 @@ import {
     show as departmentProgramShow,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { useCallback, useEffect, useMemo } from 'react';
+
+import {
+    Head,
+    Link,
+    router,
+    setLayoutProps,
+    WhenVisible,
+} from '@inertiajs/react';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+const ASSISTANCE_TABLE_PARTIAL_PROPS = ['assistances'] as const;
+
+const ASSISTANCE_TABLE_SKELETON_COLUMNS = 14;
 
 type DepartmentSummary = {
     id: number;
@@ -97,6 +110,107 @@ function buildTableQuery(
     return query;
 }
 
+function isAssistancesPartialVisit(only?: string[]): boolean {
+    if (!only?.length) {
+        return false;
+    }
+
+    return only.some((prop) =>
+        ASSISTANCE_TABLE_PARTIAL_PROPS.includes(
+            prop as (typeof ASSISTANCE_TABLE_PARTIAL_PROPS)[number],
+        ),
+    );
+}
+
+type ProgramAssistanceTableProps = {
+    assistances: PaginatedAssistances;
+    assistanceColumns: ReturnType<typeof createUserProgramAssistanceColumns>;
+    tableFilters: AssistanceTableFilters;
+    tableState: {
+        sort: string;
+        direction: 'asc' | 'desc';
+        per_page: number;
+        search: string;
+        status: string[];
+        mode: string[];
+    };
+    statusOptions: StatusFilterOption[];
+    modeOptions: ModeFilterOption[];
+    isLoading: boolean;
+    onVisitTable: (
+        overrides: Partial<
+            AssistanceTableFilters & {
+                sort: string;
+                direction: 'asc' | 'desc';
+                per_page: number;
+                page: number;
+            }
+        >,
+    ) => void;
+};
+
+function ProgramAssistanceTable({
+    assistances,
+    assistanceColumns,
+    tableFilters,
+    tableState,
+    statusOptions,
+    modeOptions,
+    isLoading,
+    onVisitTable,
+}: ProgramAssistanceTableProps) {
+    return (
+        <DataTable
+            columns={assistanceColumns}
+            data={assistances.data}
+            emptyMessage="No assistance records for this program."
+            manualPagination
+            manualSorting
+            manualFiltering
+            serverPagination={assistances}
+            serverSorting={{
+                sort: tableState.sort,
+
+                direction: tableState.direction,
+            }}
+            partialReloadOnly={[...ASSISTANCE_TABLE_PARTIAL_PROPS]}
+            isLoading={isLoading}
+            loadingFallback={
+                <DataTableSkeleton
+                    columnCount={ASSISTANCE_TABLE_SKELETON_COLUMNS}
+                    rowCount={tableState.per_page}
+                />
+            }
+            onServerSortingChange={(columnId, nextDirection) => {
+                onVisitTable({
+                    sort: columnId,
+
+                    direction: nextDirection,
+
+                    page: 1,
+                });
+            }}
+            onPerPageChange={(nextPerPage) => {
+                onVisitTable({ per_page: nextPerPage, page: 1 });
+            }}
+            toolbar={(table, columnVisibility) => (
+                <AssistanceDataTableToolbar
+                    table={table}
+                    columnVisibility={columnVisibility}
+                    filters={tableFilters}
+                    statusOptions={statusOptions}
+                    modeOptions={modeOptions}
+                    onFiltersChange={onVisitTable}
+                />
+            )}
+            initialColumnVisibility={
+                userProgramAssistanceInitialColumnVisibility
+            }
+            enableRowSelection
+        />
+    );
+}
+
 export default function UserProgramShow({
     program,
     department,
@@ -112,7 +226,7 @@ export default function UserProgramShow({
 }: {
     program: ProgramDetail;
     department: DepartmentSummary | null;
-    assistances: PaginatedAssistances;
+    assistances?: PaginatedAssistances;
     sort: string;
     direction: 'asc' | 'desc';
     per_page: number;
@@ -122,10 +236,44 @@ export default function UserProgramShow({
     mode_options: ModeFilterOption[];
     status_options: StatusFilterOption[];
 }) {
-    const tableFilters: AssistanceTableFilters = {
+    const [tableState, setTableState] = useState({
+        sort,
+        direction,
+        per_page,
         search,
         status,
         mode,
+    });
+
+    const [isTableReloading, setIsTableReloading] = useState(false);
+
+    const tableStateRef = useRef(tableState);
+
+    useEffect(() => {
+        tableStateRef.current = tableState;
+    }, [tableState]);
+
+    useEffect(() => {
+        const removeStart = router.on('start', (event) => {
+            if (isAssistancesPartialVisit(event.detail.visit.only)) {
+                setIsTableReloading(true);
+            }
+        });
+
+        const removeFinish = router.on('finish', () => {
+            setIsTableReloading(false);
+        });
+
+        return () => {
+            removeStart();
+            removeFinish();
+        };
+    }, []);
+
+    const tableFilters: AssistanceTableFilters = {
+        search: tableState.search,
+        status: tableState.status,
+        mode: tableState.mode,
     };
 
     const assistanceColumns = useMemo(() => {
@@ -178,45 +326,33 @@ export default function UserProgramShow({
             if (!department?.slug) {
                 return;
             }
-
+            const next = { ...tableStateRef.current, ...overrides };
+            setTableState(next);
+            router.cancelAll();
             router.get(
                 departmentProgramShow.url(
                     { department: department.slug, program: program.id },
                     {
-                        query: buildTableQuery(
-                            { ...tableFilters, sort, direction, per_page },
-                            overrides,
-                        ),
+                        query: buildTableQuery(next, overrides),
                     },
                 ),
                 {},
                 {
                     preserveState: true,
                     preserveScroll: true,
-                    only: [
-                        'assistances',
-                        'sort',
-                        'direction',
-                        'per_page',
-                        'search',
-                        'status',
-                        'mode',
-                        'mode_options',
-                        'status_options',
-                    ],
+                    only: [...ASSISTANCE_TABLE_PARTIAL_PROPS],
                 },
             );
         },
-        [
-            department?.slug,
-            direction,
-            mode,
-            per_page,
-            program.id,
-            search,
-            sort,
-            status,
-        ],
+
+        [department?.slug, program.id],
+    );
+
+    const tableSkeleton = (
+        <DataTableSkeleton
+            columnCount={ASSISTANCE_TABLE_SKELETON_COLUMNS}
+            rowCount={tableState.per_page}
+        />
     );
 
     const heading = program.name;
@@ -285,40 +421,25 @@ export default function UserProgramShow({
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <DataTable
-                            columns={assistanceColumns}
-                            data={assistances.data}
-                            emptyMessage="No assistance records for this program."
-                            manualPagination
-                            manualSorting
-                            manualFiltering
-                            serverPagination={assistances}
-                            serverSorting={{ sort, direction }}
-                            onServerSortingChange={(columnId, nextDirection) => {
-                                visitTable({
-                                    sort: columnId,
-                                    direction: nextDirection,
-                                    page: 1,
-                                });
-                            }}
-                            onPerPageChange={(nextPerPage) => {
-                                visitTable({ per_page: nextPerPage, page: 1 });
-                            }}
-                            toolbar={(table, columnVisibility) => (
-                                <AssistanceDataTableToolbar
-                                    table={table}
-                                    columnVisibility={columnVisibility}
-                                    filters={tableFilters}
+                        <WhenVisible
+                            data="assistances"
+                            fallback={() => tableSkeleton}
+                        >
+                            {assistances ? (
+                                <ProgramAssistanceTable
+                                    assistances={assistances}
+                                    assistanceColumns={assistanceColumns}
+                                    tableFilters={tableFilters}
+                                    tableState={tableState}
                                     statusOptions={status_options}
                                     modeOptions={mode_options}
-                                    onFiltersChange={visitTable}
+                                    isLoading={isTableReloading}
+                                    onVisitTable={visitTable}
                                 />
+                            ) : (
+                                tableSkeleton
                             )}
-                            initialColumnVisibility={
-                                userProgramAssistanceInitialColumnVisibility
-                            }
-                            enableRowSelection
-                        />
+                        </WhenVisible>
                     </CardContent>
                 </Card>
             </div>

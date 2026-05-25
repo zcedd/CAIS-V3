@@ -141,6 +141,12 @@ test('populate migration creates morph beneficiaries and links assistances', fun
     expect($individualBeneficiaryId)->not->toBeNull();
     expect($organizationBeneficiaryId)->not->toBeNull();
 
+    expect(DB::table('beneficiaries')->where('id', $individualBeneficiaryId)->value('name'))
+        ->toBe('Juan Cruz');
+
+    expect(DB::table('beneficiaries')->where('id', $organizationBeneficiaryId)->value('name'))
+        ->toBe('Test Organization');
+
     expect(DB::table('assistances')->where('id', $individualAssistanceId)->value('beneficiary_id'))
         ->toBe($individualBeneficiaryId);
 

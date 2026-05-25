@@ -34,6 +34,7 @@ function formatItemAmount(item: UserProgramAssistanceItem): string | null {
 export type UserProgramAssistanceRow = {
     id: number;
     cais_number: string;
+    beneficiary_name: string;
     items: UserProgramAssistanceItem[];
     mode_of_request: string;
     date_requested: string | null;
@@ -42,9 +43,29 @@ export type UserProgramAssistanceRow = {
     date_denied: string | null;
     request_status: string | null;
     request_sub_status: string | null;
+    request_sub_status_recorded_at: string | null;
     status: string;
     remark: string | null;
 };
+
+function formatRequestSubStatusRecordedAt(
+    value: string | null,
+): string {
+    if (!value) {
+        return '—';
+    }
+
+    const recorded = new Date(value);
+
+    if (Number.isNaN(recorded.getTime())) {
+        return '—';
+    }
+
+    return recorded.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
 
 function itemsSummary(items: UserProgramAssistanceItem[]): string {
     if (items.length === 0) {
@@ -122,6 +143,24 @@ export function createUserProgramAssistanceColumns({
                     >
                         {caisNumber}
                     </Link>
+                );
+            },
+        },
+        {
+            accessorKey: 'beneficiary_name',
+            meta: { title: 'Name' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Name" />
+            ),
+            cell: ({ row }) => {
+                const beneficiaryName = row.getValue(
+                    'beneficiary_name',
+                ) as string;
+
+                return (
+                    <span className="max-w-[min(16rem,40vw)] font-medium">
+                        {beneficiaryName}
+                    </span>
                 );
             },
         },
@@ -205,6 +244,27 @@ export function createUserProgramAssistanceColumns({
                             {requestSubStatus}
                         </span>
                     </div>
+                );
+            },
+        },
+        {
+            accessorKey: 'request_sub_status_recorded_at',
+            meta: { title: 'Sub-status recorded' },
+            header: ({ column }) => (
+                <DataTableColumnHeader
+                    column={column}
+                    title="Sub-status recorded"
+                />
+            ),
+            cell: ({ row }) => {
+                const value = row.getValue(
+                    'request_sub_status_recorded_at',
+                ) as string | null;
+
+                return (
+                    <span className="text-muted-foreground tabular-nums">
+                        {formatRequestSubStatusRecordedAt(value)}
+                    </span>
                 );
             },
         },
@@ -318,6 +378,7 @@ export function createUserProgramAssistanceColumns({
 }
 
 export const userProgramAssistanceInitialColumnVisibility = {
+    request_sub_status_recorded_at: true,
     mode_of_request: true,
     date_requested: false,
     date_verified: false,

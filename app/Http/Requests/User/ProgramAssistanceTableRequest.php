@@ -26,8 +26,10 @@ class ProgramAssistanceTableRequest extends FormRequest
                 Rule::in([
                     'id',
                     'cais_number',
+                    'beneficiary_name',
                     'mode_of_request',
                     'status',
+                    'request_sub_status_recorded_at',
                     'date_requested',
                     'date_verified',
                     'date_delivered',

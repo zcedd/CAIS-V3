@@ -59,7 +59,7 @@ export function AssistanceDataTableToolbar({
 
         const handle = window.setTimeout(() => {
             onFiltersChange({ search: trimmed, page: 1 });
-        }, 400);
+        }, 250);
 
         return () => window.clearTimeout(handle);
     }, [searchQuery, filters.search, onFiltersChange]);
@@ -73,7 +73,7 @@ export function AssistanceDataTableToolbar({
         <div className="flex items-center justify-between gap-2">
             <div className="flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2">
                 <Input
-                    placeholder="Filter CAIS number..."
+                    placeholder="Filter CAIS number or name..."
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
                     className={cn(

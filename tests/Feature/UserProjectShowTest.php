@@ -3,6 +3,7 @@
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Department;
+use App\Models\Individual;
 use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
@@ -83,10 +84,18 @@ test('program show page includes assistances for the program', function () {
         'is_organization' => false,
     ]);
 
+    $beneficiaryId = DB::table('beneficiaries')->insertGetId([
+        'cais_number' => 'CAIS-001',
+        'name' => 'Juan Dela Cruz',
+        'beneficiable_type' => Individual::class,
+        'beneficiable_id' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
     $assistance = Assistance::create([
         'program_id' => $program->id,
-        'beneficiary_id' => null,
-        'organization_id' => null,
+        'beneficiary_id' => $beneficiaryId,
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
         'date_verified' => null,
@@ -120,7 +129,8 @@ test('program show page includes assistances for the program', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('assistances.data', 1)
-            ->where('assistances.data.0.cais_number', '—')
+            ->where('assistances.data.0.cais_number', 'CAIS-001')
+            ->where('assistances.data.0.beneficiary_name', 'Juan Dela Cruz')
             ->where('assistances.data.0.status', 'Pending')
             ->where('assistances.data.0.remark', 'Follow up next week')
             ->where('assistances.data.0.items.0.name', 'Rice')
@@ -280,6 +290,11 @@ test('program show page uses latest request sub status for assistance status', f
             ->has('assistances.data', 1)
             ->where('assistances.data.0.request_sub_status', 'Verified')
             ->where('assistances.data.0.request_status', 'Submitted')
+            ->where(
+                'assistances.data.0.request_sub_status_recorded_at',
+                fn (mixed $value): bool => is_string($value)
+                    && str_contains($value, '2024-02-02T10:00:00'),
+            )
             ->where('assistances.data.0.status', 'Verified'));
 });
 
