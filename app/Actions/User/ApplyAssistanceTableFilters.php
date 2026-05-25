@@ -55,27 +55,12 @@ class ApplyAssistanceTableFilters
      */
     private function applyStatusConstraint(Builder $query, string $status): void
     {
-        match ($status) {
-            'Denied' => $query
-                ->whereNotNull('date_denied'),
-            'Delivered' => $query
-                ->whereNotNull('date_delivered')
-                ->whereNull('date_denied'),
-            'Verified' => $query
-                ->whereNotNull('date_verified')
-                ->whereNull('date_delivered')
-                ->whereNull('date_denied'),
-            'Pending' => $query
-                ->whereNotNull('date_requested')
-                ->whereNull('date_verified')
-                ->whereNull('date_delivered')
-                ->whereNull('date_denied'),
-            'Unrequested' => $query
-                ->whereNull('date_requested')
-                ->whereNull('date_verified')
-                ->whereNull('date_delivered')
-                ->whereNull('date_denied'),
-            default => null,
-        };
+        $query->whereHas(
+            'latestAssistanceRequestSubStatus.requestSubStatus.requestStatus',
+            fn (Builder $requestStatusQuery) => $requestStatusQuery->where(
+                'request_statuses.name',
+                $status,
+            ),
+        );
     }
 }

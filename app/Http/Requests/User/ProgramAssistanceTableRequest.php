@@ -17,10 +17,7 @@ class ProgramAssistanceTableRequest extends FormRequest
             'per_page' => ['nullable', 'integer', Rule::in([10, 15, 20, 25, 30, 40, 50])],
             'search' => ['nullable', 'string', 'max:255'],
             'status' => ['nullable', 'array'],
-            'status.*' => [
-                'string',
-                Rule::in(['Pending', 'Verified', 'Delivered', 'Denied', 'Unrequested']),
-            ],
+            'status.*' => ['string', 'max:255'],
             'mode' => ['nullable', 'array'],
             'mode.*' => ['string', 'max:255'],
             'sort' => [

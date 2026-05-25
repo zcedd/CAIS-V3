@@ -3,7 +3,6 @@
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
 import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-row-actions';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { Link } from '@inertiajs/react';
@@ -41,6 +40,8 @@ export type UserProgramAssistanceRow = {
     date_verified: string | null;
     date_delivered: string | null;
     date_denied: string | null;
+    request_status: string | null;
+    request_sub_status: string | null;
     status: string;
     remark: string | null;
 };
@@ -151,9 +152,6 @@ export function createUserProgramAssistanceColumns({
                 return (
                     <div className="flex max-w-[min(28rem,50vw)] flex-col gap-1">
                         <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline" className="font-normal">
-                                {row.original.mode_of_request}
-                            </Badge>
                             {items.length > 1 ? (
                                 <Badge
                                     variant="secondary"
@@ -183,23 +181,29 @@ export function createUserProgramAssistanceColumns({
         },
         {
             accessorKey: 'status',
-            meta: { title: 'Status' },
+            meta: {
+                title: 'Status',
+                cellClassName: 'whitespace-normal',
+            },
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Status" />
             ),
             cell: ({ row }) => {
-                const status = row.getValue('status') as string;
-                const option = assistanceStatuses.find(
-                    (entry) => entry.value === status,
-                );
-                const Icon = option?.icon;
+                const requestSubStatus =
+                    row.original.request_sub_status ??
+                    (row.getValue('status') as string);
+                const requestStatus = row.original.request_status;
 
                 return (
-                    <div className="flex w-[120px] items-center gap-2">
-                        {Icon ? (
-                            <Icon className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex max-w-[min(16rem,40vw)] flex-col gap-0.5">
+                        {requestStatus ? (
+                            <span className="leading-snug font-medium">
+                                {requestStatus}
+                            </span>
                         ) : null}
-                        <span>{option?.label ?? status}</span>
+                        <span className="text-xs text-muted-foreground">
+                            {requestSubStatus}
+                        </span>
                     </div>
                 );
             },
@@ -315,8 +319,9 @@ export function createUserProgramAssistanceColumns({
 
 export const userProgramAssistanceInitialColumnVisibility = {
     mode_of_request: true,
-    date_verified: true,
-    date_delivered: true,
-    date_denied: true,
+    date_requested: false,
+    date_verified: false,
+    date_delivered: false,
+    date_denied: false,
     remark: true,
 };

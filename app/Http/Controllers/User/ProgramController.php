@@ -14,6 +14,7 @@ use App\Models\Fund;
 use App\Models\Item;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
+use App\Models\RequestStatus;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -171,6 +172,36 @@ class ProgramController extends Controller
             ->values()
             ->all();
 
+        $statusOptions = RequestStatus::query()
+            ->whereIn(
+                'id',
+                Assistance::query()
+                    ->where('program_id', $program->id)
+                    ->join(
+                        'assistance_request_sub_status',
+                        'assistance_request_sub_status.assistance_id',
+                        '=',
+                        'assistances.id',
+                    )
+                    ->join(
+                        'request_sub_statuses',
+                        'request_sub_statuses.id',
+                        '=',
+                        'assistance_request_sub_status.request_sub_status_id',
+                    )
+                    ->whereNull('assistance_request_sub_status.deleted_at')
+                    ->distinct()
+                    ->pluck('request_sub_statuses.request_status_id'),
+            )
+            ->orderBy('name')
+            ->pluck('name')
+            ->map(static fn (string $name): array => [
+                'label' => $name,
+                'value' => $name,
+            ])
+            ->values()
+            ->all();
+
         $assistancesQuery = Assistance::query()
             ->where('program_id', $program->id)
             ->select([
@@ -191,6 +222,8 @@ class ProgramController extends Controller
                 'assistanceItem:id,assistance_id,item_id,quantity,specification',
                 'assistanceItem.item:id,name,item_unit_measurement_id',
                 'assistanceItem.item.unitMeasurement:id,name',
+                'latestAssistanceRequestSubStatus.requestSubStatus:id,name,request_status_id',
+                'latestAssistanceRequestSubStatus.requestSubStatus.requestStatus:id,name',
             ]);
 
         $applyAssistanceTableFilters($assistancesQuery, $search, $statuses, $modes);
@@ -208,7 +241,13 @@ class ProgramController extends Controller
                     return Carbon::parse($value)->toDateString();
                 };
 
-                $status = match (true) {
+                $latestSubStatus = $assistance
+                    ->latestAssistanceRequestSubStatus
+                    ?->requestSubStatus;
+                $requestSubStatus = $latestSubStatus?->name;
+                $requestStatus = $latestSubStatus?->requestStatus?->name;
+
+                $status = $requestSubStatus ?? match (true) {
                     $assistance->date_denied !== null => 'Denied',
                     $assistance->date_delivered !== null => 'Delivered',
                     $assistance->date_verified !== null => 'Verified',
@@ -234,6 +273,8 @@ class ProgramController extends Controller
                     'date_verified' => $formatDate($assistance->date_verified),
                     'date_delivered' => $formatDate($assistance->date_delivered),
                     'date_denied' => $formatDate($assistance->date_denied),
+                    'request_status' => $requestStatus,
+                    'request_sub_status' => $requestSubStatus,
                     'status' => $status,
                     'remark' => $assistance->remark,
                 ];
@@ -262,6 +303,7 @@ class ProgramController extends Controller
             'status' => $statuses,
             'mode' => $modes,
             'mode_options' => $modeOptions,
+            'status_options' => $statusOptions,
         ]);
     }
 }

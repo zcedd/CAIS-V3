@@ -8,6 +8,7 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -201,7 +202,7 @@ test('program show page accepts sort direction and per page query parameters', f
             ->where('assistances.data.1.date_requested', '2024-06-01'));
 });
 
-test('program show page filters assistances by status on the server', function () {
+test('program show page uses latest request sub status for assistance status', function () {
     $department = Department::create(['name' => 'Department A']);
 
     $user = User::factory()->create([
@@ -218,32 +219,163 @@ test('program show page filters assistances by status on the server', function (
         'is_organization' => false,
     ]);
 
-    Assistance::create([
+    $assistance = Assistance::create([
         'program_id' => $program->id,
         'date_requested' => '2024-01-01',
-        'user_id' => $user->id,
-        'remark' => 'pending record',
-    ]);
-
-    Assistance::create([
-        'program_id' => $program->id,
         'date_verified' => '2024-02-01',
         'user_id' => $user->id,
         'remark' => 'verified record',
+    ]);
+
+    $requestStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'Submitted',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $olderSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Awaiting Review',
+        'request_status_id' => $requestStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $latestSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Verified',
+        'request_status_id' => $requestStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('assistance_request_sub_status')->insert([
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $olderSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-01-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $latestSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
     ]);
 
     $this->actingAs($user)
         ->get(route('user.programs.show', [
             'department' => $department->slug,
             'program' => $program->id,
-            'status' => ['Pending'],
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('status', ['Pending'])
             ->has('assistances.data', 1)
-            ->where('assistances.data.0.status', 'Pending')
-            ->where('assistances.data.0.remark', 'pending record'));
+            ->where('assistances.data.0.request_sub_status', 'Verified')
+            ->where('assistances.data.0.request_status', 'Submitted')
+            ->where('assistances.data.0.status', 'Verified'));
+});
+
+test('program show page filters assistances by request status on the server', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Full description',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $submittedStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'Submitted',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $verificationStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'Verification',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $submittedSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Awaiting Review',
+        'request_status_id' => $submittedStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $verifiedSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Verified',
+        'request_status_id' => $verificationStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $submittedAssistance = Assistance::create([
+        'program_id' => $program->id,
+        'date_requested' => '2024-01-01',
+        'user_id' => $user->id,
+        'remark' => 'submitted record',
+    ]);
+
+    $verifiedAssistance = Assistance::create([
+        'program_id' => $program->id,
+        'date_verified' => '2024-02-01',
+        'user_id' => $user->id,
+        'remark' => 'verified record',
+    ]);
+
+    DB::table('assistance_request_sub_status')->insert([
+        [
+            'assistance_id' => $submittedAssistance->id,
+            'request_sub_status_id' => $submittedSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-01-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+        [
+            'assistance_id' => $verifiedAssistance->id,
+            'request_sub_status_id' => $verifiedSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+            'status' => ['Submitted'],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('status', ['Submitted'])
+            ->has('status_options', 2)
+            ->has('assistances.data', 1)
+            ->where('assistances.data.0.request_status', 'Submitted')
+            ->where('assistances.data.0.remark', 'submitted record'));
 });
 
 test('authenticated users cannot view a program from another department using their own department slug', function () {

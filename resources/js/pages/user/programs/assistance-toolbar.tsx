@@ -6,15 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
-import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
 import { Table, VisibilityState } from '@tanstack/react-table';
 import { X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-export type ModeFilterOption = {
+export type FilterOption = {
     label: string;
     value: string;
 };
+
+export type ModeFilterOption = FilterOption;
+
+export type StatusFilterOption = FilterOption;
 
 export type AssistanceTableFilters = {
     search: string;
@@ -26,6 +29,7 @@ interface AssistanceDataTableToolbarProps {
     table: Table<UserProgramAssistanceRow>;
     columnVisibility: VisibilityState;
     filters: AssistanceTableFilters;
+    statusOptions: StatusFilterOption[];
     modeOptions: ModeFilterOption[];
     onFiltersChange: (
         overrides: Partial<AssistanceTableFilters> & { page?: number },
@@ -36,6 +40,7 @@ export function AssistanceDataTableToolbar({
     table,
     columnVisibility,
     filters,
+    statusOptions,
     modeOptions,
     onFiltersChange,
 }: AssistanceDataTableToolbarProps) {
@@ -77,14 +82,16 @@ export function AssistanceDataTableToolbar({
                             'border-primary bg-primary/5 ring-1 ring-primary/30',
                     )}
                 />
-                <DataTableFacetedFilter
-                    filterValue={filters.status}
-                    title="Status"
-                    options={[...assistanceStatuses]}
-                    onFilterChange={(values) =>
-                        onFiltersChange({ status: values, page: 1 })
-                    }
-                />
+                {statusOptions.length > 0 ? (
+                    <DataTableFacetedFilter
+                        filterValue={filters.status}
+                        title="Status"
+                        options={statusOptions}
+                        onFilterChange={(values) =>
+                            onFiltersChange({ status: values, page: 1 })
+                        }
+                    />
+                ) : null}
                 {modeOptions.length > 0 ? (
                     <DataTableFacetedFilter
                         filterValue={filters.mode}

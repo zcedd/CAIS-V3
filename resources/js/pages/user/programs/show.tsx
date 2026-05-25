@@ -16,6 +16,7 @@ import {
     AssistanceDataTableToolbar,
     type AssistanceTableFilters,
     type ModeFilterOption,
+    type StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import {
     index as departmentProgramsIndex,
@@ -107,6 +108,7 @@ export default function UserProgramShow({
     status,
     mode,
     mode_options,
+    status_options,
 }: {
     program: ProgramDetail;
     department: DepartmentSummary | null;
@@ -118,6 +120,7 @@ export default function UserProgramShow({
     status: string[];
     mode: string[];
     mode_options: ModeFilterOption[];
+    status_options: StatusFilterOption[];
 }) {
     const tableFilters: AssistanceTableFilters = {
         search,
@@ -199,6 +202,7 @@ export default function UserProgramShow({
                         'status',
                         'mode',
                         'mode_options',
+                        'status_options',
                     ],
                 },
             );
@@ -305,6 +309,7 @@ export default function UserProgramShow({
                                     table={table}
                                     columnVisibility={columnVisibility}
                                     filters={tableFilters}
+                                    statusOptions={status_options}
                                     modeOptions={mode_options}
                                     onFiltersChange={visitTable}
                                 />
