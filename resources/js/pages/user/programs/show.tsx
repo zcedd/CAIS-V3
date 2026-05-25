@@ -1,6 +1,7 @@
 import { DataTable } from '@/components/data-table';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -586,9 +587,22 @@ export default function UserProgramShow({
                     <CardHeader className="gap-1">
                         <CardTitle className="text-lg">Overview</CardTitle>
                         <CardDescription>
-                            {program.is_organization
-                                ? 'Organization'
-                                : 'Personal'}
+                            <div className="flex gap-2">
+                                <Badge variant="default">
+                                    {program.is_organization
+                                        ? 'Organization'
+                                        : 'Individual'}
+                                </Badge>
+                                <Badge
+                                    variant={
+                                        program.is_closed
+                                            ? 'destructive'
+                                            : 'default'
+                                    }
+                                >
+                                    {program.is_closed ? 'Closed' : 'Open'}
+                                </Badge>
+                            </div>
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
@@ -599,14 +613,25 @@ export default function UserProgramShow({
                             <span className="font-medium text-foreground">
                                 Period:{' '}
                             </span>
-                            {program.start_at ?? '—'}
-                            {program.end_at ? ` – ${program.end_at}` : ''}
-                        </p>
-                        <p>
-                            <span className="font-medium text-foreground">
-                                Status:{' '}
-                            </span>
-                            {program.is_closed ? 'Closed' : 'Open'}
+                            {program.start_at
+                                ? new Date(program.start_at).toLocaleDateString(
+                                      undefined,
+                                      {
+                                          year: 'numeric',
+                                          month: 'short',
+                                          day: 'numeric',
+                                      },
+                                  )
+                                : '—'}
+                            {program.end_at
+                                ? ` – ${new Date(
+                                      program.end_at,
+                                  ).toLocaleDateString(undefined, {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                  })}`
+                                : ''}
                         </p>
                     </CardContent>
                 </Card>
