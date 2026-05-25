@@ -43,7 +43,7 @@ return new class extends Migration
     {
         DB::table($sourceTable)
             ->orderBy('id')
-            ->chunkById(1000, function ($records) use ($morphType): void {
+            ->chunkById(1000, function ($records) use ($morphType, $sourceTable): void {
                 $existingIds = DB::table('beneficiaries')
                     ->where('beneficiable_type', $morphType)
                     ->whereIn('beneficiable_id', $records->pluck('id'))
@@ -59,6 +59,7 @@ return new class extends Migration
 
                     $rows[] = [
                         'cais_number' => $record->cais_number,
+                        'name' => $this->resolveBeneficiaryName($record, $sourceTable),
                         'beneficiable_type' => $morphType,
                         'beneficiable_id' => $record->id,
                         'created_at' => $record->created_at,
@@ -71,6 +72,22 @@ return new class extends Migration
                     DB::table('beneficiaries')->insert($rows);
                 }
             });
+    }
+
+    private function resolveBeneficiaryName(object $record, string $sourceTable): string
+    {
+        if ($sourceTable === 'individuals') {
+            return collect([
+                $record->first_name,
+                $record->middle_name,
+                $record->last_name,
+                $record->suffix,
+            ])
+                ->filter(static fn (?string $part): bool => $part !== null && trim($part) !== '')
+                ->implode(' ');
+        }
+
+        return $record->name;
     }
 
     private function linkAssistancesToBeneficiaries(string $morphType, string $sourceColumn): void

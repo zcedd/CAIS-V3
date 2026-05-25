@@ -18,6 +18,7 @@ class Beneficiary extends Model
 
     protected $fillable = [
         'cais_number',
+        'name',
         'beneficiable_type',
         'beneficiable_id',
     ];
@@ -27,7 +28,7 @@ class Beneficiary extends Model
         return LogOptions::defaults()
             ->logFillable()
             ->useLogName('Beneficiary')
-            ->setDescriptionForEvent(fn (string $eventName) => "This Beneficiary model has been {$eventName}")
+            ->setDescriptionForEvent(fn(string $eventName) => "This Beneficiary model has been {$eventName}")
             ->dontSubmitEmptyLogs();
     }
 
