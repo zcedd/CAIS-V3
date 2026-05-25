@@ -14,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('{department}/programs', [UserProgramController::class, 'index'])->name('user.programs.index');
     Route::post('{department}/programs', [UserProgramController::class, 'store'])->name('user.programs.store');
     Route::get('{department}/programs/{program}', [UserProgramController::class, 'show'])->name('user.programs.show');
+    Route::put('{department}/programs/{program}', [UserProgramController::class, 'update'])->name('user.programs.update');
     Route::get('{department}/programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'show'])->name('user.assistances.show');
 });
 

@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\ProgramAssistanceTableRequest;
 use App\Http\Requests\User\ProgramIndexRequest;
 use App\Http\Requests\User\StoreProgramRequest;
+use App\Http\Requests\User\UpdateProgramRequest;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Fund;
@@ -73,33 +74,14 @@ class ProgramController extends Controller
             ->paginate(self::PROGRAMS_PER_PAGE)
             ->withQueryString();
 
-        $funds = Fund::query()
-            ->where('department_id', $department->id)
-            ->orderBy('name')
-            ->get(['id', 'name', 'year']);
-
-        $items = Item::query()
-            ->where('department_id', $department->id)
-            ->orderBy('name')
-            ->with('unitMeasurement:id,name')
-            ->get(['id', 'name']);
-
-        $items = $items->map(function ($item) {
-            return [
-                'id' => $item->id,
-                'name' => $item->name,
-                'unit' => $item->unitMeasurement?->name,
-            ];
-        });
-
         return Inertia::render('user/programs/index', [
             'programs' => Inertia::scroll($programs),
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
             'type' => $types,
             'status' => $statuses,
-            'funds' => $funds,
-            'items' => $items,
+            'funds' => $this->departmentFundsForSelect($department),
+            'items' => $this->departmentItemsForSelect($department),
         ]);
     }
 
@@ -133,6 +115,41 @@ class ProgramController extends Controller
     }
 
     /**
+     * Update a program for the authenticated user's department.
+     */
+    public function update(
+        UpdateProgramRequest $request,
+        Department $department,
+        Program $program,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless($user->department_id === $department->id, 403);
+        abort_unless($program->department_id === $department->id, 404);
+
+        $validated = $request->validated();
+
+        $program->update([
+            'name' => $validated['name'],
+            'descriptions' => $validated['descriptions'],
+            'start_at' => $validated['start_at'],
+            'end_at' => $validated['end_at'] ?? null,
+            'is_organization' => $validated['is_organization'] ?? false,
+            'is_closed' => $validated['is_closed'] ?? false,
+        ]);
+
+        $program->fund()->sync($validated['fund_ids']);
+        $program->item()->sync($validated['item_ids']);
+
+        return redirect()
+            ->route('user.programs.show', [
+                'department' => $department->slug,
+                'program' => $program->id,
+            ])
+            ->with('success', 'Program updated successfully.');
+    }
+
+    /**
      * Display a single program for the authenticated user's department.
      */
     public function show(
@@ -158,6 +175,8 @@ class ProgramController extends Controller
         return Inertia::render('user/programs/show', [
             'program' => fn() => $this->programShowPayload($program),
             'department' => fn() => $department->only(['id', 'name', 'slug']),
+            'funds' => fn() => $this->departmentFundsForSelect($department),
+            'items' => fn() => $this->departmentItemsForSelect($department),
             'assistances' => Inertia::defer(fn() => $this->paginatedProgramAssistances(
                 $program,
                 $joinAssistanceTableRelations,
@@ -182,11 +201,42 @@ class ProgramController extends Controller
     }
 
     /**
+     * @return list<array{id: int, name: string, year: string}>
+     */
+    private function departmentFundsForSelect(Department $department): array
+    {
+        return Fund::query()
+            ->where('department_id', $department->id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'year'])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, unit: string|null}>
+     */
+    private function departmentItemsForSelect(Department $department): array
+    {
+        return Item::query()
+            ->where('department_id', $department->id)
+            ->orderBy('name')
+            ->with('unitMeasurement:id,name')
+            ->get(['id', 'name'])
+            ->map(static fn(Item $item): array => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'unit' => $item->unitMeasurement?->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function programShowPayload(Program $program): array
     {
-        $program->loadMissing(['department:id,name,slug']);
+        $program->loadMissing(['department:id,name,slug', 'fund:id', 'item:id']);
 
         return [
             ...$program->only([
@@ -200,7 +250,20 @@ class ProgramController extends Controller
                 'department_id',
             ]),
             'department' => $program->department?->only(['id', 'name', 'slug']),
+            'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
+            'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
+            'fund_ids' => $program->fund->pluck('id')->values()->all(),
+            'item_ids' => $program->item->pluck('id')->values()->all(),
         ];
+    }
+
+    private function programDateForInput(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        return Carbon::parse($value)->toDateString();
     }
 
     /**
@@ -280,19 +343,19 @@ class ProgramController extends Controller
         array $modes,
     ): LengthAwarePaginator {
         $assistancesQuery = Assistance::query()
-            ->where("assistances.program_id", $program->id);
+            ->where('assistances.program_id', $program->id);
 
         $joinAssistanceTableRelations($assistancesQuery);
 
         $assistancesQuery->select([
-            "assistances.id",
-            "assistances.beneficiary_id",
-            "assistances.mode_of_request_id",
-            "assistances.date_requested",
-            "assistances.date_verified",
-            "assistances.date_delivered",
-            "assistances.date_denied",
-            "assistances.remark",
+            'assistances.id',
+            'assistances.beneficiary_id',
+            'assistances.mode_of_request_id',
+            'assistances.date_requested',
+            'assistances.date_verified',
+            'assistances.date_delivered',
+            'assistances.date_denied',
+            'assistances.remark',
             'beneficiaries.cais_number as beneficiary_cais_number',
             'beneficiaries.name as beneficiary_name',
             'mode_of_requests.name as mode_of_request_name',
