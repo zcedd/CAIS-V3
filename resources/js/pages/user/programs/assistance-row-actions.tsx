@@ -10,9 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import { AssistanceEditDrawer } from '@/pages/user/programs/assistance-edit-drawer';
+import { AssistanceStatusDrawer } from '@/pages/user/programs/assistance-status-drawer';
 import type {
     AssistanceModeOption,
     AssistanceProgramItemOption,
+    AssistanceRequestSubStatusOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { Link } from '@inertiajs/react';
@@ -28,6 +30,7 @@ interface AssistanceDataTableRowActionsProps {
     isOrganization: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     onAssistanceUpdated?: () => void;
 }
 
@@ -39,10 +42,12 @@ export function AssistanceDataTableRowActions({
     isOrganization,
     modeOfRequestOptions,
     programItems,
+    requestSubStatusOptions,
     onAssistanceUpdated,
 }: AssistanceDataTableRowActionsProps) {
     const record = row.original;
     const [editOpen, setEditOpen] = useState(false);
+    const [statusOpen, setStatusOpen] = useState(false);
 
     return (
         <>
@@ -73,7 +78,7 @@ export function AssistanceDataTableRowActions({
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Assistance
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setStatusOpen(true)}>
                         <Check className="mr-2 h-4 w-4" />
                         Update Status
                     </DropdownMenuItem>
@@ -120,6 +125,20 @@ export function AssistanceDataTableRowActions({
                 isOrganization={isOrganization}
                 modeOfRequestOptions={modeOfRequestOptions}
                 programItems={programItems}
+                onUpdated={onAssistanceUpdated}
+            />
+
+            <AssistanceStatusDrawer
+                open={statusOpen}
+                onOpenChange={setStatusOpen}
+                assistanceId={record.id}
+                departmentSlug={departmentSlug}
+                programId={programId}
+                programName={programName}
+                beneficiaryName={record.beneficiary_name}
+                currentSubStatusId={record.request_sub_status_id}
+                currentRecordedAt={record.request_sub_status_recorded_at}
+                requestSubStatusOptions={requestSubStatusOptions}
                 onUpdated={onAssistanceUpdated}
             />
         </>

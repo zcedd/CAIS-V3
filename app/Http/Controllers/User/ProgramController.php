@@ -7,12 +7,14 @@ use App\Actions\User\ApplyAssistanceTableSort;
 use App\Actions\User\JoinAssistanceTableRelations;
 use App\Actions\User\StoreProgramAssistance;
 use App\Actions\User\UpdateProgramAssistance;
+use App\Actions\User\UpdateProgramAssistanceStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\ProgramAssistanceTableRequest;
 use App\Http\Requests\User\ProgramIndexRequest;
 use App\Http\Requests\User\StoreProgramAssistanceRequest;
 use App\Http\Requests\User\StoreProgramRequest;
 use App\Http\Requests\User\UpdateProgramAssistanceRequest;
+use App\Http\Requests\User\UpdateProgramAssistanceStatusRequest;
 use App\Http\Requests\User\UpdateProgramRequest;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -23,6 +25,7 @@ use App\Models\Item;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\RequestStatus;
+use App\Models\RequestSubStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -62,22 +65,22 @@ class ProgramController extends Controller
             ])
             ->with(['department:id,name,slug'])
             ->where('department_id', $department->id)
-            ->when($search !== '', fn($query) => $query->where('name', 'like', '%' . $search . '%'))
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
             ->when(
                 count($types) === 1 && in_array('individual', $types, true),
-                fn($query) => $query->where('is_organization', false),
+                fn ($query) => $query->where('is_organization', false),
             )
             ->when(
                 count($types) === 1 && in_array('organization', $types, true),
-                fn($query) => $query->where('is_organization', true),
+                fn ($query) => $query->where('is_organization', true),
             )
             ->when(
                 count($statuses) === 1 && in_array('open', $statuses, true),
-                fn($query) => $query->where('is_closed', false),
+                fn ($query) => $query->where('is_closed', false),
             )
             ->when(
                 count($statuses) === 1 && in_array('closed', $statuses, true),
-                fn($query) => $query->where('is_closed', true),
+                fn ($query) => $query->where('is_closed', true),
             )
             ->orderByDesc('id')
             ->paginate(self::PROGRAMS_PER_PAGE)
@@ -241,6 +244,32 @@ class ProgramController extends Controller
     }
 
     /**
+     * Update the request sub-status for an assistance record.
+     */
+    public function updateAssistanceStatus(
+        UpdateProgramAssistanceStatusRequest $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+        UpdateProgramAssistanceStatus $updateProgramAssistanceStatus,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless($user->department_id === $department->id, 403);
+        abort_unless($program->department_id === $department->id, 404);
+        abort_unless($assistance->program_id === $program->id, 404);
+
+        $updateProgramAssistanceStatus($assistance, $request->validated());
+
+        return redirect()
+            ->route('user.programs.show', [
+                'department' => $department->slug,
+                'program' => $program->id,
+            ])
+            ->with('success', 'Assistance status updated successfully.');
+    }
+
+    /**
      * Display a single program for the authenticated user's department.
      */
     public function show(
@@ -264,11 +293,11 @@ class ProgramController extends Controller
         $modes = $request->modes();
 
         return Inertia::render('user/programs/show', [
-            'program' => fn() => $this->programShowPayload($program),
-            'department' => fn() => $department->only(['id', 'name', 'slug']),
-            'funds' => fn() => $this->departmentFundsForSelect($department),
-            'items' => fn() => $this->departmentItemsForSelect($department),
-            'assistances' => Inertia::defer(fn() => $this->paginatedProgramAssistances(
+            'program' => fn () => $this->programShowPayload($program),
+            'department' => fn () => $department->only(['id', 'name', 'slug']),
+            'funds' => fn () => $this->departmentFundsForSelect($department),
+            'items' => fn () => $this->departmentItemsForSelect($department),
+            'assistances' => Inertia::defer(fn () => $this->paginatedProgramAssistances(
                 $program,
                 $joinAssistanceTableRelations,
                 $applyAssistanceTableSort,
@@ -280,16 +309,17 @@ class ProgramController extends Controller
                 $statuses,
                 $modes,
             )),
-            'sort' => fn() => $sort,
-            'direction' => fn() => $direction,
-            'per_page' => fn() => $perPage,
-            'search' => fn() => $search,
-            'status' => fn() => $statuses,
-            'mode' => fn() => $modes,
-            'mode_options' => fn() => $this->programAssistanceModeOptions($program),
-            'status_options' => fn() => $this->programAssistanceStatusOptions($program),
-            'mode_of_request_options' => fn() => $this->modesOfRequestForSelect(),
-            'program_items' => fn() => $this->programItemsForSelect($program),
+            'sort' => fn () => $sort,
+            'direction' => fn () => $direction,
+            'per_page' => fn () => $perPage,
+            'search' => fn () => $search,
+            'status' => fn () => $statuses,
+            'mode' => fn () => $modes,
+            'mode_options' => fn () => $this->programAssistanceModeOptions($program),
+            'status_options' => fn () => $this->programAssistanceStatusOptions($program),
+            'mode_of_request_options' => fn () => $this->modesOfRequestForSelect(),
+            'program_items' => fn () => $this->programItemsForSelect($program),
+            'request_sub_status_options' => fn () => $this->requestSubStatusesForSelect(),
         ]);
     }
 
@@ -320,7 +350,7 @@ class ProgramController extends Controller
             ->orderBy('name')
             ->with('unitMeasurement:id,name')
             ->get(['id', 'name'])
-            ->map(static fn(Item $item): array => [
+            ->map(static fn (Item $item): array => [
                 'id' => $item->id,
                 'name' => $item->name,
                 'unit' => $item->unitMeasurement?->name,
@@ -351,7 +381,7 @@ class ProgramController extends Controller
             ->orderBy('name')
             ->with('unitMeasurement:id,name')
             ->get(['id', 'name'])
-            ->map(static fn(Item $item): array => [
+            ->map(static fn (Item $item): array => [
                 'id' => $item->id,
                 'name' => $item->name,
                 'unit' => $item->unitMeasurement?->name,
@@ -411,9 +441,38 @@ class ProgramController extends Controller
             )
             ->orderBy('name')
             ->pluck('name')
-            ->map(static fn(string $name): array => [
+            ->map(static fn (string $name): array => [
                 'label' => $name,
                 'value' => $name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, request_status: string|null, label: string}>
+     */
+    private function requestSubStatusesForSelect(): array
+    {
+        return RequestSubStatus::query()
+            ->join(
+                'request_statuses',
+                'request_statuses.id',
+                '=',
+                'request_sub_statuses.request_status_id',
+            )
+            ->orderBy('request_statuses.name')
+            ->orderBy('request_sub_statuses.name')
+            ->get([
+                'request_sub_statuses.id',
+                'request_sub_statuses.name',
+                'request_statuses.name as request_status_name',
+            ])
+            ->map(static fn ($subStatus): array => [
+                'id' => (int) $subStatus->id,
+                'name' => $subStatus->name,
+                'request_status' => $subStatus->request_status_name,
+                'label' => "{$subStatus->request_status_name} — {$subStatus->name}",
             ])
             ->values()
             ->all();
@@ -447,7 +506,7 @@ class ProgramController extends Controller
             )
             ->orderBy('name')
             ->pluck('name')
-            ->map(static fn(string $name): array => [
+            ->map(static fn (string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -488,6 +547,7 @@ class ProgramController extends Controller
             'beneficiaries.cais_number as beneficiary_cais_number',
             'beneficiaries.name as beneficiary_name',
             'mode_of_requests.name as mode_of_request_name',
+            'rss.id as request_sub_status_id',
             'rss.name as request_sub_status_name',
             'rs.name as request_status_name',
             'arss.recorded_at as request_sub_status_recorded_at',
@@ -512,6 +572,7 @@ class ProgramController extends Controller
                     return Carbon::parse($value)->toDateString();
                 };
 
+                $requestSubStatusId = $assistance->request_sub_status_id;
                 $requestSubStatus = $assistance->request_sub_status_name;
                 $requestStatus = $assistance->request_status_name;
                 $requestSubStatusRecordedAt = $assistance->request_sub_status_recorded_at;
@@ -529,7 +590,7 @@ class ProgramController extends Controller
                     'cais_number' => $assistance->beneficiary_cais_number ?? '—',
                     'beneficiary_name' => $assistance->beneficiary_name ?? '—',
                     'items' => $assistance->assistanceItem
-                        ->map(static fn($assistanceItem): array => [
+                        ->map(static fn ($assistanceItem): array => [
                             'name' => $assistanceItem->item?->name ?? '—',
                             'quantity' => $assistanceItem->quantity,
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,
@@ -543,6 +604,9 @@ class ProgramController extends Controller
                     'date_delivered' => $formatDate($assistance->date_delivered),
                     'date_denied' => $formatDate($assistance->date_denied),
                     'request_status' => $requestStatus,
+                    'request_sub_status_id' => $requestSubStatusId !== null
+                        ? (int) $requestSubStatusId
+                        : null,
                     'request_sub_status' => $requestSubStatus,
                     'request_sub_status_recorded_at' => $requestSubStatusRecordedAt !== null
                         ? Carbon::parse($requestSubStatusRecordedAt)->toIso8601String()
@@ -577,7 +641,7 @@ class ProgramController extends Controller
             'mode_of_request_id' => $assistance->mode_of_request_id,
             'remark' => $assistance->remark,
             'item_details' => $assistance->assistanceItem
-                ->map(static fn(AssistanceItem $assistanceItem): array => [
+                ->map(static fn (AssistanceItem $assistanceItem): array => [
                     'item_id' => $assistanceItem->item_id,
                     'quantity' => $assistanceItem->quantity ?? 1,
                     'specification' => $assistanceItem->specification,

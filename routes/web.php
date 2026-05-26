@@ -19,6 +19,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('{department}/programs/{program}/assistances', [UserProgramController::class, 'storeAssistance'])->name('user.programs.assistances.store');
     Route::get('{department}/programs/{program}/assistances/{assistance}/edit', [UserProgramController::class, 'editAssistance'])->name('user.programs.assistances.edit');
     Route::put('{department}/programs/{program}/assistances/{assistance}', [UserProgramController::class, 'updateAssistance'])->name('user.programs.assistances.update');
+    Route::patch('{department}/programs/{program}/assistances/{assistance}/status', [UserProgramController::class, 'updateAssistanceStatus'])->name('user.programs.assistances.status.update');
     Route::put('{department}/programs/{program}', [UserProgramController::class, 'update'])->name('user.programs.update');
     Route::get('{department}/programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'show'])->name('user.assistances.show');
 });

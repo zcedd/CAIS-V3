@@ -7,6 +7,7 @@ import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-
 import type {
     AssistanceModeOption,
     AssistanceProgramItemOption,
+    AssistanceRequestSubStatusOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { Link } from '@inertiajs/react';
@@ -46,6 +47,7 @@ export type UserProgramAssistanceRow = {
     date_delivered: string | null;
     date_denied: string | null;
     request_status: string | null;
+    request_sub_status_id: number | null;
     request_sub_status: string | null;
     request_sub_status_recorded_at: string | null;
     status: string;
@@ -98,6 +100,7 @@ export type UserProgramAssistanceTableContext = {
     isOrganization: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     onAssistanceUpdated?: () => void;
 };
 
@@ -108,6 +111,7 @@ export function createUserProgramAssistanceColumns({
     isOrganization,
     modeOfRequestOptions,
     programItems,
+    requestSubStatusOptions,
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
     return [
@@ -389,6 +393,7 @@ export function createUserProgramAssistanceColumns({
                     isOrganization={isOrganization}
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
+                    requestSubStatusOptions={requestSubStatusOptions}
                     onAssistanceUpdated={onAssistanceUpdated}
                 />
             ),

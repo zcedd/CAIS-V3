@@ -38,6 +38,7 @@ import {
     AssistanceDataTableToolbar,
     type AssistanceModeOption,
     type AssistanceProgramItemOption,
+    type AssistanceRequestSubStatusOption,
     type AssistanceSelectOption,
     type AssistanceTableFilters,
     type ModeFilterOption,
@@ -393,6 +394,7 @@ export default function UserProgramShow({
     mode_of_request_options,
     organization_options,
     program_items,
+    request_sub_status_options,
 }: {
     program: ProgramDetail;
     department: DepartmentSummary | null;
@@ -410,6 +412,7 @@ export default function UserProgramShow({
     mode_of_request_options: AssistanceModeOption[];
     organization_options: AssistanceSelectOption[];
     program_items: AssistanceProgramItemOption[];
+    request_sub_status_options: AssistanceRequestSubStatusOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
@@ -569,6 +572,7 @@ export default function UserProgramShow({
             isOrganization: program.is_organization ?? false,
             modeOfRequestOptions: mode_of_request_options,
             programItems: program_items,
+            requestSubStatusOptions: request_sub_status_options,
             onAssistanceUpdated: () => visitTable({ page: 1 }),
         });
     }, [
@@ -578,6 +582,7 @@ export default function UserProgramShow({
         program.is_organization,
         mode_of_request_options,
         program_items,
+        request_sub_status_options,
         visitTable,
     ]);
 

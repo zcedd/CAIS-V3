@@ -77,6 +77,13 @@ export type AssistanceProgramItemOption = {
     unit: string | null;
 };
 
+export type AssistanceRequestSubStatusOption = {
+    id: number;
+    name: string;
+    request_status: string | null;
+    label: string;
+};
+
 type AssistanceItemDetail = {
     quantity: string;
     specification: string;
