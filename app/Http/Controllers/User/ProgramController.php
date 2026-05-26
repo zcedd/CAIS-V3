@@ -5,9 +5,11 @@ namespace App\Http\Controllers\User;
 use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
 use App\Actions\User\JoinAssistanceTableRelations;
+use App\Actions\User\StoreProgramAssistance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\ProgramAssistanceTableRequest;
 use App\Http\Requests\User\ProgramIndexRequest;
+use App\Http\Requests\User\StoreProgramAssistanceRequest;
 use App\Http\Requests\User\StoreProgramRequest;
 use App\Http\Requests\User\UpdateProgramRequest;
 use App\Models\Assistance;
@@ -15,11 +17,13 @@ use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
 use App\Models\ModeOfRequest;
+use App\Models\Organization;
 use App\Models\Program;
 use App\Models\RequestStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -150,6 +154,36 @@ class ProgramController extends Controller
     }
 
     /**
+     * Store a newly created assistance record for the program.
+     */
+    public function storeAssistance(
+        StoreProgramAssistanceRequest $request,
+        Department $department,
+        Program $program,
+        StoreProgramAssistance $storeProgramAssistance,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless($user->department_id === $department->id, 403);
+        abort_unless($program->department_id === $department->id, 404);
+
+        if ($program->is_closed) {
+            throw ValidationException::withMessages([
+                'program' => ['This program is closed and cannot accept new assistance.'],
+            ]);
+        }
+
+        $storeProgramAssistance($program, $user, $request->validated());
+
+        return redirect()
+            ->route('user.programs.show', [
+                'department' => $department->slug,
+                'program' => $program->id,
+            ])
+            ->with('success', 'Assistance created successfully.');
+    }
+
+    /**
      * Display a single program for the authenticated user's department.
      */
     public function show(
@@ -197,7 +231,45 @@ class ProgramController extends Controller
             'mode' => fn() => $modes,
             'mode_options' => fn() => $this->programAssistanceModeOptions($program),
             'status_options' => fn() => $this->programAssistanceStatusOptions($program),
+            'mode_of_request_options' => fn() => $this->modesOfRequestForSelect(),
+            'program_items' => fn() => $this->programItemsForSelect($program),
         ]);
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    private function modesOfRequestForSelect(): array
+    {
+        return ModeOfRequest::query()
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, unit: string|null}>
+     */
+    private function programItemsForSelect(Program $program): array
+    {
+        $itemIds = $program->item()->pluck('items.id');
+
+        if ($itemIds->isEmpty()) {
+            return [];
+        }
+
+        return Item::query()
+            ->whereIn('id', $itemIds)
+            ->orderBy('name')
+            ->with('unitMeasurement:id,name')
+            ->get(['id', 'name'])
+            ->map(static fn(Item $item): array => [
+                'id' => $item->id,
+                'name' => $item->name,
+                'unit' => $item->unitMeasurement?->name,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

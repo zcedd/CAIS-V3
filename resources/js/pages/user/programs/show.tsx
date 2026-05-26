@@ -36,6 +36,9 @@ import {
 } from '@/pages/user/programs/assistance-columns';
 import {
     AssistanceDataTableToolbar,
+    type AssistanceModeOption,
+    type AssistanceProgramItemOption,
+    type AssistanceSelectOption,
     type AssistanceTableFilters,
     type ModeFilterOption,
     type StatusFilterOption,
@@ -275,6 +278,13 @@ type ProgramAssistanceTableProps = {
     statusOptions: StatusFilterOption[];
     modeOptions: ModeFilterOption[];
     isLoading: boolean;
+    departmentSlug: string;
+    programId: number;
+    programName: string;
+    isOrganization: boolean;
+    canCreateAssistance: boolean;
+    modeOfRequestOptions: AssistanceModeOption[];
+    programItems: AssistanceProgramItemOption[];
     onVisitTable: (
         overrides: Partial<
             AssistanceTableFilters & {
@@ -295,6 +305,13 @@ function ProgramAssistanceTable({
     statusOptions,
     modeOptions,
     isLoading,
+    departmentSlug,
+    programId,
+    programName,
+    isOrganization,
+    canCreateAssistance,
+    modeOfRequestOptions,
+    programItems,
     onVisitTable,
 }: ProgramAssistanceTableProps) {
     return (
@@ -339,6 +356,16 @@ function ProgramAssistanceTable({
                     statusOptions={statusOptions}
                     modeOptions={modeOptions}
                     onFiltersChange={onVisitTable}
+                    departmentSlug={departmentSlug}
+                    programId={programId}
+                    programName={programName}
+                    isOrganization={isOrganization}
+                    canCreate={canCreateAssistance}
+                    modeOfRequestOptions={modeOfRequestOptions}
+                    programItems={programItems}
+                    onAssistanceCreated={() =>
+                        onVisitTable({ page: 1 })
+                    }
                 />
             )}
             initialColumnVisibility={
@@ -363,6 +390,9 @@ export default function UserProgramShow({
     mode,
     mode_options,
     status_options,
+    mode_of_request_options,
+    organization_options,
+    program_items,
 }: {
     program: ProgramDetail;
     department: DepartmentSummary | null;
@@ -377,6 +407,9 @@ export default function UserProgramShow({
     mode: string[];
     mode_options: ModeFilterOption[];
     status_options: StatusFilterOption[];
+    mode_of_request_options: AssistanceModeOption[];
+    organization_options: AssistanceSelectOption[];
+    program_items: AssistanceProgramItemOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
@@ -544,6 +577,9 @@ export default function UserProgramShow({
 
     const heading = program.name;
     const canEdit = Boolean(department?.slug);
+    const canCreateAssistance = Boolean(
+        department?.slug && !program.is_closed,
+    );
 
     return (
         <>
@@ -657,6 +693,17 @@ export default function UserProgramShow({
                                     statusOptions={status_options}
                                     modeOptions={mode_options}
                                     isLoading={isTableReloading}
+                                    departmentSlug={department?.slug ?? ''}
+                                    programId={program.id}
+                                    programName={program.name}
+                                    isOrganization={
+                                        program.is_organization ?? false
+                                    }
+                                    canCreateAssistance={canCreateAssistance}
+                                    modeOfRequestOptions={
+                                        mode_of_request_options
+                                    }
+                                    programItems={program_items}
                                     onVisitTable={visitTable}
                                 />
                             ) : (
