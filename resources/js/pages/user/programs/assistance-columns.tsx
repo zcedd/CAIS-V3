@@ -4,6 +4,10 @@ import { DataTableColumnHeader } from '@/components/data-table/data-table-column
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-row-actions';
+import type {
+    AssistanceModeOption,
+    AssistanceProgramItemOption,
+} from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
@@ -90,11 +94,21 @@ function itemsSummary(items: UserProgramAssistanceItem[]): string {
 export type UserProgramAssistanceTableContext = {
     departmentSlug: string;
     programId: number;
+    programName: string;
+    isOrganization: boolean;
+    modeOfRequestOptions: AssistanceModeOption[];
+    programItems: AssistanceProgramItemOption[];
+    onAssistanceUpdated?: () => void;
 };
 
 export function createUserProgramAssistanceColumns({
     departmentSlug,
     programId,
+    programName,
+    isOrganization,
+    modeOfRequestOptions,
+    programItems,
+    onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
     return [
         {
@@ -371,6 +385,11 @@ export function createUserProgramAssistanceColumns({
                     row={row}
                     departmentSlug={departmentSlug}
                     programId={programId}
+                    programName={programName}
+                    isOrganization={isOrganization}
+                    modeOfRequestOptions={modeOfRequestOptions}
+                    programItems={programItems}
+                    onAssistanceUpdated={onAssistanceUpdated}
                 />
             ),
         },

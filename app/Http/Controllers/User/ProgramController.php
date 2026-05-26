@@ -6,22 +6,27 @@ use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
 use App\Actions\User\JoinAssistanceTableRelations;
 use App\Actions\User\StoreProgramAssistance;
+use App\Actions\User\UpdateProgramAssistance;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\ProgramAssistanceTableRequest;
 use App\Http\Requests\User\ProgramIndexRequest;
 use App\Http\Requests\User\StoreProgramAssistanceRequest;
 use App\Http\Requests\User\StoreProgramRequest;
+use App\Http\Requests\User\UpdateProgramAssistanceRequest;
 use App\Http\Requests\User\UpdateProgramRequest;
 use App\Models\Assistance;
+use App\Models\AssistanceItem;
+use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
 use App\Models\ModeOfRequest;
-use App\Models\Organization;
 use App\Models\Program;
 use App\Models\RequestStatus;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -181,6 +186,58 @@ class ProgramController extends Controller
                 'program' => $program->id,
             ])
             ->with('success', 'Assistance created successfully.');
+    }
+
+    /**
+     * Return assistance data for editing in the program table drawer.
+     */
+    public function editAssistance(
+        Request $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+    ): JsonResponse {
+        $user = $request->user();
+
+        abort_unless($user->department_id === $department->id, 403);
+        abort_unless($program->department_id === $department->id, 404);
+        abort_unless($assistance->program_id === $program->id, 404);
+
+        return response()->json([
+            'data' => $this->assistanceEditPayload($assistance),
+        ]);
+    }
+
+    /**
+     * Update an assistance record for the program.
+     */
+    public function updateAssistance(
+        UpdateProgramAssistanceRequest $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+        UpdateProgramAssistance $updateProgramAssistance,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless($user->department_id === $department->id, 403);
+        abort_unless($program->department_id === $department->id, 404);
+        abort_unless($assistance->program_id === $program->id, 404);
+
+        if ($program->is_closed) {
+            throw ValidationException::withMessages([
+                'program' => ['This program is closed and cannot be updated.'],
+            ]);
+        }
+
+        $updateProgramAssistance($assistance, $request->validated());
+
+        return redirect()
+            ->route('user.programs.show', [
+                'department' => $department->slug,
+                'program' => $program->id,
+            ])
+            ->with('success', 'Assistance updated successfully.');
     }
 
     /**
@@ -494,5 +551,39 @@ class ProgramController extends Controller
                     'remark' => $assistance->remark,
                 ];
             });
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function assistanceEditPayload(Assistance $assistance): array
+    {
+        $assistance->load([
+            'beneficiary:id,cais_number,name',
+            'assistanceItem:id,assistance_id,item_id,quantity,specification',
+        ]);
+
+        $beneficiary = $assistance->beneficiary;
+
+        return [
+            'id' => $assistance->id,
+            'beneficiary_id' => $assistance->beneficiary_id,
+            'beneficiary' => $beneficiary instanceof Beneficiary ? [
+                'id' => $beneficiary->id,
+                'cais_number' => $beneficiary->cais_number,
+                'name' => $beneficiary->name,
+                'label' => trim("{$beneficiary->cais_number} - {$beneficiary->name}"),
+            ] : null,
+            'mode_of_request_id' => $assistance->mode_of_request_id,
+            'remark' => $assistance->remark,
+            'item_details' => $assistance->assistanceItem
+                ->map(static fn(AssistanceItem $assistanceItem): array => [
+                    'item_id' => $assistanceItem->item_id,
+                    'quantity' => $assistanceItem->quantity ?? 1,
+                    'specification' => $assistanceItem->specification,
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 }

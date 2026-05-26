@@ -30,10 +30,11 @@ export type BeneficiarySearchOption = {
 };
 
 type BeneficiarySearchComboboxProps = {
-    departmentSlug: string;
+    departmentSlug?: string;
     beneficiaryType?: 'individual' | 'organization';
     valueKey?: 'beneficiary_id' | 'organization_id';
     value: number | null;
+    initialOption?: BeneficiarySearchOption | null;
     onChange: (
         value: number | null,
         option: BeneficiarySearchOption | null,
@@ -49,6 +50,7 @@ export function BeneficiarySearchCombobox({
     beneficiaryType,
     valueKey = 'beneficiary_id',
     value,
+    initialOption = null,
     onChange,
     error,
     label = 'Beneficiary',
@@ -108,6 +110,13 @@ export function BeneficiarySearchCombobox({
         },
         [departmentSlug, beneficiaryType],
     );
+
+    useEffect(() => {
+        if (initialOption) {
+            setSelectedOption(initialOption);
+            setInputValue(initialOption.label);
+        }
+    }, [initialOption]);
 
     useEffect(() => {
         if (!open || disabled) {

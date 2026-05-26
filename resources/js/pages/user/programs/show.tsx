@@ -496,17 +496,6 @@ export default function UserProgramShow({
         mode: tableState.mode,
     };
 
-    const assistanceColumns = useMemo(() => {
-        if (!department?.slug) {
-            return [];
-        }
-
-        return createUserProgramAssistanceColumns({
-            departmentSlug: department.slug,
-            programId: program.id,
-        });
-    }, [department?.slug, program.id]);
-
     useEffect(() => {
         if (!department?.slug) {
             return;
@@ -567,6 +556,30 @@ export default function UserProgramShow({
 
         [department?.slug, program.id],
     );
+
+    const assistanceColumns = useMemo(() => {
+        if (!department?.slug) {
+            return [];
+        }
+
+        return createUserProgramAssistanceColumns({
+            departmentSlug: department.slug,
+            programId: program.id,
+            programName: program.name,
+            isOrganization: program.is_organization ?? false,
+            modeOfRequestOptions: mode_of_request_options,
+            programItems: program_items,
+            onAssistanceUpdated: () => visitTable({ page: 1 }),
+        });
+    }, [
+        department?.slug,
+        program.id,
+        program.name,
+        program.is_organization,
+        mode_of_request_options,
+        program_items,
+        visitTable,
+    ]);
 
     const tableSkeleton = (
         <DataTableSkeleton
