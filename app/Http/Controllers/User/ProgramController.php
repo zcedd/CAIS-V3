@@ -244,6 +244,37 @@ class ProgramController extends Controller
     }
 
     /**
+     * Remove the specified assistance from the program.
+     */
+    public function destroyAssistance(
+        Request $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        abort_unless($user->department_id === $department->id, 403);
+        abort_unless($program->department_id === $department->id, 404);
+        abort_unless($assistance->program_id === $program->id, 404);
+
+        if ($program->is_closed) {
+            throw ValidationException::withMessages([
+                'program' => ['This program is closed and assistances cannot be deleted.'],
+            ]);
+        }
+
+        $assistance->delete();
+
+        return redirect()
+            ->route('user.programs.show', [
+                'department' => $department->slug,
+                'program' => $program->id,
+            ])
+            ->with('success', 'Assistance deleted successfully.');
+    }
+
+    /**
      * Update the request sub-status for an assistance record.
      */
     public function updateAssistanceStatus(

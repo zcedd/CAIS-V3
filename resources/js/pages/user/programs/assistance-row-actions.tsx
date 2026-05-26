@@ -2,6 +2,15 @@
 
 import { Button } from '@/components/ui/button';
 import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -17,10 +26,12 @@ import type {
     AssistanceRequestSubStatusOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
-import { Link } from '@inertiajs/react';
+import { destroy as destroyProgramAssistance } from '@/routes/user/programs/assistances';
+import { Link, router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
 import { Check, Copy, Edit, Eye, MoreHorizontal, Trash } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 
 interface AssistanceDataTableRowActionsProps {
     row: Row<UserProgramAssistanceRow>;
@@ -48,6 +59,35 @@ export function AssistanceDataTableRowActions({
     const record = row.original;
     const [editOpen, setEditOpen] = useState(false);
     const [statusOpen, setStatusOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDelete = () => {
+        router.delete(
+            destroyProgramAssistance.url({
+                department: departmentSlug,
+                program: programId,
+                assistance: record.id,
+            }),
+            {
+                preserveScroll: true,
+                onStart: () => setIsDeleting(true),
+                onFinish: () => setIsDeleting(false),
+                onSuccess: () => {
+                    setDeleteOpen(false);
+                    toast.success('Assistance deleted successfully.');
+                    onAssistanceUpdated?.();
+                },
+            },
+        );
+    };
+
+    const deleteTargetLabel =
+        record.beneficiary_name !== '—'
+            ? record.beneficiary_name
+            : record.cais_number !== '—'
+              ? record.cais_number
+              : 'this assistance';
 
     return (
         <>
@@ -108,7 +148,13 @@ export function AssistanceDataTableRowActions({
                         </DropdownMenuItem>
                     ) : null}
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem variant="destructive">
+                    <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={(event) => {
+                            event.preventDefault();
+                            setDeleteOpen(true);
+                        }}
+                    >
                         <Trash className="mr-2 h-4 w-4" />
                         Delete Assistance
                     </DropdownMenuItem>
@@ -141,6 +187,42 @@ export function AssistanceDataTableRowActions({
                 requestSubStatusOptions={requestSubStatusOptions}
                 onUpdated={onAssistanceUpdated}
             />
+
+            <Dialog
+                open={deleteOpen}
+                onOpenChange={(open) => {
+                    if (!isDeleting) {
+                        setDeleteOpen(open);
+                    }
+                }}
+            >
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete assistance?</DialogTitle>
+                        <DialogDescription>
+                            This will remove the assistance record for{' '}
+                            <span className="font-medium text-foreground">
+                                {deleteTargetLabel}
+                            </span>
+                            . This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose asChild>
+                            <Button variant="outline" disabled={isDeleting}>
+                                Cancel
+                            </Button>
+                        </DialogClose>
+                        <Button
+                            variant="destructive"
+                            disabled={isDeleting}
+                            onClick={handleDelete}
+                        >
+                            Delete assistance
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
