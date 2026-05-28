@@ -5,8 +5,6 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Models\Assistance;
 use App\Models\Department;
-use App\Models\Individual;
-use App\Models\Organization;
 use App\Models\Program;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -31,9 +29,7 @@ class AssistanceController extends Controller
         abort_unless($assistance->program_id === $program->id, 404);
 
         $assistance->load([
-            'beneficiary:id,cais_number,beneficiable_type,beneficiable_id',
-            'beneficiary.beneficiable',
-            'organization:id,name,cais_number',
+            'beneficiary:id,name,cais_number,beneficiable_type,beneficiable_id',
             'modeOfRequest:id,name',
             'program:id,name,department_id',
             'program.department:id,name,slug',
@@ -53,30 +49,17 @@ class AssistanceController extends Controller
             return Carbon::parse($value)->toDateString();
         };
 
-        $status = match (true) {
-            $assistance->date_denied !== null => 'Denied',
-            $assistance->date_delivered !== null => 'Delivered',
-            $assistance->date_verified !== null => 'Verified',
-            $assistance->date_requested !== null => 'Pending',
-            default => 'Unrequested',
-        };
-
-        $beneficiaryName = self::resolveBeneficiaryName($assistance);
-        $caisNumber = $assistance->beneficiary?->cais_number
-            ?? $assistance->organization?->cais_number
-            ?? '—';
+        $beneficiaryName =  $assistance->beneficiary?->name ?? '—';
+        $caisNumber = $assistance->beneficiary?->cais_number ?? '—';
 
         return Inertia::render('user/assistances/show', [
             'department' => $department->only(['id', 'name', 'slug']),
             'program' => $program->only(['id', 'name']),
             'assistance' => [
                 'id' => $assistance->id,
-                'status' => $status,
                 'cais_number' => $caisNumber,
                 'beneficiary_name' => $beneficiaryName,
-                'beneficiary_type' => $assistance->organization_id !== null
-                    ? 'Organization'
-                    : ($assistance->beneficiary_id !== null ? 'Personal' : null),
+                'beneficiary_type' => class_basename($assistance->beneficiary->beneficiable),
                 'mode_of_request' => $assistance->modeOfRequest?->name ?? '—',
                 'date_requested' => $formatDate($assistance->date_requested),
                 'date_verified' => $formatDate($assistance->date_verified),
@@ -84,7 +67,7 @@ class AssistanceController extends Controller
                 'date_denied' => $formatDate($assistance->date_denied),
                 'remark' => $assistance->remark,
                 'items' => $assistance->assistanceItem
-                    ->map(static fn ($assistanceItem): array => [
+                    ->map(static fn($assistanceItem): array => [
                         'name' => $assistanceItem->item?->name ?? '—',
                         'quantity' => $assistanceItem->quantity,
                         'unit' => $assistanceItem->item?->unitMeasurement?->name,
@@ -94,8 +77,8 @@ class AssistanceController extends Controller
                     ->values()
                     ->all(),
                 'status_history' => $assistance->requestSubStatus
-                    ->sortBy(static fn ($subStatus) => $subStatus->pivot->recorded_at)
-                    ->map(static fn ($subStatus): array => [
+                    ->sortBy(static fn($subStatus) => $subStatus->pivot->recorded_at)
+                    ->map(static fn($subStatus): array => [
                         'id' => (int) $subStatus->pivot->id,
                         'name' => $subStatus->name,
                         'parent_status' => $subStatus->requestStatus?->name,
@@ -106,31 +89,5 @@ class AssistanceController extends Controller
                     ->all(),
             ],
         ]);
-    }
-
-    private static function resolveBeneficiaryName(Assistance $assistance): string
-    {
-        if ($assistance->organization !== null) {
-            return $assistance->organization->name;
-        }
-
-        $beneficiable = $assistance->beneficiary?->beneficiable;
-
-        if ($beneficiable instanceof Individual) {
-            return collect([
-                $beneficiable->first_name,
-                $beneficiable->middle_name,
-                $beneficiable->last_name,
-                $beneficiable->suffix,
-            ])
-                ->filter(static fn (?string $part): bool => $part !== null && trim($part) !== '')
-                ->implode(' ');
-        }
-
-        if ($beneficiable instanceof Organization) {
-            return $beneficiable->name;
-        }
-
-        return '—';
     }
 }

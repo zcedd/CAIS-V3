@@ -50,7 +50,6 @@ type AssistanceItem = {
 
 type AssistanceProfile = {
     id: number;
-    status: string;
     cais_number: string;
     beneficiary_name: string;
     beneficiary_type: 'Organization' | 'Personal' | null;
@@ -169,12 +168,6 @@ export default function UserAssistanceShow({
                     </CardHeader>
                     <CardContent className="flex flex-col gap-4 text-sm">
                         <div className="flex flex-wrap items-center gap-2">
-                            {StatusIcon ? (
-                                <StatusIcon className="h-4 w-4 text-muted-foreground" />
-                            ) : null}
-                            <span className="font-medium">
-                                {statusOption?.label ?? assistance.status}
-                            </span>
                             {assistance.beneficiary_type ? (
                                 <Badge variant="secondary">
                                     {assistance.beneficiary_type}
