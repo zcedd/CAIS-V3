@@ -8,6 +8,14 @@ use Illuminate\Validation\Rule;
 class UpdateProgramAssistanceStatusRequest extends FormRequest
 {
     /**
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return false;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function rules(): array

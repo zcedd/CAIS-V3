@@ -2,10 +2,18 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Actions\User\UpdateProgramAssistance;
+use App\Actions\User\UpdateProgramAssistanceStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\Assistance\StoreRequest;
+use App\Http\Requests\User\EditAssistanceRequest;
+use App\Http\Requests\User\UpdateProgramAssistanceRequest;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
+use App\Services\User\AssistanceService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -13,21 +21,105 @@ use Inertia\Response;
 
 class AssistanceController extends Controller
 {
+    public function __construct(
+        private AssistanceService $assistanceService,
+    ) {}
+
+    /**
+     * Store a newly created assistance record for the program.
+     */
+    public function store(
+        StoreRequest $request,
+        Program $program,
+    ): RedirectResponse {
+        $this->assistanceService->create($program, $request->user(), $request->validated());
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assistance created successfully.');
+    }
+
+    /**
+     * Return assistance data for editing in the program table drawer.
+     */
+    public function edit(
+        EditAssistanceRequest $request,
+        Assistance $assistance,
+    ): JsonResponse {
+
+        return response()->json([
+            'data' => $this->assistanceService->editPayload($assistance),
+        ]);
+    }
+
+    /**
+     * Update an assistance record for the program.
+     */
+    public function update(
+        UpdateProgramAssistanceRequest $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+        UpdateProgramAssistance $updateProgramAssistance,
+    ): RedirectResponse {
+        $this->assistanceService->ensureProgramIsOpen(
+            $program,
+            'This program is closed and cannot be updated.',
+        );
+
+        $updateProgramAssistance($assistance, $request->validated());
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assistance updated successfully.');
+    }
+
+    /**
+     * Remove the specified assistance from the program.
+     */
+    public function destroy(
+        DestroyAssistanceRequest $request,
+        Assistance $assistance,
+    ): RedirectResponse {
+
+        $this->assistanceService->ensureProgramIsOpen(
+            $program,
+            'This program is closed and assistances cannot be deleted.',
+        );
+
+        $assistance->delete();
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assistance deleted successfully.');
+    }
+
+    /**
+     * Update the request sub-status for an assistance record.
+     */
+    public function updateStatus(
+        UpdateAssistanceStatusRequest $request,
+        Assistance $assistance,
+        UpdateProgramAssistanceStatus $updateProgramAssistanceStatus,
+    ): RedirectResponse {
+        $user = $request->user();
+
+        $updateProgramAssistanceStatus($assistance, $request->validated());
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assistance status updated successfully.');
+    }
+
     /**
      * Display the specified assistance profile.
      */
     public function show(
-        Request $request,
+        ShowAssistanceRequest $request,
         Department $department,
         Program $program,
         Assistance $assistance,
     ): Response {
-        $user = $request->user();
-
-        abort_unless($user->department_id === $department->id, 403);
-        abort_unless($program->department_id === $department->id, 404);
-        abort_unless($assistance->program_id === $program->id, 404);
-
         $assistance->load([
             'beneficiary:id,name,cais_number,beneficiable_type,beneficiable_id',
             'modeOfRequest:id,name',
@@ -49,7 +141,7 @@ class AssistanceController extends Controller
             return Carbon::parse($value)->toDateString();
         };
 
-        $beneficiaryName =  $assistance->beneficiary?->name ?? '—';
+        $beneficiaryName = $assistance->beneficiary?->name ?? '—';
         $caisNumber = $assistance->beneficiary?->cais_number ?? '—';
 
         return Inertia::render('user/assistances/show', [
