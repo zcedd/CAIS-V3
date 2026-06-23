@@ -66,6 +66,15 @@ import { toast } from 'sonner';
 
 const ASSISTANCE_TABLE_PARTIAL_PROPS = ['assistances'] as const;
 
+const ASSISTANCE_TABLE_DEFER_GROUP_PROPS = [
+    'assistances',
+    'mode_options',
+    'status_options',
+    'mode_of_request_options',
+    'program_items',
+    'request_sub_status_options',
+] as const;
+
 const ASSISTANCE_TABLE_SKELETON_COLUMNS = 14;
 
 type DepartmentSummary = {
@@ -252,6 +261,31 @@ function buildTableQuery(
     return query;
 }
 
+function isAssistancesTableReady(props: {
+    assistances?: PaginatedAssistances;
+    mode_options?: StatusFilterOption[];
+    status_options?: StatusFilterOption[];
+    mode_of_request_options?: AssistanceModeOption[];
+    program_items?: AssistanceProgramItemOption[];
+    request_sub_status_options?: AssistanceRequestSubStatusOption[];
+}): props is {
+    assistances: PaginatedAssistances;
+    mode_options: StatusFilterOption[];
+    status_options: StatusFilterOption[];
+    mode_of_request_options: AssistanceModeOption[];
+    program_items: AssistanceProgramItemOption[];
+    request_sub_status_options: AssistanceRequestSubStatusOption[];
+} {
+    return (
+        props.assistances !== undefined &&
+        props.mode_options !== undefined &&
+        props.status_options !== undefined &&
+        props.mode_of_request_options !== undefined &&
+        props.program_items !== undefined &&
+        props.request_sub_status_options !== undefined
+    );
+}
+
 function isAssistancesPartialVisit(only?: string[]): boolean {
     if (!only?.length) {
         return false;
@@ -297,6 +331,86 @@ type ProgramAssistanceTableProps = {
         >,
     ) => void;
 };
+
+type ProgramAssistanceTableSectionProps = {
+    assistances: PaginatedAssistances;
+    tableFilters: AssistanceTableFilters;
+    tableState: ProgramAssistanceTableProps['tableState'];
+    statusOptions: StatusFilterOption[];
+    modeOptions: ModeFilterOption[];
+    isLoading: boolean;
+    departmentSlug: string;
+    programId: number;
+    programName: string;
+    isOrganization: boolean;
+    canCreateAssistance: boolean;
+    modeOfRequestOptions: AssistanceModeOption[];
+    programItems: AssistanceProgramItemOption[];
+    requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    onVisitTable: ProgramAssistanceTableProps['onVisitTable'];
+};
+
+function ProgramAssistanceTableSection({
+    assistances,
+    tableFilters,
+    tableState,
+    statusOptions,
+    modeOptions,
+    isLoading,
+    departmentSlug,
+    programId,
+    programName,
+    isOrganization,
+    canCreateAssistance,
+    modeOfRequestOptions,
+    programItems,
+    requestSubStatusOptions,
+    onVisitTable,
+}: ProgramAssistanceTableSectionProps) {
+    const assistanceColumns = useMemo(
+        () =>
+            createUserProgramAssistanceColumns({
+                departmentSlug,
+                programId,
+                programName,
+                isOrganization,
+                modeOfRequestOptions,
+                programItems,
+                requestSubStatusOptions,
+                onAssistanceUpdated: () => onVisitTable({ page: 1 }),
+            }),
+        [
+            departmentSlug,
+            programId,
+            programName,
+            isOrganization,
+            modeOfRequestOptions,
+            programItems,
+            requestSubStatusOptions,
+            onVisitTable,
+        ],
+    );
+
+    return (
+        <ProgramAssistanceTable
+            assistances={assistances}
+            assistanceColumns={assistanceColumns}
+            tableFilters={tableFilters}
+            tableState={tableState}
+            statusOptions={statusOptions}
+            modeOptions={modeOptions}
+            isLoading={isLoading}
+            departmentSlug={departmentSlug}
+            programId={programId}
+            programName={programName}
+            isOrganization={isOrganization}
+            canCreateAssistance={canCreateAssistance}
+            modeOfRequestOptions={modeOfRequestOptions}
+            programItems={programItems}
+            onVisitTable={onVisitTable}
+        />
+    );
+}
 
 function ProgramAssistanceTable({
     assistances,
@@ -398,8 +512,8 @@ export default function UserProgramShow({
 }: {
     program: ProgramDetail;
     department: DepartmentSummary | null;
-    funds: SelectOption[];
-    items: SelectOption[];
+    funds?: SelectOption[];
+    items?: SelectOption[];
     assistances?: PaginatedAssistances;
     sort: string;
     direction: 'asc' | 'desc';
@@ -407,12 +521,12 @@ export default function UserProgramShow({
     search: string;
     status: string[];
     mode: string[];
-    mode_options: ModeFilterOption[];
-    status_options: StatusFilterOption[];
-    mode_of_request_options: AssistanceModeOption[];
-    organization_options: AssistanceSelectOption[];
-    program_items: AssistanceProgramItemOption[];
-    request_sub_status_options: AssistanceRequestSubStatusOption[];
+    mode_options?: ModeFilterOption[];
+    status_options?: StatusFilterOption[];
+    mode_of_request_options?: AssistanceModeOption[];
+    organization_options?: AssistanceSelectOption[];
+    program_items?: AssistanceProgramItemOption[];
+    request_sub_status_options?: AssistanceRequestSubStatusOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
@@ -423,12 +537,12 @@ export default function UserProgramShow({
     const [selectedFundIds, setSelectedFundIds] = useState<string[]>([]);
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
-    const fundOptions = funds.map((fund) => ({
+    const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
         label: String(`${fund.name} (${fund.year})`),
     }));
 
-    const itemOptions = items.map((item) => ({
+    const itemOptions = (items ?? []).map((item) => ({
         value: String(item.id),
         label: String(`${item.name} (${item.unit})`),
     }));
@@ -448,6 +562,16 @@ export default function UserProgramShow({
         setSelectedFundIds(program.fund_ids.map(String));
         setSelectedItemIds(program.item_ids.map(String));
     }, [program]);
+
+    useEffect(() => {
+        if (!editOpen || (funds !== undefined && items !== undefined)) {
+            return;
+        }
+
+        router.reload({
+            only: ['funds', 'items'],
+        });
+    }, [editOpen, funds, items]);
 
     useEffect(() => {
         if (!editOpen) {
@@ -559,32 +683,6 @@ export default function UserProgramShow({
 
         [department?.slug, program.id],
     );
-
-    const assistanceColumns = useMemo(() => {
-        if (!department?.slug) {
-            return [];
-        }
-
-        return createUserProgramAssistanceColumns({
-            departmentSlug: department.slug,
-            programId: program.id,
-            programName: program.name,
-            isOrganization: program.is_organization ?? false,
-            modeOfRequestOptions: mode_of_request_options,
-            programItems: program_items,
-            requestSubStatusOptions: request_sub_status_options,
-            onAssistanceUpdated: () => visitTable({ page: 1 }),
-        });
-    }, [
-        department?.slug,
-        program.id,
-        program.name,
-        program.is_organization,
-        mode_of_request_options,
-        program_items,
-        request_sub_status_options,
-        visitTable,
-    ]);
 
     const tableSkeleton = (
         <DataTableSkeleton
@@ -699,34 +797,49 @@ export default function UserProgramShow({
                     </CardHeader>
                     <CardContent>
                         <WhenVisible
-                            data="assistances"
+                            data={[...ASSISTANCE_TABLE_DEFER_GROUP_PROPS]}
                             fallback={() => tableSkeleton}
                         >
-                            {assistances ? (
-                                <ProgramAssistanceTable
-                                    assistances={assistances}
-                                    assistanceColumns={assistanceColumns}
-                                    tableFilters={tableFilters}
-                                    tableState={tableState}
-                                    statusOptions={status_options}
-                                    modeOptions={mode_options}
-                                    isLoading={isTableReloading}
-                                    departmentSlug={department?.slug ?? ''}
-                                    programId={program.id}
-                                    programName={program.name}
-                                    isOrganization={
-                                        program.is_organization ?? false
-                                    }
-                                    canCreateAssistance={canCreateAssistance}
-                                    modeOfRequestOptions={
-                                        mode_of_request_options
-                                    }
-                                    programItems={program_items}
-                                    onVisitTable={visitTable}
-                                />
-                            ) : (
-                                tableSkeleton
-                            )}
+                            {(() => {
+                                const tableProps = {
+                                    assistances,
+                                    mode_options,
+                                    status_options,
+                                    mode_of_request_options,
+                                    program_items,
+                                    request_sub_status_options,
+                                };
+
+                                if (!isAssistancesTableReady(tableProps)) {
+                                    return tableSkeleton;
+                                }
+
+                                return (
+                                    <ProgramAssistanceTableSection
+                                        assistances={tableProps.assistances}
+                                        tableFilters={tableFilters}
+                                        tableState={tableState}
+                                        statusOptions={tableProps.status_options}
+                                        modeOptions={tableProps.mode_options}
+                                        isLoading={isTableReloading}
+                                        departmentSlug={department?.slug ?? ''}
+                                        programId={program.id}
+                                        programName={program.name}
+                                        isOrganization={
+                                            program.is_organization ?? false
+                                        }
+                                        canCreateAssistance={canCreateAssistance}
+                                        modeOfRequestOptions={
+                                            tableProps.mode_of_request_options
+                                        }
+                                        programItems={tableProps.program_items}
+                                        requestSubStatusOptions={
+                                            tableProps.request_sub_status_options
+                                        }
+                                        onVisitTable={visitTable}
+                                    />
+                                );
+                            })()}
                         </WhenVisible>
                     </CardContent>
                 </Card>

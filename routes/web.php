@@ -13,15 +13,14 @@ Route::inertia('/', 'welcome', [
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
     Route::get('beneficiaries/search', [UserBeneficiaryController::class, 'search'])->name('user.beneficiaries.search');
-    Route::get('{department}/programs', [UserProgramController::class, 'index'])->name('user.programs.index');
-    Route::post('{department}/programs', [UserProgramController::class, 'store'])->name('user.programs.store');
-    Route::get('{department}/programs/{program}', [UserProgramController::class, 'show'])->name('user.programs.show');
+
+    Route::resource('{department}/programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
+
     Route::post('{department}/programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
     Route::get('{department}/programs/{program}/assistances/{assistance}/edit', [UserAssistanceController::class, 'edit'])->name('user.programs.assistances.edit');
     Route::put('{department}/programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'update'])->name('user.programs.assistances.update');
     Route::delete('{department}/programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'destroy'])->name('user.programs.assistances.destroy');
     Route::patch('{department}/programs/{program}/assistances/{assistance}/status', [UserAssistanceController::class, 'updateStatus'])->name('user.programs.assistances.status.update');
-    Route::put('{department}/programs/{program}', [UserProgramController::class, 'update'])->name('user.programs.update');
     Route::get('{department}/programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'show'])->name('user.assistances.show');
 });
 

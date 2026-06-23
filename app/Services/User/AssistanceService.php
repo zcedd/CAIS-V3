@@ -4,6 +4,7 @@ namespace App\Services\User;
 
 use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
+use App\Actions\User\BuildLatestAssistanceRequestSubStatusSubquery;
 use App\Actions\User\JoinAssistanceTableRelations;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -24,6 +25,7 @@ class AssistanceService
         private JoinAssistanceTableRelations $joinAssistanceTableRelations,
         private ApplyAssistanceTableSort $applyAssistanceTableSort,
         private ApplyAssistanceTableFilters $applyAssistanceTableFilters,
+        private BuildLatestAssistanceRequestSubStatusSubquery $buildLatestAssistanceRequestSubStatusSubquery,
     ) {}
 
     public function ensureProgramIsOpen(Program $program, string $message): void
@@ -134,10 +136,12 @@ class AssistanceService
         array $statuses,
         array $modes,
     ): LengthAwarePaginator {
-        $assistancesQuery = Assistance::query()
-            ->where('assistances.program_id', $program->id);
+        $programId = $program->id;
 
-        ($this->joinAssistanceTableRelations)($assistancesQuery);
+        $assistancesQuery = Assistance::query()
+            ->where('assistances.program_id', $programId);
+
+        ($this->joinAssistanceTableRelations)($assistancesQuery, $programId);
 
         $assistancesQuery->select([
             'assistances.id',
@@ -161,10 +165,27 @@ class AssistanceService
             'assistanceItem.item.unitMeasurement:id,name',
         ]);
 
-        ($this->applyAssistanceTableFilters)($assistancesQuery, $search, $statuses, $modes);
+        ($this->applyAssistanceTableFilters)($assistancesQuery, $search, $statuses, $modes, $programId);
         ($this->applyAssistanceTableSort)($assistancesQuery, $sort, $direction);
 
         return $assistancesQuery
+            ->groupBy([
+                'assistances.id',
+                'assistances.beneficiary_id',
+                'assistances.mode_of_request_id',
+                'assistances.date_requested',
+                'assistances.date_verified',
+                'assistances.date_delivered',
+                'assistances.date_denied',
+                'assistances.remark',
+                'beneficiaries.cais_number',
+                'beneficiaries.name',
+                'mode_of_requests.name',
+                'rss.id',
+                'rss.name',
+                'rs.name',
+                'arss.recorded_at',
+            ])
             ->paginate($perPage)
             ->withQueryString()
             ->through(static function (Assistance $assistance): array {
@@ -227,16 +248,11 @@ class AssistanceService
     public function modeOptions(Program $program): array
     {
         return ModeOfRequest::query()
-            ->whereIn(
-                'id',
-                Assistance::query()
-                    ->where('program_id', $program->id)
-                    ->whereNotNull('mode_of_request_id')
-                    ->distinct()
-                    ->pluck('mode_of_request_id'),
-            )
-            ->orderBy('name')
-            ->pluck('name')
+            ->join('assistances', 'assistances.mode_of_request_id', '=', 'mode_of_requests.id')
+            ->where('assistances.program_id', $program->id)
+            ->distinct()
+            ->orderBy('mode_of_requests.name')
+            ->pluck('mode_of_requests.name')
             ->map(static fn (string $name): array => [
                 'label' => $name,
                 'value' => $name,
@@ -250,29 +266,26 @@ class AssistanceService
      */
     public function statusOptions(Program $program): array
     {
+        $latestRecordedAt = ($this->buildLatestAssistanceRequestSubStatusSubquery)($program->id);
+        $pivotTable = (new AssistanceRequestSubStatus)->getTable();
+
         return RequestStatus::query()
-            ->whereIn(
-                'id',
-                Assistance::query()
-                    ->where('program_id', $program->id)
-                    ->join(
-                        'assistance_request_sub_status',
-                        'assistance_request_sub_status.assistance_id',
-                        '=',
-                        'assistances.id',
-                    )
-                    ->join(
-                        'request_sub_statuses',
-                        'request_sub_statuses.id',
-                        '=',
-                        'assistance_request_sub_status.request_sub_status_id',
-                    )
-                    ->whereNull('assistance_request_sub_status.deleted_at')
-                    ->distinct()
-                    ->pluck('request_sub_statuses.request_status_id'),
+            ->join('request_sub_statuses as rss', 'rss.request_status_id', '=', 'request_statuses.id')
+            ->join("{$pivotTable} as arss", 'arss.request_sub_status_id', '=', 'rss.id')
+            ->joinSub(
+                $latestRecordedAt,
+                'latest_arss_lookup',
+                function ($join): void {
+                    $join->on('latest_arss_lookup.assistance_id', '=', 'arss.assistance_id')
+                        ->on('latest_arss_lookup.max_recorded_at', '=', 'arss.recorded_at');
+                },
             )
-            ->orderBy('name')
-            ->pluck('name')
+            ->join('assistances', 'assistances.id', '=', 'arss.assistance_id')
+            ->where('assistances.program_id', $program->id)
+            ->whereNull('arss.deleted_at')
+            ->distinct()
+            ->orderBy('request_statuses.name')
+            ->pluck('request_statuses.name')
             ->map(static fn (string $name): array => [
                 'label' => $name,
                 'value' => $name,
