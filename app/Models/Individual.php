@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -44,8 +45,25 @@ class Individual extends Model
         return LogOptions::defaults()
             ->logFillable()
             ->useLogName('Beneficiary')
-            ->setDescriptionForEvent(fn(string $eventName) => "This Beneficiary model has been {$eventName}")
+            ->setDescriptionForEvent(fn (string $eventName) => "This Beneficiary model has been {$eventName}")
             ->dontSubmitEmptyLogs();
+    }
+
+    public function fullName(): string
+    {
+        return collect([
+            $this->first_name,
+            $this->middle_name,
+            $this->last_name,
+            $this->suffix,
+        ])
+            ->filter(static fn (?string $part): bool => $part !== null && trim($part) !== '')
+            ->implode(' ');
+    }
+
+    public function beneficiaryRecord(): MorphOne
+    {
+        return $this->morphOne(Beneficiary::class, 'beneficiable');
     }
 
     public function address(): BelongsTo
@@ -68,15 +86,17 @@ class Individual extends Model
 
     public function identification(): BelongsToMany
     {
-        return $this->belongsToMany(Identification::class)->withPivot('number')->withTimestamps()->withSoftDeletes()->using(IndividualIdentification::class);
+        return $this->belongsToMany(Identification::class, 'individual_identification', 'beneficiary_id', 'identification_id')
+            ->withPivot('number')
+            ->withTimestamps()
+            ->using(BeneficiaryIdentification::class);
     }
 
     public function organization(): BelongsToMany
     {
         return $this->belongsToMany(Organization::class, 'individual_organizations', 'beneficiary_id', 'organization_id')
             ->withTimestamps()
-            ->withSoftDeletes()
-            ->using(IndividualOrganization::class);
+            ->using(BeneficiaryOrganization::class);
     }
 
     public function civilStatus(): BelongsTo
