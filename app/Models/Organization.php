@@ -2,23 +2,24 @@
 
 namespace App\Models;
 
-use Spatie\Activitylog\LogOptions;
-use Illuminate\Database\Eloquent\Model;
-use Spatie\Activitylog\Traits\LogsActivity;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Organization extends Model
 {
     use HasFactory;
-    use SoftDeletes;
     use LogsActivity;
+    use SoftDeletes;
 
     protected $fillable = ['cais_number', 'name', 'beneficiary_id', 'addrs_brgy_id', 'mobile_number', 'total_member'];
 
     public function toSearchableArray()
     {
         $array = $this->toArray();
+
         return $array;
     }
 
@@ -27,18 +28,21 @@ class Organization extends Model
         return LogOptions::defaults()
             ->logFillable()
             ->useLogName('Organization')
-            ->setDescriptionForEvent(fn(string $eventName) => "This Organization model has been {$eventName}")
+            ->setDescriptionForEvent(fn (string $eventName) => "This Organization model has been {$eventName}")
             ->dontSubmitEmptyLogs();
     }
 
     public function beneficiary()
     {
-        return $this->belongsToMany(Beneficiary::class)->withTimestamps()->withSoftDeletes()->using(BeneficiaryOrganization::class);
+        return $this->belongsToMany(Individual::class, 'individual_organizations', 'organization_id', 'beneficiary_id')
+            ->withTimestamps()
+            ->withSoftDeletes()
+            ->using(BeneficiaryOrganization::class);
     }
 
     public function president()
     {
-        return $this->belongsTo(Beneficiary::class, 'beneficiary_id', 'id');
+        return $this->belongsTo(Individual::class, 'beneficiary_id', 'id');
     }
 
     public function address()
@@ -48,7 +52,7 @@ class Organization extends Model
 
     public function assistance()
     {
-        return $this->hasMany(Assistance::class);
+        return $this->hasMany(Assistance::class, 'organization_id');
     }
 
     public function beneficiaryPivot()

@@ -44,7 +44,7 @@ export function MultiSelect({
 
   return (
     <div className={cn("relative", className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={setOpen} modal={false}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -97,7 +97,8 @@ export function MultiSelect({
                 {options.map((option) => (
                   <CommandItem
                     key={option.value}
-                    value={option.value}
+                    value={option.label}
+                    keywords={[option.label, option.value]}
                     onSelect={() => handleSelect(option.value)}
                     className="cursor-pointer"
                   >

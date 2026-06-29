@@ -11,10 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('individual_identifications', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
-        });
+        Schema::rename('beneficiary_identification', 'individual_identification');
     }
 
     /**
@@ -22,6 +19,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('individual_identifications');
+        Schema::rename('individual_identification', 'beneficiary_identification');
     }
 };

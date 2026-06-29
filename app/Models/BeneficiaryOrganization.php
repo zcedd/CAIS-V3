@@ -8,7 +8,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
- * @deprecated This class is deprecated and should not be used in new code. 
+ * @deprecated This class is deprecated and should not be used in new code.
  * Use IndividualOrganization instead.
  */
 #[\AllowDynamicProperties]
@@ -17,7 +17,10 @@ class BeneficiaryOrganization extends Pivot
     use HasFactory;
     use LogsActivity;
 
+    protected $table = 'individual_organizations';
+
     protected $fillable = ['beneficiary_id', 'organization_id'];
+
     public $incrementing = true;
 
     public function organization()
@@ -27,7 +30,7 @@ class BeneficiaryOrganization extends Pivot
 
     public function beneficiary()
     {
-        return $this->belongsTo(Beneficiary::class, 'beneficiary_id');
+        return $this->belongsTo(Individual::class, 'beneficiary_id');
     }
 
     public function getActivitylogOptions(): LogOptions
@@ -35,6 +38,6 @@ class BeneficiaryOrganization extends Pivot
         return LogOptions::defaults()
             ->logFillable()
             ->useLogName('BeneficiaryOrganization')
-            ->setDescriptionForEvent(fn(string $eventName) => "This BeneficiaryOrganization model has been {$eventName}");
+            ->setDescriptionForEvent(fn (string $eventName) => "This BeneficiaryOrganization model has been {$eventName}");
     }
 }
