@@ -44,7 +44,13 @@ import {
     router,
     setLayoutProps,
 } from '@inertiajs/react';
-import { CalendarDays, ChevronDownIcon, Plus, RotateCcw, X } from 'lucide-react';
+import {
+    CalendarDays,
+    ChevronDownIcon,
+    Plus,
+    RotateCcw,
+    X,
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -290,12 +296,7 @@ export default function UserProgramsIndex({
                 },
             );
         },
-        [
-            department?.slug,
-            searchQuery,
-            initialType,
-            initialStatus,
-        ],
+        [department?.slug, searchQuery, initialType, initialStatus],
     );
 
     if (department?.slug) {
@@ -322,12 +323,7 @@ export default function UserProgramsIndex({
         }, 400);
 
         return () => window.clearTimeout(handle);
-    }, [
-        searchQuery,
-        initialSearch,
-        department?.slug,
-        navigateWithFilters,
-    ]);
+    }, [searchQuery, initialSearch, department?.slug, navigateWithFilters]);
 
     const heading = department ? `${department.name} programs` : 'Programs';
     const canCreate = Boolean(department?.slug);
@@ -438,25 +434,35 @@ export default function UserProgramsIndex({
                                                 {program.name}
                                             </CardTitle>
                                             <CardDescription>
-                                                <span className="font-medium text-foreground">
-                                                    {program.is_organization
-                                                        ? 'Organization'
-                                                        : 'Individual'}
-                                                </span>
-                                                {program.is_closed ? (
-                                                    <Badge variant="destructive">
-                                                        Closed
-                                                    </Badge>
-                                                ) : (
+                                                <div className="flex gap-2">
                                                     <Badge variant="default">
-                                                        Open
+                                                        {program.is_organization
+                                                            ? 'Organization'
+                                                            : 'Individual'}
                                                     </Badge>
-                                                )}
+                                                    <Badge
+                                                        variant={
+                                                            program.is_closed
+                                                                ? 'destructive'
+                                                                : 'default'
+                                                        }
+                                                    >
+                                                        {program.is_closed
+                                                            ? 'Closed'
+                                                            : 'Open'}
+                                                    </Badge>
+                                                </div>
                                             </CardDescription>
                                         </CardHeader>
                                         <CardContent className="flex flex-1 flex-col gap-2 text-sm text-muted-foreground">
                                             <p className="line-clamp-4">
-                                                {program.descriptions}
+                                                {(program.descriptions
+                                                    ?.length ?? 0) > 200
+                                                    ? program.descriptions.slice(
+                                                          0,
+                                                          200,
+                                                      ) + '…'
+                                                    : program.descriptions}
                                             </p>
                                             <p>
                                                 <span className="font-medium text-foreground">

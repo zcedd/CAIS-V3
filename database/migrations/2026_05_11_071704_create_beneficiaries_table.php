@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('beneficiaries', function (Blueprint $table) {
             $table->id();
             $table->string('cais_number');
+            $table->string('name');
             $table->morphs('beneficiable');
             $table->timestamps();
             $table->softDeletes();

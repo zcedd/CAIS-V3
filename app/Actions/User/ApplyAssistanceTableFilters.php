@@ -3,7 +3,10 @@
 namespace App\Actions\User;
 
 use App\Models\Assistance;
+use App\Models\AssistanceRequestSubStatus;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 
 class ApplyAssistanceTableFilters
 {
@@ -19,63 +22,62 @@ class ApplyAssistanceTableFilters
         array $modes,
     ): void {
         if ($search !== '') {
-            $query->whereHas(
-                'beneficiary',
-                fn (Builder $beneficiaryQuery) => $beneficiaryQuery->where(
-                    'cais_number',
-                    'like',
-                    '%'.$search.'%',
-                ),
+            $needle = '%'.$search.'%';
+
+            $query->where(
+                fn (Builder $searchQuery) => $searchQuery
+                    ->where('beneficiaries.name', 'like', $needle)
+                    ->orWhere('beneficiaries.cais_number', 'like', $needle),
             );
         }
 
-        if ($statuses !== []) {
-            $query->where(function (Builder $statusQuery) use ($statuses): void {
-                foreach ($statuses as $status) {
-                    $statusQuery->orWhere(
-                        fn (Builder $constraintQuery) => $this->applyStatusConstraint(
-                            $constraintQuery,
-                            $status,
-                        ),
-                    );
-                }
-            });
+        if ($modes !== []) {
+            $query->whereIn('mode_of_requests.name', $modes);
         }
 
-        if ($modes !== []) {
-            $query->whereHas(
-                'modeOfRequest',
-                fn (Builder $modeQuery) => $modeQuery->whereIn('name', $modes),
+        if ($statuses !== []) {
+            $query->whereIn(
+                'assistances.id',
+                $this->latestAssistanceIdsByRequestStatusNames($statuses),
             );
         }
     }
 
     /**
-     * @param  Builder<Assistance>  $query
+     * @param  list<string>  $statuses
      */
-    private function applyStatusConstraint(Builder $query, string $status): void
+    private function latestAssistanceIdsByRequestStatusNames(array $statuses): QueryBuilder
     {
-        match ($status) {
-            'Denied' => $query
-                ->whereNotNull('date_denied'),
-            'Delivered' => $query
-                ->whereNotNull('date_delivered')
-                ->whereNull('date_denied'),
-            'Verified' => $query
-                ->whereNotNull('date_verified')
-                ->whereNull('date_delivered')
-                ->whereNull('date_denied'),
-            'Pending' => $query
-                ->whereNotNull('date_requested')
-                ->whereNull('date_verified')
-                ->whereNull('date_delivered')
-                ->whereNull('date_denied'),
-            'Unrequested' => $query
-                ->whereNull('date_requested')
-                ->whereNull('date_verified')
-                ->whereNull('date_delivered')
-                ->whereNull('date_denied'),
-            default => null,
-        };
+        $pivotTable = (new AssistanceRequestSubStatus)->getTable();
+
+        $latestRecordedAt = DB::table($pivotTable)
+            ->select('assistance_id', DB::raw('MAX(recorded_at) as max_recorded_at'))
+            ->whereNull('deleted_at')
+            ->groupBy('assistance_id');
+
+        return DB::table($pivotTable.' as arss')
+            ->select('arss.assistance_id')
+            ->joinSub(
+                $latestRecordedAt,
+                'latest_arss_lookup',
+                function ($join): void {
+                    $join->on('latest_arss_lookup.assistance_id', '=', 'arss.assistance_id')
+                        ->on('latest_arss_lookup.max_recorded_at', '=', 'arss.recorded_at');
+                },
+            )
+            ->join(
+                'request_sub_statuses as rss',
+                'rss.id',
+                '=',
+                'arss.request_sub_status_id',
+            )
+            ->join(
+                'request_statuses as rs',
+                'rs.id',
+                '=',
+                'rss.request_status_id',
+            )
+            ->whereNull('arss.deleted_at')
+            ->whereIn('rs.name', $statuses);
     }
 }

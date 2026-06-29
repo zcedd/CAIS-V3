@@ -1,14 +1,26 @@
 <?php
 
-namespace App\Http\Requests\User;
+namespace App\Http\Requests\User\Program;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
-class ProgramAssistanceTableRequest extends FormRequest
+class ShowRequest extends FormRequest
 {
     /**
-     * @return array<string, mixed>
+     * Determine if the user is authorized to make this request.
+     */
+    public function authorize(): bool
+    {
+        return Gate::allows('view', $this->program);
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {

@@ -19,13 +19,22 @@ interface DataTablePaginationProps<TData> {
     table: Table<TData>;
     serverPagination?: ServerPaginationMeta;
     onPerPageChange?: (perPage: number) => void;
+    partialReloadOnly?: string[];
 }
 
 export function DataTablePagination<TData>({
     table,
     serverPagination,
     onPerPageChange,
+    partialReloadOnly,
 }: DataTablePaginationProps<TData>) {
+    const partialReloadProps = partialReloadOnly
+        ? {
+              only: partialReloadOnly,
+              preserveState: true,
+              preserveScroll: true,
+          }
+        : undefined;
     const selectedCount = table.getFilteredSelectedRowModel().rows.length;
     const filteredCount = serverPagination
         ? serverPagination.total
@@ -114,6 +123,7 @@ export function DataTablePagination<TData>({
                                     <Link
                                         href={serverPagination.prev_page_url}
                                         preserveScroll
+                                        {...partialReloadProps}
                                     >
                                         <span className="sr-only">
                                             Go to previous page
@@ -143,6 +153,7 @@ export function DataTablePagination<TData>({
                                     <Link
                                         href={serverPagination.next_page_url}
                                         preserveScroll
+                                        {...partialReloadProps}
                                     >
                                         <span className="sr-only">
                                             Go to next page

@@ -3,8 +3,12 @@
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
 import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-row-actions';
+import type {
+    AssistanceModeOption,
+    AssistanceProgramItemOption,
+    AssistanceRequestSubStatusOption,
+} from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
@@ -35,15 +39,39 @@ function formatItemAmount(item: UserProgramAssistanceItem): string | null {
 export type UserProgramAssistanceRow = {
     id: number;
     cais_number: string;
+    beneficiary_name: string;
     items: UserProgramAssistanceItem[];
     mode_of_request: string;
     date_requested: string | null;
     date_verified: string | null;
     date_delivered: string | null;
     date_denied: string | null;
+    request_status: string | null;
+    request_sub_status_id: number | null;
+    request_sub_status: string | null;
+    request_sub_status_recorded_at: string | null;
     status: string;
     remark: string | null;
 };
+
+function formatRequestSubStatusRecordedAt(
+    value: string | null,
+): string {
+    if (!value) {
+        return '—';
+    }
+
+    const recorded = new Date(value);
+
+    if (Number.isNaN(recorded.getTime())) {
+        return '—';
+    }
+
+    return recorded.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
 
 function itemsSummary(items: UserProgramAssistanceItem[]): string {
     if (items.length === 0) {
@@ -68,11 +96,23 @@ function itemsSummary(items: UserProgramAssistanceItem[]): string {
 export type UserProgramAssistanceTableContext = {
     departmentSlug: string;
     programId: number;
+    programName: string;
+    isOrganization: boolean;
+    modeOfRequestOptions: AssistanceModeOption[];
+    programItems: AssistanceProgramItemOption[];
+    requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    onAssistanceUpdated?: () => void;
 };
 
 export function createUserProgramAssistanceColumns({
     departmentSlug,
     programId,
+    programName,
+    isOrganization,
+    modeOfRequestOptions,
+    programItems,
+    requestSubStatusOptions,
+    onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
     return [
         {
@@ -125,6 +165,24 @@ export function createUserProgramAssistanceColumns({
             },
         },
         {
+            accessorKey: 'beneficiary_name',
+            meta: { title: 'Name' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Name" />
+            ),
+            cell: ({ row }) => {
+                const beneficiaryName = row.getValue(
+                    'beneficiary_name',
+                ) as string;
+
+                return (
+                    <span className="max-w-[min(16rem,40vw)] font-medium">
+                        {beneficiaryName}
+                    </span>
+                );
+            },
+        },
+        {
             id: 'items',
             accessorFn: (row) => itemsSummary(row.items),
             enableSorting: false,
@@ -151,9 +209,6 @@ export function createUserProgramAssistanceColumns({
                 return (
                     <div className="flex max-w-[min(28rem,50vw)] flex-col gap-1">
                         <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline" className="font-normal">
-                                {row.original.mode_of_request}
-                            </Badge>
                             {items.length > 1 ? (
                                 <Badge
                                     variant="secondary"
@@ -183,24 +238,51 @@ export function createUserProgramAssistanceColumns({
         },
         {
             accessorKey: 'status',
-            meta: { title: 'Status' },
+            meta: {
+                title: 'Status',
+                cellClassName: 'whitespace-normal',
+            },
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Status" />
             ),
             cell: ({ row }) => {
-                const status = row.getValue('status') as string;
-                const option = assistanceStatuses.find(
-                    (entry) => entry.value === status,
-                );
-                const Icon = option?.icon;
+                const requestSubStatus =
+                    row.original.request_sub_status ??
+                    (row.getValue('status') as string);
+                const requestStatus = row.original.request_status;
 
                 return (
-                    <div className="flex w-[120px] items-center gap-2">
-                        {Icon ? (
-                            <Icon className="h-4 w-4 text-muted-foreground" />
+                    <div className="flex max-w-[min(16rem,40vw)] flex-col gap-0.5">
+                        {requestStatus ? (
+                            <span className="leading-snug font-medium">
+                                {requestStatus}
+                            </span>
                         ) : null}
-                        <span>{option?.label ?? status}</span>
+                        <span className="text-xs text-muted-foreground">
+                            {requestSubStatus}
+                        </span>
                     </div>
+                );
+            },
+        },
+        {
+            accessorKey: 'request_sub_status_recorded_at',
+            meta: { title: 'Sub-status recorded' },
+            header: ({ column }) => (
+                <DataTableColumnHeader
+                    column={column}
+                    title="Sub-status recorded"
+                />
+            ),
+            cell: ({ row }) => {
+                const value = row.getValue(
+                    'request_sub_status_recorded_at',
+                ) as string | null;
+
+                return (
+                    <span className="text-muted-foreground tabular-nums">
+                        {formatRequestSubStatusRecordedAt(value)}
+                    </span>
                 );
             },
         },
@@ -307,6 +389,12 @@ export function createUserProgramAssistanceColumns({
                     row={row}
                     departmentSlug={departmentSlug}
                     programId={programId}
+                    programName={programName}
+                    isOrganization={isOrganization}
+                    modeOfRequestOptions={modeOfRequestOptions}
+                    programItems={programItems}
+                    requestSubStatusOptions={requestSubStatusOptions}
+                    onAssistanceUpdated={onAssistanceUpdated}
                 />
             ),
         },
@@ -314,9 +402,11 @@ export function createUserProgramAssistanceColumns({
 }
 
 export const userProgramAssistanceInitialColumnVisibility = {
+    request_sub_status_recorded_at: true,
     mode_of_request: true,
-    date_verified: true,
-    date_delivered: true,
-    date_denied: true,
+    date_requested: false,
+    date_verified: false,
+    date_delivered: false,
+    date_denied: false,
     remark: true,
 };

@@ -1,6 +1,7 @@
 'use client';
 
 import { DataTablePagination } from '@/components/data-table/data-table-pagination';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableSortingContext } from '@/components/data-table/data-table-sorting-context';
 import type {
     ServerPaginationMeta,
@@ -50,6 +51,9 @@ interface DataTableProps<TData, TValue> {
         direction: 'asc' | 'desc',
     ) => void;
     onPerPageChange?: (perPage: number) => void;
+    partialReloadOnly?: string[];
+    isLoading?: boolean;
+    loadingFallback?: React.ReactNode;
     toolbar?: (
         table: TanstackTable<TData>,
         columnVisibility: VisibilityState,
@@ -85,6 +89,9 @@ export function DataTable<TData, TValue>({
     serverSorting,
     onServerSortingChange,
     onPerPageChange,
+    partialReloadOnly,
+    isLoading = false,
+    loadingFallback,
     toolbar,
     initialColumnVisibility,
     enableRowSelection = false,
@@ -150,7 +157,17 @@ export function DataTable<TData, TValue>({
         [sorting, manualSorting, onServerSortingChange],
     );
 
-    const tableMarkup = (
+    const skeletonMarkup =
+        loadingFallback ?? (
+            <DataTableSkeleton
+                columnCount={columns.length}
+                rowCount={serverPagination?.per_page ?? 8}
+            />
+        );
+
+    const tableMarkup = isLoading ? (
+        skeletonMarkup
+    ) : (
         <div className="rounded-md border">
             <Table>
                 <TableHeader>
@@ -238,6 +255,7 @@ export function DataTable<TData, TValue>({
                     onPerPageChange={
                         manualPagination ? onPerPageChange : undefined
                     }
+                    partialReloadOnly={partialReloadOnly}
                 />
             </div>
         </DataTableSortingContext.Provider>

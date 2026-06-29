@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Assistance extends Model
@@ -66,6 +67,11 @@ class Assistance extends Model
             ->orderByDesc('pivot_recorded_at')
             ->withTimestamps()
             ->using(AssistanceRequestSubStatus::class);
+    }
+
+    public function latestAssistanceRequestSubStatus(): HasOne
+    {
+        return $this->hasOne(AssistanceRequestSubStatus::class)->latestOfMany('recorded_at');
     }
 
     /*
