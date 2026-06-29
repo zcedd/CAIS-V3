@@ -478,10 +478,7 @@ export function AssistanceEditDrawer({
                                             : 'Save changes'}
                                     </Button>
                                     <DrawerClose asChild>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                        >
+                                        <Button type="button" variant="outline">
                                             Cancel
                                         </Button>
                                     </DrawerClose>

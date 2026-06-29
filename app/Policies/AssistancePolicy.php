@@ -21,7 +21,7 @@ class AssistancePolicy
      */
     public function view(User $user, Assistance $assistance): bool
     {
-        return false;
+        return true;
     }
 
     /**

@@ -93,28 +93,52 @@ class ProgramController extends Controller
         return Inertia::render('user/programs/show', [
             'program' => fn () => $this->programService->showPayload($program),
             'department' => fn () => $department->only(['id', 'name', 'slug']),
-            'funds' => fn () => $this->programService->departmentFundsForSelect($department),
-            'items' => fn () => $this->programService->departmentItemsForSelect($department),
-            'assistances' => Inertia::defer(fn () => $this->assistanceService->paginatedForProgram(
-                $program,
-                $sort,
-                $direction,
-                $perPage,
-                $search,
-                $statuses,
-                $modes,
-            )),
-            'sort' => fn () => $sort,
-            'direction' => fn () => $direction,
-            'per_page' => fn () => $perPage,
-            'search' => fn () => $search,
-            'status' => fn () => $statuses,
-            'mode' => fn () => $modes,
-            'mode_options' => fn () => $this->assistanceService->modeOptions($program),
-            'status_options' => fn () => $this->assistanceService->statusOptions($program),
-            'mode_of_request_options' => fn () => $this->assistanceService->modesOfRequestForSelect(),
-            'program_items' => fn () => $this->programService->programItemsForSelect($program),
-            'request_sub_status_options' => fn () => $this->assistanceService->requestSubStatusesForSelect(),
+            'funds' => Inertia::defer(
+                fn () => $this->programService->departmentFundsForSelect($department),
+                'edit',
+            ),
+            'items' => Inertia::defer(
+                fn () => $this->programService->departmentItemsForSelect($department),
+                'edit',
+            ),
+            'assistances' => Inertia::defer(
+                fn () => $this->assistanceService->paginatedForProgram(
+                    $program,
+                    $sort,
+                    $direction,
+                    $perPage,
+                    $search,
+                    $statuses,
+                    $modes,
+                ),
+                'table',
+            ),
+            'sort' => $sort,
+            'direction' => $direction,
+            'per_page' => $perPage,
+            'search' => $search,
+            'status' => $statuses,
+            'mode' => $modes,
+            'mode_options' => Inertia::defer(
+                fn () => $this->assistanceService->modeOptions($program),
+                'table',
+            ),
+            'status_options' => Inertia::defer(
+                fn () => $this->assistanceService->statusOptions($program),
+                'table',
+            ),
+            'mode_of_request_options' => Inertia::defer(
+                fn () => $this->assistanceService->modesOfRequestForSelect(),
+                'table',
+            ),
+            'program_items' => Inertia::defer(
+                fn () => $this->programService->programItemsForSelect($program),
+                'table',
+            ),
+            'request_sub_status_options' => Inertia::defer(
+                fn () => $this->assistanceService->requestSubStatusesForSelect(),
+                'table',
+            ),
         ]);
     }
 }

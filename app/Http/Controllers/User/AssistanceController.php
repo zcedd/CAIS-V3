@@ -5,16 +5,18 @@ namespace App\Http\Controllers\User;
 use App\Actions\User\UpdateProgramAssistance;
 use App\Actions\User\UpdateProgramAssistanceStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\Assistance\DestroyRequest;
+use App\Http\Requests\User\Assistance\EditRequest;
+use App\Http\Requests\User\Assistance\ShowRequest;
 use App\Http\Requests\User\Assistance\StoreRequest;
-use App\Http\Requests\User\EditAssistanceRequest;
-use App\Http\Requests\User\UpdateProgramAssistanceRequest;
+use App\Http\Requests\User\Assistance\UpdateRequest;
+use App\Http\Requests\User\Assistance\UpdateStatusRequest;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
 use App\Services\User\AssistanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -43,10 +45,11 @@ class AssistanceController extends Controller
      * Return assistance data for editing in the program table drawer.
      */
     public function edit(
-        EditAssistanceRequest $request,
+        EditRequest $request,
+        Department $department,
+        Program $program,
         Assistance $assistance,
     ): JsonResponse {
-
         return response()->json([
             'data' => $this->assistanceService->editPayload($assistance),
         ]);
@@ -56,7 +59,7 @@ class AssistanceController extends Controller
      * Update an assistance record for the program.
      */
     public function update(
-        UpdateProgramAssistanceRequest $request,
+        UpdateRequest $request,
         Department $department,
         Program $program,
         Assistance $assistance,
@@ -78,7 +81,8 @@ class AssistanceController extends Controller
      * Remove the specified assistance from the program.
      */
     public function destroy(
-        DestroyAssistanceRequest $request,
+        DestroyRequest $request,
+        Program $program,
         Assistance $assistance,
     ): RedirectResponse {
 
@@ -98,7 +102,9 @@ class AssistanceController extends Controller
      * Update the request sub-status for an assistance record.
      */
     public function updateStatus(
-        UpdateAssistanceStatusRequest $request,
+        UpdateStatusRequest $request,
+        Department $department,
+        Program $program,
         Assistance $assistance,
         UpdateProgramAssistanceStatus $updateProgramAssistanceStatus,
     ): RedirectResponse {
@@ -115,7 +121,7 @@ class AssistanceController extends Controller
      * Display the specified assistance profile.
      */
     public function show(
-        ShowAssistanceRequest $request,
+        ShowRequest $request,
         Department $department,
         Program $program,
         Assistance $assistance,
@@ -159,7 +165,7 @@ class AssistanceController extends Controller
                 'date_denied' => $formatDate($assistance->date_denied),
                 'remark' => $assistance->remark,
                 'items' => $assistance->assistanceItem
-                    ->map(static fn($assistanceItem): array => [
+                    ->map(static fn ($assistanceItem): array => [
                         'name' => $assistanceItem->item?->name ?? '—',
                         'quantity' => $assistanceItem->quantity,
                         'unit' => $assistanceItem->item?->unitMeasurement?->name,
@@ -169,8 +175,8 @@ class AssistanceController extends Controller
                     ->values()
                     ->all(),
                 'status_history' => $assistance->requestSubStatus
-                    ->sortBy(static fn($subStatus) => $subStatus->pivot->recorded_at)
-                    ->map(static fn($subStatus): array => [
+                    ->sortBy(static fn ($subStatus) => $subStatus->pivot->recorded_at)
+                    ->map(static fn ($subStatus): array => [
                         'id' => (int) $subStatus->pivot->id,
                         'name' => $subStatus->name,
                         'parent_status' => $subStatus->requestStatus?->name,

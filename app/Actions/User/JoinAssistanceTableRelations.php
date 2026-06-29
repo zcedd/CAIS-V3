@@ -5,22 +5,22 @@ namespace App\Actions\User;
 use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 class JoinAssistanceTableRelations
 {
+    public function __construct(
+        private BuildLatestAssistanceRequestSubStatusSubquery $buildLatestAssistanceRequestSubStatusSubquery,
+    ) {}
+
     /**
      * @param  Builder<Assistance>  $query
      */
-    public function __invoke(Builder $query): void
+    public function __invoke(Builder $query, ?int $programId = null): void
     {
         $assistanceTable = (new Assistance)->getTable();
         $pivotTable = (new AssistanceRequestSubStatus)->getTable();
 
-        $latestRecordedAt = DB::table($pivotTable)
-            ->select('assistance_id', DB::raw('MAX(recorded_at) as max_recorded_at'))
-            ->whereNull('deleted_at')
-            ->groupBy('assistance_id');
+        $latestRecordedAt = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
 
         $query
             ->leftJoin(

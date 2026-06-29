@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class ApplyAssistanceTableFilters
 {
+    public function __construct(
+        private BuildLatestAssistanceRequestSubStatusSubquery $buildLatestAssistanceRequestSubStatusSubquery,
+    ) {}
+
     /**
      * @param  Builder<Assistance>  $query
      * @param  list<string>  $statuses
@@ -20,6 +24,7 @@ class ApplyAssistanceTableFilters
         string $search,
         array $statuses,
         array $modes,
+        ?int $programId = null,
     ): void {
         if ($search !== '') {
             $needle = '%'.$search.'%';
@@ -38,7 +43,7 @@ class ApplyAssistanceTableFilters
         if ($statuses !== []) {
             $query->whereIn(
                 'assistances.id',
-                $this->latestAssistanceIdsByRequestStatusNames($statuses),
+                $this->latestAssistanceIdsByRequestStatusNames($statuses, $programId),
             );
         }
     }
@@ -46,14 +51,11 @@ class ApplyAssistanceTableFilters
     /**
      * @param  list<string>  $statuses
      */
-    private function latestAssistanceIdsByRequestStatusNames(array $statuses): QueryBuilder
+    private function latestAssistanceIdsByRequestStatusNames(array $statuses, ?int $programId = null): QueryBuilder
     {
         $pivotTable = (new AssistanceRequestSubStatus)->getTable();
 
-        $latestRecordedAt = DB::table($pivotTable)
-            ->select('assistance_id', DB::raw('MAX(recorded_at) as max_recorded_at'))
-            ->whereNull('deleted_at')
-            ->groupBy('assistance_id');
+        $latestRecordedAt = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
 
         return DB::table($pivotTable.' as arss')
             ->select('arss.assistance_id')
