@@ -17,13 +17,12 @@ class Fund extends Model
     {
         return $this->belongsTo(Department::class, 'department_id', 'id');
     }
+
     /**
-     * The program that belong to the Fund
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * The programs that belong to the fund.
      */
-    public function program(): BelongsToMany
+    public function programs(): BelongsToMany
     {
-        return $this->belongsToMany(Program::class);
+        return $this->belongsToMany(Program::class, 'fund_program', 'fund_id', 'program_id');
     }
 }

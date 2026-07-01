@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, FolderGit2, FolderKanban, LayoutGrid, Package, Users } from 'lucide-react';
+import { BookOpen, FolderGit2, FolderKanban, Landmark, LayoutGrid, Package, Users } from 'lucide-react';
 import { useMemo } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -15,6 +15,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
 import { index as departmentProgramsIndex } from '@/routes/user/programs';
 import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiaries';
@@ -68,6 +69,11 @@ export function AppSidebar() {
                 title: 'Items',
                 href: departmentItemsIndex(slug),
                 icon: Package,
+            });
+            items.push({
+                title: 'Funds',
+                href: departmentFundsIndex(slug),
+                icon: Landmark,
             });
         }
 
