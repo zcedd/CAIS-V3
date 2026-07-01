@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
+use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -15,6 +16,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('beneficiaries/search', [UserBeneficiaryController::class, 'search'])->name('user.beneficiaries.search');
 
     Route::resource('{department}/programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
+
+    Route::resource('{department}/items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');
 
     Route::post('{department}/programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
     Route::get('{department}/programs/{program}/assistances/{assistance}/edit', [UserAssistanceController::class, 'edit'])->name('user.programs.assistances.edit');
