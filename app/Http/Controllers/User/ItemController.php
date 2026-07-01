@@ -58,8 +58,11 @@ class ItemController extends Controller
     /**
      * Update an item for the authenticated user's department.
      */
-    public function update(UpdateRequest $request, Item $item): RedirectResponse
-    {
+    public function update(
+        UpdateRequest $request,
+        Department $department,
+        Item $item,
+    ): RedirectResponse {
         $this->itemService->update($item, $request->validated());
 
         return redirect()
@@ -70,8 +73,11 @@ class ItemController extends Controller
     /**
      * Remove an item from the authenticated user's department.
      */
-    public function destroy(DestroyRequest $request, Item $item): RedirectResponse
-    {
+    public function destroy(
+        DestroyRequest $request,
+        Department $department,
+        Item $item,
+    ): RedirectResponse {
         $this->itemService->delete($item);
 
         return redirect()

@@ -27,11 +27,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('beneficiaries/organizations/{beneficiary}', [UserBeneficiaryController::class, 'updateOrganization'])->name('user.beneficiaries.organizations.update');
 
         Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
-      
-        Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items')
-          
+
+        Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');
+
         Route::resource('funds', UserFundController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.funds');
-  
+
         Route::post('programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
         Route::get('programs/{program}/assistances/{assistance}/edit', [UserAssistanceController::class, 'edit'])->name('user.programs.assistances.edit');
         Route::put('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'update'])->name('user.programs.assistances.update');

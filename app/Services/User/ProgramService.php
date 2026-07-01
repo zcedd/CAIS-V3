@@ -13,6 +13,10 @@ class ProgramService
 {
     private const PROGRAMS_PER_PAGE = 12;
 
+    public function __construct(
+        private ItemService $itemService,
+    ) {}
+
     /**
      * @param  list<string>  $types
      * @param  list<string>  $statuses
@@ -36,22 +40,22 @@ class ProgramService
             ])
             ->with(['department:id,name,slug'])
             ->where('department_id', $department->id)
-            ->when($search !== '', fn($query) => $query->where('name', 'like', '%' . $search . '%'))
+            ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
             ->when(
                 count($types) === 1 && in_array('individual', $types, true),
-                fn($query) => $query->where('is_organization', false),
+                fn ($query) => $query->where('is_organization', false),
             )
             ->when(
                 count($types) === 1 && in_array('organization', $types, true),
-                fn($query) => $query->where('is_organization', true),
+                fn ($query) => $query->where('is_organization', true),
             )
             ->when(
                 count($statuses) === 1 && in_array('open', $statuses, true),
-                fn($query) => $query->where('is_closed', false),
+                fn ($query) => $query->where('is_closed', false),
             )
             ->when(
                 count($statuses) === 1 && in_array('closed', $statuses, true),
-                fn($query) => $query->where('is_closed', true),
+                fn ($query) => $query->where('is_closed', true),
             )
             ->orderByDesc('id')
             ->paginate(self::PROGRAMS_PER_PAGE)
@@ -138,9 +142,9 @@ class ProgramService
     /**
      * @return list<array{id: int, name: string, unit: string|null}>
      */
-    public function departmentItemsForSelect(Department $department, ItemService $itemService): array
+    public function departmentItemsForSelect(Department $department): array
     {
-        return $itemService->departmentItemsForSelect($department);
+        return $this->itemService->departmentItemsForSelect($department);
     }
 
     /**
@@ -159,7 +163,7 @@ class ProgramService
             ->orderBy('name')
             ->with('unitMeasurement:id,name')
             ->get(['id', 'name'])
-            ->map(static fn(Item $item): array => [
+            ->map(static fn (Item $item): array => [
                 'id' => $item->id,
                 'name' => $item->name,
                 'unit' => $item->unitMeasurement?->name,
