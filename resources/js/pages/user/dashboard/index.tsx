@@ -82,17 +82,13 @@ export default function UserDashboardIndex({
                         data="requestStatusChart"
                         fallback={<ChartSkeleton />}
                     >
-                        <RequestStatusChart
-                            data={requestStatusChart ?? []}
-                        />
+                        <RequestStatusChart data={requestStatusChart ?? []} />
                     </WhenVisible>
                     <WhenVisible
                         data="deliveredItemsChart"
                         fallback={<ChartSkeleton />}
                     >
-                        <DeliveredItemsChart
-                            data={deliveredItemsChart ?? []}
-                        />
+                        <DeliveredItemsChart data={deliveredItemsChart ?? []} />
                     </WhenVisible>
                 </div>
 

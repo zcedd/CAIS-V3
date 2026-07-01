@@ -197,7 +197,7 @@ export default function UserDepartmentItemsIndex({
                     </p>
                 </div>
 
-                <Card>
+                <Card data-tour="items-table">
                     <CardHeader>
                         <CardTitle>Department items</CardTitle>
                         <CardDescription>

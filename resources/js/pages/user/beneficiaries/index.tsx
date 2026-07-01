@@ -136,7 +136,7 @@ export default function UserBeneficiariesIndex({
                             Manage individual and organization beneficiaries.
                         </p>
                     </div>
-                    <Button asChild>
+                    <Button asChild data-tour="beneficiaries-create">
                         <Link href={beneficiariesCreate.url(department.slug)}>
                             <Plus className="size-4" />
                             Add beneficiary
@@ -147,7 +147,10 @@ export default function UserBeneficiariesIndex({
                 <Card>
                     <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle className="text-lg">Registry</CardTitle>
-                        <div className="flex flex-wrap items-center gap-2">
+                        <div
+                            className="flex flex-wrap items-center gap-2"
+                            data-tour="beneficiaries-filters"
+                        >
                             <Input
                                 value={searchQuery}
                                 onChange={(event) =>
