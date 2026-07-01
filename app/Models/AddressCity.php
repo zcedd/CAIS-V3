@@ -10,5 +10,10 @@ class AddressCity extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $fillable = ['name', 'zipcode', 'excel_name'];
+    protected $fillable = ['name', 'zipcode', 'excel_name', 'address_province_id'];
+
+    public function province()
+    {
+        return $this->belongsTo(AddressProvince::class, 'address_province_id');
+    }
 }

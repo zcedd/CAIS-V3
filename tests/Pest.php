@@ -1,6 +1,9 @@
 <?php
 
+use App\Models\Department;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 /*
@@ -47,4 +50,55 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+function createBeneficiaryDepartmentUser(): array
+{
+    $department = Department::create(['name' => 'Department A']);
+
+    $userId = DB::table('users')->insertGetId([
+        'firstName' => 'Test',
+        'lastName' => 'User',
+        'email' => 'test-'.uniqid().'@example.com',
+        'password' => bcrypt('password'),
+        'department_id' => $department->id,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $user = User::query()->findOrFail($userId);
+
+    return compact('department', 'user');
+}
+
+function createAddressBarangay(): int
+{
+    $cityId = DB::table('address_cities')->insertGetId([
+        'name' => 'Test City',
+        'zipcode' => '1000',
+        'excel_name' => 'Test City',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    return DB::table('address_barangays')->insertGetId([
+        'name' => 'Test Barangay',
+        'address_city_id' => $cityId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
+function seedCivilStatusAndIdentification(): void
+{
+    DB::table('civil_statuses')->insert([
+        'name' => 'Single',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('identifications')->insert([
+        ['name' => 'National ID', 'created_at' => now(), 'updated_at' => now()],
+        ['name' => 'RSBSA ID', 'created_at' => now(), 'updated_at' => now()],
+    ]);
 }

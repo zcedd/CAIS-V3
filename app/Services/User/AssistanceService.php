@@ -212,6 +212,7 @@ class AssistanceService
 
                 return [
                     'id' => $assistance->id,
+                    'beneficiary_id' => $assistance->beneficiary_id,
                     'cais_number' => $assistance->beneficiary_cais_number ?? '—',
                     'beneficiary_name' => $assistance->beneficiary_name ?? '—',
                     'items' => $assistance->assistanceItem

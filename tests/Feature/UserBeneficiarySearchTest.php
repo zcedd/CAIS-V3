@@ -2,7 +2,6 @@
 
 use App\Models\Beneficiary;
 use App\Models\Department;
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -19,11 +18,7 @@ test('guests cannot search beneficiaries', function () {
 });
 
 test('authenticated users can search beneficiaries in their department', function () {
-    $department = Department::create(['name' => 'Department A']);
-
-    $user = User::factory()->create([
-        'department_id' => $department->id,
-    ]);
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
 
     Beneficiary::create([
         'cais_number' => 'CAIS-001',
@@ -53,11 +48,7 @@ test('authenticated users can search beneficiaries in their department', functio
 });
 
 test('authenticated users can filter beneficiary search by type', function () {
-    $department = Department::create(['name' => 'Department A']);
-
-    $user = User::factory()->create([
-        'department_id' => $department->id,
-    ]);
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
 
     Beneficiary::create([
         'cais_number' => 'CAIS-IND-001',
@@ -84,12 +75,8 @@ test('authenticated users can filter beneficiary search by type', function () {
 });
 
 test('users cannot search beneficiaries for another department', function () {
-    $departmentA = Department::create(['name' => 'Department A']);
+    ['department' => $departmentA, 'user' => $user] = createBeneficiaryDepartmentUser();
     $departmentB = Department::create(['name' => 'Department B']);
-
-    $user = User::factory()->create([
-        'department_id' => $departmentA->id,
-    ]);
 
     $this->actingAs($user)
         ->getJson(route('user.beneficiaries.search', [
