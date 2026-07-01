@@ -38,6 +38,7 @@ function formatItemAmount(item: UserProgramAssistanceItem): string | null {
 
 export type UserProgramAssistanceRow = {
     id: number;
+    beneficiary_id: number | null;
     cais_number: string;
     beneficiary_name: string;
     items: UserProgramAssistanceItem[];

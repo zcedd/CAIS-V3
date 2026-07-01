@@ -23,6 +23,7 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 export type BeneficiarySearchOption = {
     id: number;
+    individual_id: number | null;
     organization_id: number | null;
     cais_number: string;
     name: string;
@@ -43,6 +44,7 @@ type BeneficiarySearchComboboxProps = {
     label?: string;
     name?: string;
     disabled?: boolean;
+    includeHiddenInput?: boolean;
 };
 
 export function BeneficiarySearchCombobox({
@@ -56,6 +58,7 @@ export function BeneficiarySearchCombobox({
     label = 'Beneficiary',
     name = 'beneficiary_id',
     disabled = false,
+    includeHiddenInput = true,
 }: BeneficiarySearchComboboxProps) {
     const inputId = useId();
     const listId = `${inputId}-suggestions`;
@@ -76,8 +79,13 @@ export function BeneficiarySearchCombobox({
             setSearchError(null);
 
             try {
+                if (!departmentSlug) {
+                    setSuggestions([]);
+                    return;
+                }
+
                 const response = await fetch(
-                    searchBeneficiaries.url({
+                    searchBeneficiaries.url(departmentSlug, {
                         query: {
                             q: query,
                             beneficiary_type: beneficiaryType,
@@ -151,12 +159,14 @@ export function BeneficiarySearchCombobox({
     return (
         <div className="space-y-2" ref={containerRef}>
             <Label htmlFor={inputId}>{label}</Label>
-            <input
-                type="hidden"
-                name={name}
-                value={value ?? ''}
-                disabled={disabled}
-            />
+            {includeHiddenInput ? (
+                <input
+                    type="hidden"
+                    name={name}
+                    value={value ?? ''}
+                    disabled={disabled}
+                />
+            ) : null}
             <Popover open={open} onOpenChange={setOpen}>
                 <PopoverAnchor asChild>
                     <div className="relative">

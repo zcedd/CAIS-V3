@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\AddressProvince;
+use App\Models\AddrsCity;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use App\Models\AddrsCity;
 
 class AddrsCitySeeder extends Seeder
 {
@@ -46,21 +46,32 @@ class AddrsCitySeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         AddrsCity::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-  
-        $csvFile = fopen(base_path("database/csv/addrs_cities.csv"), "r");
-  
+
+        $provinceId = AddressProvince::query()
+            ->where('name', config('address.province', 'Ilocos Norte'))
+            ->value('id');
+
+        if ($provinceId === null) {
+            $provinceId = AddressProvince::query()->create([
+                'name' => config('address.province', 'Ilocos Norte'),
+            ])->id;
+        }
+
+        $csvFile = fopen(base_path('database/csv/addrs_cities.csv'), 'r');
+
         $firstline = true;
-        while (($data = fgetcsv($csvFile, 2000, ",")) !== FALSE) {
-            if (!$firstline) {
+        while (($data = fgetcsv($csvFile, 2000, ',')) !== false) {
+            if (! $firstline) {
                 AddrsCity::create([
-                    "name" => $data['0'],
-                    "zipcode" => $data['1'],
-                    "excel_name" => $data['2'],
-                ]);    
+                    'name' => $data['0'],
+                    'zipcode' => $data['1'],
+                    'excel_name' => $data['2'],
+                    'address_province_id' => $provinceId,
+                ]);
             }
             $firstline = false;
         }
-   
+
         fclose($csvFile);
     }
 }

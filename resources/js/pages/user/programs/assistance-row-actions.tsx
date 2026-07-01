@@ -26,10 +26,11 @@ import type {
     AssistanceRequestSubStatusOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
+import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import { destroy as destroyProgramAssistance } from '@/routes/user/programs/assistances';
 import { Link, router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
-import { Check, Copy, Edit, Eye, MoreHorizontal, Trash } from 'lucide-react';
+import { Check, Copy, Edit, Eye, MoreHorizontal, Trash, UserRound } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -114,6 +115,19 @@ export function AssistanceDataTableRowActions({
                             View profile
                         </Link>
                     </DropdownMenuItem>
+                    {record.beneficiary_id ? (
+                        <DropdownMenuItem asChild>
+                            <Link
+                                href={beneficiaryShow.url({
+                                    department: departmentSlug,
+                                    beneficiary: record.beneficiary_id,
+                                })}
+                            >
+                                <UserRound className="mr-2 h-4 w-4" />
+                                View beneficiary profile
+                            </Link>
+                        </DropdownMenuItem>
+                    ) : null}
                     <DropdownMenuItem onSelect={() => setEditOpen(true)}>
                         <Edit className="mr-2 h-4 w-4" />
                         Edit Assistance
