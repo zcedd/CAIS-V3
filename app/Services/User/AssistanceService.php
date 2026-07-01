@@ -267,19 +267,18 @@ class AssistanceService
      */
     public function statusOptions(Program $program): array
     {
-        $latestRecordedAt = ($this->buildLatestAssistanceRequestSubStatusSubquery)($program->id);
+        $latestArssLookup = ($this->buildLatestAssistanceRequestSubStatusSubquery)($program->id);
         $pivotTable = (new AssistanceRequestSubStatus)->getTable();
 
         return RequestStatus::query()
             ->join('request_sub_statuses as rss', 'rss.request_status_id', '=', 'request_statuses.id')
             ->join("{$pivotTable} as arss", 'arss.request_sub_status_id', '=', 'rss.id')
             ->joinSub(
-                $latestRecordedAt,
+                $latestArssLookup,
                 'latest_arss_lookup',
-                function ($join): void {
-                    $join->on('latest_arss_lookup.assistance_id', '=', 'arss.assistance_id')
-                        ->on('latest_arss_lookup.max_recorded_at', '=', 'arss.recorded_at');
-                },
+                'latest_arss_lookup.latest_arss_id',
+                '=',
+                'arss.id',
             )
             ->join('assistances', 'assistances.id', '=', 'arss.assistance_id')
             ->where('assistances.program_id', $program->id)

@@ -20,7 +20,7 @@ class JoinAssistanceTableRelations
         $assistanceTable = (new Assistance)->getTable();
         $pivotTable = (new AssistanceRequestSubStatus)->getTable();
 
-        $latestRecordedAt = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
+        $latestArssLookup = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
 
         $query
             ->leftJoin(
@@ -36,7 +36,7 @@ class JoinAssistanceTableRelations
                 "{$assistanceTable}.mode_of_request_id",
             )
             ->leftJoinSub(
-                $latestRecordedAt,
+                $latestArssLookup,
                 'latest_arss_lookup',
                 function ($join) use ($assistanceTable): void {
                     $join->on(
@@ -48,11 +48,9 @@ class JoinAssistanceTableRelations
             )
             ->leftJoin(
                 "{$pivotTable} as arss",
-                function ($join): void {
-                    $join->on('arss.assistance_id', '=', 'latest_arss_lookup.assistance_id')
-                        ->on('arss.recorded_at', '=', 'latest_arss_lookup.max_recorded_at')
-                        ->whereNull('arss.deleted_at');
-                },
+                'arss.id',
+                '=',
+                'latest_arss_lookup.latest_arss_id',
             )
             ->leftJoin(
                 'request_sub_statuses as rss',

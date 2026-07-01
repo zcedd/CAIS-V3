@@ -11,6 +11,7 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -175,6 +176,63 @@ test('sex filter returns only matching individual assistances', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('summary.total_requests', 1)
             ->where('filters.sex', ['Male']));
+});
+
+test('request status chart counts each assistance once using latest status', function () {
+    ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $individual = Individual::factory()->create(['sex' => 'Male']);
+    $assistance = createAssistanceForIndividual($program, $individual, $item);
+
+    $requestStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'In Progress',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $olderSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Awaiting Review',
+        'request_status_id' => $requestStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $latestSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Under Verification',
+        'request_status_id' => $requestStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('assistance_request_sub_status')->insert([
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $olderSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $latestSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('summary.total_requests', 1)
+            ->where('requestStatusChart', fn (array $chart): bool => collect($chart)->sum('count') === 1));
 });
 
 test('delivered items sum respects is received flag', function () {
