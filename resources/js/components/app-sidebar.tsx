@@ -15,6 +15,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
 import { index as departmentProgramsIndex } from '@/routes/user/programs';
@@ -45,15 +46,16 @@ export function AppSidebar() {
     const { props } = usePage<SidebarPageProps>();
 
     const mainNavItems = useMemo((): NavItem[] => {
+        const slug = props.auth.user?.department?.slug;
+
         const items: NavItem[] = [
             {
                 title: 'Dashboard',
-                href: dashboard(),
+                href: slug ? departmentDashboardIndex(slug) : dashboard(),
                 icon: LayoutGrid,
             },
         ];
 
-        const slug = props.auth.user?.department?.slug;
         if (slug) {
             items.push({
                 title: 'Programs',
@@ -86,7 +88,16 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link
+                                href={
+                                    props.auth.user?.department?.slug
+                                        ? departmentDashboardIndex(
+                                              props.auth.user.department.slug,
+                                          )
+                                        : dashboard()
+                                }
+                                prefetch
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
