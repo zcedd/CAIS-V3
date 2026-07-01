@@ -38,7 +38,6 @@ class BeneficiaryController extends Controller
     {
         $search = $request->search();
         $types = $request->types();
-
         return Inertia::render('user/beneficiaries/index', [
             'beneficiaries' => Inertia::scroll(
                 $this->beneficiaryService->paginate($search, $types),
@@ -47,7 +46,7 @@ class BeneficiaryController extends Controller
             'search' => $search,
             'type' => $types,
             'form_options' => Inertia::defer(
-                fn () => $this->beneficiaryService->formOptions(),
+                fn() => $this->beneficiaryService->formOptions(),
                 'forms',
             ),
         ]);
@@ -99,15 +98,15 @@ class BeneficiaryController extends Controller
         $search = $request->search();
 
         return Inertia::render('user/beneficiaries/show', [
-            'beneficiary' => fn () => $this->beneficiaryService->showPayload($beneficiary),
-            'department' => fn () => $department->only(['id', 'name', 'slug']),
+            'beneficiary' => fn() => $this->beneficiaryService->showPayload($beneficiary),
+            'department' => fn() => $department->only(['id', 'name', 'slug']),
             'assistances' => Inertia::defer(
-                fn () => $this->beneficiaryService->paginatedAssistances($beneficiary, $search),
+                fn() => $this->beneficiaryService->paginatedAssistances($beneficiary, $search),
                 'table',
             ),
             'search' => $search,
             'form_options' => Inertia::defer(
-                fn () => $this->beneficiaryService->formOptions(),
+                fn() => $this->beneficiaryService->formOptions(),
                 'edit',
             ),
         ]);
@@ -170,7 +169,7 @@ class BeneficiaryController extends Controller
         }
 
         if ($search !== '') {
-            $needle = '%'.$search.'%';
+            $needle = '%' . $search . '%';
 
             $query->where(function ($builder) use ($needle): void {
                 $builder
@@ -181,7 +180,7 @@ class BeneficiaryController extends Controller
 
         $beneficiaries = $query
             ->get(['id', 'cais_number', 'name'])
-            ->map(static fn (Beneficiary $beneficiary): array => [
+            ->map(static fn(Beneficiary $beneficiary): array => [
                 'id' => $beneficiary->id,
                 'individual_id' => $beneficiary->beneficiable_type === Individual::class
                     ? $beneficiary->beneficiable_id

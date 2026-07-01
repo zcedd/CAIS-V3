@@ -55,6 +55,20 @@ function typeBadge(type: BeneficiaryListRow['type']) {
     );
 }
 
+function BeneficiaryTableLoadingRows() {
+    return (
+        <>
+            {Array.from({ length: 3 }).map((_, index) => (
+                <tr key={index} className="border-b last:border-0">
+                    <td className="py-3 pr-4" colSpan={3}>
+                        <div className="h-4 animate-pulse rounded bg-muted" />
+                    </td>
+                </tr>
+            ))}
+        </>
+    );
+}
+
 export default function UserBeneficiariesIndex({
     beneficiaries,
     department,
@@ -99,11 +113,15 @@ export default function UserBeneficiariesIndex({
                     preserveState: true,
                     replace: true,
                     only: ['beneficiaries', 'search', 'type'],
+                    reset: ['beneficiaries'],
                 },
             );
         },
         [department.slug, initialType, searchQuery],
     );
+
+    const hasMorePages = beneficiaries.current_page < beneficiaries.last_page;
+    const loadedCount = beneficiaries.data.length;
 
     return (
         <>
@@ -146,10 +164,10 @@ export default function UserBeneficiariesIndex({
                                 className="h-9 w-full sm:w-64"
                             />
                             <DataTableFacetedFilter
+                                filterValue={initialType}
                                 title="Type"
                                 options={[...beneficiaryTypeOptions]}
-                                selectedValues={initialType}
-                                onChange={(values) =>
+                                onFilterChange={(values) =>
                                     navigateWithFilters({ type: values })
                                 }
                             />
@@ -173,70 +191,90 @@ export default function UserBeneficiariesIndex({
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <InfiniteScroll
-                            data="beneficiaries"
-                            onlyNext
-                            preserveUrl
-                        >
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="border-b text-left text-muted-foreground">
-                                            <th className="pb-3 pr-4 font-medium">
-                                                CAIS Number
-                                            </th>
-                                            <th className="pb-3 pr-4 font-medium">
-                                                Name
-                                            </th>
-                                            <th className="pb-3 font-medium">
-                                                Type
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {beneficiaries.data.length === 0 ? (
-                                            <tr>
-                                                <td
-                                                    colSpan={3}
-                                                    className="py-8 text-center text-muted-foreground"
-                                                >
-                                                    No beneficiaries found.
-                                                </td>
-                                            </tr>
-                                        ) : (
-                                            beneficiaries.data.map((row) => (
-                                                <tr
-                                                    key={row.id}
-                                                    className="border-b last:border-0"
-                                                >
-                                                    <td className="py-3 pr-4">
-                                                        <Link
-                                                            href={beneficiaryShow.url(
-                                                                {
-                                                                    department:
-                                                                        department.slug,
-                                                                    beneficiary:
-                                                                        row.id,
-                                                                },
-                                                            )}
-                                                            className="font-medium text-primary hover:underline"
-                                                        >
-                                                            {row.cais_number}
-                                                        </Link>
-                                                    </td>
-                                                    <td className="py-3 pr-4">
-                                                        {row.name}
-                                                    </td>
-                                                    <td className="py-3">
-                                                        {typeBadge(row.type)}
-                                                    </td>
+                        {beneficiaries.data.length === 0 ? (
+                            <p className="py-8 text-center text-sm text-muted-foreground">
+                                No beneficiaries found.
+                            </p>
+                        ) : (
+                            <>
+                                <InfiniteScroll
+                                    data="beneficiaries"
+                                    onlyNext
+                                    buffer={200}
+                                    itemsElement="#beneficiaries-table-body"
+                                    next={({ loading }) =>
+                                        loading ? (
+                                            <table className="w-full text-sm">
+                                                <tbody>
+                                                    <BeneficiaryTableLoadingRows />
+                                                </tbody>
+                                            </table>
+                                        ) : null
+                                    }
+                                >
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead>
+                                                <tr className="border-b text-left text-muted-foreground">
+                                                    <th className="pb-3 pr-4 font-medium">
+                                                        CAIS Number
+                                                    </th>
+                                                    <th className="pb-3 pr-4 font-medium">
+                                                        Name
+                                                    </th>
+                                                    <th className="pb-3 font-medium">
+                                                        Type
+                                                    </th>
                                                 </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </InfiniteScroll>
+                                            </thead>
+                                            <tbody id="beneficiaries-table-body">
+                                                {beneficiaries.data.map(
+                                                    (row) => (
+                                                        <tr
+                                                            key={row.id}
+                                                            className="border-b last:border-0"
+                                                        >
+                                                            <td className="py-3 pr-4">
+                                                                <Link
+                                                                    href={beneficiaryShow.url(
+                                                                        {
+                                                                            department:
+                                                                                department.slug,
+                                                                            beneficiary:
+                                                                                row.id,
+                                                                        },
+                                                                    )}
+                                                                    className="font-medium text-primary hover:underline"
+                                                                >
+                                                                    {
+                                                                        row.cais_number
+                                                                    }
+                                                                </Link>
+                                                            </td>
+                                                            <td className="py-3 pr-4">
+                                                                {row.name}
+                                                            </td>
+                                                            <td className="py-3">
+                                                                {typeBadge(
+                                                                    row.type,
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                )}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </InfiniteScroll>
+                                <p className="mt-4 text-sm text-muted-foreground">
+                                    Showing {loadedCount} of{' '}
+                                    {beneficiaries.total} beneficiaries
+                                    {hasMorePages
+                                        ? ' — scroll for more'
+                                        : null}
+                                </p>
+                            </>
+                        )}
                     </CardContent>
                 </Card>
             </div>
