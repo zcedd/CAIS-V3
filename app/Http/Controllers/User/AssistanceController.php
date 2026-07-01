@@ -32,6 +32,7 @@ class AssistanceController extends Controller
      */
     public function store(
         StoreRequest $request,
+        Department $department,
         Program $program,
     ): RedirectResponse {
         $this->assistanceService->create($program, $request->user(), $request->validated());
@@ -82,6 +83,7 @@ class AssistanceController extends Controller
      */
     public function destroy(
         DestroyRequest $request,
+        Department $department,
         Program $program,
         Assistance $assistance,
     ): RedirectResponse {
@@ -156,8 +158,11 @@ class AssistanceController extends Controller
             'assistance' => [
                 'id' => $assistance->id,
                 'cais_number' => $caisNumber,
+                'beneficiary_id' => $assistance->beneficiary_id,
                 'beneficiary_name' => $beneficiaryName,
-                'beneficiary_type' => class_basename($assistance->beneficiary->beneficiable),
+                'beneficiary_type' => $assistance->beneficiary
+                    ? class_basename($assistance->beneficiary->beneficiable_type)
+                    : null,
                 'mode_of_request' => $assistance->modeOfRequest?->name ?? '—',
                 'date_requested' => $formatDate($assistance->date_requested),
                 'date_verified' => $formatDate($assistance->date_verified),

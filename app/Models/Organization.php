@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -36,13 +37,17 @@ class Organization extends Model
     {
         return $this->belongsToMany(Individual::class, 'individual_organizations', 'organization_id', 'beneficiary_id')
             ->withTimestamps()
-            ->withSoftDeletes()
             ->using(BeneficiaryOrganization::class);
     }
 
     public function president()
     {
         return $this->belongsTo(Individual::class, 'beneficiary_id', 'id');
+    }
+
+    public function beneficiaryRecord(): MorphOne
+    {
+        return $this->morphOne(Beneficiary::class, 'beneficiable');
     }
 
     public function address()

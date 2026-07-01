@@ -21,6 +21,7 @@ import {
 } from '@/pages/user/assistances/assistance-status-timeline';
 import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
 import { show as assistanceShow } from '@/routes/user/assistances';
+import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
@@ -51,8 +52,9 @@ type AssistanceItem = {
 type AssistanceProfile = {
     id: number;
     cais_number: string;
+    beneficiary_id: number | null;
     beneficiary_name: string;
-    beneficiary_type: 'Organization' | 'Personal' | null;
+    beneficiary_type: string | null;
     mode_of_request: string;
     date_requested: string | null;
     date_verified: string | null;
@@ -261,9 +263,21 @@ export default function UserAssistanceShow({
                             <span className="font-medium text-foreground">
                                 Name:{' '}
                             </span>
-                            <span className="text-muted-foreground">
-                                {assistance.beneficiary_name}
-                            </span>
+                            {assistance.beneficiary_id ? (
+                                <Link
+                                    href={beneficiaryShow.url({
+                                        department: department.slug,
+                                        beneficiary: assistance.beneficiary_id,
+                                    })}
+                                    className="text-primary hover:underline"
+                                >
+                                    {assistance.beneficiary_name}
+                                </Link>
+                            ) : (
+                                <span className="text-muted-foreground">
+                                    {assistance.beneficiary_name}
+                                </span>
+                            )}
                         </p>
                     </CardContent>
                 </Card>
