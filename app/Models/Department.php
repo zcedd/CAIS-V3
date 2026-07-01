@@ -80,4 +80,12 @@ class Department extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    /**
+     * Get all funds assigned to the department.
+     */
+    public function funds(): HasMany
+    {
+        return $this->hasMany(Fund::class);
+    }
 }
