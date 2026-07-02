@@ -22,7 +22,7 @@ type ProgramsTableProps = {
 
 export function ProgramsTable({ data }: ProgramsTableProps) {
     return (
-        <Card>
+        <Card data-tour="dashboard-programs-summary">
             <CardHeader>
                 <CardTitle>Programs summary</CardTitle>
                 <CardDescription>

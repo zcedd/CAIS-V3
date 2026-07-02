@@ -2,13 +2,7 @@
 
 import { usePage } from '@inertiajs/react';
 import { useEffect, useMemo } from 'react';
-import {
-    ACTIONS,
-    EVENTS,
-    ORIGIN,
-    STATUS,
-    useJoyride,
-} from 'react-joyride';
+import { ACTIONS, EVENTS, ORIGIN, STATUS, useJoyride } from 'react-joyride';
 import type { EventData, Step } from 'react-joyride';
 
 const TOUR_STORAGE_PREFIX = 'cais-tour-completed:';
@@ -32,13 +26,29 @@ const SHARED_STEPS: Step[] = [
 ];
 
 const PAGE_STEPS: Record<string, Step[]> = {
-    '/user/dashboard': [
+    dashboard: [
         {
             target: '[data-tour="dashboard-filters"]',
             content: 'Use filters to narrow dashboard insights quickly.',
         },
+        {
+            target: '[data-tour="dashboard-kpis"]',
+            content: 'View KPIs by program and status.',
+        },
+        {
+            target: '[data-tour="dashboard-requests-status-chart"]',
+            content: 'Explore charts and metrics to understand your data.',
+        },
+        {
+            target: '[data-tour="dashboard-items-delivered-charts"]',
+            content: 'View items delivered to beneficiaries by program.',
+        },
+        {
+            target: '[data-tour="dashboard-programs-summary"]',
+            content: 'View programs summary by type and status.',
+        },
     ],
-    '/user/programs': [
+    programs: [
         {
             target: '[data-tour="programs-filters"]',
             content: 'Search and filter programs by type and status.',
@@ -48,7 +58,7 @@ const PAGE_STEPS: Record<string, Step[]> = {
             content: 'Create a new program for your department.',
         },
     ],
-    '/user/beneficiaries': [
+    beneficiaries: [
         {
             target: '[data-tour="beneficiaries-filters"]',
             content: 'Find beneficiaries with search and type filters.',
@@ -58,13 +68,13 @@ const PAGE_STEPS: Record<string, Step[]> = {
             content: 'Add a new beneficiary from here.',
         },
     ],
-    '/user/items': [
+    items: [
         {
             target: '[data-tour="items-table"]',
             content: 'Manage item inventory and update item details here.',
         },
     ],
-    '/user/funds': [
+    funds: [
         {
             target: '[data-tour="funds-filters"]',
             content: 'Use filters to locate funds by name or status.',
@@ -89,17 +99,15 @@ function normalizePath(path: string): string {
 }
 
 function selectPageSteps(pathname: string): Step[] {
-    const exactSteps = PAGE_STEPS[pathname];
+    const segments = pathname.split('/').filter(Boolean);
 
-    if (exactSteps) {
-        return exactSteps;
+    if (segments.length < 2) {
+        return [];
     }
 
-    const matchedPrefix = Object.keys(PAGE_STEPS).find((prefix) =>
-        pathname.startsWith(`${prefix}/`),
-    );
+    const pageSegment = segments[1];
 
-    return matchedPrefix ? PAGE_STEPS[matchedPrefix] : [];
+    return PAGE_STEPS[pageSegment] ?? [];
 }
 
 export function AppTour() {

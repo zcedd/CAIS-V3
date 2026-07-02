@@ -5,7 +5,12 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import type { DashboardSummary } from '@/types/dashboard';
-import { CheckCircle2, ClipboardList, Package, FolderKanban } from 'lucide-react';
+import {
+    CheckCircle2,
+    ClipboardList,
+    Package,
+    FolderKanban,
+} from 'lucide-react';
 
 type KpiCardsProps = {
     summary: DashboardSummary;
@@ -40,7 +45,10 @@ const kpis = [
 
 export function KpiCards({ summary }: KpiCardsProps) {
     return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div
+            className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+            data-tour="dashboard-kpis"
+        >
             {kpis.map((kpi) => (
                 <Card key={kpi.key} size="sm">
                     <CardHeader className="flex flex-row items-start justify-between gap-2">

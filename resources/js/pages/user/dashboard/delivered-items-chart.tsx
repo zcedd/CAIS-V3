@@ -32,7 +32,7 @@ export function DeliveredItemsChart({ data }: DeliveredItemsChartProps) {
     }));
 
     return (
-        <Card className="h-full">
+        <Card className="h-full" data-tour="dashboard-items-delivered-charts">
             <CardHeader>
                 <CardTitle>Delivered items</CardTitle>
                 <CardDescription>
@@ -55,7 +55,11 @@ export function DeliveredItemsChart({ data }: DeliveredItemsChartProps) {
                             margin={{ left: 8, right: 8 }}
                         >
                             <CartesianGrid horizontal={false} />
-                            <XAxis type="number" tickLine={false} axisLine={false} />
+                            <XAxis
+                                type="number"
+                                tickLine={false}
+                                axisLine={false}
+                            />
                             <YAxis
                                 type="category"
                                 dataKey="label"
@@ -68,9 +72,7 @@ export function DeliveredItemsChart({ data }: DeliveredItemsChartProps) {
                                         : value
                                 }
                             />
-                            <ChartTooltip
-                                content={<ChartTooltipContent />}
-                            />
+                            <ChartTooltip content={<ChartTooltipContent />} />
                             <Bar
                                 dataKey="quantity"
                                 fill="var(--color-quantity)"
