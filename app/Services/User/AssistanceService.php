@@ -16,7 +16,9 @@ use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
 class AssistanceService
@@ -113,7 +115,7 @@ class AssistanceService
             'mode_of_request_id' => $assistance->mode_of_request_id,
             'remark' => $assistance->remark,
             'item_details' => $assistance->assistanceItem
-                ->map(static fn (AssistanceItem $assistanceItem): array => [
+                ->map(static fn(AssistanceItem $assistanceItem): array => [
                     'item_id' => $assistanceItem->item_id,
                     'quantity' => $assistanceItem->quantity ?? 1,
                     'specification' => $assistanceItem->specification,
@@ -136,6 +138,109 @@ class AssistanceService
         array $statuses,
         array $modes,
     ): LengthAwarePaginator {
+        $assistancesQuery = $this->baseProgramTableQuery(
+            $program,
+            $search,
+            $statuses,
+            $modes,
+            $sort,
+            $direction,
+        );
+
+        return $assistancesQuery
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(static function (Assistance $assistance): array {
+                $formatDate = static function ($value): ?string {
+                    if ($value === null) {
+                        return null;
+                    }
+
+                    return Carbon::parse($value)->toDateString();
+                };
+
+                $requestSubStatusId = $assistance->request_sub_status_id;
+                $requestSubStatus = $assistance->request_sub_status_name;
+                $requestStatus = $assistance->request_status_name;
+                $requestSubStatusRecordedAt = $assistance->request_sub_status_recorded_at;
+
+                $status = $requestSubStatus ?? match (true) {
+                    $assistance->date_denied !== null => 'Denied',
+                    $assistance->date_delivered !== null => 'Delivered',
+                    $assistance->date_verified !== null => 'Verified',
+                    $assistance->date_requested !== null => 'Pending',
+                    default => 'Unrequested',
+                };
+
+                return [
+                    'id' => $assistance->id,
+                    'beneficiary_id' => $assistance->beneficiary_id,
+                    'cais_number' => $assistance->beneficiary_cais_number ?? '—',
+                    'beneficiary_name' => $assistance->beneficiary_name ?? '—',
+                    'items' => $assistance->assistanceItem
+                        ->map(static fn($assistanceItem): array => [
+                            'name' => $assistanceItem->item?->name ?? '—',
+                            'quantity' => $assistanceItem->quantity,
+                            'unit' => $assistanceItem->item?->unitMeasurement?->name,
+                            'specification' => $assistanceItem->specification,
+                        ])
+                        ->values()
+                        ->all(),
+                    'mode_of_request' => $assistance->mode_of_request_name ?? '—',
+                    'date_requested' => $formatDate($assistance->date_requested),
+                    'date_verified' => $formatDate($assistance->date_verified),
+                    'date_delivered' => $formatDate($assistance->date_delivered),
+                    'date_denied' => $formatDate($assistance->date_denied),
+                    'request_status' => $requestStatus,
+                    'request_sub_status_id' => $requestSubStatusId !== null
+                        ? (int) $requestSubStatusId
+                        : null,
+                    'request_sub_status' => $requestSubStatus,
+                    'request_sub_status_recorded_at' => $requestSubStatusRecordedAt !== null
+                        ? Carbon::parse($requestSubStatusRecordedAt)->toIso8601String()
+                        : null,
+                    'status' => $status,
+                    'remark' => $assistance->remark,
+                ];
+            });
+    }
+
+    /**
+     * @param  list<string>  $statuses
+     * @param  list<string>  $modes
+     * @return Collection<int, Assistance>
+     */
+    public function exportRowsForProgram(
+        Program $program,
+        string $sort,
+        string $direction,
+        string $search,
+        array $statuses,
+        array $modes,
+    ): Collection {
+        return $this->baseProgramTableQuery(
+            $program,
+            $search,
+            $statuses,
+            $modes,
+            $sort,
+            $direction,
+        )->get();
+    }
+
+    /**
+     * @param  list<string>  $statuses
+     * @param  list<string>  $modes
+     * @return Builder<Assistance>
+     */
+    private function baseProgramTableQuery(
+        Program $program,
+        string $search,
+        array $statuses,
+        array $modes,
+        string $sort,
+        string $direction,
+    ): Builder {
         $programId = $program->id;
 
         $assistancesQuery = Assistance::query()
@@ -168,79 +273,23 @@ class AssistanceService
         ($this->applyAssistanceTableFilters)($assistancesQuery, $search, $statuses, $modes, $programId);
         ($this->applyAssistanceTableSort)($assistancesQuery, $sort, $direction);
 
-        return $assistancesQuery
-            ->groupBy([
-                'assistances.id',
-                'assistances.beneficiary_id',
-                'assistances.mode_of_request_id',
-                'assistances.date_requested',
-                'assistances.date_verified',
-                'assistances.date_delivered',
-                'assistances.date_denied',
-                'assistances.remark',
-                'beneficiaries.cais_number',
-                'beneficiaries.name',
-                'mode_of_requests.name',
-                'rss.id',
-                'rss.name',
-                'rs.name',
-                'arss.recorded_at',
-            ])
-            ->paginate($perPage)
-            ->withQueryString()
-            ->through(static function (Assistance $assistance): array {
-                $formatDate = static function ($value): ?string {
-                    if ($value === null) {
-                        return null;
-                    }
-
-                    return Carbon::parse($value)->toDateString();
-                };
-
-                $requestSubStatusId = $assistance->request_sub_status_id;
-                $requestSubStatus = $assistance->request_sub_status_name;
-                $requestStatus = $assistance->request_status_name;
-                $requestSubStatusRecordedAt = $assistance->request_sub_status_recorded_at;
-
-                $status = $requestSubStatus ?? match (true) {
-                    $assistance->date_denied !== null => 'Denied',
-                    $assistance->date_delivered !== null => 'Delivered',
-                    $assistance->date_verified !== null => 'Verified',
-                    $assistance->date_requested !== null => 'Pending',
-                    default => 'Unrequested',
-                };
-
-                return [
-                    'id' => $assistance->id,
-                    'beneficiary_id' => $assistance->beneficiary_id,
-                    'cais_number' => $assistance->beneficiary_cais_number ?? '—',
-                    'beneficiary_name' => $assistance->beneficiary_name ?? '—',
-                    'items' => $assistance->assistanceItem
-                        ->map(static fn ($assistanceItem): array => [
-                            'name' => $assistanceItem->item?->name ?? '—',
-                            'quantity' => $assistanceItem->quantity,
-                            'unit' => $assistanceItem->item?->unitMeasurement?->name,
-                            'specification' => $assistanceItem->specification,
-                        ])
-                        ->values()
-                        ->all(),
-                    'mode_of_request' => $assistance->mode_of_request_name ?? '—',
-                    'date_requested' => $formatDate($assistance->date_requested),
-                    'date_verified' => $formatDate($assistance->date_verified),
-                    'date_delivered' => $formatDate($assistance->date_delivered),
-                    'date_denied' => $formatDate($assistance->date_denied),
-                    'request_status' => $requestStatus,
-                    'request_sub_status_id' => $requestSubStatusId !== null
-                        ? (int) $requestSubStatusId
-                        : null,
-                    'request_sub_status' => $requestSubStatus,
-                    'request_sub_status_recorded_at' => $requestSubStatusRecordedAt !== null
-                        ? Carbon::parse($requestSubStatusRecordedAt)->toIso8601String()
-                        : null,
-                    'status' => $status,
-                    'remark' => $assistance->remark,
-                ];
-            });
+        return $assistancesQuery->groupBy([
+            'assistances.id',
+            'assistances.beneficiary_id',
+            'assistances.mode_of_request_id',
+            'assistances.date_requested',
+            'assistances.date_verified',
+            'assistances.date_delivered',
+            'assistances.date_denied',
+            'assistances.remark',
+            'beneficiaries.cais_number',
+            'beneficiaries.name',
+            'mode_of_requests.name',
+            'rss.id',
+            'rss.name',
+            'rs.name',
+            'arss.recorded_at',
+        ]);
     }
 
     /**
@@ -254,7 +303,7 @@ class AssistanceService
             ->distinct()
             ->orderBy('mode_of_requests.name')
             ->pluck('mode_of_requests.name')
-            ->map(static fn (string $name): array => [
+            ->map(static fn(string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -287,7 +336,7 @@ class AssistanceService
             ->distinct()
             ->orderBy('request_statuses.name')
             ->pluck('request_statuses.name')
-            ->map(static fn (string $name): array => [
+            ->map(static fn(string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -325,7 +374,7 @@ class AssistanceService
                 'request_sub_statuses.name',
                 'request_statuses.name as request_status_name',
             ])
-            ->map(static fn ($subStatus): array => [
+            ->map(static fn($subStatus): array => [
                 'id' => (int) $subStatus->id,
                 'name' => $subStatus->name,
                 'request_status' => $subStatus->request_status_name,

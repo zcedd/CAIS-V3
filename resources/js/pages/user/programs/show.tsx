@@ -471,6 +471,8 @@ function ProgramAssistanceTable({
                     statusOptions={statusOptions}
                     modeOptions={modeOptions}
                     onFiltersChange={onVisitTable}
+                    sort={tableState.sort}
+                    direction={tableState.direction}
                     departmentSlug={departmentSlug}
                     programId={programId}
                     programName={programName}
