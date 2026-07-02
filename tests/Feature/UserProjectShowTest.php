@@ -298,6 +298,84 @@ test('program show page uses latest request sub status for assistance status', f
             ->where('assistances.data.0.status', 'Verified'));
 });
 
+test('program show page uses highest id when multiple sub statuses share the same recorded at', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Full description',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $assistance = Assistance::create([
+        'program_id' => $program->id,
+        'date_requested' => '2024-01-01',
+        'user_id' => $user->id,
+    ]);
+
+    $requestStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'Submitted',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $olderSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Awaiting Review',
+        'request_status_id' => $requestStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $latestSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Verified',
+        'request_status_id' => $requestStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('assistance_request_sub_status')->insert([
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $olderSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $latestSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('assistances.data', 1)
+            ->where('assistances.data.0.request_sub_status', 'Verified')
+            ->where('assistances.data.0.status', 'Verified'));
+});
+
 test('program show page filters assistances by request status on the server', function () {
     $department = Department::create(['name' => 'Department A']);
 

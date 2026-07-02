@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
+use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
@@ -13,9 +15,11 @@ Route::inertia('/', 'welcome', [
 ])->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
 
     Route::prefix('{department}')->group(function () {
+        Route::get('dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard.index');
+
         Route::get('beneficiaries/search', [UserBeneficiaryController::class, 'search'])->name('user.beneficiaries.search');
         Route::get('beneficiaries/create', [UserBeneficiaryController::class, 'create'])->name('user.beneficiaries.create');
         Route::get('beneficiaries/{beneficiary}', [UserBeneficiaryController::class, 'show'])->name('user.beneficiaries.show');

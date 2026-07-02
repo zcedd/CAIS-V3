@@ -6,7 +6,7 @@ use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
 use Illuminate\Database\Eloquent\Builder;
 
-class JoinAssistanceTableRelations
+class JoinAssistanceStatusRelations
 {
     public function __construct(
         private BuildLatestAssistanceRequestSubStatusSubquery $buildLatestAssistanceRequestSubStatusSubquery,
@@ -23,18 +23,6 @@ class JoinAssistanceTableRelations
         $latestArssLookup = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
 
         $query
-            ->leftJoin(
-                'beneficiaries',
-                'beneficiaries.id',
-                '=',
-                "{$assistanceTable}.beneficiary_id",
-            )
-            ->leftJoin(
-                'mode_of_requests',
-                'mode_of_requests.id',
-                '=',
-                "{$assistanceTable}.mode_of_request_id",
-            )
             ->leftJoinSub(
                 $latestArssLookup,
                 'latest_arss_lookup',

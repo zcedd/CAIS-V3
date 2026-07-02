@@ -55,17 +55,16 @@ class ApplyAssistanceTableFilters
     {
         $pivotTable = (new AssistanceRequestSubStatus)->getTable();
 
-        $latestRecordedAt = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
+        $latestArssLookup = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
 
         return DB::table($pivotTable.' as arss')
             ->select('arss.assistance_id')
             ->joinSub(
-                $latestRecordedAt,
+                $latestArssLookup,
                 'latest_arss_lookup',
-                function ($join): void {
-                    $join->on('latest_arss_lookup.assistance_id', '=', 'arss.assistance_id')
-                        ->on('latest_arss_lookup.max_recorded_at', '=', 'arss.recorded_at');
-                },
+                'latest_arss_lookup.latest_arss_id',
+                '=',
+                'arss.id',
             )
             ->join(
                 'request_sub_statuses as rss',
