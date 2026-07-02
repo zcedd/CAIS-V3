@@ -17,7 +17,6 @@ return new class extends Migration
 
             $table->bigInteger('department_id')->after('id')->unsigned()->nullable()->change();
             $table->boolean('is_organization')->after('is_request_only')->nullable()->default(false)->change();
-            $table->bigInteger('source_of_fund_id')->after('is_organization')->unsigned()->nullable()->change();
         });
     }
 
@@ -32,7 +31,6 @@ return new class extends Migration
 
             $table->bigInteger('department_id')->after('id')->unsigned()->nullable()->change();
             $table->boolean('is_organization')->after('is_request_only')->nullable()->default(false)->change();
-            $table->bigInteger('source_of_fund_id')->after('is_organization')->unsigned()->nullable()->change();
         });
     }
 };

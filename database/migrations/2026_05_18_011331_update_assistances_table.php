@@ -16,7 +16,7 @@ return new class extends Migration
     {
         if (Schema::hasColumn('assistances', 'beneficiary_id') && ! Schema::hasColumn('assistances', 'individual_id')) {
             Schema::table('assistances', function (Blueprint $table) {
-                $table->dropForeign(['beneficiary_id']);
+                // $table->dropForeign(['beneficiary_id']);
             });
 
             Schema::table('assistances', function (Blueprint $table) {

@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('assistances', function (Blueprint $table) {
-            $table->dropForeign(['project_id']);
+            // $table->dropForeign(['project_id']);
             $table->renameColumn('project_id', 'program_id');
             $table->foreign('program_id')->references('id')->on('programs')->onDelete('cascade');
         });
