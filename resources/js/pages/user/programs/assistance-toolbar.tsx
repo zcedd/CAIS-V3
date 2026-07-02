@@ -192,6 +192,8 @@ interface AssistanceDataTableToolbarProps {
     onFiltersChange: (
         overrides: Partial<AssistanceTableFilters> & { page?: number },
     ) => void;
+    sort: string;
+    direction: 'asc' | 'desc';
     departmentSlug: string;
     programId: number;
     programName: string;
@@ -209,6 +211,8 @@ export function AssistanceDataTableToolbar({
     statusOptions,
     modeOptions,
     onFiltersChange,
+    sort,
+    direction,
     departmentSlug,
     programId,
     programName,
@@ -304,6 +308,30 @@ export function AssistanceDataTableToolbar({
         filters.status.length > 0 ||
         filters.mode.length > 0;
 
+    const triggerExport = (format: 'csv' | 'xlsx') => {
+        const query = new URLSearchParams({
+            format,
+            sort,
+            direction,
+        });
+
+        if (filters.search.trim() !== '') {
+            query.set('search', filters.search.trim());
+        }
+
+        filters.status.forEach((statusValue) => {
+            query.append('status[]', statusValue);
+        });
+
+        filters.mode.forEach((modeValue) => {
+            query.append('mode[]', modeValue);
+        });
+
+        window.location.assign(
+            `/${departmentSlug}/programs/${programId}/assistances/export?${query.toString()}`,
+        );
+    };
+
     return (
         <>
             <div className="flex items-center justify-between gap-2">
@@ -357,6 +385,22 @@ export function AssistanceDataTableToolbar({
                     ) : null}
                 </div>
                 <div className="flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 px-2 lg:px-3"
+                        onClick={() => triggerExport('csv')}
+                    >
+                        Export CSV
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-8 px-2 lg:px-3"
+                        onClick={() => triggerExport('xlsx')}
+                    >
+                        Export XLSX
+                    </Button>
                     <DataTableViewOptions
                         table={table}
                         columnVisibility={columnVisibility}

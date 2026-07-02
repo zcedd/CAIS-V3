@@ -4,9 +4,11 @@ namespace App\Http\Controllers\User;
 
 use App\Actions\User\UpdateProgramAssistance;
 use App\Actions\User\UpdateProgramAssistanceStatus;
+use App\Exports\User\ProgramAssistancesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Assistance\DestroyRequest;
 use App\Http\Requests\User\Assistance\EditRequest;
+use App\Http\Requests\User\Assistance\ExportRequest;
 use App\Http\Requests\User\Assistance\ShowRequest;
 use App\Http\Requests\User\Assistance\StoreRequest;
 use App\Http\Requests\User\Assistance\UpdateRequest;
@@ -20,6 +22,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AssistanceController extends Controller
 {
@@ -117,6 +121,38 @@ class AssistanceController extends Controller
         return redirect()
             ->back()
             ->with('success', 'Assistance status updated successfully.');
+    }
+
+    /**
+     * Export filtered assistance records for the selected program.
+     */
+    public function export(
+        ExportRequest $request,
+        Department $department,
+        Program $program,
+    ): BinaryFileResponse {
+        $format = $request->exportFormat();
+        $assistances = $this->assistanceService->exportRowsForProgram(
+            $program,
+            $request->sort(),
+            $request->direction(),
+            $request->search(),
+            $request->statuses(),
+            $request->modes(),
+        );
+
+        $filename = sprintf(
+            'assistances-%s-%s.%s',
+            $department->slug,
+            now()->format('Ymd-His'),
+            $format,
+        );
+
+        return Excel::download(
+            new ProgramAssistancesExport($assistances),
+            $filename,
+            $format === 'csv' ? \Maatwebsite\Excel\Excel::CSV : \Maatwebsite\Excel\Excel::XLSX,
+        );
     }
 
     /**

@@ -62,4 +62,12 @@ class ProgramPolicy
     {
         return $user->department_id === $program->department_id;
     }
+
+    /**
+     * Determine whether the user can download assistance for the program.
+     */
+    public function downloadAssistance(User $user, Program $program): bool
+    {
+        return $user->department_id === $program->department_id;
+    }
 }
