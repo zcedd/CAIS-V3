@@ -718,6 +718,7 @@ export default function UserProgramShow({
                         {canEdit ? (
                             <Button
                                 type="button"
+                                data-tour="program-edit"
                                 onClick={() => setEditOpen(true)}
                             >
                                 <Pencil className="size-4" />
@@ -727,7 +728,7 @@ export default function UserProgramShow({
                     </div>
                 </div>
                 <ProgramKpiCards summary={summary} />
-                <Card>
+                <Card data-tour="program-overview">
                     <CardHeader className="gap-1">
                         <CardTitle className="text-lg">Overview</CardTitle>
                         <CardDescription>
@@ -779,7 +780,7 @@ export default function UserProgramShow({
                         </p>
                     </CardContent>
                 </Card>
-                <Card>
+                <Card data-tour="program-assistance">
                     <CardHeader className="gap-1">
                         <CardTitle className="text-lg">Assistance</CardTitle>
                         <CardDescription>

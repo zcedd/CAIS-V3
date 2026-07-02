@@ -10,18 +10,34 @@ import {
 } from '@/components/ui/breadcrumb';
 import type { BreadcrumbItem as BreadcrumbItemType } from '@/types';
 
+function hasParentBreadcrumbLinks(
+    breadcrumbs: BreadcrumbItemType[],
+): boolean {
+    return breadcrumbs.some(
+        (item, index) =>
+            index < breadcrumbs.length - 1 && item.href !== '#',
+    );
+}
+
 export function Breadcrumbs({
     breadcrumbs,
 }: {
     breadcrumbs: BreadcrumbItemType[];
 }) {
+    const showBreadcrumbTourTarget = hasParentBreadcrumbLinks(breadcrumbs);
+
     return (
         <>
             {breadcrumbs.length > 0 && (
                 <Breadcrumb>
-                    <BreadcrumbList>
+                    <BreadcrumbList
+                        {...(showBreadcrumbTourTarget
+                            ? { 'data-tour': 'breadcrumb-links' }
+                            : {})}
+                    >
                         {breadcrumbs.map((item, index) => {
                             const isLast = index === breadcrumbs.length - 1;
+
                             return (
                                 <Fragment key={index}>
                                     <BreadcrumbItem>

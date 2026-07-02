@@ -1,11 +1,14 @@
 'use client';
 
 import { usePage } from '@inertiajs/react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ACTIONS, EVENTS, ORIGIN, STATUS, useJoyride } from 'react-joyride';
 import type { EventData, Step } from 'react-joyride';
+import { normalizePath, resolveTourRouteKey } from '@/lib/tour-routes';
 
 const TOUR_STORAGE_PREFIX = 'cais-tour-completed:';
+const TOUR_TARGET_POLL_INTERVAL_MS = 100;
+const TOUR_TARGET_MAX_WAIT_MS = 3000;
 
 const SHARED_STEPS: Step[] = [
     {
@@ -21,6 +24,11 @@ const SHARED_STEPS: Step[] = [
     {
         target: '[data-tour="page-header"]',
         content: 'This header shows where you are through breadcrumbs.',
+        placement: 'bottom',
+    },
+    {
+        target: '[data-tour="breadcrumb-links"]',
+        content: 'Use breadcrumb links to navigate back to parent pages.',
         placement: 'bottom',
     },
 ];
@@ -58,6 +66,24 @@ const PAGE_STEPS: Record<string, Step[]> = {
             content: 'Create a new program for your department.',
         },
     ],
+    'programs/show': [
+        {
+            target: '[data-tour="program-overview"]',
+            content: 'Review program details, type, status, and period here.',
+        },
+        {
+            target: '[data-tour="program-edit"]',
+            content: 'Edit program details when changes are needed.',
+        },
+        {
+            target: '[data-tour="program-assistance"]',
+            content: 'Manage assistance records for this program.',
+        },
+        {
+            target: '[data-tour="program-assistance-toolbar"]',
+            content: 'Filter assistance, export data, or add new records.',
+        },
+    ],
     beneficiaries: [
         {
             target: '[data-tour="beneficiaries-filters"]',
@@ -86,28 +112,32 @@ const PAGE_STEPS: Record<string, Step[]> = {
     ],
 };
 
-function normalizePath(path: string): string {
-    if (path === '') {
-        return '/';
-    }
-
-    if (path.endsWith('/')) {
-        return path.slice(0, -1);
-    }
-
-    return path;
-}
-
 function selectPageSteps(pathname: string): Step[] {
-    const segments = pathname.split('/').filter(Boolean);
+    const routeKey = resolveTourRouteKey(pathname);
 
-    if (segments.length < 2) {
+    if (!routeKey) {
         return [];
     }
 
-    const pageSegment = segments[1];
+    return PAGE_STEPS[routeKey] ?? [];
+}
 
-    return PAGE_STEPS[pageSegment] ?? [];
+function assembleSteps(pathname: string): Step[] {
+    return [...SHARED_STEPS, ...selectPageSteps(pathname)];
+}
+
+function filterAvailableSteps(steps: Step[]): Step[] {
+    if (typeof document === 'undefined') {
+        return [];
+    }
+
+    return steps.filter((step) => {
+        if (typeof step.target !== 'string') {
+            return Boolean(step.target);
+        }
+
+        return document.querySelector(step.target) !== null;
+    });
 }
 
 export function AppTour() {
@@ -119,13 +149,26 @@ export function AppTour() {
         return normalizePath(pathOnly);
     }, [page.url]);
 
-    const steps = useMemo(
-        () => [...SHARED_STEPS, ...selectPageSteps(pathname)],
+    const assembledSteps = useMemo(
+        () => assembleSteps(pathname),
         [pathname],
     );
 
+    const [stepState, setStepState] = useState<{
+        pathname: string;
+        steps: Step[];
+    }>({
+        pathname: '',
+        steps: [],
+    });
+
+    const steps = useMemo(
+        () => (stepState.pathname === pathname ? stepState.steps : []),
+        [pathname, stepState],
+    );
+
     const shouldRun = useMemo(() => {
-        if (typeof window === 'undefined' || steps.length === 0) {
+        if (typeof window === 'undefined') {
             return false;
         }
 
@@ -135,7 +178,7 @@ export function AppTour() {
         const isCompleted = localStorage.getItem(completionKey) === '1';
 
         return isForcedTour || !isCompleted;
-    }, [pathname, steps.length]);
+    }, [pathname]);
 
     const handleCallback = (data: EventData) => {
         const { status, type, action, origin } = data;
@@ -170,6 +213,37 @@ export function AppTour() {
     });
 
     useEffect(() => {
+        let cancelled = false;
+        const startedAt = Date.now();
+
+        const resolveSteps = () => {
+            if (cancelled) {
+                return;
+            }
+
+            const availableSteps = filterAvailableSteps(assembledSteps);
+
+            if (
+                availableSteps.length === 0 &&
+                Date.now() - startedAt < TOUR_TARGET_MAX_WAIT_MS
+            ) {
+                window.setTimeout(resolveSteps, TOUR_TARGET_POLL_INTERVAL_MS);
+
+                return;
+            }
+
+            setStepState({ pathname, steps: availableSteps });
+        };
+
+        const handle = window.setTimeout(resolveSteps, 0);
+
+        return () => {
+            cancelled = true;
+            window.clearTimeout(handle);
+        };
+    }, [assembledSteps, pathname]);
+
+    useEffect(() => {
         if (!shouldRun || steps.length === 0) {
             controls.stop();
 
@@ -177,7 +251,11 @@ export function AppTour() {
         }
 
         controls.start();
-    }, [controls, shouldRun, steps.length]);
+    }, [controls, shouldRun, steps]);
+
+    if (steps.length === 0) {
+        return null;
+    }
 
     return <div key={pathname}>{Tour}</div>;
 }
