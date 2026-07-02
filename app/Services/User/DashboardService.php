@@ -103,6 +103,44 @@ class DashboardService
     }
 
     /**
+     * @return array{
+     *     total_requests: int,
+     *     delivered_requests: int,
+     *     in_progress_requests: int,
+     *     total_delivered_items: int
+     * }
+     */
+    public function summaryForProgram(Program $program): array
+    {
+        $program->loadMissing('department:id,name,slug');
+
+        $department = $program->department;
+
+        if ($department === null) {
+            $department = Department::query()->findOrFail($program->department_id);
+        }
+
+        $filters = ['program' => [$program->id]];
+        $statusExpression = $this->resolvedStatusExpression();
+        $deliveredSql = $this->isDeliveredSql();
+        $terminalList = implode("','", self::TERMINAL_STATUSES);
+
+        $stats = (clone $this->filteredAssistanceQuery($department, $filters))
+            ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
+            ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered_requests")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
+            ->toBase()
+            ->first();
+
+        return [
+            'total_requests' => (int) ($stats->total_requests ?? 0),
+            'delivered_requests' => (int) ($stats->delivered_requests ?? 0),
+            'in_progress_requests' => (int) ($stats->in_progress_requests ?? 0),
+            'total_delivered_items' => $this->sumDeliveredItems($department, $filters),
+        ];
+    }
+
+    /**
      * @param  array<string, mixed>  $filters
      * @return list<array{status: string, count: int}>
      */

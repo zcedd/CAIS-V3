@@ -92,6 +92,7 @@ class ProgramController extends Controller
 
         return Inertia::render('user/programs/show', [
             'program' => fn () => $this->programService->showPayload($program),
+            'summary' => fn () => $this->programService->summary($program),
             'department' => fn () => $department->only(['id', 'name', 'slug']),
             'funds' => Inertia::defer(
                 fn () => $this->programService->departmentFundsForSelect($department),

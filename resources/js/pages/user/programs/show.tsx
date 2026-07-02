@@ -44,12 +44,14 @@ import {
     type ModeFilterOption,
     type StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
+import { ProgramKpiCards } from '@/pages/user/programs/kpi-cards';
 import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
     update as updateProgram,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
+import type { ProgramSummary } from '@/types/program';
 
 import {
     Form,
@@ -480,9 +482,7 @@ function ProgramAssistanceTable({
                     canCreate={canCreateAssistance}
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
-                    onAssistanceCreated={() =>
-                        onVisitTable({ page: 1 })
-                    }
+                    onAssistanceCreated={() => onVisitTable({ page: 1 })}
                 />
             )}
             initialColumnVisibility={
@@ -495,6 +495,7 @@ function ProgramAssistanceTable({
 
 export default function UserProgramShow({
     program,
+    summary,
     department,
     funds,
     items,
@@ -513,6 +514,7 @@ export default function UserProgramShow({
     request_sub_status_options,
 }: {
     program: ProgramDetail;
+    summary: ProgramSummary;
     department: DepartmentSummary | null;
     funds?: SelectOption[];
     items?: SelectOption[];
@@ -695,9 +697,7 @@ export default function UserProgramShow({
 
     const heading = program.name;
     const canEdit = Boolean(department?.slug);
-    const canCreateAssistance = Boolean(
-        department?.slug && !program.is_closed,
-    );
+    const canCreateAssistance = Boolean(department?.slug && !program.is_closed);
 
     return (
         <>
@@ -724,19 +724,9 @@ export default function UserProgramShow({
                                 Edit program
                             </Button>
                         ) : null}
-                        {department?.slug ? (
-                            <Button variant="outline" asChild>
-                                <Link
-                                    href={departmentProgramsIndex.url(
-                                        department.slug,
-                                    )}
-                                >
-                                    Back to programs
-                                </Link>
-                            </Button>
-                        ) : null}
                     </div>
                 </div>
+                <ProgramKpiCards summary={summary} />
                 <Card>
                     <CardHeader className="gap-1">
                         <CardTitle className="text-lg">Overview</CardTitle>
@@ -821,7 +811,9 @@ export default function UserProgramShow({
                                         assistances={tableProps.assistances}
                                         tableFilters={tableFilters}
                                         tableState={tableState}
-                                        statusOptions={tableProps.status_options}
+                                        statusOptions={
+                                            tableProps.status_options
+                                        }
                                         modeOptions={tableProps.mode_options}
                                         isLoading={isTableReloading}
                                         departmentSlug={department?.slug ?? ''}
@@ -830,7 +822,9 @@ export default function UserProgramShow({
                                         isOrganization={
                                             program.is_organization ?? false
                                         }
-                                        canCreateAssistance={canCreateAssistance}
+                                        canCreateAssistance={
+                                            canCreateAssistance
+                                        }
                                         modeOfRequestOptions={
                                             tableProps.mode_of_request_options
                                         }

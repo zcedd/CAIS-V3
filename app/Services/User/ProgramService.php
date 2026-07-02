@@ -15,6 +15,7 @@ class ProgramService
 
     public function __construct(
         private ItemService $itemService,
+        private DashboardService $dashboardService,
     ) {}
 
     /**
@@ -99,6 +100,19 @@ class ProgramService
 
         $program->fund()->sync($validated['fund_ids']);
         $program->item()->sync($validated['item_ids']);
+    }
+
+    /**
+     * @return array{
+     *     total_requests: int,
+     *     delivered_requests: int,
+     *     in_progress_requests: int,
+     *     total_delivered_items: int
+     * }
+     */
+    public function summary(Program $program): array
+    {
+        return $this->dashboardService->summaryForProgram($program);
     }
 
     /**
