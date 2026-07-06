@@ -98,7 +98,7 @@ test('authenticated users can update assistance status for their department prog
         ->and(Carbon::parse($latestSubStatus->recorded_at)->toDateString())->toBe('2026-05-10');
 });
 
-test('updating to delivered status requires and marks the selected assistance item as received', function () {
+test('updating to delivered status requires and marks the selected assistance items as received', function () {
     $department = Department::create(['name' => 'Department A']);
 
     $user = User::factory()->create([
@@ -117,13 +117,19 @@ test('updating to delivered status requires and marks the selected assistance it
 
     $unit = ItemUnitMeasurement::create(['name' => 'kg']);
 
-    $item = Item::create([
+    $riceItem = Item::create([
         'name' => 'Rice',
         'department_id' => $department->id,
         'item_unit_measurement_id' => $unit->id,
     ]);
 
-    $program->item()->attach($item->id);
+    $milkItem = Item::create([
+        'name' => 'Milk',
+        'department_id' => $department->id,
+        'item_unit_measurement_id' => $unit->id,
+    ]);
+
+    $program->item()->attach([$riceItem->id, $milkItem->id]);
 
     $beneficiary = Beneficiary::create([
         'cais_number' => 'CAIS-001',
@@ -143,10 +149,18 @@ test('updating to delivered status requires and marks the selected assistance it
         'user_id' => $user->id,
     ]);
 
-    $assistanceItem = AssistanceItem::create([
+    $riceAssistanceItem = AssistanceItem::create([
         'assistance_id' => $assistance->id,
-        'item_id' => $item->id,
+        'item_id' => $riceItem->id,
         'quantity' => 2,
+        'specification' => 'Premium',
+        'is_received' => false,
+    ]);
+
+    $milkAssistanceItem = AssistanceItem::create([
+        'assistance_id' => $assistance->id,
+        'item_id' => $milkItem->id,
+        'quantity' => 5,
         'specification' => null,
         'is_received' => false,
     ]);
@@ -167,7 +181,18 @@ test('updating to delivered status requires and marks the selected assistance it
             'request_sub_status_id' => $deliveredSubStatusId,
             'recorded_at' => '2026-05-15',
             'remark' => 'Handed over to beneficiary',
-            'delivered_assistance_item_id' => $assistanceItem->id,
+            'delivered_items' => [
+                [
+                    'assistance_item_id' => $riceAssistanceItem->id,
+                    'quantity' => 2,
+                    'specification' => 'Premium grade',
+                ],
+                [
+                    'assistance_item_id' => $milkAssistanceItem->id,
+                    'quantity' => 3,
+                    'specification' => 'Powdered',
+                ],
+            ],
         ],
     );
 
@@ -176,14 +201,28 @@ test('updating to delivered status requires and marks the selected assistance it
         'program' => $program->id,
     ]));
 
-    $assistanceItem->refresh();
+    $riceAssistanceItem->refresh();
+    $milkAssistanceItem->refresh();
     $assistance->refresh();
 
-    expect($assistanceItem->is_received)->toBeTrue()
+    $deliveredMilkItem = AssistanceItem::query()
+        ->where('assistance_id', $assistance->id)
+        ->where('item_id', $milkItem->id)
+        ->where('is_received', true)
+        ->first();
+
+    expect($riceAssistanceItem->is_received)->toBeTrue()
+        ->and($riceAssistanceItem->quantity)->toBe(2)
+        ->and($riceAssistanceItem->specification)->toBe('Premium grade')
+        ->and($milkAssistanceItem->is_received)->toBeFalse()
+        ->and($milkAssistanceItem->quantity)->toBe(2)
+        ->and($deliveredMilkItem)->not->toBeNull()
+        ->and($deliveredMilkItem->quantity)->toBe(3)
+        ->and($deliveredMilkItem->specification)->toBe('Powdered')
         ->and($assistance->date_delivered)->toBe('2026-05-15');
 });
 
-test('delivered status update requires a delivered assistance item', function () {
+test('delivered status update requires delivered items', function () {
     $department = Department::create(['name' => 'Department A']);
 
     $user = User::factory()->create([
@@ -241,5 +280,5 @@ test('delivered status update requires a delivered assistance item', function ()
         'department' => $department->slug,
         'program' => $program->id,
     ]));
-    $response->assertSessionHasErrors('delivered_assistance_item_id');
+    $response->assertSessionHasErrors('delivered_items');
 });

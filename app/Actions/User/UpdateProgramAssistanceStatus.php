@@ -14,7 +14,11 @@ class UpdateProgramAssistanceStatus
      *     request_sub_status_id: int,
      *     recorded_at: string,
      *     remark?: string|null,
-     *     delivered_assistance_item_id?: int|null
+     *     delivered_items?: list<array{
+     *         assistance_item_id: int,
+     *         quantity: int,
+     *         specification?: string|null
+     *     }>|null
      * }  $validated
      */
     public function __invoke(Assistance $assistance, array $validated): Assistance
@@ -28,17 +32,43 @@ class UpdateProgramAssistanceStatus
             'recorded_at' => $recordedAt,
         ]);
 
-        if (isset($validated['delivered_assistance_item_id'])) {
-            AssistanceItem::query()
+        foreach ($validated['delivered_items'] ?? [] as $deliveredItem) {
+            $assistanceItem = AssistanceItem::query()
                 ->where('assistance_id', $assistance->id)
-                ->whereKey($validated['delivered_assistance_item_id'])
-                ->update(['is_received' => true]);
+                ->whereKey($deliveredItem['assistance_item_id'])
+                ->firstOrFail();
 
-            if ($assistance->date_delivered === null) {
-                $assistance->update([
-                    'date_delivered' => $recordedAt->toDateString(),
+            $deliveredQuantity = $deliveredItem['quantity'];
+            $pendingQuantity = $assistanceItem->quantity;
+            $remainingQuantity = $pendingQuantity !== null
+                ? $pendingQuantity - $deliveredQuantity
+                : 0;
+
+            if ($remainingQuantity > 0) {
+                $assistanceItem->update([
+                    'quantity' => $remainingQuantity,
+                ]);
+
+                AssistanceItem::query()->create([
+                    'assistance_id' => $assistance->id,
+                    'item_id' => $assistanceItem->item_id,
+                    'quantity' => $deliveredQuantity,
+                    'specification' => $deliveredItem['specification'] ?? null,
+                    'is_received' => true,
+                ]);
+            } else {
+                $assistanceItem->update([
+                    'quantity' => $deliveredQuantity,
+                    'specification' => $deliveredItem['specification'] ?? $assistanceItem->specification,
+                    'is_received' => true,
                 ]);
             }
+        }
+
+        if (! empty($validated['delivered_items']) && $assistance->date_delivered === null) {
+            $assistance->update([
+                'date_delivered' => $recordedAt->toDateString(),
+            ]);
         }
 
         return $assistance->refresh();

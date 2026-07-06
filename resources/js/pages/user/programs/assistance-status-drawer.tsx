@@ -12,7 +12,9 @@ import {
     DrawerHeader,
     DrawerTitle,
 } from '@/components/ui/drawer';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
     Popover,
     PopoverContent,
@@ -38,6 +40,11 @@ import { toast } from 'sonner';
 const selectClassName = cn(
     'h-9 w-full min-w-0 rounded-4xl border border-input bg-input/30 px-3 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
 );
+
+type DeliveredItemDetail = {
+    quantity: string;
+    specification: string;
+};
 
 function formatDateForSubmit(date: Date | undefined): string | undefined {
     if (!date) {
@@ -110,8 +117,12 @@ export function AssistanceStatusDrawer({
 }: AssistanceStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
     const [selectedSubStatusId, setSelectedSubStatusId] = useState('');
-    const [deliveredAssistanceItemId, setDeliveredAssistanceItemId] =
-        useState('');
+    const [selectedDeliveredItemIds, setSelectedDeliveredItemIds] = useState<
+        string[]
+    >([]);
+    const [deliveredItemDetails, setDeliveredItemDetails] = useState<
+        Record<string, DeliveredItemDetail>
+    >({});
     const [recordedAt, setRecordedAt] = useState<Date | undefined>(undefined);
     const [recordedAtOpen, setRecordedAtOpen] = useState(false);
     const [defaultRemark, setDefaultRemark] = useState('');
@@ -124,10 +135,19 @@ export function AssistanceStatusDrawer({
         () => assistanceItems.filter((item) => !item.is_received),
         [assistanceItems],
     );
+    const undeliveredItemOptions = useMemo(
+        () =>
+            undeliveredItems.map((item) => ({
+                value: String(item.id),
+                label: formatAssistanceItemLabel(item),
+            })),
+        [undeliveredItems],
+    );
 
     const resetForm = () => {
         setSelectedSubStatusId('');
-        setDeliveredAssistanceItemId('');
+        setSelectedDeliveredItemIds([]);
+        setDeliveredItemDetails({});
         setRecordedAt(undefined);
         setRecordedAtOpen(false);
         setDefaultRemark('');
@@ -139,6 +159,8 @@ export function AssistanceStatusDrawer({
         );
         setRecordedAt(parseRecordedAt(currentRecordedAt) ?? new Date());
         setDefaultRemark('');
+        setSelectedDeliveredItemIds([]);
+        setDeliveredItemDetails({});
         setFormKey((key) => key + 1);
     };
 
@@ -154,19 +176,47 @@ export function AssistanceStatusDrawer({
 
     useEffect(() => {
         if (!isDeliveredStatus) {
-            setDeliveredAssistanceItemId('');
+            setSelectedDeliveredItemIds([]);
+            setDeliveredItemDetails({});
 
             return;
         }
 
         if (undeliveredItems.length === 1) {
-            setDeliveredAssistanceItemId(String(undeliveredItems[0].id));
+            const item = undeliveredItems[0];
+
+            setSelectedDeliveredItemIds([String(item.id)]);
+            setDeliveredItemDetails({
+                [String(item.id)]: {
+                    quantity: String(item.quantity ?? 1),
+                    specification: item.specification ?? '',
+                },
+            });
         }
     }, [isDeliveredStatus, selectedSubStatusId, undeliveredItems]);
 
+    useEffect(() => {
+        setDeliveredItemDetails((current) => {
+            const next: Record<string, DeliveredItemDetail> = {};
+
+            selectedDeliveredItemIds.forEach((itemId) => {
+                const assistanceItem = undeliveredItems.find(
+                    (item) => String(item.id) === itemId,
+                );
+
+                next[itemId] = current[itemId] ?? {
+                    quantity: String(assistanceItem?.quantity ?? 1),
+                    specification: assistanceItem?.specification ?? '',
+                };
+            });
+
+            return next;
+        });
+    }, [selectedDeliveredItemIds, undeliveredItems]);
+
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-            <DrawerContent className="w-full data-[vaul-drawer-direction=right]:w-full sm:max-w-full data-[vaul-drawer-direction=right]:sm:max-w-full lg:max-w-lg data-[vaul-drawer-direction=right]:lg:max-w-lg">
+            <DrawerContent className="w-full data-[vaul-drawer-direction=right]:w-full sm:max-w-full data-[vaul-drawer-direction=right]:sm:max-w-full lg:max-w-3xl data-[vaul-drawer-direction=right]:lg:max-w-3xl">
                 <DrawerHeader>
                     <DrawerTitle>Update status</DrawerTitle>
                     <DrawerDescription>
@@ -188,8 +238,17 @@ export function AssistanceStatusDrawer({
                         ...data,
                         request_sub_status_id: Number(selectedSubStatusId),
                         recorded_at: formatDateForSubmit(recordedAt),
-                        delivered_assistance_item_id: isDeliveredStatus
-                            ? Number(deliveredAssistanceItemId)
+                        delivered_items: isDeliveredStatus
+                            ? selectedDeliveredItemIds.map((itemId) => ({
+                                  assistance_item_id: Number(itemId),
+                                  quantity: Number(
+                                      deliveredItemDetails[itemId]?.quantity ??
+                                          1,
+                                  ),
+                                  specification:
+                                      deliveredItemDetails[itemId]
+                                          ?.specification ?? '',
+                              }))
                             : undefined,
                     })}
                     onSuccess={() => {
@@ -237,51 +296,173 @@ export function AssistanceStatusDrawer({
                             </div>
 
                             {isDeliveredStatus ? (
-                                <div className="space-y-2">
-                                    <Label htmlFor="assistance-status-delivered-item">
-                                        Delivered item
-                                    </Label>
-                                    {undeliveredItems.length > 0 ? (
-                                        <Select
-                                            value={deliveredAssistanceItemId}
-                                            onValueChange={
-                                                setDeliveredAssistanceItemId
-                                            }
-                                        >
-                                            <SelectTrigger
-                                                id="assistance-status-delivered-item"
-                                                className={selectClassName}
-                                            >
-                                                <SelectValue placeholder="Select item delivered" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {undeliveredItems.map(
-                                                    (item) => (
-                                                        <SelectItem
-                                                            key={item.id}
-                                                            value={String(
-                                                                item.id,
-                                                            )}
+                                <div className="space-y-3">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="assistance-status-delivered-items">
+                                            Delivered items
+                                        </Label>
+                                        {undeliveredItems.length > 0 ? (
+                                            <MultiSelect
+                                                options={
+                                                    undeliveredItemOptions
+                                                }
+                                                selected={
+                                                    selectedDeliveredItemIds
+                                                }
+                                                onChange={
+                                                    setSelectedDeliveredItemIds
+                                                }
+                                                placeholder="Choose items delivered..."
+                                                className="w-full"
+                                            />
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                All items on this assistance
+                                                have already been marked as
+                                                delivered.
+                                            </p>
+                                        )}
+                                        <InputError
+                                            message={errors.delivered_items}
+                                        />
+                                    </div>
+
+                                    {selectedDeliveredItemIds.length > 0 ? (
+                                        <div className="space-y-3">
+                                            <Label>Delivered item details</Label>
+                                            {selectedDeliveredItemIds.map(
+                                                (selectedItemId, index) => {
+                                                    const item =
+                                                        undeliveredItems.find(
+                                                            ({ id }) =>
+                                                                String(id) ===
+                                                                selectedItemId,
+                                                        );
+
+                                                    if (!item) {
+                                                        return null;
+                                                    }
+
+                                                    const detail =
+                                                        deliveredItemDetails[
+                                                            selectedItemId
+                                                        ] ?? {
+                                                            quantity: String(
+                                                                item.quantity ??
+                                                                    1,
+                                                            ),
+                                                            specification:
+                                                                item.specification ??
+                                                                '',
+                                                        };
+
+                                                    return (
+                                                        <div
+                                                            key={selectedItemId}
+                                                            className="grid gap-3 rounded-xl border p-3"
                                                         >
-                                                            {formatAssistanceItemLabel(
-                                                                item,
-                                                            )}
-                                                        </SelectItem>
-                                                    ),
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            All items on this assistance have
-                                            already been marked as delivered.
-                                        </p>
-                                    )}
-                                    <InputError
-                                        message={
-                                            errors.delivered_assistance_item_id
-                                        }
-                                    />
+                                                            <p className="text-sm font-medium">
+                                                                {formatAssistanceItemLabel(
+                                                                    item,
+                                                                )}
+                                                            </p>
+                                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                                <div className="space-y-2">
+                                                                    <Label
+                                                                        htmlFor={`delivered-item-quantity-${selectedItemId}`}
+                                                                    >
+                                                                        Quantity
+                                                                        {item.unit
+                                                                            ? ` (${item.unit})`
+                                                                            : ''}
+                                                                    </Label>
+                                                                    <Input
+                                                                        id={`delivered-item-quantity-${selectedItemId}`}
+                                                                        type="number"
+                                                                        min={1}
+                                                                        max={
+                                                                            item.quantity ??
+                                                                            undefined
+                                                                        }
+                                                                        step={1}
+                                                                        value={
+                                                                            detail.quantity
+                                                                        }
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setDeliveredItemDetails(
+                                                                                (
+                                                                                    current,
+                                                                                ) => ({
+                                                                                    ...current,
+                                                                                    [selectedItemId]:
+                                                                                        {
+                                                                                            ...detail,
+                                                                                            quantity:
+                                                                                                event
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        },
+                                                                                }),
+                                                                            )
+                                                                        }
+                                                                    />
+                                                                    <InputError
+                                                                        message={
+                                                                            errors[
+                                                                                `delivered_items.${index}.quantity`
+                                                                            ]
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                                <div className="space-y-2">
+                                                                    <Label
+                                                                        htmlFor={`delivered-item-specification-${selectedItemId}`}
+                                                                    >
+                                                                        Specification
+                                                                    </Label>
+                                                                    <Input
+                                                                        id={`delivered-item-specification-${selectedItemId}`}
+                                                                        value={
+                                                                            detail.specification
+                                                                        }
+                                                                        onChange={(
+                                                                            event,
+                                                                        ) =>
+                                                                            setDeliveredItemDetails(
+                                                                                (
+                                                                                    current,
+                                                                                ) => ({
+                                                                                    ...current,
+                                                                                    [selectedItemId]:
+                                                                                        {
+                                                                                            ...detail,
+                                                                                            specification:
+                                                                                                event
+                                                                                                    .target
+                                                                                                    .value,
+                                                                                        },
+                                                                                }),
+                                                                            )
+                                                                        }
+                                                                        placeholder="Optional specification"
+                                                                    />
+                                                                    <InputError
+                                                                        message={
+                                                                            errors[
+                                                                                `delivered_items.${index}.specification`
+                                                                            ]
+                                                                        }
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                },
+                                            )}
+                                        </div>
+                                    ) : null}
                                 </div>
                             ) : null}
 
@@ -373,7 +554,8 @@ export function AssistanceStatusDrawer({
                                         !recordedAt ||
                                         (isDeliveredStatus &&
                                             (undeliveredItems.length === 0 ||
-                                                !deliveredAssistanceItemId))
+                                                selectedDeliveredItemIds.length ===
+                                                    0))
                                     }
                                 >
                                     {processing ? 'Saving...' : 'Update status'}
