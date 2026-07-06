@@ -1,12 +1,14 @@
 'use client';
 
 import { usePage } from '@inertiajs/react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ACTIONS, EVENTS, ORIGIN, STATUS, useJoyride } from 'react-joyride';
 import type { EventData, Step } from 'react-joyride';
+import { AppTourTooltip } from '@/components/app-tour-tooltip';
 import { normalizePath, resolveTourRouteKey } from '@/lib/tour-routes';
 
 const TOUR_STORAGE_PREFIX = 'cais-tour-completed:';
+const SHARED_TOUR_KEY = `${TOUR_STORAGE_PREFIX}shared`;
 const TOUR_TARGET_POLL_INTERVAL_MS = 100;
 const TOUR_TARGET_MAX_WAIT_MS = 3000;
 
@@ -122,8 +124,22 @@ function selectPageSteps(pathname: string): Step[] {
     return PAGE_STEPS[routeKey] ?? [];
 }
 
-function assembleSteps(pathname: string): Step[] {
-    return [...SHARED_STEPS, ...selectPageSteps(pathname)];
+function hasCompletedSharedTour(): boolean {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    return localStorage.getItem(SHARED_TOUR_KEY) === '1';
+}
+
+function assembleSteps(pathname: string, includeShared: boolean): Step[] {
+    const pageSteps = selectPageSteps(pathname);
+
+    if (!includeShared) {
+        return pageSteps;
+    }
+
+    return [...SHARED_STEPS, ...pageSteps];
 }
 
 function filterAvailableSteps(steps: Step[]): Step[] {
@@ -149,9 +165,11 @@ export function AppTour() {
         return normalizePath(pathOnly);
     }, [page.url]);
 
+    const includeShared = useMemo(() => !hasCompletedSharedTour(), [pathname]);
+
     const assembledSteps = useMemo(
-        () => assembleSteps(pathname),
-        [pathname],
+        () => assembleSteps(pathname, includeShared),
+        [includeShared, pathname],
     );
 
     const [stepState, setStepState] = useState<{
@@ -161,6 +179,8 @@ export function AppTour() {
         pathname: '',
         steps: [],
     });
+
+    const includedSharedRef = useRef(false);
 
     const steps = useMemo(
         () => (stepState.pathname === pathname ? stepState.steps : []),
@@ -183,18 +203,26 @@ export function AppTour() {
     const handleCallback = (data: EventData) => {
         const { status, type, action, origin } = data;
 
+        const markTourCompleted = () => {
+            localStorage.setItem(`${TOUR_STORAGE_PREFIX}${pathname}`, '1');
+
+            if (includedSharedRef.current) {
+                localStorage.setItem(SHARED_TOUR_KEY, '1');
+            }
+        };
+
         if (
             status === STATUS.FINISHED ||
             status === STATUS.SKIPPED ||
             (action === ACTIONS.CLOSE && origin === ORIGIN.KEYBOARD)
         ) {
-            localStorage.setItem(`${TOUR_STORAGE_PREFIX}${pathname}`, '1');
+            markTourCompleted();
 
             return;
         }
 
         if (type === EVENTS.TOUR_END) {
-            localStorage.setItem(`${TOUR_STORAGE_PREFIX}${pathname}`, '1');
+            markTourCompleted();
         }
     };
 
@@ -202,7 +230,12 @@ export function AppTour() {
         steps,
         continuous: true,
         onEvent: handleCallback,
-        options: { zIndex: 10000 },
+        tooltipComponent: AppTourTooltip,
+        floatingOptions: { hideArrow: true },
+        options: {
+            zIndex: 10000,
+            buttons: ['back', 'skip', 'primary'],
+        },
         locale: {
             back: 'Back',
             close: 'Close',
@@ -232,6 +265,8 @@ export function AppTour() {
                 return;
             }
 
+            includedSharedRef.current = includeShared;
+
             setStepState({ pathname, steps: availableSteps });
         };
 
@@ -241,7 +276,7 @@ export function AppTour() {
             cancelled = true;
             window.clearTimeout(handle);
         };
-    }, [assembledSteps, pathname]);
+    }, [assembledSteps, includeShared, pathname]);
 
     useEffect(() => {
         if (!shouldRun || steps.length === 0) {
