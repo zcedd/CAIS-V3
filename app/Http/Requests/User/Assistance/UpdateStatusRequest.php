@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Models\Assistance;
+use App\Models\RequestSubStatus;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +26,9 @@ class UpdateStatusRequest extends FormRequest
      */
     public function rules(): array
     {
+        /** @var Assistance $assistance */
+        $assistance = $this->route('assistance');
+
         return [
             'request_sub_status_id' => [
                 'required',
@@ -32,6 +37,14 @@ class UpdateStatusRequest extends FormRequest
             ],
             'recorded_at' => ['required', 'date'],
             'remark' => ['nullable', 'string'],
+            'delivered_assistance_item_id' => [
+                Rule::requiredIf(fn (): bool => $this->isDeliveredSubStatus()),
+                'nullable',
+                'integer',
+                Rule::exists('assistance_item', 'id')
+                    ->where('assistance_id', $assistance->id)
+                    ->where('is_received', false),
+            ],
         ];
     }
 
@@ -44,6 +57,21 @@ class UpdateStatusRequest extends FormRequest
             'request_sub_status_id' => 'status',
             'recorded_at' => 'recorded at',
             'remark' => 'remark',
+            'delivered_assistance_item_id' => 'delivered item',
         ];
+    }
+
+    private function isDeliveredSubStatus(): bool
+    {
+        $subStatusId = $this->integer('request_sub_status_id');
+
+        if ($subStatusId === 0) {
+            return false;
+        }
+
+        return RequestSubStatus::query()
+            ->whereKey($subStatusId)
+            ->whereHas('requestStatus', fn ($query) => $query->where('name', 'Delivered'))
+            ->exists();
     }
 }

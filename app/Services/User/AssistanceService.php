@@ -98,7 +98,7 @@ class AssistanceService
     {
         $assistance->load([
             'beneficiary:id,cais_number,name',
-            'assistanceItem:id,assistance_id,item_id,quantity,specification',
+            'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
         ]);
 
         $beneficiary = $assistance->beneficiary;
@@ -115,7 +115,7 @@ class AssistanceService
             'mode_of_request_id' => $assistance->mode_of_request_id,
             'remark' => $assistance->remark,
             'item_details' => $assistance->assistanceItem
-                ->map(static fn(AssistanceItem $assistanceItem): array => [
+                ->map(static fn (AssistanceItem $assistanceItem): array => [
                     'item_id' => $assistanceItem->item_id,
                     'quantity' => $assistanceItem->quantity ?? 1,
                     'specification' => $assistanceItem->specification,
@@ -178,11 +178,14 @@ class AssistanceService
                     'cais_number' => $assistance->beneficiary_cais_number ?? '—',
                     'beneficiary_name' => $assistance->beneficiary_name ?? '—',
                     'items' => $assistance->assistanceItem
-                        ->map(static fn($assistanceItem): array => [
+                        ->map(static fn ($assistanceItem): array => [
+                            'id' => $assistanceItem->id,
+                            'item_id' => $assistanceItem->item_id,
                             'name' => $assistanceItem->item?->name ?? '—',
                             'quantity' => $assistanceItem->quantity,
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,
                             'specification' => $assistanceItem->specification,
+                            'is_received' => (bool) $assistanceItem->is_received,
                         ])
                         ->values()
                         ->all(),
@@ -265,7 +268,7 @@ class AssistanceService
             'rs.name as request_status_name',
             'arss.recorded_at as request_sub_status_recorded_at',
         ])->with([
-            'assistanceItem:id,assistance_id,item_id,quantity,specification',
+            'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
             'assistanceItem.item:id,name,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
         ]);
@@ -303,7 +306,7 @@ class AssistanceService
             ->distinct()
             ->orderBy('mode_of_requests.name')
             ->pluck('mode_of_requests.name')
-            ->map(static fn(string $name): array => [
+            ->map(static fn (string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -335,7 +338,7 @@ class AssistanceService
             ->distinct()
             ->orderBy('request_statuses.name')
             ->pluck('request_statuses.name')
-            ->map(static fn(string $name): array => [
+            ->map(static fn (string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -373,7 +376,7 @@ class AssistanceService
                 'request_sub_statuses.name',
                 'request_statuses.name as request_status_name',
             ])
-            ->map(static fn($subStatus): array => [
+            ->map(static fn ($subStatus): array => [
                 'id' => (int) $subStatus->id,
                 'name' => $subStatus->name,
                 'request_status' => $subStatus->request_status_name,

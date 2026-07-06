@@ -27,11 +27,12 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import type { UserProgramAssistanceItem } from '@/pages/user/programs/assistance-columns';
 import type { AssistanceRequestSubStatusOption } from '@/pages/user/programs/assistance-toolbar';
 import { update as updateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
 import { Form } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
 const selectClassName = cn(
@@ -64,6 +65,20 @@ function parseRecordedAt(value: string | null): Date | undefined {
     return recorded;
 }
 
+function formatAssistanceItemLabel(item: UserProgramAssistanceItem): string {
+    const parts = [item.name];
+
+    if (item.quantity !== null && item.unit) {
+        parts.push(`× ${item.quantity} ${item.unit}`);
+    } else if (item.quantity !== null) {
+        parts.push(`× ${item.quantity}`);
+    } else if (item.unit) {
+        parts.push(item.unit);
+    }
+
+    return parts.join(' ');
+}
+
 type AssistanceStatusDrawerProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -75,6 +90,7 @@ type AssistanceStatusDrawerProps = {
     currentSubStatusId: number | null;
     currentRecordedAt: string | null;
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    assistanceItems: UserProgramAssistanceItem[];
     onUpdated?: () => void;
 };
 
@@ -89,16 +105,29 @@ export function AssistanceStatusDrawer({
     currentSubStatusId,
     currentRecordedAt,
     requestSubStatusOptions,
+    assistanceItems,
     onUpdated,
 }: AssistanceStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
     const [selectedSubStatusId, setSelectedSubStatusId] = useState('');
+    const [deliveredAssistanceItemId, setDeliveredAssistanceItemId] =
+        useState('');
     const [recordedAt, setRecordedAt] = useState<Date | undefined>(undefined);
     const [recordedAtOpen, setRecordedAtOpen] = useState(false);
     const [defaultRemark, setDefaultRemark] = useState('');
 
+    const selectedSubStatus = requestSubStatusOptions.find(
+        (option) => String(option.id) === selectedSubStatusId,
+    );
+    const isDeliveredStatus = selectedSubStatus?.request_status === 'Delivered';
+    const undeliveredItems = useMemo(
+        () => assistanceItems.filter((item) => !item.is_received),
+        [assistanceItems],
+    );
+
     const resetForm = () => {
         setSelectedSubStatusId('');
+        setDeliveredAssistanceItemId('');
         setRecordedAt(undefined);
         setRecordedAtOpen(false);
         setDefaultRemark('');
@@ -122,6 +151,18 @@ export function AssistanceStatusDrawer({
 
         populateForm();
     }, [open, currentSubStatusId, currentRecordedAt]);
+
+    useEffect(() => {
+        if (!isDeliveredStatus) {
+            setDeliveredAssistanceItemId('');
+
+            return;
+        }
+
+        if (undeliveredItems.length === 1) {
+            setDeliveredAssistanceItemId(String(undeliveredItems[0].id));
+        }
+    }, [isDeliveredStatus, selectedSubStatusId, undeliveredItems]);
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -147,11 +188,16 @@ export function AssistanceStatusDrawer({
                         ...data,
                         request_sub_status_id: Number(selectedSubStatusId),
                         recorded_at: formatDateForSubmit(recordedAt),
+                        delivered_assistance_item_id: isDeliveredStatus
+                            ? Number(deliveredAssistanceItemId)
+                            : undefined,
                     })}
                     onSuccess={() => {
                         resetForm();
                         onOpenChange(false);
-                        toast.success('Assistance status updated successfully.');
+                        toast.success(
+                            'Assistance status updated successfully.',
+                        );
                         onUpdated?.();
                     }}
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
@@ -189,6 +235,55 @@ export function AssistanceStatusDrawer({
                                     message={errors.request_sub_status_id}
                                 />
                             </div>
+
+                            {isDeliveredStatus ? (
+                                <div className="space-y-2">
+                                    <Label htmlFor="assistance-status-delivered-item">
+                                        Delivered item
+                                    </Label>
+                                    {undeliveredItems.length > 0 ? (
+                                        <Select
+                                            value={deliveredAssistanceItemId}
+                                            onValueChange={
+                                                setDeliveredAssistanceItemId
+                                            }
+                                        >
+                                            <SelectTrigger
+                                                id="assistance-status-delivered-item"
+                                                className={selectClassName}
+                                            >
+                                                <SelectValue placeholder="Select item delivered" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {undeliveredItems.map(
+                                                    (item) => (
+                                                        <SelectItem
+                                                            key={item.id}
+                                                            value={String(
+                                                                item.id,
+                                                            )}
+                                                        >
+                                                            {formatAssistanceItemLabel(
+                                                                item,
+                                                            )}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            All items on this assistance have
+                                            already been marked as delivered.
+                                        </p>
+                                    )}
+                                    <InputError
+                                        message={
+                                            errors.delivered_assistance_item_id
+                                        }
+                                    />
+                                </div>
+                            ) : null}
 
                             <div className="space-y-2">
                                 <Label htmlFor="assistance-status-recorded-at">
@@ -275,12 +370,13 @@ export function AssistanceStatusDrawer({
                                     disabled={
                                         processing ||
                                         !selectedSubStatusId ||
-                                        !recordedAt
+                                        !recordedAt ||
+                                        (isDeliveredStatus &&
+                                            (undeliveredItems.length === 0 ||
+                                                !deliveredAssistanceItemId))
                                     }
                                 >
-                                    {processing
-                                        ? 'Saving...'
-                                        : 'Update status'}
+                                    {processing ? 'Saving...' : 'Update status'}
                                 </Button>
                                 <DrawerClose asChild>
                                     <Button type="button" variant="outline">
