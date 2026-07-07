@@ -38,7 +38,7 @@ export type RequestStatusChartPoint = {
 export type DeliveredItemsChartPoint = {
     item: string;
     unit: string;
-    quantity: number;
+    count: number;
 };
 
 export type DashboardProgramRow = {

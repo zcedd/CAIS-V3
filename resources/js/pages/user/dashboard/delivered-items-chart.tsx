@@ -15,8 +15,8 @@ import type { DeliveredItemsChartPoint } from '@/types/dashboard';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 const chartConfig = {
-    quantity: {
-        label: 'Quantity',
+    count: {
+        label: 'Deliveries',
         color: 'var(--chart-1)',
     },
 } satisfies ChartConfig;
@@ -28,7 +28,7 @@ type DeliveredItemsChartProps = {
 export function DeliveredItemsChart({ data }: DeliveredItemsChartProps) {
     const chartData = data.map((point) => ({
         label: `${point.item} (${point.unit})`,
-        quantity: point.quantity,
+        count: point.count,
     }));
 
     return (
@@ -36,7 +36,7 @@ export function DeliveredItemsChart({ data }: DeliveredItemsChartProps) {
             <CardHeader>
                 <CardTitle>Delivered items</CardTitle>
                 <CardDescription>
-                    Top items delivered by quantity received
+                    Top items by number of deliveries
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -74,8 +74,8 @@ export function DeliveredItemsChart({ data }: DeliveredItemsChartProps) {
                             />
                             <ChartTooltip content={<ChartTooltipContent />} />
                             <Bar
-                                dataKey="quantity"
-                                fill="var(--color-quantity)"
+                                dataKey="count"
+                                fill="var(--color-count)"
                                 radius={4}
                             />
                         </BarChart>

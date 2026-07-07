@@ -6,6 +6,7 @@ use App\Actions\User\ApplyDashboardFilters;
 use App\Actions\User\JoinAssistanceStatusRelations;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Models\AssistanceRequestSubStatus;
 use App\Models\Department;
 use App\Models\Individual;
 use App\Models\Item;
@@ -155,7 +156,7 @@ class DashboardService
             ->orderByDesc('count')
             ->toBase()
             ->get()
-            ->map(static fn ($row): array => [
+            ->map(static fn($row): array => [
                 'status' => (string) $row->resolved_status,
                 'count' => (int) $row->count,
             ])
@@ -165,17 +166,17 @@ class DashboardService
 
     /**
      * @param  array<string, mixed>  $filters
-     * @return list<array{item: string, unit: string, quantity: int}>
+     * @return list<array{item: string, unit: string, count: int}>
      */
     public function deliveredItemsChart(Department $department, array $filters): array
     {
         $itemTable = (new Item)->getTable();
 
-        return DB::table((new AssistanceItem)->getTable().' as ai')
+        return DB::table((new AssistanceItem)->getTable() . ' as ai')
             ->joinSub(
-                $this->filteredAssistanceIdsSubquery($department, $filters),
-                'filtered_assistances',
-                'filtered_assistances.id',
+                $this->filteredDeliveredAssistanceIdsSubquery($department, $filters),
+                'delivered_assistances',
+                'delivered_assistances.id',
                 '=',
                 'ai.assistance_id',
             )
@@ -187,15 +188,15 @@ class DashboardService
                 'items.name as item',
                 'ium.name as unit',
             ])
-            ->selectRaw('SUM(ai.quantity) as quantity')
+            ->selectRaw('COUNT(ai.id) as count')
             ->groupBy('items.name', 'ium.name')
-            ->orderByDesc('quantity')
+            ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(static fn ($row): array => [
+            ->map(static fn($row): array => [
                 'item' => (string) $row->item,
                 'unit' => (string) ($row->unit ?? '—'),
-                'quantity' => (int) $row->quantity,
+                'count' => (int) $row->count,
             ])
             ->values()
             ->all();
@@ -278,7 +279,7 @@ class DashboardService
             ->where('department_id', $department->id)
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(static fn (Program $program): array => [
+            ->map(static fn(Program $program): array => [
                 'label' => $program->name,
                 'value' => (string) $program->id,
             ])
@@ -312,11 +313,11 @@ class DashboardService
      */
     private function sumDeliveredItems(Department $department, array $filters): int
     {
-        return (int) DB::table((new AssistanceItem)->getTable().' as ai')
+        return (int) DB::table((new AssistanceItem)->getTable() . ' as ai')
             ->joinSub(
-                $this->filteredAssistanceIdsSubquery($department, $filters),
-                'filtered_assistances',
-                'filtered_assistances.id',
+                $this->filteredDeliveredAssistanceIdsSubquery($department, $filters),
+                'delivered_assistances',
+                'delivered_assistances.id',
                 '=',
                 'ai.assistance_id',
             )
@@ -328,9 +329,12 @@ class DashboardService
     /**
      * @param  array<string, mixed>  $filters
      */
-    private function filteredAssistanceIdsSubquery(Department $department, array $filters): QueryBuilder
+    private function filteredDeliveredAssistanceIdsSubquery(Department $department, array $filters): QueryBuilder
     {
+        $deliveredSql = $this->isDeliveredSql();
+
         return $this->filteredAssistanceQuery($department, $filters)
+            ->whereRaw($deliveredSql)
             ->select('assistances.id')
             ->distinct()
             ->toBase();
@@ -361,8 +365,28 @@ class DashboardService
     private function isDeliveredSql(): string
     {
         $assistanceItemTable = (new AssistanceItem)->getTable();
+        $pivotTable = (new AssistanceRequestSubStatus)->getTable();
 
-        return "(rs.name = 'Delivered' OR (rs.name IS NULL AND assistances.date_delivered IS NOT NULL AND EXISTS (SELECT 1 FROM {$assistanceItemTable} ai WHERE ai.assistance_id = assistances.id AND ai.is_received = 1 AND ai.deleted_at IS NULL)))";
+        return "(EXISTS (
+            SELECT 1
+            FROM {$pivotTable} as arss_delivered
+            INNER JOIN request_sub_statuses as rss_delivered ON rss_delivered.id = arss_delivered.request_sub_status_id
+            INNER JOIN request_statuses as rs_delivered ON rs_delivered.id = rss_delivered.request_status_id
+            WHERE arss_delivered.assistance_id = assistances.id
+            AND rs_delivered.name = 'Delivered'
+            AND arss_delivered.deleted_at IS NULL
+        ) OR (NOT EXISTS (
+            SELECT 1
+            FROM {$pivotTable} as arss_any
+            WHERE arss_any.assistance_id = assistances.id
+            AND arss_any.deleted_at IS NULL
+        ) AND assistances.date_delivered IS NOT NULL AND EXISTS (
+            SELECT 1
+            FROM {$assistanceItemTable} ai
+            WHERE ai.assistance_id = assistances.id
+            AND ai.is_received = 1
+            AND ai.deleted_at IS NULL
+        )))";
     }
 
     private function resolvedStatusExpression(): string
