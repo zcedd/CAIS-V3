@@ -193,6 +193,11 @@ export function ProgramEditDrawer({
     );
 
     useEffect(() => {
+        setStartAt(parseProgramDateInput(program.start_at_input));
+        setEndAt(parseProgramDateInput(program.end_at_input));
+    }, [program.start_at_input, program.end_at_input]);
+
+    useEffect(() => {
         if (programEdit === undefined) {
             return;
         }
@@ -222,26 +227,38 @@ export function ProgramEditDrawer({
                 </DrawerHeader>
                 <Form
                     key={formKey}
-                    action={updateProgram.url({
+                    {...updateProgram.form.put({
                         department: department.slug,
                         program: program.id,
                     })}
-                    method="put"
                     disableWhileProcessing
+                    options={{
+                        preserveScroll: true,
+                        preserveState: false,
+                    }}
                     transform={(data) => ({
                         ...data,
                         start_at: formatDateForSubmit(startAt),
                         end_at: formatDateForSubmit(endAt),
-                        fund_ids: selectedFundIds,
-                        item_ids: selectedItemIds,
+                        is_closed: data.is_closed === '1' || data.is_closed === true,
+                        fund_ids: selectedFundIds.map(Number),
+                        item_ids: selectedItemIds.map(Number),
                     })}
                     onSuccess={() => {
                         onClose();
                         toast.success('Program updated successfully.');
                     }}
+                    onError={() => {
+                        toast.error(
+                            'Could not update the program. Please check the form for errors.',
+                        );
+                    }}
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
                 >
-                    {({ errors, processing }) => (
+                    {({ errors, processing }) => {
+                        const isEditDataReady = programEdit !== undefined;
+
+                        return (
                         <>
                             <div className="space-y-2">
                                 <Label htmlFor="edit-program-name">Name</Label>
@@ -336,8 +353,15 @@ export function ProgramEditDrawer({
                             </div>
 
                             <DrawerFooter className="px-0">
-                                <Button type="submit" disabled={processing}>
-                                    {processing ? 'Saving...' : 'Save changes'}
+                                <Button
+                                    type="submit"
+                                    disabled={processing || !isEditDataReady}
+                                >
+                                    {processing
+                                        ? 'Saving...'
+                                        : isEditDataReady
+                                          ? 'Save changes'
+                                          : 'Loading program data...'}
                                 </Button>
                                 <DrawerClose asChild>
                                     <Button type="button" variant="outline">
@@ -346,7 +370,8 @@ export function ProgramEditDrawer({
                                 </DrawerClose>
                             </DrawerFooter>
                         </>
-                    )}
+                        );
+                    }}
                 </Form>
             </DrawerContent>
         </Drawer>
