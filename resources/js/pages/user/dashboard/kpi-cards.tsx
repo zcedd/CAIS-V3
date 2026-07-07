@@ -68,3 +68,27 @@ export function KpiCards({ summary }: KpiCardsProps) {
         </div>
     );
 }
+
+export function KpiCardsSkeleton() {
+    return (
+        <div
+            className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+            data-tour="dashboard-kpis"
+            aria-busy="true"
+            aria-label="Loading dashboard statistics"
+        >
+            {kpis.map((kpi) => (
+                <Card key={kpi.key} size="sm">
+                    <CardHeader className="flex flex-row items-start justify-between gap-2">
+                        <div className="space-y-2">
+                            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                            <div className="h-9 w-16 animate-pulse rounded bg-muted" />
+                            <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                        </div>
+                        <kpi.icon className="size-5 shrink-0 text-muted-foreground/40" />
+                    </CardHeader>
+                </Card>
+            ))}
+        </div>
+    );
+}

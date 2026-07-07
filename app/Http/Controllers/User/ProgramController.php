@@ -91,9 +91,16 @@ class ProgramController extends Controller
         $modes = $request->modes();
 
         return Inertia::render('user/programs/show', [
-            'program' => fn () => $this->programService->showPayload($program),
-            'summary' => fn () => $this->programService->summary($program),
+            'program' => fn () => $this->programService->showOverviewPayload($program),
+            'summary' => Inertia::defer(
+                fn () => $this->programService->summary($program),
+                'kpis',
+            ),
             'department' => fn () => $department->only(['id', 'name', 'slug']),
+            'program_edit' => Inertia::defer(
+                fn () => $this->programService->editRelationsPayload($program),
+                'edit',
+            ),
             'funds' => Inertia::defer(
                 fn () => $this->programService->departmentFundsForSelect($department),
                 'edit',

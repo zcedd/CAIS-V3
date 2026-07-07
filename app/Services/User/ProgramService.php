@@ -120,8 +120,14 @@ class ProgramService
      */
     public function showPayload(Program $program): array
     {
-        $program->loadMissing(['department:id,name,slug', 'fund:id', 'item:id']);
+        return $this->showOverviewPayload($program);
+    }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function showOverviewPayload(Program $program): array
+    {
         return [
             ...$program->only([
                 'id',
@@ -133,9 +139,19 @@ class ProgramService
                 'is_organization',
                 'department_id',
             ]),
-            'department' => $program->department?->only(['id', 'name', 'slug']),
             'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
             'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
+        ];
+    }
+
+    /**
+     * @return array{fund_ids: list<int>, item_ids: list<int>}
+     */
+    public function editRelationsPayload(Program $program): array
+    {
+        $program->loadMissing(['fund:id', 'item:id']);
+
+        return [
             'fund_ids' => $program->fund->pluck('id')->values()->all(),
             'item_ids' => $program->item->pluck('id')->values()->all(),
         ];
