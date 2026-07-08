@@ -23,7 +23,7 @@ class UpdateProgramAssistanceStatus
      */
     public function __invoke(Assistance $assistance, array $validated): Assistance
     {
-        $recordedAt = Carbon::parse($validated['recorded_at'])->startOfDay();
+        $recordedAt = Carbon::parse($validated['recorded_at']);
 
         AssistanceRequestSubStatus::query()->create([
             'assistance_id' => $assistance->id,

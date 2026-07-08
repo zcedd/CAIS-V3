@@ -43,7 +43,7 @@ type DashboardPageProps = {
     deliveredItemsChart?: DeliveredItemsChartPoint[];
     programsTable?: DashboardProgramRow[];
     filterOptions?: DashboardFilterOptions;
-    filters: DashboardFilters;
+    filters?: DashboardFilters;
 };
 
 export default function UserDashboardIndex({
@@ -87,11 +87,11 @@ export default function UserDashboardIndex({
                 </div>
 
                 <WhenVisible
-                    data="filterOptions"
+                    data={['filterOptions', 'filters']}
                     buffer={200}
                     fallback={<DashboardFiltersSkeleton />}
                 >
-                    {filterOptions ? (
+                    {filterOptions && filters ? (
                         <DashboardFiltersBar
                             department={department}
                             filters={filters}

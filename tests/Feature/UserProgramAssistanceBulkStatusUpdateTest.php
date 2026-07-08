@@ -109,6 +109,68 @@ test('authenticated users can bulk update assistance status for their department
     }
 });
 
+test('bulk status update preserves the recorded at time', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $firstAssistance = createBulkStatusAssistance($program, $user, 'CAIS-003', 'Ana Reyes');
+    $secondAssistance = createBulkStatusAssistance($program, $user, 'CAIS-004', 'Pedro Cruz');
+
+    $inProgressSubStatusId = RequestSubStatus::query()
+        ->where('name', 'In Progress')
+        ->value('id');
+
+    $verifiedSubStatusId = RequestSubStatus::query()
+        ->where('name', 'Verified')
+        ->value('id');
+
+    foreach ([$firstAssistance, $secondAssistance] as $assistance) {
+        AssistanceRequestSubStatus::query()->create([
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $inProgressSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2026-05-01 00:00:00',
+        ]);
+    }
+
+    $this->actingAs($user)->patch(
+        route('user.programs.assistances.status.bulk-update', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]),
+        [
+            'assistance_ids' => [$firstAssistance->id, $secondAssistance->id],
+            'request_sub_status_id' => $verifiedSubStatusId,
+            'recorded_at' => '2026-05-10 14:30:00',
+            'remark' => 'Bulk verified in the afternoon',
+        ],
+    )->assertRedirect();
+
+    foreach ([$firstAssistance, $secondAssistance] as $assistance) {
+        $latestSubStatus = AssistanceRequestSubStatus::query()
+            ->where('assistance_id', $assistance->id)
+            ->where('request_sub_status_id', $verifiedSubStatusId)
+            ->latest('recorded_at')
+            ->first();
+
+        expect($latestSubStatus)->not->toBeNull()
+            ->and(Carbon::parse($latestSubStatus->recorded_at)->toDateTimeString())->toBe('2026-05-10 14:30:00');
+    }
+});
+
 test('bulk status update rejects delivered sub-status', function () {
     $department = Department::create(['name' => 'Department A']);
 

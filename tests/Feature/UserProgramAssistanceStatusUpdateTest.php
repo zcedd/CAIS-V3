@@ -98,6 +98,79 @@ test('authenticated users can update assistance status for their department prog
         ->and(Carbon::parse($latestSubStatus->recorded_at)->toDateString())->toBe('2026-05-10');
 });
 
+test('updating assistance status preserves the recorded at time', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $beneficiary = Beneficiary::create([
+        'cais_number' => 'CAIS-002',
+        'name' => 'Maria Santos',
+        'beneficiable_type' => 'App\\Models\\Individual',
+        'beneficiable_id' => 2,
+    ]);
+
+    $mode = ModeOfRequest::create(['name' => 'Walk In']);
+
+    $assistance = Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => '2026-05-01',
+        'remark' => null,
+        'user_id' => $user->id,
+    ]);
+
+    $inProgressSubStatusId = RequestSubStatus::query()
+        ->where('name', 'In Progress')
+        ->value('id');
+
+    $verifiedSubStatusId = RequestSubStatus::query()
+        ->where('name', 'Verified')
+        ->value('id');
+
+    AssistanceRequestSubStatus::query()->create([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => $inProgressSubStatusId,
+        'remark' => null,
+        'recorded_at' => '2026-05-01 00:00:00',
+    ]);
+
+    $this->actingAs($user)->patch(
+        route('user.programs.assistances.status.update', [
+            'department' => $department->slug,
+            'program' => $program->id,
+            'assistance' => $assistance->id,
+        ]),
+        [
+            'request_sub_status_id' => $verifiedSubStatusId,
+            'recorded_at' => '2026-05-10 14:30:00',
+            'remark' => 'Verified in the afternoon',
+        ],
+    )->assertRedirect();
+
+    $latestSubStatus = AssistanceRequestSubStatus::query()
+        ->where('assistance_id', $assistance->id)
+        ->where('request_sub_status_id', $verifiedSubStatusId)
+        ->latest('recorded_at')
+        ->first();
+
+    expect($latestSubStatus)->not->toBeNull()
+        ->and(Carbon::parse($latestSubStatus->recorded_at)->toDateTimeString())->toBe('2026-05-10 14:30:00');
+});
+
 test('updating to delivered status requires and marks the selected assistance items as received', function () {
     $department = Department::create(['name' => 'Department A']);
 

@@ -26,6 +26,8 @@ class DashboardService
 
     /**
      * @param  array{
+     *     year?: list<int>,
+     *     quarter?: list<string>,
      *     program?: list<int>,
      *     beneficiary_type?: list<string>,
      *     sex?: list<string>,
@@ -51,6 +53,8 @@ class DashboardService
     /**
      * @param  array<string, mixed>  $filters
      * @return array{
+     *     year: list<string>,
+     *     quarter: list<string>,
      *     program: list<string>,
      *     beneficiary_type: list<string>,
      *     sex: list<string>,
@@ -63,6 +67,8 @@ class DashboardService
     public function serializeFilters(array $filters): array
     {
         return [
+            'year' => array_map('strval', $filters['year'] ?? []),
+            'quarter' => $filters['quarter'] ?? [],
             'program' => array_map('strval', $filters['program'] ?? []),
             'beneficiary_type' => $filters['beneficiary_type'] ?? [],
             'sex' => $filters['sex'] ?? [],
@@ -156,7 +162,7 @@ class DashboardService
             ->orderByDesc('count')
             ->toBase()
             ->get()
-            ->map(static fn($row): array => [
+            ->map(static fn ($row): array => [
                 'status' => (string) $row->resolved_status,
                 'count' => (int) $row->count,
             ])
@@ -172,7 +178,7 @@ class DashboardService
     {
         $itemTable = (new Item)->getTable();
 
-        return DB::table((new AssistanceItem)->getTable() . ' as ai')
+        return DB::table((new AssistanceItem)->getTable().' as ai')
             ->joinSub(
                 $this->filteredDeliveredAssistanceIdsSubquery($department, $filters),
                 'delivered_assistances',
@@ -193,7 +199,7 @@ class DashboardService
             ->orderByDesc('count')
             ->limit(10)
             ->get()
-            ->map(static fn($row): array => [
+            ->map(static fn ($row): array => [
                 'item' => (string) $row->item,
                 'unit' => (string) ($row->unit ?? '—'),
                 'count' => (int) $row->count,
@@ -264,6 +270,8 @@ class DashboardService
 
     /**
      * @return array{
+     *     year: list<array{label: string, value: string}>,
+     *     quarter: list<array{label: string, value: string}>,
      *     programs: list<array{label: string, value: string}>,
      *     beneficiary_type: list<array{label: string, value: string}>,
      *     sex: list<array{label: string, value: string}>,
@@ -279,12 +287,34 @@ class DashboardService
             ->where('department_id', $department->id)
             ->orderBy('name')
             ->get(['id', 'name'])
-            ->map(static fn(Program $program): array => [
+            ->map(static fn (Program $program): array => [
                 'label' => $program->name,
                 'value' => (string) $program->id,
             ])
             ->values()
             ->all();
+
+        $years = Assistance::query()
+            ->join('programs', 'programs.id', '=', 'assistances.program_id')
+            ->where('programs.department_id', $department->id)
+            ->whereNotNull('assistances.date_requested')
+            ->pluck('assistances.date_requested')
+            ->map(static fn (string $date): int => (int) date('Y', strtotime($date)))
+            ->unique()
+            ->sortDesc()
+            ->values()
+            ->map(static fn (int $year): array => [
+                'label' => (string) $year,
+                'value' => (string) $year,
+            ])
+            ->all();
+
+        if ($years === []) {
+            $currentYear = now()->year;
+            $years = [
+                ['label' => (string) $currentYear, 'value' => (string) $currentYear],
+            ];
+        }
 
         $yesNo = [
             ['label' => 'Yes', 'value' => 'true'],
@@ -292,6 +322,13 @@ class DashboardService
         ];
 
         return [
+            'year' => $years,
+            'quarter' => [
+                ['label' => 'Q1 (Jan–Mar)', 'value' => '1'],
+                ['label' => 'Q2 (Apr–Jun)', 'value' => '2'],
+                ['label' => 'Q3 (Jul–Sep)', 'value' => '3'],
+                ['label' => 'Q4 (Oct–Dec)', 'value' => '4'],
+            ],
             'programs' => $programs,
             'beneficiary_type' => [
                 ['label' => 'Individual', 'value' => 'individual'],
@@ -313,7 +350,7 @@ class DashboardService
      */
     private function sumDeliveredItems(Department $department, array $filters): int
     {
-        return (int) DB::table((new AssistanceItem)->getTable() . ' as ai')
+        return (int) DB::table((new AssistanceItem)->getTable().' as ai')
             ->joinSub(
                 $this->filteredDeliveredAssistanceIdsSubquery($department, $filters),
                 'delivered_assistances',

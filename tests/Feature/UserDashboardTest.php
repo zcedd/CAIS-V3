@@ -76,6 +76,7 @@ function createAssistanceForIndividual(
     Item $item,
     bool $isReceived = false,
     int $quantity = 2,
+    ?string $dateRequested = null,
 ): Assistance {
     $beneficiary = Beneficiary::create([
         'cais_number' => $individual->cais_number,
@@ -90,7 +91,7 @@ function createAssistanceForIndividual(
         'program_id' => $program->id,
         'beneficiary_id' => $beneficiary->id,
         'mode_of_request_id' => $mode->id,
-        'date_requested' => now()->toDateString(),
+        'date_requested' => $dateRequested ?? now()->toDateString(),
         'date_delivered' => $isReceived ? now()->toDateString() : null,
         'user_id' => User::factory()->create()->id,
     ]);
@@ -128,7 +129,7 @@ test('department users can view the dashboard with expected props', function () 
     $this->actingAs($user)
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('user/dashboard/index')
             ->where('department.slug', $department->slug)
             ->where('summary.total_requests', 1)
@@ -136,6 +137,8 @@ test('department users can view the dashboard with expected props', function () 
             ->has('deliveredItemsChart')
             ->has('programsTable', 2)
             ->has('filterOptions.programs', 2)
+            ->where('filters.year', [])
+            ->where('filters.quarter', [])
             ->where('filters.program', []));
 });
 
@@ -154,9 +157,73 @@ test('program filter reduces total requests on the dashboard', function () {
             'program' => [$program->id],
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->where('summary.total_requests', 1)
             ->where('filters.program', [(string) $program->id]));
+});
+
+test('year filter returns only assistances requested in the selected year', function () {
+    ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $individualA = Individual::factory()->create(['sex' => 'Male']);
+    $individualB = Individual::factory()->create(['sex' => 'Female']);
+
+    createAssistanceForIndividual($program, $individualA, $item, dateRequested: '2024-02-15');
+    createAssistanceForIndividual($program, $individualB, $item, dateRequested: '2025-02-15');
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', [
+            'department' => $department->slug,
+            'year' => [2024],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('summary.total_requests', 1)
+            ->where('filters.year', ['2024']));
+});
+
+test('year and quarter filters combine to narrow assistances', function () {
+    ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $individualA = Individual::factory()->create(['sex' => 'Male']);
+    $individualB = Individual::factory()->create(['sex' => 'Female']);
+    $individualC = Individual::factory()->create(['sex' => 'Male']);
+
+    createAssistanceForIndividual($program, $individualA, $item, dateRequested: '2024-02-15');
+    createAssistanceForIndividual($program, $individualB, $item, dateRequested: '2025-02-15');
+    createAssistanceForIndividual($program, $individualC, $item, dateRequested: '2024-07-15');
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', [
+            'department' => $department->slug,
+            'year' => [2024],
+            'quarter' => ['1'],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('summary.total_requests', 1)
+            ->where('filters.year', ['2024'])
+            ->where('filters.quarter', ['1']));
+});
+
+test('quarter filter returns only assistances requested in the selected quarter', function () {
+    ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $individualA = Individual::factory()->create(['sex' => 'Male']);
+    $individualB = Individual::factory()->create(['sex' => 'Female']);
+
+    createAssistanceForIndividual($program, $individualA, $item, dateRequested: '2024-02-15');
+    createAssistanceForIndividual($program, $individualB, $item, dateRequested: '2024-07-15');
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', [
+            'department' => $department->slug,
+            'quarter' => ['1'],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('summary.total_requests', 1)
+            ->where('filters.quarter', ['1']));
 });
 
 test('sex filter returns only matching individual assistances', function () {
@@ -174,7 +241,7 @@ test('sex filter returns only matching individual assistances', function () {
             'sex' => ['Male'],
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->where('summary.total_requests', 1)
             ->where('filters.sex', ['Male']));
 });
@@ -231,9 +298,9 @@ test('request status chart counts each assistance once using latest status', fun
     $this->actingAs($user)
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->where('summary.total_requests', 1)
-            ->where('requestStatusChart', fn(array $chart): bool => collect($chart)->sum('count') === 1));
+            ->where('requestStatusChart', fn (array $chart): bool => collect($chart)->sum('count') === 1));
 });
 
 test('delivered requests count assistances with a delivered status in history even when latest status is closed', function () {
@@ -294,7 +361,7 @@ test('delivered requests count assistances with a delivered status in history ev
     $this->actingAs($user)
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->where('summary.delivered_requests', 1)
             ->where('summary.total_delivered_items', 5)
             ->where('summary.total_requests', 1));
@@ -311,7 +378,7 @@ test('delivered items are only counted for assistances with a delivered status',
     $this->actingAs($user)
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->where('summary.total_delivered_items', 5)
             ->where('summary.total_requests', 2));
 });
@@ -347,7 +414,7 @@ test('global dashboard shows empty state when user has no department', function 
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('dashboard')
             ->where('noDepartment', true));
 });

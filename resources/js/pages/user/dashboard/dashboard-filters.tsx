@@ -58,6 +58,22 @@ export function DashboardFiltersBar({
             data-tour="dashboard-filters"
         >
             <DataTableFacetedFilter
+                title="Year"
+                filterValue={filters.year}
+                options={filterOptions.year}
+                onFilterChange={(values) =>
+                    navigateWithFilters({ year: values })
+                }
+            />
+            <DataTableFacetedFilter
+                title="Quarter"
+                filterValue={filters.quarter}
+                options={filterOptions.quarter}
+                onFilterChange={(values) =>
+                    navigateWithFilters({ quarter: values })
+                }
+            />
+            <DataTableFacetedFilter
                 title="Program"
                 filterValue={filters.program}
                 options={filterOptions.programs}

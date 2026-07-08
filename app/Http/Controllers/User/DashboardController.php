@@ -28,7 +28,10 @@ class DashboardController extends Controller
                 fn () => $this->dashboardService->summary($department, $filters),
                 'kpis',
             ),
-            'filters' => $this->dashboardService->serializeFilters($filters),
+            'filters' => Inertia::defer(
+                fn () => $this->dashboardService->serializeFilters($filters),
+                'filters',
+            ),
             'filterOptions' => Inertia::defer(
                 fn () => $this->dashboardService->filterOptions($department),
                 'filters',
