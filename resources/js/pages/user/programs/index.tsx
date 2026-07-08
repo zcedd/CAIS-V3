@@ -349,7 +349,10 @@ export default function UserProgramsIndex({
                     </div>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div
+                        className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
+                        data-tour="programs-filters"
+                    >
                         <Input
                             type="text"
                             name="search"
@@ -402,6 +405,7 @@ export default function UserProgramsIndex({
                         type="button"
                         disabled={!canCreate}
                         onClick={() => setCreateOpen(true)}
+                        data-tour="programs-create"
                     >
                         <Plus className="size-4" />
                         Create program

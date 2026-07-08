@@ -14,10 +14,13 @@ import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
 
 export type UserProgramAssistanceItem = {
+    id: number;
+    item_id: number;
     name: string;
     quantity: number | null;
     unit: string | null;
     specification: string | null;
+    is_received: boolean;
 };
 
 function formatItemAmount(item: UserProgramAssistanceItem): string | null {

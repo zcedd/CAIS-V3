@@ -52,7 +52,11 @@ export function DashboardFiltersBar({
         filters.beneficiary_type[0] === 'organization';
 
     return (
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+            className="flex flex-wrap items-center gap-2"
+            id="filter-bar"
+            data-tour="dashboard-filters"
+        >
             <DataTableFacetedFilter
                 title="Program"
                 filterValue={filters.program}
@@ -117,9 +121,7 @@ export function DashboardFiltersBar({
                 <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                        navigateWithFilters(EMPTY_DASHBOARD_FILTERS)
-                    }
+                    onClick={() => navigateWithFilters(EMPTY_DASHBOARD_FILTERS)}
                 >
                     <RotateCcw className="size-4" />
                     Reset

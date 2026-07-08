@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('assistance_item', function (Blueprint $table) {
-            $table->unsignedInteger('quantity')->nullable()->after('is_received');
+            $table->unsignedInteger('quantity')->default(1)->after('is_received');
         });
     }
 

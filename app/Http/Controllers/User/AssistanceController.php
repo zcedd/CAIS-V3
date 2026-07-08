@@ -206,7 +206,7 @@ class AssistanceController extends Controller
                 'date_denied' => $formatDate($assistance->date_denied),
                 'remark' => $assistance->remark,
                 'items' => $assistance->assistanceItem
-                    ->map(static fn ($assistanceItem): array => [
+                    ->map(static fn($assistanceItem): array => [
                         'name' => $assistanceItem->item?->name ?? '—',
                         'quantity' => $assistanceItem->quantity,
                         'unit' => $assistanceItem->item?->unitMeasurement?->name,
@@ -216,8 +216,8 @@ class AssistanceController extends Controller
                     ->values()
                     ->all(),
                 'status_history' => $assistance->requestSubStatus
-                    ->sortBy(static fn ($subStatus) => $subStatus->pivot->recorded_at)
-                    ->map(static fn ($subStatus): array => [
+                    ->sortBy(static fn($subStatus) => $subStatus->pivot->recorded_at)
+                    ->map(static fn($subStatus): array => [
                         'id' => (int) $subStatus->pivot->id,
                         'name' => $subStatus->name,
                         'parent_status' => $subStatus->requestStatus?->name,

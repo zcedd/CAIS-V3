@@ -38,7 +38,7 @@ export type RequestStatusChartPoint = {
 export type DeliveredItemsChartPoint = {
     item: string;
     unit: string;
-    quantity: number;
+    count: number;
 };
 
 export type DashboardProgramRow = {
@@ -63,7 +63,11 @@ export const DASHBOARD_PARTIAL_PROPS = [
     'deliveredItemsChart',
     'programsTable',
     'filters',
-    'filterOptions',
+] as const;
+
+export const DASHBOARD_CHART_DEFER_PROPS = [
+    'requestStatusChart',
+    'deliveredItemsChart',
 ] as const;
 
 export function buildDashboardQuery(

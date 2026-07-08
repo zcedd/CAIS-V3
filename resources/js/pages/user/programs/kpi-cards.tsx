@@ -4,23 +4,23 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import type { DashboardSummary } from '@/types/dashboard';
+import type { ProgramSummary } from '@/types/program';
 import {
     CheckCircle2,
     ClipboardList,
+    Clock,
     Package,
-    FolderKanban,
 } from 'lucide-react';
 
-type KpiCardsProps = {
-    summary: DashboardSummary;
+type ProgramKpiCardsProps = {
+    summary: ProgramSummary;
 };
 
 const kpis = [
     {
         key: 'total_requests' as const,
         label: 'Total requests',
-        description: 'Assistance requests in scope',
+        description: 'Assistance requests for this program',
         icon: ClipboardList,
     },
     {
@@ -30,24 +30,24 @@ const kpis = [
         icon: CheckCircle2,
     },
     {
+        key: 'in_progress_requests' as const,
+        label: 'In progress',
+        description: 'Requests not yet terminal',
+        icon: Clock,
+    },
+    {
         key: 'total_delivered_items' as const,
         label: 'Delivered items',
         description: 'Total quantity received',
         icon: Package,
     },
-    {
-        key: 'active_programs' as const,
-        label: 'Active programs',
-        description: 'Open programs in department',
-        icon: FolderKanban,
-    },
 ];
 
-export function KpiCards({ summary }: KpiCardsProps) {
+export function ProgramKpiCards({ summary }: ProgramKpiCardsProps) {
     return (
         <div
             className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-            data-tour="dashboard-kpis"
+            data-tour="program-kpis"
         >
             {kpis.map((kpi) => (
                 <Card key={kpi.key} size="sm">
@@ -69,13 +69,13 @@ export function KpiCards({ summary }: KpiCardsProps) {
     );
 }
 
-export function KpiCardsSkeleton() {
+export function ProgramKpiCardsSkeleton() {
     return (
         <div
             className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
-            data-tour="dashboard-kpis"
+            data-tour="program-kpis"
             aria-busy="true"
-            aria-label="Loading dashboard statistics"
+            aria-label="Loading program statistics"
         >
             {kpis.map((kpi) => (
                 <Card key={kpi.key} size="sm">

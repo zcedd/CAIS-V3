@@ -24,20 +24,26 @@ class DashboardController extends Controller
 
         return Inertia::render('user/dashboard/index', [
             'department' => $department->only(['id', 'name', 'slug']),
-            'summary' => fn () => $this->dashboardService->summary($department, $filters),
+            'summary' => Inertia::defer(
+                fn () => $this->dashboardService->summary($department, $filters),
+                'kpis',
+            ),
             'filters' => $this->dashboardService->serializeFilters($filters),
-            'filterOptions' => fn () => $this->dashboardService->filterOptions($department),
+            'filterOptions' => Inertia::defer(
+                fn () => $this->dashboardService->filterOptions($department),
+                'filters',
+            ),
             'requestStatusChart' => Inertia::defer(
                 fn () => $this->dashboardService->requestStatusChart($department, $filters),
-                'dashboard',
+                'charts',
             ),
             'deliveredItemsChart' => Inertia::defer(
                 fn () => $this->dashboardService->deliveredItemsChart($department, $filters),
-                'dashboard',
+                'charts',
             ),
             'programsTable' => Inertia::defer(
                 fn () => $this->dashboardService->programsTable($department, $filters),
-                'dashboard',
+                'programs',
             ),
         ]);
     }

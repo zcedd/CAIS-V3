@@ -10,6 +10,7 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
+use App\Services\User\DashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -127,7 +128,7 @@ test('department users can view the dashboard with expected props', function () 
     $this->actingAs($user)
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->component('user/dashboard/index')
             ->where('department.slug', $department->slug)
             ->where('summary.total_requests', 1)
@@ -153,7 +154,7 @@ test('program filter reduces total requests on the dashboard', function () {
             'program' => [$program->id],
         ]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->where('summary.total_requests', 1)
             ->where('filters.program', [(string) $program->id]));
 });
@@ -173,7 +174,7 @@ test('sex filter returns only matching individual assistances', function () {
             'sex' => ['Male'],
         ]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->where('summary.total_requests', 1)
             ->where('filters.sex', ['Male']));
 });
@@ -230,12 +231,76 @@ test('request status chart counts each assistance once using latest status', fun
     $this->actingAs($user)
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->where('summary.total_requests', 1)
-            ->where('requestStatusChart', fn (array $chart): bool => collect($chart)->sum('count') === 1));
+            ->where('requestStatusChart', fn(array $chart): bool => collect($chart)->sum('count') === 1));
 });
 
-test('delivered items sum respects is received flag', function () {
+test('delivered requests count assistances with a delivered status in history even when latest status is closed', function () {
+    ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $individual = Individual::factory()->create(['sex' => 'Male']);
+    $assistance = createAssistanceForIndividual($program, $individual, $item, isReceived: true, quantity: 5);
+
+    $deliveredStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'Delivered',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $closedStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'Closed',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $deliveredSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Successfully Delivered',
+        'request_status_id' => $deliveredStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $closedSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Closed after Resolution',
+        'request_status_id' => $closedStatusId,
+        'description' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    DB::table('assistance_request_sub_status')->insert([
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $deliveredSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-01 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+        [
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => $closedSubStatusId,
+            'remark' => null,
+            'recorded_at' => '2024-02-02 10:00:00',
+            'created_at' => now(),
+            'updated_at' => now(),
+            'deleted_at' => null,
+        ],
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn(Assert $page) => $page
+            ->where('summary.delivered_requests', 1)
+            ->where('summary.total_delivered_items', 5)
+            ->where('summary.total_requests', 1));
+});
+
+test('delivered items are only counted for assistances with a delivered status', function () {
     ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
 
     $individual = Individual::factory()->create(['sex' => 'Male']);
@@ -246,9 +311,24 @@ test('delivered items sum respects is received flag', function () {
     $this->actingAs($user)
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->where('summary.total_delivered_items', 5)
             ->where('summary.total_requests', 2));
+});
+
+test('delivered items chart counts delivery lines per item not quantities', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $individual = Individual::factory()->create(['sex' => 'Male']);
+
+    createAssistanceForIndividual($program, $individual, $item, isReceived: true, quantity: 5);
+    createAssistanceForIndividual($program, $individual, $item, isReceived: true, quantity: 3);
+
+    $chart = app(DashboardService::class)->deliveredItemsChart($department, []);
+
+    expect($chart)->toHaveCount(1)
+        ->and($chart[0]['item'])->toBe('Rice')
+        ->and($chart[0]['count'])->toBe(2);
 });
 
 test('global dashboard redirects users with a department to the department dashboard', function () {
@@ -267,7 +347,7 @@ test('global dashboard shows empty state when user has no department', function 
     $this->actingAs($user)
         ->get(route('dashboard'))
         ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
+        ->assertInertia(fn(Assert $page) => $page
             ->component('dashboard')
             ->where('noDepartment', true));
 });

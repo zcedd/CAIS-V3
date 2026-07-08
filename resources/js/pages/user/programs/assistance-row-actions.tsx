@@ -199,6 +199,7 @@ export function AssistanceDataTableRowActions({
                 currentSubStatusId={record.request_sub_status_id}
                 currentRecordedAt={record.request_sub_status_recorded_at}
                 requestSubStatusOptions={requestSubStatusOptions}
+                assistanceItems={record.items}
                 onUpdated={onAssistanceUpdated}
             />
 

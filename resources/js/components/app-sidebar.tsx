@@ -83,7 +83,7 @@ export function AppSidebar() {
     }, [props.auth.user]);
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
+        <Sidebar collapsible="icon" variant="inset" data-tour="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -97,6 +97,7 @@ export function AppSidebar() {
                                         : dashboard()
                                 }
                                 prefetch
+                                data-tour="sidebar-logo"
                             >
                                 <AppLogo />
                             </Link>

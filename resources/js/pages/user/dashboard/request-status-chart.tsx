@@ -45,7 +45,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
     }));
 
     return (
-        <Card className="h-full">
+        <Card className="h-full" data-tour="dashboard-requests-status-chart">
             <CardHeader>
                 <CardTitle>Request status</CardTitle>
                 <CardDescription>

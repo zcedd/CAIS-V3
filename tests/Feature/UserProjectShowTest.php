@@ -64,7 +64,141 @@ test('authenticated users can view a program in their department', function () {
         ->where('program.descriptions', 'Full description')
         ->where('department.id', $department->id)
         ->where('department.slug', $department->slug)
+        ->where('summary.total_requests', 0)
+        ->where('summary.delivered_requests', 0)
+        ->where('summary.in_progress_requests', 0)
+        ->where('summary.total_delivered_items', 0)
         ->has('assistances.data', 0));
+});
+
+test('program show page summary reflects assistances for the program only', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Full description',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $otherProgram = Program::create([
+        'name' => 'Beta Program',
+        'descriptions' => 'Other program',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $unit = ItemUnitMeasurement::create(['name' => 'kg']);
+
+    $item = Item::create([
+        'name' => 'Rice',
+        'department_id' => $department->id,
+        'item_unit_measurement_id' => $unit->id,
+    ]);
+
+    $inProgressBeneficiaryId = DB::table('beneficiaries')->insertGetId([
+        'cais_number' => 'CAIS-001',
+        'name' => 'Juan Dela Cruz',
+        'beneficiable_type' => Individual::class,
+        'beneficiable_id' => 1,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $inProgressAssistance = Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $inProgressBeneficiaryId,
+        'mode_of_request_id' => null,
+        'date_requested' => now()->toDateString(),
+        'date_verified' => null,
+        'date_denied' => null,
+        'date_delivered' => null,
+        'user_id' => $user->id,
+    ]);
+
+    AssistanceItem::create([
+        'assistance_id' => $inProgressAssistance->id,
+        'item_id' => $item->id,
+        'quantity' => 1,
+        'is_received' => false,
+    ]);
+
+    $deliveredBeneficiaryId = DB::table('beneficiaries')->insertGetId([
+        'cais_number' => 'CAIS-002',
+        'name' => 'Maria Santos',
+        'beneficiable_type' => Individual::class,
+        'beneficiable_id' => 2,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $deliveredAssistance = Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $deliveredBeneficiaryId,
+        'mode_of_request_id' => null,
+        'date_requested' => now()->toDateString(),
+        'date_verified' => null,
+        'date_denied' => null,
+        'date_delivered' => now()->toDateString(),
+        'user_id' => $user->id,
+    ]);
+
+    AssistanceItem::create([
+        'assistance_id' => $deliveredAssistance->id,
+        'item_id' => $item->id,
+        'quantity' => 3,
+        'is_received' => true,
+    ]);
+
+    $otherBeneficiaryId = DB::table('beneficiaries')->insertGetId([
+        'cais_number' => 'CAIS-003',
+        'name' => 'Other Beneficiary',
+        'beneficiable_type' => Individual::class,
+        'beneficiable_id' => 3,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $otherAssistance = Assistance::create([
+        'program_id' => $otherProgram->id,
+        'beneficiary_id' => $otherBeneficiaryId,
+        'mode_of_request_id' => null,
+        'date_requested' => now()->toDateString(),
+        'date_verified' => null,
+        'date_denied' => null,
+        'date_delivered' => now()->toDateString(),
+        'user_id' => $user->id,
+    ]);
+
+    AssistanceItem::create([
+        'assistance_id' => $otherAssistance->id,
+        'item_id' => $item->id,
+        'quantity' => 10,
+        'is_received' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('user/programs/show')
+            ->where('summary.total_requests', 2)
+            ->where('summary.delivered_requests', 1)
+            ->where('summary.in_progress_requests', 1)
+            ->where('summary.total_delivered_items', 3));
 });
 
 test('program show page includes assistances for the program', function () {

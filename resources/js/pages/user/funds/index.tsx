@@ -169,7 +169,10 @@ export default function UserFundsIndex({
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <div
+                        className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
+                        data-tour="funds-filters"
+                    >
                         <Input
                             type="text"
                             name="search"
@@ -213,6 +216,7 @@ export default function UserFundsIndex({
                         type="button"
                         disabled={!canManage}
                         onClick={() => setCreateOpen(true)}
+                        data-tour="funds-create"
                     >
                         <Plus className="size-4" />
                         Create fund
