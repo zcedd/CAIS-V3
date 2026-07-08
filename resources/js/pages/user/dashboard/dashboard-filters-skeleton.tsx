@@ -5,7 +5,7 @@ export function DashboardFiltersSkeleton() {
             aria-busy="true"
             aria-label="Loading filters"
         >
-            {Array.from({ length: 7 }).map((_, index) => (
+            {Array.from({ length: 9 }).map((_, index) => (
                 <div
                     key={index}
                     className="h-8 w-24 animate-pulse rounded-md bg-muted"

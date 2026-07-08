@@ -4,6 +4,8 @@ export type DashboardFilterOption = {
 };
 
 export type DashboardFilters = {
+    year: string[];
+    quarter: string[];
     program: string[];
     beneficiary_type: string[];
     sex: string[];
@@ -14,6 +16,8 @@ export type DashboardFilters = {
 };
 
 export type DashboardFilterOptions = {
+    year: DashboardFilterOption[];
+    quarter: DashboardFilterOption[];
     programs: DashboardFilterOption[];
     beneficiary_type: DashboardFilterOption[];
     sex: DashboardFilterOption[];
@@ -75,6 +79,14 @@ export function buildDashboardQuery(
 ): Record<string, string | string[]> {
     const query: Record<string, string | string[]> = {};
 
+    if (filters.year.length > 0) {
+        query.year = filters.year;
+    }
+
+    if (filters.quarter.length > 0) {
+        query.quarter = filters.quarter;
+    }
+
     if (filters.program.length > 0) {
         query.program = filters.program;
     }
@@ -107,6 +119,8 @@ export function buildDashboardQuery(
 }
 
 export const EMPTY_DASHBOARD_FILTERS: DashboardFilters = {
+    year: [],
+    quarter: [],
     program: [],
     beneficiary_type: [],
     sex: [],

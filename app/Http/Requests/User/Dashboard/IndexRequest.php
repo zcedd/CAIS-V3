@@ -25,6 +25,10 @@ class IndexRequest extends FormRequest
         $departmentId = $department instanceof Department ? $department->id : null;
 
         return [
+            'year' => ['nullable', 'array'],
+            'year.*' => ['integer', 'min:1900', 'max:'.(now()->year + 1)],
+            'quarter' => ['nullable', 'array'],
+            'quarter.*' => ['string', Rule::in(['1', '2', '3', '4'])],
             'program' => ['nullable', 'array'],
             'program.*' => [
                 'integer',
@@ -49,6 +53,8 @@ class IndexRequest extends FormRequest
 
     /**
      * @return array{
+     *     year: list<int>,
+     *     quarter: list<string>,
      *     program: list<int>,
      *     beneficiary_type: list<string>,
      *     sex: list<string>,
@@ -61,6 +67,8 @@ class IndexRequest extends FormRequest
     public function filters(): array
     {
         return [
+            'year' => array_map('intval', $this->validated('year') ?? []),
+            'quarter' => array_values($this->validated('quarter') ?? []),
             'program' => array_map('intval', $this->validated('program') ?? []),
             'beneficiary_type' => array_values($this->validated('beneficiary_type') ?? []),
             'sex' => array_values($this->validated('sex') ?? []),
