@@ -12,6 +12,7 @@ import {
     DrawerHeader,
     DrawerTitle,
 } from '@/components/ui/drawer';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Popover,
@@ -38,7 +39,7 @@ const selectClassName = cn(
     'h-9 w-full min-w-0 rounded-4xl border border-input bg-input/30 px-3 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
 );
 
-function formatDateForSubmit(date: Date | undefined): string | undefined {
+function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
     if (!date) {
         return undefined;
     }
@@ -46,8 +47,34 @@ function formatDateForSubmit(date: Date | undefined): string | undefined {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
 
-    return `${year}-${month}-${day}`;
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function formatTimeForInput(date: Date): string {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${hours}:${minutes}`;
+}
+
+function formatRecordedAtDisplay(date: Date): string {
+    return date.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
+
+function applyTimeToDate(date: Date, timeValue: string): Date {
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    const next = new Date(date);
+
+    next.setHours(hours ?? 0, minutes ?? 0, 0, 0);
+
+    return next;
 }
 
 type AssistanceBulkStatusDrawerProps = {
@@ -133,7 +160,7 @@ export function AssistanceBulkStatusDrawer({
                         ...data,
                         assistance_ids: assistanceIds,
                         request_sub_status_id: Number(selectedSubStatusId),
-                        recorded_at: formatDateForSubmit(recordedAt),
+                        recorded_at: formatDateTimeForSubmit(recordedAt),
                     })}
                     onSuccess={() => {
                         resetForm();
@@ -193,8 +220,10 @@ export function AssistanceBulkStatusDrawer({
                                             className="w-full justify-between font-normal"
                                         >
                                             {recordedAt
-                                                ? recordedAt.toLocaleDateString()
-                                                : 'Select date'}
+                                                ? formatRecordedAtDisplay(
+                                                      recordedAt,
+                                                  )
+                                                : 'Select date and time'}
                                             <ChevronDownIcon className="size-4 opacity-50" />
                                         </Button>
                                     </PopoverTrigger>
@@ -213,7 +242,7 @@ export function AssistanceBulkStatusDrawer({
                                                 className="flex items-center gap-2 bg-transparent"
                                             >
                                                 <CalendarDays className="size-4" />
-                                                Today
+                                                Now
                                             </Button>
                                             <Button
                                                 type="button"
@@ -233,10 +262,54 @@ export function AssistanceBulkStatusDrawer({
                                             selected={recordedAt}
                                             captionLayout="dropdown"
                                             onSelect={(date) => {
-                                                setRecordedAt(date);
-                                                setRecordedAtOpen(false);
+                                                if (!date) {
+                                                    setRecordedAt(undefined);
+
+                                                    return;
+                                                }
+
+                                                const current =
+                                                    recordedAt ?? new Date();
+
+                                                setRecordedAt(
+                                                    applyTimeToDate(
+                                                        date,
+                                                        formatTimeForInput(
+                                                            current,
+                                                        ),
+                                                    ),
+                                                );
                                             }}
                                         />
+                                        <div className="border-t p-3">
+                                            <Label htmlFor="bulk-assistance-status-recorded-at-time">
+                                                Time
+                                            </Label>
+                                            <Input
+                                                id="bulk-assistance-status-recorded-at-time"
+                                                type="time"
+                                                className="mt-2 bg-background"
+                                                value={
+                                                    recordedAt
+                                                        ? formatTimeForInput(
+                                                              recordedAt,
+                                                          )
+                                                        : ''
+                                                }
+                                                onChange={(event) => {
+                                                    const base =
+                                                        recordedAt ??
+                                                        new Date();
+
+                                                    setRecordedAt(
+                                                        applyTimeToDate(
+                                                            base,
+                                                            event.target.value,
+                                                        ),
+                                                    );
+                                                }}
+                                            />
+                                        </div>
                                     </PopoverContent>
                                 </Popover>
                                 <InputError message={errors.recorded_at} />
