@@ -128,8 +128,9 @@ export function createUserProgramAssistanceColumns({
                         (table.getIsSomePageRowsSelected() && 'indeterminate')
                     }
                     onCheckedChange={(value) =>
-                        table.toggleAllPageRowsSelected(!!value)
+                        table.toggleAllPageRowsSelected(value === true)
                     }
+                    onClick={(event) => event.stopPropagation()}
                     aria-label="Select all"
                     className="translate-y-[2px]"
                 />
@@ -137,7 +138,10 @@ export function createUserProgramAssistanceColumns({
             cell: ({ row }) => (
                 <Checkbox
                     checked={row.getIsSelected()}
-                    onCheckedChange={(value) => row.toggleSelected(!!value)}
+                    onCheckedChange={(value) =>
+                        row.toggleSelected(value === true)
+                    }
+                    onClick={(event) => event.stopPropagation()}
                     aria-label="Select row"
                     className="translate-y-[2px]"
                 />
