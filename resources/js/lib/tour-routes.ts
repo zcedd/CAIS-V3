@@ -77,3 +77,20 @@ export function resolveTourRouteKey(pathname: string): string | null {
 
     return null;
 }
+
+export function resolveTourCompletionKey(pathname: string): string | null {
+    const routeKey = resolveTourRouteKey(pathname);
+
+    if (!routeKey) {
+        return null;
+    }
+
+    const segments = normalizePath(pathname).split('/').filter(Boolean);
+    const department = segments[0];
+
+    if (!department) {
+        return null;
+    }
+
+    return `${department}/${routeKey}`;
+}

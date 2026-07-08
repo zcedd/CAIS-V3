@@ -5,7 +5,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ACTIONS, EVENTS, ORIGIN, STATUS, useJoyride } from 'react-joyride';
 import type { EventData, Step } from 'react-joyride';
 import { AppTourTooltip } from '@/components/app-tour-tooltip';
-import { normalizePath, resolveTourRouteKey } from '@/lib/tour-routes';
+import {
+    normalizePath,
+    resolveTourCompletionKey,
+    resolveTourRouteKey,
+} from '@/lib/tour-routes';
 
 const TOUR_STORAGE_PREFIX = 'cais-tour-completed:';
 const SHARED_TOUR_KEY = `${TOUR_STORAGE_PREFIX}shared`;
@@ -132,6 +136,37 @@ function hasCompletedSharedTour(): boolean {
     return localStorage.getItem(SHARED_TOUR_KEY) === '1';
 }
 
+function isTourForced(): boolean {
+    if (typeof window === 'undefined') {
+        return false;
+    }
+
+    return new URLSearchParams(window.location.search).get('tour') === '1';
+}
+
+function hasCompletedPageTour(completionKey: string | null): boolean {
+    if (completionKey === null || typeof window === 'undefined') {
+        return false;
+    }
+
+    return localStorage.getItem(`${TOUR_STORAGE_PREFIX}${completionKey}`) === '1';
+}
+
+function shouldStartTour(
+    completionKey: string | null,
+    tourDismissed: boolean,
+): boolean {
+    if (
+        typeof window === 'undefined' ||
+        tourDismissed ||
+        completionKey === null
+    ) {
+        return false;
+    }
+
+    return isTourForced() || !hasCompletedPageTour(completionKey);
+}
+
 function assembleSteps(pathname: string, includeShared: boolean): Step[] {
     const pageSteps = selectPageSteps(pathname);
 
@@ -165,6 +200,11 @@ export function AppTour() {
         return normalizePath(pathOnly);
     }, [page.url]);
 
+    const completionKey = useMemo(
+        () => resolveTourCompletionKey(pathname),
+        [pathname],
+    );
+
     const includeShared = useMemo(() => !hasCompletedSharedTour(), [pathname]);
 
     const assembledSteps = useMemo(
@@ -181,34 +221,45 @@ export function AppTour() {
     });
 
     const includedSharedRef = useRef(false);
+    const tourDismissedRef = useRef(
+        hasCompletedPageTour(completionKey) && !isTourForced(),
+    );
+
+    const [tourDismissed, setTourDismissed] = useState(
+        () => tourDismissedRef.current,
+    );
 
     const steps = useMemo(
         () => (stepState.pathname === pathname ? stepState.steps : []),
         [pathname, stepState],
     );
 
-    const shouldRun = useMemo(() => {
-        if (typeof window === 'undefined') {
-            return false;
-        }
+    const shouldRun = useMemo(
+        () => shouldStartTour(completionKey, tourDismissed),
+        [completionKey, tourDismissed],
+    );
 
-        const isForcedTour =
-            new URLSearchParams(window.location.search).get('tour') === '1';
-        const completionKey = `${TOUR_STORAGE_PREFIX}${pathname}`;
-        const isCompleted = localStorage.getItem(completionKey) === '1';
-
-        return isForcedTour || !isCompleted;
-    }, [pathname]);
+    const dismissTour = () => {
+        tourDismissedRef.current = true;
+        setTourDismissed(true);
+    };
 
     const handleCallback = (data: EventData) => {
         const { status, type, action, origin } = data;
 
         const markTourCompleted = () => {
-            localStorage.setItem(`${TOUR_STORAGE_PREFIX}${pathname}`, '1');
+            if (completionKey !== null) {
+                localStorage.setItem(
+                    `${TOUR_STORAGE_PREFIX}${completionKey}`,
+                    '1',
+                );
+            }
 
             if (includedSharedRef.current) {
                 localStorage.setItem(SHARED_TOUR_KEY, '1');
             }
+
+            dismissTour();
         };
 
         if (
@@ -246,11 +297,19 @@ export function AppTour() {
     });
 
     useEffect(() => {
+        const dismissed =
+            hasCompletedPageTour(completionKey) && !isTourForced();
+
+        tourDismissedRef.current = dismissed;
+        setTourDismissed(dismissed);
+    }, [completionKey]);
+
+    useEffect(() => {
         let cancelled = false;
         const startedAt = Date.now();
 
         const resolveSteps = () => {
-            if (cancelled) {
+            if (cancelled || tourDismissedRef.current) {
                 return;
             }
 
@@ -279,14 +338,14 @@ export function AppTour() {
     }, [assembledSteps, includeShared, pathname]);
 
     useEffect(() => {
-        if (!shouldRun || steps.length === 0) {
+        if (!shouldRun || steps.length === 0 || tourDismissedRef.current) {
             controls.stop();
 
             return;
         }
 
         controls.start();
-    }, [controls, shouldRun, steps]);
+    }, [controls, shouldRun, steps, tourDismissed]);
 
     if (steps.length === 0) {
         return null;
