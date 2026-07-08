@@ -14,6 +14,7 @@ import type {
     AssistanceRequestSubStatusOption,
     AssistanceSelectOption,
     AssistanceTableFilters,
+    AssistanceTransferProgramOption,
     ModeFilterOption,
     StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
@@ -101,6 +102,7 @@ export default function UserProgramShow({
     mode_of_request_options,
     program_items,
     request_sub_status_options,
+    transfer_program_options,
 }: {
     program: ProgramDetail;
     summary?: ProgramSummary;
@@ -121,6 +123,7 @@ export default function UserProgramShow({
     organization_options?: AssistanceSelectOption[];
     program_items?: AssistanceProgramItemOption[];
     request_sub_status_options?: AssistanceRequestSubStatusOption[];
+    transfer_program_options?: AssistanceTransferProgramOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
@@ -257,6 +260,11 @@ export default function UserProgramShow({
     const heading = program.name;
     const canEdit = Boolean(department?.slug);
     const canCreateAssistance = Boolean(department?.slug && !program.is_closed);
+    const canTransferAssistance = Boolean(
+        department?.slug &&
+            !program.is_closed &&
+            (transfer_program_options?.length ?? 0) > 0,
+    );
 
     const closeEditDrawer = useCallback(() => {
         setEditOpen(false);
@@ -361,6 +369,7 @@ export default function UserProgramShow({
                                     mode_of_request_options,
                                     program_items,
                                     request_sub_status_options,
+                                    transfer_program_options,
                                 };
 
                                 if (!isAssistancesTableReady(tableProps)) {
@@ -397,6 +406,12 @@ export default function UserProgramShow({
                                             }
                                             requestSubStatusOptions={
                                                 tableProps.request_sub_status_options
+                                            }
+                                            transferProgramOptions={
+                                                tableProps.transfer_program_options
+                                            }
+                                            canTransferAssistance={
+                                                canTransferAssistance
                                             }
                                             onVisitTable={visitTable}
                                         />

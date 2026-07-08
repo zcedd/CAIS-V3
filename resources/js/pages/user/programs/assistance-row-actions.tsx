@@ -20,17 +20,19 @@ import {
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import { AssistanceEditDrawer } from '@/pages/user/programs/assistance-edit-drawer';
 import { AssistanceStatusDrawer } from '@/pages/user/programs/assistance-status-drawer';
+import { AssistanceTransferDrawer } from '@/pages/user/programs/assistance-transfer-drawer';
 import type {
     AssistanceModeOption,
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
+    AssistanceTransferProgramOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import { destroy as destroyProgramAssistance } from '@/routes/user/programs/assistances';
 import { Link, router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
-import { Check, Copy, Edit, Eye, MoreHorizontal, Trash, UserRound } from 'lucide-react';
+import { Check, Copy, Edit, Eye, MoreHorizontal, Trash, UserRound, ArrowRightLeft } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -43,6 +45,8 @@ interface AssistanceDataTableRowActionsProps {
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    transferProgramOptions: AssistanceTransferProgramOption[];
+    canTransferAssistance: boolean;
     onAssistanceUpdated?: () => void;
 }
 
@@ -55,11 +59,14 @@ export function AssistanceDataTableRowActions({
     modeOfRequestOptions,
     programItems,
     requestSubStatusOptions,
+    transferProgramOptions,
+    canTransferAssistance,
     onAssistanceUpdated,
 }: AssistanceDataTableRowActionsProps) {
     const record = row.original;
     const [editOpen, setEditOpen] = useState(false);
     const [statusOpen, setStatusOpen] = useState(false);
+    const [transferOpen, setTransferOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -136,6 +143,12 @@ export function AssistanceDataTableRowActions({
                         <Check className="mr-2 h-4 w-4" />
                         Update Status
                     </DropdownMenuItem>
+                    {canTransferAssistance ? (
+                        <DropdownMenuItem onSelect={() => setTransferOpen(true)}>
+                            <ArrowRightLeft className="mr-2 h-4 w-4" />
+                            Transfer program
+                        </DropdownMenuItem>
+                    ) : null}
                     <DropdownMenuSeparator />
                     {record.cais_number !== '—' ? (
                         <DropdownMenuItem
@@ -202,6 +215,20 @@ export function AssistanceDataTableRowActions({
                 assistanceItems={record.items}
                 onUpdated={onAssistanceUpdated}
             />
+
+            {canTransferAssistance ? (
+                <AssistanceTransferDrawer
+                    open={transferOpen}
+                    onOpenChange={setTransferOpen}
+                    assistanceId={record.id}
+                    departmentSlug={departmentSlug}
+                    programId={programId}
+                    programName={programName}
+                    beneficiaryName={record.beneficiary_name}
+                    transferProgramOptions={transferProgramOptions}
+                    onTransferred={onAssistanceUpdated}
+                />
+            ) : null}
 
             <Dialog
                 open={deleteOpen}

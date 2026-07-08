@@ -3,8 +3,12 @@
 import { Button } from '@/components/ui/button';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import { AssistanceBulkStatusDrawer } from '@/pages/user/programs/assistance-bulk-status-drawer';
-import type { AssistanceRequestSubStatusOption } from '@/pages/user/programs/assistance-toolbar';
-import { ListChecks } from 'lucide-react';
+import { AssistanceBulkTransferDrawer } from '@/pages/user/programs/assistance-bulk-transfer-drawer';
+import type {
+    AssistanceRequestSubStatusOption,
+    AssistanceTransferProgramOption,
+} from '@/pages/user/programs/assistance-toolbar';
+import { ArrowRightLeft, ListChecks } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { RowSelectionState, Table } from '@tanstack/react-table';
 
@@ -16,6 +20,8 @@ type AssistanceBulkActionsBarProps = {
     programId: number;
     programName: string;
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    transferProgramOptions: AssistanceTransferProgramOption[];
+    canTransferAssistance: boolean;
     onBulkStatusUpdated?: () => void;
 };
 
@@ -27,9 +33,12 @@ export function AssistanceBulkActionsBar({
     programId,
     programName,
     requestSubStatusOptions,
+    transferProgramOptions,
+    canTransferAssistance,
     onBulkStatusUpdated,
 }: AssistanceBulkActionsBarProps) {
     const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
+    const [bulkTransferOpen, setBulkTransferOpen] = useState(false);
 
     const selectedAssistanceIds = useMemo(() => {
         return Object.entries(rowSelection)
@@ -39,6 +48,11 @@ export function AssistanceBulkActionsBar({
     }, [rowSelection, table]);
 
     const handleBulkStatusUpdated = () => {
+        table.resetRowSelection();
+        onBulkStatusUpdated?.();
+    };
+
+    const handleBulkTransferUpdated = () => {
         table.resetRowSelection();
         onBulkStatusUpdated?.();
     };
@@ -67,6 +81,17 @@ export function AssistanceBulkActionsBar({
                         <ListChecks className="size-4" />
                         Update status
                     </Button>
+                    {canTransferAssistance ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => setBulkTransferOpen(true)}
+                        >
+                            <ArrowRightLeft className="size-4" />
+                            Transfer program
+                        </Button>
+                    ) : null}
                     <Button
                         type="button"
                         variant="ghost"
@@ -88,6 +113,19 @@ export function AssistanceBulkActionsBar({
                 requestSubStatusOptions={requestSubStatusOptions}
                 onUpdated={handleBulkStatusUpdated}
             />
+
+            {canTransferAssistance ? (
+                <AssistanceBulkTransferDrawer
+                    open={bulkTransferOpen}
+                    onOpenChange={setBulkTransferOpen}
+                    assistanceIds={selectedAssistanceIds}
+                    departmentSlug={departmentSlug}
+                    programId={programId}
+                    programName={programName}
+                    transferProgramOptions={transferProgramOptions}
+                    onTransferred={handleBulkTransferUpdated}
+                />
+            ) : null}
         </>
     );
 }

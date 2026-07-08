@@ -84,6 +84,11 @@ export type AssistanceRequestSubStatusOption = {
     label: string;
 };
 
+export type AssistanceTransferProgramOption = {
+    id: number;
+    name: string;
+};
+
 type AssistanceItemDetail = {
     quantity: string;
     specification: string;

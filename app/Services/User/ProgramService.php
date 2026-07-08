@@ -178,6 +178,26 @@ class ProgramService
     }
 
     /**
+     * @return list<array{id: int, name: string}>
+     */
+    public function transferProgramsForSelect(Department $department, Program $program): array
+    {
+        return Program::query()
+            ->where('department_id', $department->id)
+            ->whereKeyNot($program->id)
+            ->where('is_closed', false)
+            ->where('is_organization', $program->is_organization)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(static fn (Program $candidate): array => [
+                'id' => $candidate->id,
+                'name' => $candidate->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return list<array{id: int, name: string, unit: string|null}>
      */
     public function programItemsForSelect(Program $program): array
