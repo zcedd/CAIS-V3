@@ -242,7 +242,7 @@ export default function UserDepartmentItemsIndex({
                                     page: 1,
                                 });
                             }}
-                            toolbar={(table, columnVisibility) => (
+                            toolbar={(table, columnVisibility, _rowSelection) => (
                                 <ItemDataTableToolbar
                                     table={table}
                                     columnVisibility={columnVisibility}

@@ -14,6 +14,7 @@ import {
     type ModeFilterOption,
     type StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
+import { AssistanceBulkActionsBar } from '@/pages/user/programs/assistance-bulk-actions-bar';
 import { useMemo } from 'react';
 
 export const ASSISTANCE_TABLE_PARTIAL_PROPS = ['assistances'] as const;
@@ -141,6 +142,7 @@ type ProgramAssistanceTableProps = {
     canCreateAssistance: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     onVisitTable: (
         overrides: Partial<
             AssistanceTableFilters & {
@@ -186,6 +188,7 @@ function ProgramAssistanceTable({
     canCreateAssistance,
     modeOfRequestOptions,
     programItems,
+    requestSubStatusOptions,
     onVisitTable,
 }: ProgramAssistanceTableProps) {
     return (
@@ -219,6 +222,18 @@ function ProgramAssistanceTable({
             onPerPageChange={(nextPerPage) => {
                 onVisitTable({ per_page: nextPerPage, page: 1 });
             }}
+            selectionActions={({ table, rowSelection, selectedCount }) => (
+                <AssistanceBulkActionsBar
+                    table={table}
+                    rowSelection={rowSelection}
+                    selectedCount={selectedCount}
+                    departmentSlug={departmentSlug}
+                    programId={programId}
+                    programName={programName}
+                    requestSubStatusOptions={requestSubStatusOptions}
+                    onBulkStatusUpdated={() => onVisitTable({})}
+                />
+            )}
             toolbar={(table, columnVisibility) => (
                 <AssistanceDataTableToolbar
                     table={table}
@@ -304,6 +319,7 @@ export function ProgramAssistanceTableSection({
             canCreateAssistance={canCreateAssistance}
             modeOfRequestOptions={modeOfRequestOptions}
             programItems={programItems}
+            requestSubStatusOptions={requestSubStatusOptions}
             onVisitTable={onVisitTable}
         />
     );

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Actions\User\BulkUpdateProgramAssistanceStatus;
 use App\Actions\User\UpdateProgramAssistance;
 use App\Actions\User\UpdateProgramAssistanceStatus;
 use App\Exports\User\ProgramAssistancesExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\Assistance\BulkUpdateStatusRequest;
 use App\Http\Requests\User\Assistance\DestroyRequest;
 use App\Http\Requests\User\Assistance\EditRequest;
 use App\Http\Requests\User\Assistance\ExportRequest;
@@ -102,6 +104,25 @@ class AssistanceController extends Controller
         return redirect()
             ->back()
             ->with('success', 'Assistance deleted successfully.');
+    }
+
+    /**
+     * Update the request sub-status for multiple assistance records.
+     */
+    public function bulkUpdateStatus(
+        BulkUpdateStatusRequest $request,
+        Department $department,
+        Program $program,
+        BulkUpdateProgramAssistanceStatus $bulkUpdateProgramAssistanceStatus,
+    ): RedirectResponse {
+        $updatedCount = $bulkUpdateProgramAssistanceStatus(
+            $request->assistances(),
+            $request->validated(),
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', "{$updatedCount} assistance record(s) updated successfully.");
     }
 
     /**
@@ -206,7 +227,7 @@ class AssistanceController extends Controller
                 'date_denied' => $formatDate($assistance->date_denied),
                 'remark' => $assistance->remark,
                 'items' => $assistance->assistanceItem
-                    ->map(static fn($assistanceItem): array => [
+                    ->map(static fn ($assistanceItem): array => [
                         'name' => $assistanceItem->item?->name ?? '—',
                         'quantity' => $assistanceItem->quantity,
                         'unit' => $assistanceItem->item?->unitMeasurement?->name,
@@ -216,8 +237,8 @@ class AssistanceController extends Controller
                     ->values()
                     ->all(),
                 'status_history' => $assistance->requestSubStatus
-                    ->sortBy(static fn($subStatus) => $subStatus->pivot->recorded_at)
-                    ->map(static fn($subStatus): array => [
+                    ->sortBy(static fn ($subStatus) => $subStatus->pivot->recorded_at)
+                    ->map(static fn ($subStatus): array => [
                         'id' => (int) $subStatus->pivot->id,
                         'name' => $subStatus->name,
                         'parent_status' => $subStatus->requestStatus?->name,

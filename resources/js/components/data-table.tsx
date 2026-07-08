@@ -18,6 +18,7 @@ import {
 import {
     ColumnDef,
     ColumnFiltersState,
+    RowSelectionState,
     SortingState,
     VisibilityState,
     flexRender,
@@ -36,6 +37,12 @@ export type {
     ServerPaginationMeta,
     ServerSortingState,
 } from '@/components/data-table/types';
+
+export type DataTableSelectionContext<TData> = {
+    table: TanstackTable<TData>;
+    rowSelection: RowSelectionState;
+    selectedCount: number;
+};
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[];
@@ -58,6 +65,10 @@ interface DataTableProps<TData, TValue> {
         table: TanstackTable<TData>,
         columnVisibility: VisibilityState,
         columnFilters: ColumnFiltersState,
+        rowSelection: RowSelectionState,
+    ) => React.ReactNode;
+    selectionActions?: (
+        context: DataTableSelectionContext<TData>,
     ) => React.ReactNode;
     initialColumnVisibility?: VisibilityState;
     enableRowSelection?: boolean;
@@ -78,6 +89,16 @@ function sortingStateFromServer(
     ];
 }
 
+function DataTableSelectionActions<TData>({
+    context,
+    render,
+}: {
+    context: DataTableSelectionContext<TData>;
+    render: (context: DataTableSelectionContext<TData>) => React.ReactNode;
+}) {
+    return <>{render(context)}</>;
+}
+
 export function DataTable<TData, TValue>({
     columns,
     data,
@@ -93,6 +114,7 @@ export function DataTable<TData, TValue>({
     isLoading = false,
     loadingFallback,
     toolbar,
+    selectionActions,
     initialColumnVisibility,
     enableRowSelection = false,
 }: DataTableProps<TData, TValue>) {
@@ -111,11 +133,37 @@ export function DataTable<TData, TValue>({
         }
     }, [manualSorting, serverSorting?.sort, serverSorting?.direction]);
 
+    React.useEffect(() => {
+        if (!enableRowSelection || !manualPagination) {
+            return;
+        }
+
+        setRowSelection({});
+    }, [enableRowSelection, manualPagination, serverPagination?.current_page]);
+
     const isAdvanced = Boolean(toolbar);
 
     const table = useReactTable<TData>({
         data,
         columns,
+        getRowId: (originalRow, index) => {
+            if (
+                typeof originalRow === 'object' &&
+                originalRow !== null &&
+                'id' in originalRow
+            ) {
+                const rowId = (originalRow as { id: unknown }).id;
+
+                if (
+                    typeof rowId === 'number' ||
+                    typeof rowId === 'string'
+                ) {
+                    return String(rowId);
+                }
+            }
+
+            return String(index);
+        },
         state: {
             sorting,
             columnVisibility,
@@ -127,6 +175,9 @@ export function DataTable<TData, TValue>({
                 pageSize: serverPagination?.per_page ?? 25,
             },
         },
+        ...(manualPagination && serverPagination
+            ? { rowCount: serverPagination.total }
+            : {}),
         enableRowSelection: enableRowSelection || isAdvanced,
         manualSorting,
         manualFiltering,
@@ -157,13 +208,23 @@ export function DataTable<TData, TValue>({
         [sorting, manualSorting, onServerSortingChange],
     );
 
-    const skeletonMarkup =
-        loadingFallback ?? (
-            <DataTableSkeleton
-                columnCount={columns.length}
-                rowCount={serverPagination?.per_page ?? 8}
-            />
-        );
+    const selectedCount = Object.values(rowSelection).filter(Boolean).length;
+
+    const selectionContext = React.useMemo(
+        () => ({
+            table,
+            rowSelection,
+            selectedCount,
+        }),
+        [table, rowSelection, selectedCount],
+    );
+
+    const skeletonMarkup = loadingFallback ?? (
+        <DataTableSkeleton
+            columnCount={columns.length}
+            rowCount={serverPagination?.per_page ?? 8}
+        />
+    );
 
     const tableMarkup = isLoading ? (
         skeletonMarkup
@@ -235,7 +296,12 @@ export function DataTable<TData, TValue>({
                 <div className="space-y-4">
                     {tableMarkup}
                     {!manualPagination ? (
-                        <DataTablePagination table={table} />
+                        <DataTablePagination
+                            table={table}
+                            rowSelection={
+                                enableRowSelection ? rowSelection : undefined
+                            }
+                        />
                     ) : null}
                 </div>
             </DataTableSortingContext.Provider>
@@ -245,10 +311,19 @@ export function DataTable<TData, TValue>({
     return (
         <DataTableSortingContext.Provider value={sortingContextValue}>
             <div className="space-y-4">
-                {toolbar?.(table, columnVisibility, columnFilters)}
+                {enableRowSelection && selectionActions ? (
+                    <DataTableSelectionActions
+                        context={selectionContext}
+                        render={selectionActions}
+                    />
+                ) : null}
+                {toolbar?.(table, columnVisibility, columnFilters, rowSelection)}
                 {tableMarkup}
                 <DataTablePagination
                     table={table}
+                    rowSelection={
+                        enableRowSelection ? rowSelection : undefined
+                    }
                     serverPagination={
                         manualPagination ? serverPagination : undefined
                     }

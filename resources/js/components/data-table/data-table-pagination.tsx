@@ -10,13 +10,14 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Link } from '@inertiajs/react';
-import { Table } from '@tanstack/react-table';
+import { RowSelectionState, Table } from '@tanstack/react-table';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 const PAGE_SIZE_OPTIONS = [10, 15, 20, 25, 30, 40, 50] as const;
 
 interface DataTablePaginationProps<TData> {
     table: Table<TData>;
+    rowSelection?: RowSelectionState;
     serverPagination?: ServerPaginationMeta;
     onPerPageChange?: (perPage: number) => void;
     partialReloadOnly?: string[];
@@ -24,6 +25,7 @@ interface DataTablePaginationProps<TData> {
 
 export function DataTablePagination<TData>({
     table,
+    rowSelection,
     serverPagination,
     onPerPageChange,
     partialReloadOnly,
@@ -35,7 +37,9 @@ export function DataTablePagination<TData>({
               preserveScroll: true,
           }
         : undefined;
-    const selectedCount = table.getFilteredSelectedRowModel().rows.length;
+    const selectedCount = rowSelection
+        ? Object.values(rowSelection).filter(Boolean).length
+        : table.getFilteredSelectedRowModel().rows.length;
     const filteredCount = serverPagination
         ? serverPagination.total
         : table.getFilteredRowModel().rows.length;
