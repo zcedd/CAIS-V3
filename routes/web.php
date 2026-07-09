@@ -6,6 +6,7 @@ use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
+use App\Http\Controllers\User\NotificationController as UserNotificationController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -35,6 +36,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');
 
         Route::resource('funds', UserFundController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.funds');
+        Route::get('notifications', [UserNotificationController::class, 'index'])->name('user.notifications.index');
+        Route::get('notifications/{notification}', [UserNotificationController::class, 'show'])->name('user.notifications.show');
 
         Route::post('programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
         Route::patch('programs/{program}/assistances/bulk-status', [UserAssistanceController::class, 'bulkUpdateStatus'])->name('user.programs.assistances.status.bulk-update');
