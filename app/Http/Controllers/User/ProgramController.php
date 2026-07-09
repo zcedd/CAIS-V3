@@ -94,24 +94,24 @@ class ProgramController extends Controller
         return Inertia::render('user/programs/show', [
             'program' => $this->programService->showOverviewPayload($program),
             'summary' => Inertia::defer(
-                fn() => $this->programService->summary($program),
+                fn () => $this->programService->summary($program),
                 'kpis',
             ),
-            'department' => fn() => $department->only(['id', 'name', 'slug']),
+            'department' => fn () => $department->only(['id', 'name', 'slug']),
             'program_edit' => Inertia::defer(
-                fn() => $this->programService->editRelationsPayload($program),
+                fn () => $this->programService->editRelationsPayload($program),
                 'edit',
             ),
             'funds' => Inertia::defer(
-                fn() => $this->programService->departmentFundsForSelect($department),
+                fn () => $this->programService->departmentFundsForSelect($department),
                 'edit',
             ),
             'items' => Inertia::defer(
-                fn() => $this->programService->departmentItemsForSelect($department),
+                fn () => $this->programService->departmentItemsForSelect($department),
                 'edit',
             ),
             'assistances' => Inertia::defer(
-                fn() => $this->assistanceService->paginatedForProgram(
+                fn () => $this->assistanceService->paginatedForProgram(
                     $program,
                     $sort,
                     $direction,
@@ -129,23 +129,27 @@ class ProgramController extends Controller
             'status' => $statuses,
             'mode' => $modes,
             'mode_options' => Inertia::defer(
-                fn() => $this->assistanceService->modeOptions($program),
+                fn () => $this->assistanceService->modeOptions($program),
                 'table',
             ),
             'status_options' => Inertia::defer(
-                fn() => $this->assistanceService->statusOptions($program),
+                fn () => $this->assistanceService->statusOptions($program),
                 'table',
             ),
             'mode_of_request_options' => Inertia::defer(
-                fn() => $this->assistanceService->modesOfRequestForSelect(),
+                fn () => $this->assistanceService->modesOfRequestForSelect(),
                 'table',
             ),
             'program_items' => Inertia::defer(
-                fn() => $this->programService->programItemsForSelect($program),
+                fn () => $this->programService->programItemsForSelect($program),
                 'table',
             ),
             'request_sub_status_options' => Inertia::defer(
-                fn() => $this->assistanceService->requestSubStatusesForSelect(),
+                fn () => $this->assistanceService->requestSubStatusesForSelect(),
+                'table',
+            ),
+            'transfer_program_options' => Inertia::defer(
+                fn () => $this->programService->transferProgramsForSelect($department, $program),
                 'table',
             ),
         ]);
