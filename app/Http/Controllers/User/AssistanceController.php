@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Actions\User\BulkTransferProgramAssistance;
 use App\Actions\User\BulkUpdateProgramAssistanceStatus;
+use App\Actions\User\TransferProgramAssistance;
 use App\Actions\User\UpdateProgramAssistance;
 use App\Actions\User\UpdateProgramAssistanceStatus;
 use App\Exports\User\ProgramAssistancesExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\Assistance\BulkTransferRequest;
 use App\Http\Requests\User\Assistance\BulkUpdateStatusRequest;
 use App\Http\Requests\User\Assistance\DestroyRequest;
 use App\Http\Requests\User\Assistance\EditRequest;
 use App\Http\Requests\User\Assistance\ExportRequest;
 use App\Http\Requests\User\Assistance\ShowRequest;
 use App\Http\Requests\User\Assistance\StoreRequest;
+use App\Http\Requests\User\Assistance\TransferRequest;
 use App\Http\Requests\User\Assistance\UpdateRequest;
 use App\Http\Requests\User\Assistance\UpdateStatusRequest;
 use App\Models\Assistance;
@@ -104,6 +108,55 @@ class AssistanceController extends Controller
         return redirect()
             ->back()
             ->with('success', 'Assistance deleted successfully.');
+    }
+
+    /**
+     * Transfer an assistance record to another program in the department.
+     */
+    public function transfer(
+        TransferRequest $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+        TransferProgramAssistance $transferProgramAssistance,
+    ): RedirectResponse {
+        $targetProgram = $request->targetProgram();
+
+        if ($targetProgram === null) {
+            abort(422, 'Target program is required.');
+        }
+
+        $transferProgramAssistance($assistance, $targetProgram, $request->validated());
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assistance transferred successfully.');
+    }
+
+    /**
+     * Transfer multiple assistance records to another program in the department.
+     */
+    public function bulkTransfer(
+        BulkTransferRequest $request,
+        Department $department,
+        Program $program,
+        BulkTransferProgramAssistance $bulkTransferProgramAssistance,
+    ): RedirectResponse {
+        $targetProgram = $request->targetProgram();
+
+        if ($targetProgram === null) {
+            abort(422, 'Target program is required.');
+        }
+
+        $transferredCount = $bulkTransferProgramAssistance(
+            $request->assistances(),
+            $targetProgram,
+            $request->validated(),
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', "{$transferredCount} assistance record(s) transferred successfully.");
     }
 
     /**

@@ -8,6 +8,7 @@ import type {
     AssistanceModeOption,
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
+    AssistanceTransferProgramOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { Link } from '@inertiajs/react';
@@ -105,6 +106,8 @@ export type UserProgramAssistanceTableContext = {
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    transferProgramOptions: AssistanceTransferProgramOption[];
+    canTransferAssistance: boolean;
     onAssistanceUpdated?: () => void;
 };
 
@@ -116,6 +119,8 @@ export function createUserProgramAssistanceColumns({
     modeOfRequestOptions,
     programItems,
     requestSubStatusOptions,
+    transferProgramOptions,
+    canTransferAssistance,
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
     return [
@@ -402,6 +407,8 @@ export function createUserProgramAssistanceColumns({
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
                     requestSubStatusOptions={requestSubStatusOptions}
+                    transferProgramOptions={transferProgramOptions}
+                    canTransferAssistance={canTransferAssistance}
                     onAssistanceUpdated={onAssistanceUpdated}
                 />
             ),

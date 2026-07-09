@@ -10,6 +10,7 @@ import {
     type AssistanceModeOption,
     type AssistanceProgramItemOption,
     type AssistanceRequestSubStatusOption,
+    type AssistanceTransferProgramOption,
     type AssistanceTableFilters,
     type ModeFilterOption,
     type StatusFilterOption,
@@ -26,6 +27,7 @@ export const ASSISTANCE_TABLE_DEFER_GROUP_PROPS = [
     'mode_of_request_options',
     'program_items',
     'request_sub_status_options',
+    'transfer_program_options',
 ] as const;
 
 export const ASSISTANCE_TABLE_SKELETON_COLUMNS = 14;
@@ -90,6 +92,7 @@ export function isAssistancesTableReady(props: {
     mode_of_request_options?: AssistanceModeOption[];
     program_items?: AssistanceProgramItemOption[];
     request_sub_status_options?: AssistanceRequestSubStatusOption[];
+    transfer_program_options?: AssistanceTransferProgramOption[];
 }): props is {
     assistances: PaginatedAssistances;
     mode_options: StatusFilterOption[];
@@ -97,6 +100,7 @@ export function isAssistancesTableReady(props: {
     mode_of_request_options: AssistanceModeOption[];
     program_items: AssistanceProgramItemOption[];
     request_sub_status_options: AssistanceRequestSubStatusOption[];
+    transfer_program_options: AssistanceTransferProgramOption[];
 } {
     return (
         props.assistances !== undefined &&
@@ -104,7 +108,8 @@ export function isAssistancesTableReady(props: {
         props.status_options !== undefined &&
         props.mode_of_request_options !== undefined &&
         props.program_items !== undefined &&
-        props.request_sub_status_options !== undefined
+        props.request_sub_status_options !== undefined &&
+        props.transfer_program_options !== undefined
     );
 }
 
@@ -143,6 +148,8 @@ type ProgramAssistanceTableProps = {
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    transferProgramOptions: AssistanceTransferProgramOption[];
+    canTransferAssistance: boolean;
     onVisitTable: (
         overrides: Partial<
             AssistanceTableFilters & {
@@ -170,6 +177,8 @@ type ProgramAssistanceTableSectionProps = {
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    transferProgramOptions: AssistanceTransferProgramOption[];
+    canTransferAssistance: boolean;
     onVisitTable: ProgramAssistanceTableProps['onVisitTable'];
 };
 
@@ -189,6 +198,8 @@ function ProgramAssistanceTable({
     modeOfRequestOptions,
     programItems,
     requestSubStatusOptions,
+    transferProgramOptions,
+    canTransferAssistance,
     onVisitTable,
 }: ProgramAssistanceTableProps) {
     return (
@@ -231,6 +242,8 @@ function ProgramAssistanceTable({
                     programId={programId}
                     programName={programName}
                     requestSubStatusOptions={requestSubStatusOptions}
+                    transferProgramOptions={transferProgramOptions}
+                    canTransferAssistance={canTransferAssistance}
                     onBulkStatusUpdated={() => onVisitTable({})}
                 />
             )}
@@ -277,6 +290,8 @@ export function ProgramAssistanceTableSection({
     modeOfRequestOptions,
     programItems,
     requestSubStatusOptions,
+    transferProgramOptions,
+    canTransferAssistance,
     onVisitTable,
 }: ProgramAssistanceTableSectionProps) {
     const assistanceColumns = useMemo(
@@ -289,6 +304,8 @@ export function ProgramAssistanceTableSection({
                 modeOfRequestOptions,
                 programItems,
                 requestSubStatusOptions,
+                transferProgramOptions,
+                canTransferAssistance,
                 onAssistanceUpdated: () => onVisitTable({ page: 1 }),
             }),
         [
@@ -299,6 +316,8 @@ export function ProgramAssistanceTableSection({
             modeOfRequestOptions,
             programItems,
             requestSubStatusOptions,
+            transferProgramOptions,
+            canTransferAssistance,
             onVisitTable,
         ],
     );
@@ -320,6 +339,8 @@ export function ProgramAssistanceTableSection({
             modeOfRequestOptions={modeOfRequestOptions}
             programItems={programItems}
             requestSubStatusOptions={requestSubStatusOptions}
+            transferProgramOptions={transferProgramOptions}
+            canTransferAssistance={canTransferAssistance}
             onVisitTable={onVisitTable}
         />
     );

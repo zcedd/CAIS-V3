@@ -11,9 +11,9 @@ use App\Http\Controllers\User\ProgramController as UserProgramController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
-Route::inertia('/', 'welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
-])->name('home');
+Route::get('/', function () {
+    return redirect()->route('login');
+})->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
@@ -41,13 +41,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::post('programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
         Route::patch('programs/{program}/assistances/bulk-status', [UserAssistanceController::class, 'bulkUpdateStatus'])->name('user.programs.assistances.status.bulk-update');
+        Route::patch('programs/{program}/assistances/bulk-transfer', [UserAssistanceController::class, 'bulkTransfer'])->name('user.programs.assistances.bulk-transfer');
         Route::get('programs/{program}/assistances/export', [UserAssistanceController::class, 'export'])->name('user.programs.assistances.export');
         Route::get('programs/{program}/assistances/{assistance}/edit', [UserAssistanceController::class, 'edit'])->name('user.programs.assistances.edit');
         Route::put('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'update'])->name('user.programs.assistances.update');
         Route::delete('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'destroy'])->name('user.programs.assistances.destroy');
         Route::patch('programs/{program}/assistances/{assistance}/status', [UserAssistanceController::class, 'updateStatus'])->name('user.programs.assistances.status.update');
+        Route::patch('programs/{program}/assistances/{assistance}/transfer', [UserAssistanceController::class, 'transfer'])->name('user.programs.assistances.transfer');
         Route::get('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'show'])->name('user.assistances.show');
     });
 });
 
-require __DIR__.'/settings.php';
+require __DIR__ . '/settings.php';
