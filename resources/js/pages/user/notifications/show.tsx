@@ -12,6 +12,7 @@ import {
     isInternalUrl,
     notificationCategoryLabel,
 } from '@/lib/notification-utils';
+import { NotificationMarkReadButton } from '@/pages/user/notifications/notification-mark-read-button';
 import { NotificationMessage } from '@/pages/user/notifications/notification-message';
 import {
     index as departmentNotificationsIndex,
@@ -104,6 +105,10 @@ export default function UserNotificationShow({
                 </Card>
 
                 <div className="flex flex-wrap gap-2">
+                    <NotificationMarkReadButton
+                        department={department}
+                        notification={notification}
+                    />
                     {notification.url ? (
                         isInternalUrl(notification.url) ? (
                             <Button asChild>

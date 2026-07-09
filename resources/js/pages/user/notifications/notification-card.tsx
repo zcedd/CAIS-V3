@@ -13,6 +13,7 @@ import {
     isInternalUrl,
     notificationCategoryLabel,
 } from '@/lib/notification-utils';
+import { NotificationMarkReadButton } from '@/pages/user/notifications/notification-mark-read-button';
 import { NotificationMessage } from '@/pages/user/notifications/notification-message';
 import { show as departmentNotificationShow } from '@/routes/user/notifications';
 import type { DepartmentSummary, NotificationEntry } from '@/types';
@@ -36,9 +37,11 @@ export function NotificationCard({
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <CardTitle>{notification.title}</CardTitle>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline">
-                            {notificationCategoryLabel(notification.category)}
-                        </Badge>
+                        {notification.category === 'system' ? (
+                            <Badge variant="outline">
+                                {notificationCategoryLabel(notification.category)}
+                            </Badge>
+                        ) : null}
                         <Badge variant={isRead ? 'secondary' : 'default'}>
                             {isRead ? 'Read' : 'Unread'}
                         </Badge>
@@ -71,6 +74,10 @@ export function NotificationCard({
                         View
                     </Link>
                 </Button>
+                <NotificationMarkReadButton
+                    department={department}
+                    notification={notification}
+                />
                 {notification.url ? (
                     isInternalUrl(notification.url) ? (
                         <Button size="sm" asChild>

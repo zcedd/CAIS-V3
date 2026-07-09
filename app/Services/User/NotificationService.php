@@ -55,6 +55,29 @@ class NotificationService
         return $user->notifications()->whereKey($notificationId)->firstOrFail();
     }
 
+    public function unreadCountForUser(User $user): int
+    {
+        return $user->unreadNotifications()->count();
+    }
+
+    public function markAsReadForUser(User $user, string $notificationId): DatabaseNotification
+    {
+        $notification = $this->findForUser($user, $notificationId);
+
+        if ($notification->read_at === null) {
+            $notification->markAsRead();
+        }
+
+        return $notification->refresh();
+    }
+
+    public function markAllAsReadForUser(User $user): int
+    {
+        return $user->unreadNotifications()->update([
+            'read_at' => now(),
+        ]);
+    }
+
     public function category(DatabaseNotification $notification): string
     {
         /** @var array<string, mixed> $data */

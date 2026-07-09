@@ -1,30 +1,58 @@
-import { Button } from '@/components/ui/button';
 import {
     Card,
     CardContent,
+    CardFooter,
+    CardHeader,
 } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { NotificationCard } from '@/pages/user/notifications/notification-card';
+import { NotificationMarkAllReadButton } from '@/pages/user/notifications/notification-mark-all-read-button';
 import {
     index as departmentNotificationsIndex,
 } from '@/routes/user/notifications';
 import type {
     BreadcrumbItem,
     DepartmentSummary,
-    NotificationPagination,
+    NotificationEntry,
 } from '@/types';
-import { Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Head, InfiniteScroll, setLayoutProps, usePage } from '@inertiajs/react';
 import { Bell } from 'lucide-react';
 import { useEffect } from 'react';
 
+type PaginatedNotifications = {
+    data: NotificationEntry[];
+};
+
 type UserNotificationsIndexProps = {
     department: DepartmentSummary;
-    notifications: NotificationPagination;
+    notifications: PaginatedNotifications;
+    unreadNotificationsCount: number;
 };
+
+function NotificationCardSkeleton() {
+    return (
+        <Card size="sm" className="border border-border/60">
+            <CardHeader className="gap-3">
+                <Skeleton className="h-5 w-48" />
+                <Skeleton className="h-4 w-36" />
+            </CardHeader>
+            <CardContent className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+            </CardContent>
+            <CardFooter className="gap-2">
+                <Skeleton className="h-8 w-20" />
+                <Skeleton className="h-8 w-24" />
+            </CardFooter>
+        </Card>
+    );
+}
 
 export default function UserNotificationsIndex({
     department,
     notifications,
 }: UserNotificationsIndexProps) {
+    const { unreadNotificationsCount } = usePage<UserNotificationsIndexProps>().props;
     useEffect(() => {
         setLayoutProps({
             breadcrumbs: [
@@ -40,13 +68,19 @@ export default function UserNotificationsIndex({
         <>
             <Head title={`Notifications — ${department.name}`} />
             <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="flex flex-col gap-2">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Notifications
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Database notifications for {department.name}.
-                    </p>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Notifications
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Database notifications for {department.name}.
+                        </p>
+                    </div>
+                    <NotificationMarkAllReadButton
+                        department={department}
+                        unreadCount={unreadNotificationsCount}
+                    />
                 </div>
 
                 {notifications.data.length === 0 ? (
@@ -60,52 +94,29 @@ export default function UserNotificationsIndex({
                         </CardContent>
                     </Card>
                 ) : (
-                    <div className="space-y-3">
-                        {notifications.data.map((notification) => (
-                            <NotificationCard
-                                key={notification.id}
-                                department={department}
-                                notification={notification}
-                            />
-                        ))}
-                    </div>
+                    <InfiniteScroll
+                        data="notifications"
+                        onlyNext
+                        next={({ loading }) =>
+                            loading ? (
+                                <div className="mt-3 space-y-3">
+                                    <NotificationCardSkeleton />
+                                    <NotificationCardSkeleton />
+                                </div>
+                            ) : null
+                        }
+                    >
+                        <div className="space-y-3">
+                            {notifications.data.map((notification) => (
+                                <NotificationCard
+                                    key={notification.id}
+                                    department={department}
+                                    notification={notification}
+                                />
+                            ))}
+                        </div>
+                    </InfiniteScroll>
                 )}
-
-                {notifications.links.length > 3 ? (
-                    <div className="flex flex-wrap gap-2">
-                        {notifications.links.map((link) =>
-                            link.url ? (
-                                <Button
-                                    key={`${link.label}-${link.url}`}
-                                    variant={link.active ? 'default' : 'outline'}
-                                    asChild
-                                    size="sm"
-                                >
-                                    <Link href={link.url} preserveScroll>
-                                        <span
-                                            dangerouslySetInnerHTML={{
-                                                __html: link.label,
-                                            }}
-                                        />
-                                    </Link>
-                                </Button>
-                            ) : (
-                                <Button
-                                    key={`${link.label}-disabled`}
-                                    variant="outline"
-                                    size="sm"
-                                    disabled
-                                >
-                                    <span
-                                        dangerouslySetInnerHTML={{
-                                            __html: link.label,
-                                        }}
-                                    />
-                                </Button>
-                            ),
-                        )}
-                    </div>
-                ) : null}
             </div>
         </>
     );

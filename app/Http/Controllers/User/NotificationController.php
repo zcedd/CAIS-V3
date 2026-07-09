@@ -4,9 +4,12 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Notification\IndexRequest;
+use App\Http\Requests\User\Notification\MarkAllAsReadRequest;
+use App\Http\Requests\User\Notification\MarkAsReadRequest;
 use App\Http\Requests\User\Notification\ShowRequest;
 use App\Models\Department;
 use App\Services\User\NotificationService;
+use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -23,8 +26,8 @@ class NotificationController extends Controller
     {
         return Inertia::render('user/notifications/index', [
             'department' => $department->only(['id', 'name', 'slug']),
-            'notifications' => $this->notificationService->paginateForUser(
-                $request->user(),
+            'notifications' => Inertia::scroll(
+                $this->notificationService->paginateForUser($request->user()),
             ),
         ]);
     }
@@ -43,5 +46,37 @@ class NotificationController extends Controller
             'department' => $department->only(['id', 'name', 'slug']),
             'notification' => $this->notificationService->serialize($notificationModel),
         ]);
+    }
+
+    /**
+     * Mark a notification as read for the authenticated user.
+     */
+    public function markAsRead(
+        MarkAsReadRequest $request,
+        Department $department,
+        string $notification,
+    ): RedirectResponse {
+        $this->notificationService->markAsReadForUser(
+            $request->user(),
+            $notification,
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Notification marked as read.');
+    }
+
+    /**
+     * Mark all notifications as read for the authenticated user.
+     */
+    public function markAllAsRead(
+        MarkAllAsReadRequest $request,
+        Department $department,
+    ): RedirectResponse {
+        $this->notificationService->markAllAsReadForUser($request->user());
+
+        return redirect()
+            ->back()
+            ->with('success', 'All notifications marked as read.');
     }
 }

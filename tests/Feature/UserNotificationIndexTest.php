@@ -77,6 +77,20 @@ test('notification messages decode html entities', function () {
             ->where('notifications.data.0.message', '<p>Request approved for "Rice" & supplies.</p>'));
 });
 
+test('shared unread notifications count reflects unread database notifications', function () {
+    $department = Department::create(['name' => 'Social Welfare']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+
+    createDatabaseNotification($user, ['message' => 'Unread notification']);
+    createDatabaseNotification($user, ['message' => 'Read notification'], now()->toIso8601String());
+
+    $this->actingAs($user)
+        ->get(route('user.notifications.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('unreadNotificationsCount', 1));
+});
+
 test('notifications page only returns notifications for the authenticated user', function () {
     $department = Department::create(['name' => 'Social Welfare']);
     $user = User::factory()->create(['department_id' => $department->id]);
@@ -137,6 +151,97 @@ test('department users can view a single notification', function () {
             ->where('notification.message', 'Your assistance request was approved.')
             ->where('notification.url', '/programs/1')
             ->where('notification.category', 'personal'));
+});
+
+test('users cannot mark another users notification as read', function () {
+    $department = Department::create(['name' => 'Social Welfare']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+    $otherUser = User::factory()->create(['department_id' => $department->id]);
+    $notificationId = (string) Str::uuid();
+
+    DB::table('notifications')->insert([
+        'id' => $notificationId,
+        'type' => 'App\\Notifications\\TestNotification',
+        'notifiable_type' => User::class,
+        'notifiable_id' => $otherUser->id,
+        'data' => json_encode(['message' => 'Private notification'], JSON_THROW_ON_ERROR),
+        'read_at' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->patch(route('user.notifications.read', [
+            'department' => $department->slug,
+            'notification' => $notificationId,
+        ]))
+        ->assertForbidden();
+});
+
+test('department users can mark a notification as read', function () {
+    $department = Department::create(['name' => 'Social Welfare']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+    $notificationId = (string) Str::uuid();
+
+    DB::table('notifications')->insert([
+        'id' => $notificationId,
+        'type' => 'App\\Notifications\\TestNotification',
+        'notifiable_type' => User::class,
+        'notifiable_id' => $user->id,
+        'data' => json_encode(['message' => 'Unread notification'], JSON_THROW_ON_ERROR),
+        'read_at' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $this->actingAs($user)
+        ->from(route('user.notifications.show', [
+            'department' => $department->slug,
+            'notification' => $notificationId,
+        ]))
+        ->patch(route('user.notifications.read', [
+            'department' => $department->slug,
+            'notification' => $notificationId,
+        ]))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'Notification marked as read.');
+
+    $this->assertDatabaseHas('notifications', [
+        'id' => $notificationId,
+        'notifiable_id' => $user->id,
+    ]);
+
+    expect(DB::table('notifications')->where('id', $notificationId)->value('read_at'))
+        ->not->toBeNull();
+});
+
+test('department users can mark all notifications as read', function () {
+    $department = Department::create(['name' => 'Social Welfare']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+
+    createDatabaseNotification($user, ['message' => 'Unread one']);
+    createDatabaseNotification($user, ['message' => 'Unread two']);
+    createDatabaseNotification($user, ['message' => 'Already read'], now()->toIso8601String());
+
+    $this->actingAs($user)
+        ->from(route('user.notifications.index', ['department' => $department->slug]))
+        ->patch(route('user.notifications.read-all', ['department' => $department->slug]))
+        ->assertRedirect()
+        ->assertSessionHas('success', 'All notifications marked as read.');
+
+    expect($user->fresh()->unreadNotifications()->count())->toBe(0);
+});
+
+test('users cannot mark all notifications read for another department', function () {
+    $departmentA = Department::create(['name' => 'Social Welfare']);
+    $departmentB = Department::create(['name' => 'Health']);
+    $user = User::factory()->create(['department_id' => $departmentA->id]);
+
+    createDatabaseNotification($user, ['message' => 'Unread notification']);
+
+    $this->actingAs($user)
+        ->patch(route('user.notifications.read-all', ['department' => $departmentB->slug]))
+        ->assertForbidden();
 });
 
 test('users cannot view another users notification', function () {

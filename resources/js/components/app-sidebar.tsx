@@ -1,5 +1,14 @@
 import { Link, usePage } from '@inertiajs/react';
-import { Bell, BookOpen, FolderGit2, FolderKanban, Landmark, LayoutGrid, Package, Users } from 'lucide-react';
+import {
+    Bell,
+    BookOpen,
+    FolderGit2,
+    FolderKanban,
+    Landmark,
+    LayoutGrid,
+    Package,
+    Users,
+} from 'lucide-react';
 import { useMemo } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -28,23 +37,28 @@ type SidebarPageProps = {
     auth: {
         user: User | null;
     };
+    unreadNotificationsCount: number;
 };
-
-const footerNavItems: NavItem[] = [
-    // {
-    //     title: 'Repository',
-    //     href: 'https://github.com/laravel/react-starter-kit',
-    //     icon: FolderGit2,
-    // },
-    // {
-    //     title: 'Documentation',
-    //     href: 'https://laravel.com/docs/starter-kits#react',
-    //     icon: BookOpen,
-    // },
-];
 
 export function AppSidebar() {
     const { props } = usePage<SidebarPageProps>();
+
+    const footerNavItems = useMemo((): NavItem[] => {
+        const slug = props.auth.user?.department?.slug;
+
+        const items: NavItem[] = [];
+
+        if (slug) {
+            items.push({
+                title: 'Notifications',
+                href: departmentNotificationsIndex(slug),
+                icon: Bell,
+                badge: props.unreadNotificationsCount,
+            });
+        }
+
+        return items;
+    }, [props.auth.user, props.unreadNotificationsCount]);
 
     const mainNavItems = useMemo((): NavItem[] => {
         const slug = props.auth.user?.department?.slug;
@@ -77,11 +91,6 @@ export function AppSidebar() {
                 title: 'Funds',
                 href: departmentFundsIndex(slug),
                 icon: Landmark,
-            });
-            items.push({
-                title: 'Notifications',
-                href: departmentNotificationsIndex(slug),
-                icon: Bell,
             });
         }
 
