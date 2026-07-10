@@ -5,7 +5,8 @@ import {
     DASHBOARD_PARTIAL_PROPS,
     type DashboardFilterOptions,
     type DashboardFilters,
-    EMPTY_DASHBOARD_FILTERS,
+    getDefaultDashboardFilters,
+    hasActiveDashboardFilters,
     type DepartmentSummary,
 } from '@/types/dashboard';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
@@ -43,9 +44,7 @@ export function DashboardFiltersBar({
         [department.slug, filters],
     );
 
-    const hasActiveFilters = Object.values(filters).some(
-        (values) => values.length > 0,
-    );
+    const hasActiveFilters = hasActiveDashboardFilters(filters);
 
     const organizationOnly =
         filters.beneficiary_type.length === 1 &&
@@ -137,7 +136,9 @@ export function DashboardFiltersBar({
                 <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() => navigateWithFilters(EMPTY_DASHBOARD_FILTERS)}
+                    onClick={() =>
+                        navigateWithFilters(getDefaultDashboardFilters())
+                    }
                 >
                     <RotateCcw className="size-4" />
                     Reset

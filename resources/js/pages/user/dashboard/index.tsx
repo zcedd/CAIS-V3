@@ -151,7 +151,10 @@ export default function UserDashboardIndex({
                             <DataTableSkeleton columnCount={6} rowCount={5} />
                         }
                     >
-                        <ProgramsTable data={programsTable ?? []} />
+                        <ProgramsTable
+                            department={department}
+                            data={programsTable ?? []}
+                        />
                     </Suspense>
                 </WhenVisible>
             </div>

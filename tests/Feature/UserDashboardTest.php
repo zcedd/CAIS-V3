@@ -137,7 +137,7 @@ test('department users can view the dashboard with expected props', function () 
             ->has('deliveredItemsChart')
             ->has('programsTable', 2)
             ->has('filterOptions.programs', 2)
-            ->where('filters.year', [])
+            ->where('filters.year', [(string) now()->year])
             ->where('filters.quarter', [])
             ->where('filters.program', []));
 });
@@ -160,6 +160,23 @@ test('program filter reduces total requests on the dashboard', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->where('summary.total_requests', 1)
             ->where('filters.program', [(string) $program->id]));
+});
+
+test('dashboard defaults to the current year when no year filter is provided', function () {
+    ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $currentYearIndividual = Individual::factory()->create(['sex' => 'Male']);
+    $previousYearIndividual = Individual::factory()->create(['sex' => 'Female']);
+
+    createAssistanceForIndividual($program, $currentYearIndividual, $item, dateRequested: now()->toDateString());
+    createAssistanceForIndividual($program, $previousYearIndividual, $item, dateRequested: now()->subYear()->toDateString());
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('summary.total_requests', 1)
+            ->where('filters.year', [(string) now()->year]));
 });
 
 test('year filter returns only assistances requested in the selected year', function () {
@@ -218,11 +235,13 @@ test('quarter filter returns only assistances requested in the selected quarter'
     $this->actingAs($user)
         ->get(route('user.dashboard.index', [
             'department' => $department->slug,
+            'year' => [2024],
             'quarter' => ['1'],
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('summary.total_requests', 1)
+            ->where('filters.year', ['2024'])
             ->where('filters.quarter', ['1']));
 });
 
@@ -396,6 +415,30 @@ test('delivered items chart counts delivery lines per item not quantities', func
     expect($chart)->toHaveCount(1)
         ->and($chart[0]['item'])->toBe('Rice')
         ->and($chart[0]['count'])->toBe(2);
+});
+
+test('programs table shows only the 10 latest programs', function () {
+    ['department' => $department, 'user' => $user] = createDashboardFixtures();
+
+    foreach (range(1, 12) as $index) {
+        Program::create([
+            'name' => "Program {$index}",
+            'descriptions' => 'Details',
+            'start_at' => now()->toDateString(),
+            'end_at' => null,
+            'department_id' => $department->id,
+            'is_closed' => false,
+            'is_organization' => false,
+        ]);
+    }
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('programsTable', 10)
+            ->where('programsTable.0.name', 'Program 12')
+            ->where('programsTable.9.name', 'Program 3'));
 });
 
 test('global dashboard redirects users with a department to the department dashboard', function () {

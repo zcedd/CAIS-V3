@@ -19,6 +19,8 @@ class DashboardService
 {
     private const TERMINAL_STATUSES = ['Delivered', 'Denied', 'Closed'];
 
+    private const PROGRAMS_TABLE_LIMIT = 10;
+
     public function __construct(
         private ApplyDashboardFilters $applyDashboardFilters,
         private JoinAssistanceStatusRelations $joinAssistanceStatusRelations,
@@ -241,7 +243,7 @@ class DashboardService
 
         $programQuery = Program::query()
             ->where('department_id', $department->id)
-            ->orderBy('name');
+            ->orderByDesc('id');
 
         $selectedPrograms = $filters['program'] ?? [];
 
@@ -250,6 +252,7 @@ class DashboardService
         }
 
         return $programQuery
+            ->limit(self::PROGRAMS_TABLE_LIMIT)
             ->get(['id', 'name', 'is_closed', 'is_organization'])
             ->map(function (Program $program) use ($statsByProgramId): array {
                 $stats = $statsByProgramId->get($program->id);
