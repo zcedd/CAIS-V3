@@ -85,7 +85,7 @@ test('users can load additional funds via pagination', function () {
         'department_id' => $department->id,
     ]);
 
-    foreach (range(1, 13) as $index) {
+    foreach (range(1, 16) as $index) {
         Fund::factory()->create([
             'name' => sprintf('Fund %02d', $index),
             'department_id' => $department->id,
@@ -96,7 +96,7 @@ test('users can load additional funds via pagination', function () {
         ->get(route('user.funds.index', ['department' => $department->slug]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->has('funds.data', 12)
+            ->has('funds.data', 15)
             ->where('funds.current_page', 1));
 
     $this->actingAs($user)
@@ -108,7 +108,7 @@ test('users can load additional funds via pagination', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->has('funds.data', 1)
             ->where('funds.current_page', 2)
-            ->where('funds.data.0.name', 'Fund 13'));
+            ->where('funds.data.0.name', 'Fund 16'));
 });
 
 test('authenticated users cannot view another departments fund list', function () {

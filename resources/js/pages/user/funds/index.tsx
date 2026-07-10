@@ -1,46 +1,26 @@
-import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
-import InputError from '@/components/input-error';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
+import type { ServerPaginationMeta } from '@/components/data-table/types';
 import {
-    Drawer,
-    DrawerClose,
-    DrawerContent,
-    DrawerDescription,
-    DrawerFooter,
-    DrawerHeader,
-    DrawerTitle,
-} from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { createFundColumns } from '@/pages/user/funds/fund-columns';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { cn } from '@/lib/utils';
-import { formatPeso } from '@/lib/format-peso';
-import { FundAmountField } from '@/pages/user/funds/fund-amount-field';
-import { FundRowActions } from '@/pages/user/funds/fund-row-actions';
-import {
-    index as departmentFundsIndex,
-    store as storeFund,
-} from '@/routes/user/funds';
+    FundDataTableToolbar,
+    type FundTableFilters,
+} from '@/pages/user/funds/fund-toolbar';
+import { index as departmentFundsIndex } from '@/routes/user/funds';
 import type { BreadcrumbItem } from '@/types';
-import type { FundListFilters, FundRow } from '@/types/fund';
-import {
-    Form,
-    Head,
-    InfiniteScroll,
-    router,
-    setLayoutProps,
-} from '@inertiajs/react';
-import { Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import type { FundRow } from '@/types/fund';
+import { Head, router, setLayoutProps } from '@inertiajs/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
+const FUNDS_TABLE_PARTIAL_PROPS = ['funds'] as const;
+const FUNDS_TABLE_SKELETON_COLUMNS = 5;
 
 type DepartmentSummary = {
     id: number;
@@ -48,357 +28,233 @@ type DepartmentSummary = {
     slug: string;
 };
 
-type PaginatedFunds = {
+type PaginatedFunds = ServerPaginationMeta & {
     data: FundRow[];
 };
 
-const fundStatusOptions = [
-    { label: 'Active', value: 'active' },
-    { label: 'Inactive', value: 'inactive' },
-] as const;
-
 function buildFundsQuery(
-    filters: FundListFilters,
-): Record<string, string | string[]> {
-    const query: Record<string, string | string[]> = {};
-    const search = filters.search.trim();
+    state: {
+        search: string;
+        status: string[];
+        sort: string;
+        direction: 'asc' | 'desc';
+        per_page: number;
+        page?: number;
+    },
+    overrides: Partial<typeof state> = {},
+): Record<string, string | number | string[]> {
+    const next = { ...state, ...overrides };
+    const query: Record<string, string | number | string[]> = {
+        sort: next.sort,
+        direction: next.direction,
+        per_page: next.per_page,
+    };
 
+    if (next.page !== undefined) {
+        query.page = next.page;
+    }
+
+    const search = next.search.trim();
     if (search !== '') {
         query.search = search;
     }
 
-    if (filters.status.length > 0) {
-        query.status = filters.status;
+    if (next.status.length > 0) {
+        query.status = next.status;
     }
 
     return query;
 }
 
+function isFundsPartialVisit(only?: string[]): boolean {
+    if (!only?.length) {
+        return false;
+    }
+
+    return only.some((prop) =>
+        FUNDS_TABLE_PARTIAL_PROPS.includes(
+            prop as (typeof FUNDS_TABLE_PARTIAL_PROPS)[number],
+        ),
+    );
+}
+
 export default function UserFundsIndex({
     funds,
     department,
-    search: initialSearch,
-    status: initialStatus,
+    search,
+    status,
+    sort,
+    direction,
 }: {
     funds: PaginatedFunds;
-    department: DepartmentSummary | null;
+    department: DepartmentSummary;
     search: string;
     status: string[];
+    sort: string;
+    direction: 'asc' | 'desc';
 }) {
-    const [searchQuery, setSearchQuery] = useState(initialSearch);
-    const [createOpen, setCreateOpen] = useState(false);
+    const [tableState, setTableState] = useState({
+        sort,
+        direction,
+        per_page: funds.per_page,
+        search,
+        status,
+    });
+    const [isTableReloading, setIsTableReloading] = useState(false);
+    const tableStateRef = useRef(tableState);
 
     useEffect(() => {
-        setSearchQuery(initialSearch);
-    }, [initialSearch]);
+        tableStateRef.current = tableState;
+    }, [tableState]);
 
-    const navigateWithFilters = useCallback(
-        (overrides: Partial<FundListFilters> = {}) => {
-            if (!department?.slug) {
-                return;
+    useEffect(() => {
+        const removeStart = router.on('start', (event) => {
+            if (isFundsPartialVisit(event.detail.visit.only)) {
+                setIsTableReloading(true);
             }
+        });
 
-            const next: FundListFilters = {
-                search: overrides.search ?? searchQuery,
-                status: overrides.status ?? initialStatus,
-            };
+        const removeFinish = router.on('finish', () => {
+            setIsTableReloading(false);
+        });
 
-            router.get(
-                departmentFundsIndex.url(
-                    { department: department.slug },
-                    { query: buildFundsQuery(next) },
-                ),
-                {},
-                {
-                    preserveState: true,
-                    replace: true,
-                    only: ['funds', 'search', 'status', 'department'],
-                    reset: ['funds'],
-                },
-            );
-        },
-        [department?.slug, searchQuery, initialStatus],
-    );
+        return () => {
+            removeStart();
+            removeFinish();
+        };
+    }, []);
 
-    if (department?.slug) {
-        const fundsHref = departmentFundsIndex.url(department.slug);
+    useEffect(() => {
         setLayoutProps({
             breadcrumbs: [
                 {
                     title: 'Funds',
-                    href: fundsHref,
+                    href: departmentFundsIndex.url(department.slug),
                 },
             ] satisfies BreadcrumbItem[],
         });
-    }
+    }, [department.slug]);
 
-    useEffect(() => {
-        const trimmed = searchQuery.trim();
+    const tableFilters: FundTableFilters = {
+        search: tableState.search,
+        status: tableState.status,
+    };
 
-        if (trimmed === initialSearch.trim() || !department?.slug) {
-            return;
-        }
+    const visitTable = useCallback(
+        (
+            overrides: Partial<
+                FundTableFilters & {
+                    sort: string;
+                    direction: 'asc' | 'desc';
+                    per_page: number;
+                    page: number;
+                }
+            > = {},
+        ) => {
+            const next = { ...tableStateRef.current, ...overrides };
+            setTableState(next);
+            router.cancelAll();
+            router.get(
+                departmentFundsIndex.url(
+                    { department: department.slug },
+                    {
+                        query: buildFundsQuery(next, overrides),
+                    },
+                ),
+                {},
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    only: [...FUNDS_TABLE_PARTIAL_PROPS],
+                },
+            );
+        },
+        [department.slug],
+    );
 
-        const handle = window.setTimeout(() => {
-            navigateWithFilters({ search: trimmed });
-        }, 400);
-
-        return () => window.clearTimeout(handle);
-    }, [searchQuery, initialSearch, department?.slug, navigateWithFilters]);
-
-    const heading = department ? `${department.name} funds` : 'Funds';
-    const canManage = Boolean(department?.slug);
-    const isFiltered =
-        initialSearch.trim() !== '' || initialStatus.length > 0;
+    const fundColumns = useMemo(
+        () =>
+            createFundColumns({
+                departmentSlug: department.slug,
+            }),
+        [department.slug],
+    );
 
     return (
         <>
             <Head title="Department funds" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                            {heading}
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {department
-                                ? 'Funds assigned to your department.'
-                                : 'You are not linked to a department yet, so no funds are shown.'}
-                        </p>
-                    </div>
-                </div>
 
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div
-                        className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
-                        data-tour="funds-filters"
-                    >
-                        <Input
-                            type="text"
-                            name="search"
-                            autoComplete="off"
-                            placeholder="Search by fund name"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className={cn(
-                                'max-w-md',
-                                searchQuery.trim().length > 0 &&
-                                    'border-primary bg-primary/5 ring-1 ring-primary/30',
-                            )}
-                        />
-                        <DataTableFacetedFilter
-                            filterValue={initialStatus}
-                            title="Status"
-                            options={[...fundStatusOptions]}
-                            onFilterChange={(values) =>
-                                navigateWithFilters({ status: values })
-                            }
-                        />
-                        {isFiltered ? (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                className="h-8 px-2 lg:px-3"
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    navigateWithFilters({
-                                        search: '',
-                                        status: [],
-                                    });
-                                }}
-                            >
-                                Reset
-                                <X className="ml-2 size-4" />
-                            </Button>
-                        ) : null}
-                    </div>
-                    <Button
-                        type="button"
-                        disabled={!canManage}
-                        onClick={() => setCreateOpen(true)}
-                        data-tour="funds-create"
-                    >
-                        <Plus className="size-4" />
-                        Create fund
-                    </Button>
-                </div>
-
-                {funds.data.length === 0 ? (
+            <div className="flex flex-col gap-6 p-4 md:p-6">
+                <div>
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        {department.name} funds
+                    </h1>
                     <p className="text-sm text-muted-foreground">
-                        No funds match your filters.
+                        Manage funds assigned to your department.
                     </p>
-                ) : (
-                    <InfiniteScroll
-                        data="funds"
-                        onlyNext
-                        next={({ loading }) =>
-                            loading ? (
-                                <p className="py-4 text-center text-sm text-muted-foreground">
-                                    Loading more funds...
-                                </p>
-                            ) : null
-                        }
-                    >
-                        <div className="rounded-xl border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Name</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Year</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead className="w-[70px] text-right">
-                                            Actions
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {funds.data.map((fund) => (
-                                        <TableRow key={fund.id}>
-                                            <TableCell className="font-medium">
-                                                {fund.name}
-                                            </TableCell>
-                                            <TableCell>
-                                                {formatPeso(fund.amount)}
-                                            </TableCell>
-                                            <TableCell>
-                                                {fund.year ?? '—'}
-                                            </TableCell>
-                                            <TableCell>
-                                                <Badge
-                                                    variant={
-                                                        fund.is_active
-                                                            ? 'default'
-                                                            : 'secondary'
-                                                    }
-                                                >
-                                                    {fund.is_active
-                                                        ? 'Active'
-                                                        : 'Inactive'}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {department?.slug ? (
-                                                    <FundRowActions
-                                                        fund={fund}
-                                                        departmentSlug={
-                                                            department.slug
-                                                        }
-                                                    />
-                                                ) : null}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </InfiniteScroll>
-                )}
-            </div>
+                </div>
 
-            <Drawer
-                open={createOpen}
-                onOpenChange={setCreateOpen}
-                direction="right"
-            >
-                <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-lg">
-                    <DrawerHeader>
-                        <DrawerTitle>Create fund</DrawerTitle>
-                        <DrawerDescription>
-                            Add a new fund for {department?.name ?? 'your'}{' '}
-                            department.
-                        </DrawerDescription>
-                    </DrawerHeader>
-                    {canManage && department && (
-                        <Form
-                            {...storeFund.form({
-                                department: department.slug,
-                            })}
-                            disableWhileProcessing
-                            resetOnSuccess
-                            onSuccess={() => {
-                                setCreateOpen(false);
-                                toast.success('Fund created successfully.');
+                <Card data-tour="funds-table">
+                    <CardHeader>
+                        <CardTitle>Department funds</CardTitle>
+                        <CardDescription>
+                            Create and maintain funds available for programs.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <DataTable
+                            columns={fundColumns}
+                            data={funds.data}
+                            emptyMessage="No funds match your filters."
+                            manualPagination
+                            manualSorting
+                            manualFiltering
+                            serverPagination={funds}
+                            serverSorting={{
+                                sort: tableState.sort,
+                                direction: tableState.direction,
                             }}
-                            className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
-                        >
-                            {({ errors, processing }) => (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fund-name">Name</Label>
-                                        <Input
-                                            id="fund-name"
-                                            name="name"
-                                            placeholder="Fund name"
-                                        />
-                                        <InputError message={errors.name} />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fund-amount">
-                                            Amount
-                                        </Label>
-                                        <FundAmountField id="fund-amount" />
-                                        <InputError message={errors.amount} />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="fund-year">Year</Label>
-                                        <Input
-                                            id="fund-year"
-                                            name="year"
-                                            placeholder="e.g. 2026"
-                                            maxLength={4}
-                                        />
-                                        <InputError message={errors.year} />
-                                    </div>
-
-                                    <div className="flex items-start gap-3">
-                                        <Input
-                                            id="fund-is-active"
-                                            type="checkbox"
-                                            name="is_active"
-                                            value="1"
-                                            defaultChecked
-                                            className="mt-1 size-4 shrink-0 rounded border-input"
-                                        />
-                                        <div className="grid gap-1">
-                                            <Label
-                                                htmlFor="fund-is-active"
-                                                className="font-normal"
-                                            >
-                                                Active fund
-                                            </Label>
-                                            <p className="text-sm text-muted-foreground">
-                                                New funds are active by default.
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    <DrawerFooter className="px-0">
-                                        <Button
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            {processing
-                                                ? 'Creating...'
-                                                : 'Create fund'}
-                                        </Button>
-                                        <DrawerClose asChild>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                            >
-                                                Cancel
-                                            </Button>
-                                        </DrawerClose>
-                                    </DrawerFooter>
-                                </>
+                            partialReloadOnly={[...FUNDS_TABLE_PARTIAL_PROPS]}
+                            isLoading={isTableReloading}
+                            loadingFallback={
+                                <DataTableSkeleton
+                                    columnCount={FUNDS_TABLE_SKELETON_COLUMNS}
+                                    rowCount={tableState.per_page}
+                                />
+                            }
+                            onServerSortingChange={(
+                                columnId,
+                                nextDirection,
+                            ) => {
+                                visitTable({
+                                    sort: columnId,
+                                    direction: nextDirection,
+                                    page: 1,
+                                });
+                            }}
+                            onPerPageChange={(nextPerPage) => {
+                                visitTable({
+                                    per_page: nextPerPage,
+                                    page: 1,
+                                });
+                            }}
+                            toolbar={(table, columnVisibility) => (
+                                <FundDataTableToolbar
+                                    table={table}
+                                    columnVisibility={columnVisibility}
+                                    filters={tableFilters}
+                                    departmentSlug={department.slug}
+                                    departmentName={department.name}
+                                    onFiltersChange={visitTable}
+                                    onFundCreated={() =>
+                                        visitTable({ page: 1 })
+                                    }
+                                />
                             )}
-                        </Form>
-                    )}
-                </DrawerContent>
-            </Drawer>
+                        />
+                    </CardContent>
+                </Card>
+            </div>
         </>
     );
 }
