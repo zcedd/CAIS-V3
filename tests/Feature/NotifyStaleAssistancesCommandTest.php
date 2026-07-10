@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Assistance;
+use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
@@ -24,10 +25,17 @@ test('it creates database notifications for stale open assistances', function ()
         'is_organization' => false,
     ]);
 
+    $beneficiary = Beneficiary::create([
+        'cais_number' => 'CAIS-001',
+        'name' => 'Juan Dela Cruz',
+        'beneficiable_type' => 'App\\Models\\Individual',
+        'beneficiable_id' => 1,
+    ]);
+
     $staleOpenAssistance = Assistance::query()->create([
         'program_id' => $program->id,
         'mode_of_request_id' => null,
-        'beneficiary_id' => null,
+        'beneficiary_id' => $beneficiary->id,
         'date_requested' => now()->subYears(8)->toDateString(),
         'date_delivered' => null,
         'date_denied' => null,
@@ -111,6 +119,16 @@ test('it creates database notifications for stale open assistances', function ()
     expect($notification->type)->toBe(StaleAssistanceReminderNotification::class);
     expect($notification->data['month_key'])->toBe(now()->startOfMonth()->format('Y-m'));
     expect($notification->data['assistance_id'])->toBe($staleOpenAssistance->id);
+    expect($notification->data['url'])->toBe(route('user.assistances.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+        'assistance' => $staleOpenAssistance->id,
+    ]));
+    expect($notification->data['message'])->toContain('Juan Dela Cruz');
+    expect($notification->data['message'])->toContain('CAIS-001');
+    expect($notification->data['message'])->toContain('Aid Program');
+    expect($notification->data['message'])->toContain('In Progress — Action Underway');
+    expect($notification->data['message'])->toContain('View request profile');
 
     $this->artisan('assistances:notify-stale')
         ->expectsOutput('Dispatched 0 stale assistance notification(s).')
