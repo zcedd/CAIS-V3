@@ -9,7 +9,6 @@ use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
 
 Route::get('/', function () {
     return redirect()->route('login');
@@ -37,7 +36,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::resource('funds', UserFundController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.funds');
         Route::get('notifications', [UserNotificationController::class, 'index'])->name('user.notifications.index');
+        Route::patch('notifications/read-all', [UserNotificationController::class, 'markAllAsRead'])->name('user.notifications.read-all');
         Route::get('notifications/{notification}', [UserNotificationController::class, 'show'])->name('user.notifications.show');
+        Route::patch('notifications/{notification}/read', [UserNotificationController::class, 'markAsRead'])->name('user.notifications.read');
 
         Route::post('programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
         Route::patch('programs/{program}/assistances/bulk-status', [UserAssistanceController::class, 'bulkUpdateStatus'])->name('user.programs.assistances.status.bulk-update');
@@ -52,4 +53,4 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 });
 
-require __DIR__ . '/settings.php';
+require __DIR__.'/settings.php';
