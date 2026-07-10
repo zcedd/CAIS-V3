@@ -54,7 +54,7 @@ test('populate migration creates morph beneficiaries and links assistances', fun
         'name' => 'Test Organization',
         'mobile_number' => null,
         'beneficiary_id' => $individualId,
-        'addrs_brgy_id' => $barangayId,
+        'address_barangay_id' => $barangayId,
         'total_member' => 10,
         'created_at' => now(),
         'updated_at' => now(),

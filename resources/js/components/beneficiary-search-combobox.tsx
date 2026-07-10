@@ -33,7 +33,7 @@ export type BeneficiarySearchOption = {
 type BeneficiarySearchComboboxProps = {
     departmentSlug?: string;
     beneficiaryType?: 'individual' | 'organization';
-    valueKey?: 'beneficiary_id' | 'organization_id';
+    valueKey?: 'beneficiary_id' | 'organization_id' | 'individual_id';
     value: number | null;
     initialOption?: BeneficiarySearchOption | null;
     onChange: (
@@ -141,7 +141,11 @@ export function BeneficiarySearchCombobox({
 
     const handleSelect = (option: BeneficiarySearchOption) => {
         const selectedValue =
-            valueKey === 'organization_id' ? option.organization_id : option.id;
+            valueKey === 'organization_id'
+                ? option.organization_id
+                : valueKey === 'individual_id'
+                  ? option.individual_id
+                  : option.id;
 
         setSelectedOption(option);
         setInputValue(option.label);

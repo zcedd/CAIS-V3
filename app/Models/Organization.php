@@ -15,7 +15,7 @@ class Organization extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    protected $fillable = ['cais_number', 'name', 'beneficiary_id', 'addrs_brgy_id', 'mobile_number', 'total_member'];
+    protected $fillable = ['cais_number', 'name', 'beneficiary_id', 'address_barangay_id', 'mobile_number', 'total_member'];
 
     public function toSearchableArray()
     {
@@ -52,7 +52,7 @@ class Organization extends Model
 
     public function address()
     {
-        return $this->belongsTo(AddrsBrgy::class, 'addrs_brgy_id', 'id');
+        return $this->belongsTo(AddressBarangay::class, 'address_barangay_id', 'id');
     }
 
     public function assistance()

@@ -44,6 +44,7 @@ test('authenticated users can search beneficiaries in their department', functio
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.cais_number', 'CAIS-001')
         ->assertJsonPath('data.0.name', 'Juan Dela Cruz')
+        ->assertJsonPath('data.0.individual_id', 1)
         ->assertJsonPath('data.0.label', 'CAIS-001 — Juan Dela Cruz');
 });
 

@@ -81,8 +81,18 @@ export type IndividualFormData = {
 
 export type OrganizationMember = {
     id: number;
+    beneficiary_id: number | null;
     name: string;
     cais_number: string;
+    is_president: boolean;
+};
+
+export type IndividualOrganizationMembership = {
+    id: number;
+    beneficiary_id: number | null;
+    name: string;
+    cais_number: string;
+    is_president: boolean;
 };
 
 export type BeneficiaryProfile = {

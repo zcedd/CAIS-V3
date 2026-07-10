@@ -79,7 +79,7 @@ type EditPayload =
                   name: string;
                   cais_number: string;
               } | null;
-              addrs_brgy_id: number | null;
+              address_barangay_id: number | null;
               mobile_number: string | null;
               total_member: number | null;
               members: Array<{
@@ -158,9 +158,6 @@ export function BeneficiaryEditDrawer({
     const [orgName, setOrgName] = useState('');
     const [orgMobile, setOrgMobile] = useState('');
     const [totalMember, setTotalMember] = useState('');
-    const [presidentBeneficiaryId, setPresidentBeneficiaryId] = useState<
-        number | null
-    >(null);
     const [presidentIndividualId, setPresidentIndividualId] = useState<
         number | null
     >(null);
@@ -222,7 +219,7 @@ export function BeneficiaryEditDrawer({
                                 organization.members.length + 1,
                         ),
                     );
-                    setOrganizationBarangayId(organization.addrs_brgy_id);
+                    setOrganizationBarangayId(organization.address_barangay_id);
                     const president = organization.president;
                     setPresidentIndividualId(organization.beneficiary_id);
                     setPresidentOption(
@@ -1036,17 +1033,14 @@ export function BeneficiaryEditDrawer({
                                             <BeneficiarySearchCombobox
                                                 departmentSlug={department.slug}
                                                 beneficiaryType="individual"
+                                                valueKey="individual_id"
                                                 label="President / representative"
                                                 includeHiddenInput={false}
-                                                value={presidentBeneficiaryId}
+                                                value={presidentIndividualId}
                                                 initialOption={presidentOption}
                                                 onChange={(value, option) => {
-                                                    setPresidentBeneficiaryId(
-                                                        value,
-                                                    );
                                                     setPresidentIndividualId(
-                                                        option?.individual_id ??
-                                                            null,
+                                                        value,
                                                     );
                                                     setPresidentOption(option);
                                                 }}
@@ -1114,8 +1108,8 @@ export function BeneficiaryEditDrawer({
                                                 onChange={
                                                     setOrganizationBarangayId
                                                 }
-                                                name="addrs_brgy_id"
-                                                error={errors.addrs_brgy_id}
+                                                name="address_barangay_id"
+                                                error={errors.address_barangay_id}
                                                 idPrefix="edit_organization_address"
                                             />
                                         </div>
@@ -1211,10 +1205,7 @@ export function BeneficiaryEditDrawer({
                                     <DrawerFooter className="px-0">
                                         <Button
                                             type="submit"
-                                            disabled={
-                                                processing ||
-                                                presidentIndividualId === null
-                                            }
+                                            disabled={processing}
                                         >
                                             Save changes
                                         </Button>

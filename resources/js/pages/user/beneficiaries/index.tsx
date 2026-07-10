@@ -16,7 +16,13 @@ import type {
     PaginatedBeneficiaries,
 } from '@/types/beneficiary';
 import type { BreadcrumbItem } from '@/types';
-import { Head, InfiniteScroll, Link, router, setLayoutProps } from '@inertiajs/react';
+import {
+    Head,
+    InfiniteScroll,
+    Link,
+    router,
+    setLayoutProps,
+} from '@inertiajs/react';
 import { Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -174,7 +180,8 @@ export default function UserBeneficiariesIndex({
                                     navigateWithFilters({ type: values })
                                 }
                             />
-                            {(initialSearch !== '' || initialType.length > 0) && (
+                            {(initialSearch !== '' ||
+                                initialType.length > 0) && (
                                 <Button
                                     type="button"
                                     variant="ghost"
@@ -202,8 +209,6 @@ export default function UserBeneficiariesIndex({
                             <>
                                 <InfiniteScroll
                                     data="beneficiaries"
-                                    onlyNext
-                                    buffer={200}
                                     itemsElement="#beneficiaries-table-body"
                                     next={({ loading }) =>
                                         loading ? (
@@ -219,10 +224,10 @@ export default function UserBeneficiariesIndex({
                                         <table className="w-full text-sm">
                                             <thead>
                                                 <tr className="border-b text-left text-muted-foreground">
-                                                    <th className="pb-3 pr-4 font-medium">
+                                                    <th className="pr-4 pb-3 font-medium">
                                                         CAIS Number
                                                     </th>
-                                                    <th className="pb-3 pr-4 font-medium">
+                                                    <th className="pr-4 pb-3 font-medium">
                                                         Name
                                                     </th>
                                                     <th className="pb-3 font-medium">
@@ -272,9 +277,7 @@ export default function UserBeneficiariesIndex({
                                 <p className="mt-4 text-sm text-muted-foreground">
                                     Showing {loadedCount} of{' '}
                                     {beneficiaries.total} beneficiaries
-                                    {hasMorePages
-                                        ? ' — scroll for more'
-                                        : null}
+                                    {hasMorePages ? ' — scroll for more' : null}
                                 </p>
                             </>
                         )}

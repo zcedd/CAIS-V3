@@ -18,7 +18,7 @@ use Illuminate\Support\Carbon;
 
 class BeneficiaryService
 {
-    private const BENEFICIARIES_PER_PAGE = 15;
+    private const BENEFICIARIES_PER_PAGE = 50;
 
     private const ASSISTANCES_PER_PAGE = 10;
 
@@ -87,7 +87,7 @@ class BeneficiaryService
                 ->orderBy('name')
                 ->get(['id', 'name', 'address_province_id']),
             'address_barangays' => AddressBarangay::query()
-                ->with('city:id,name')
+                ->with('city.province:id,name')
                 ->orderBy('name')
                 ->get(['id', 'name', 'address_city_id'])
                 ->map(static fn (AddressBarangay $barangay): array => [
@@ -95,9 +95,7 @@ class BeneficiaryService
                     'name' => $barangay->name,
                     'address_city_id' => $barangay->address_city_id,
                     'city' => $barangay->city?->name,
-                    'label' => $barangay->city
-                        ? "{$barangay->name}, {$barangay->city->name}"
-                        : $barangay->name,
+                    'label' => $barangay->formattedLabel() ?? $barangay->name,
                 ])
                 ->values()
                 ->all(),

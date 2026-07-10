@@ -11,12 +11,14 @@ import {
     CardTitle,
 } from '@/components/ui/card';
 import { BeneficiaryEditDrawer } from '@/pages/user/beneficiaries/beneficiary-edit-drawer';
-import { index as beneficiariesIndex } from '@/routes/user/beneficiaries';
+import { index as beneficiariesIndex, show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import type {
     BeneficiaryProfile,
     DepartmentSummary,
     FormOptions,
+    IndividualOrganizationMembership,
+    OrganizationMember,
     PaginatedBeneficiaryAssistances,
 } from '@/types/beneficiary';
 import type { BreadcrumbItem } from '@/types';
@@ -60,6 +62,16 @@ export default function UserBeneficiaryShow({
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const details = beneficiary.details as Record<string, unknown>;
+    const organizationMembers =
+        beneficiary.type === 'organization'
+            ? ((details.members as OrganizationMember[] | undefined) ?? [])
+            : [];
+    const individualOrganizations =
+        beneficiary.type === 'individual'
+            ? ((details.organizations as
+                  | IndividualOrganizationMembership[]
+                  | undefined) ?? [])
+            : [];
 
     useEffect(() => {
         setLayoutProps({
@@ -284,6 +296,172 @@ export default function UserBeneficiaryShow({
                         </CardContent>
                     </Card>
                 </div>
+
+                {beneficiary.type === 'organization' ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">Members</CardTitle>
+                            <CardDescription>
+                                Individuals registered under this organization.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {organizationMembers.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    No members listed.
+                                </p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b text-left text-muted-foreground">
+                                                <th className="pb-3 pr-4 font-medium">
+                                                    CAIS Number
+                                                </th>
+                                                <th className="pb-3 pr-4 font-medium">
+                                                    Name
+                                                </th>
+                                                <th className="pb-3 font-medium">
+                                                    Role
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {organizationMembers.map(
+                                                (member) => (
+                                                    <tr
+                                                        key={member.id}
+                                                        className="border-b last:border-0"
+                                                    >
+                                                        <td className="py-3 pr-4">
+                                                            {member.beneficiary_id ? (
+                                                                <Link
+                                                                    href={beneficiaryShow.url(
+                                                                        {
+                                                                            department:
+                                                                                department.slug,
+                                                                            beneficiary:
+                                                                                member.beneficiary_id,
+                                                                        },
+                                                                    )}
+                                                                    className="font-medium text-primary hover:underline"
+                                                                >
+                                                                    {
+                                                                        member.cais_number
+                                                                    }
+                                                                </Link>
+                                                            ) : (
+                                                                member.cais_number
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 pr-4">
+                                                            {member.name}
+                                                        </td>
+                                                        <td className="py-3">
+                                                            {member.is_president ? (
+                                                                <Badge variant="secondary">
+                                                                    President
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline">
+                                                                    Member
+                                                                </Badge>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ) : null}
+
+                {beneficiary.type === 'individual' ? (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="text-lg">
+                                Organizations
+                            </CardTitle>
+                            <CardDescription>
+                                Organizations this individual belongs to.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {individualOrganizations.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Not a member of any organization.
+                                </p>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm">
+                                        <thead>
+                                            <tr className="border-b text-left text-muted-foreground">
+                                                <th className="pb-3 pr-4 font-medium">
+                                                    CAIS Number
+                                                </th>
+                                                <th className="pb-3 pr-4 font-medium">
+                                                    Organization
+                                                </th>
+                                                <th className="pb-3 font-medium">
+                                                    Role
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {individualOrganizations.map(
+                                                (organization) => (
+                                                    <tr
+                                                        key={organization.id}
+                                                        className="border-b last:border-0"
+                                                    >
+                                                        <td className="py-3 pr-4">
+                                                            {organization.beneficiary_id ? (
+                                                                <Link
+                                                                    href={beneficiaryShow.url(
+                                                                        {
+                                                                            department:
+                                                                                department.slug,
+                                                                            beneficiary:
+                                                                                organization.beneficiary_id,
+                                                                        },
+                                                                    )}
+                                                                    className="font-medium text-primary hover:underline"
+                                                                >
+                                                                    {
+                                                                        organization.cais_number
+                                                                    }
+                                                                </Link>
+                                                            ) : (
+                                                                organization.cais_number
+                                                            )}
+                                                        </td>
+                                                        <td className="py-3 pr-4">
+                                                            {organization.name}
+                                                        </td>
+                                                        <td className="py-3">
+                                                            {organization.is_president ? (
+                                                                <Badge variant="secondary">
+                                                                    President
+                                                                </Badge>
+                                                            ) : (
+                                                                <Badge variant="outline">
+                                                                    Member
+                                                                </Badge>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ),
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                ) : null}
 
                 <Card>
                     <CardHeader>
