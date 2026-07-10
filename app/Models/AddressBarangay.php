@@ -14,6 +14,21 @@ class AddressBarangay extends Model
 
     public function city()
     {
-        return $this->belongsTo(AddressCity::class);
+        return $this->belongsTo(AddressCity::class, 'address_city_id', 'id');
+    }
+
+    public function formattedLabel(): ?string
+    {
+        $this->loadMissing('city.province');
+
+        $label = collect([
+            $this->name,
+            $this->city?->name,
+            $this->city?->province?->name,
+        ])
+            ->filter(static fn(?string $part): bool => $part !== null && trim($part) !== '')
+            ->implode(', ');
+
+        return $label !== '' ? $label : null;
     }
 }

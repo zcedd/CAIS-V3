@@ -74,9 +74,6 @@ export default function UserBeneficiariesCreate({
     const [individualForm, setIndividualForm] = useState<IndividualFormData>(
         emptyIndividualForm(),
     );
-    const [presidentBeneficiaryId, setPresidentBeneficiaryId] = useState<
-        number | null
-    >(null);
     const [presidentIndividualId, setPresidentIndividualId] = useState<
         number | null
     >(null);
@@ -934,12 +931,13 @@ export default function UserBeneficiariesCreate({
                                                             department.slug
                                                         }
                                                         beneficiaryType="individual"
+                                                        valueKey="individual_id"
                                                         label="President / representative"
                                                         includeHiddenInput={
                                                             false
                                                         }
                                                         value={
-                                                            presidentBeneficiaryId
+                                                            presidentIndividualId
                                                         }
                                                         initialOption={
                                                             presidentOption
@@ -948,12 +946,8 @@ export default function UserBeneficiariesCreate({
                                                             value,
                                                             option,
                                                         ) => {
-                                                            setPresidentBeneficiaryId(
-                                                                value,
-                                                            );
                                                             setPresidentIndividualId(
-                                                                option?.individual_id ??
-                                                                    null,
+                                                                value,
                                                             );
                                                             setPresidentOption(
                                                                 option,
@@ -1013,9 +1007,9 @@ export default function UserBeneficiariesCreate({
                                                         onChange={
                                                             setOrgBarangayId
                                                         }
-                                                        name="addrs_brgy_id"
+                                                        name="address_barangay_id"
                                                         error={
-                                                            errors.addrs_brgy_id
+                                                            errors.address_barangay_id
                                                         }
                                                         idPrefix="organization_address"
                                                     />
@@ -1126,11 +1120,7 @@ export default function UserBeneficiariesCreate({
 
                                             <Button
                                                 type="submit"
-                                                disabled={
-                                                    processing ||
-                                                    presidentIndividualId ===
-                                                        null
-                                                }
+                                                disabled={processing}
                                             >
                                                 Save organization
                                             </Button>

@@ -141,7 +141,7 @@ class IndividualBeneficiaryService
         $individual = $beneficiary->beneficiable;
         $individual->load([
             'identification:id,name',
-            'address.city:id,name',
+            'address.city.province:id,name',
             'civilStatus:id,name',
         ]);
 
@@ -168,7 +168,7 @@ class IndividualBeneficiaryService
                 'spouse' => $individual->spouse,
                 'address_barangay_id' => $individual->address_barangay_id,
                 'identifications' => $individual->identification
-                    ->map(static fn($identification): array => [
+                    ->map(static fn ($identification): array => [
                         'identification_id' => $identification->id,
                         'number' => $identification->pivot->number,
                     ])
@@ -187,9 +187,10 @@ class IndividualBeneficiaryService
         $individual = $beneficiary->beneficiable;
         $individual->load([
             'identification:id,name',
-            'address.city:id,name',
+            'address.city.province:id,name',
             'civilStatus:id,name',
-            'organization:id,name,cais_number',
+            'organization:id,name,cais_number,beneficiary_id',
+            'organization.beneficiaryRecord:id,beneficiable_type,beneficiable_id',
         ]);
 
         return [
@@ -204,11 +205,7 @@ class IndividualBeneficiaryService
             'mobile_number' => $individual->mobile_number,
             'other_address' => $individual->other_address,
             'civil_status' => $individual->civilStatus?->name,
-            'address' => $individual->address
-                ? ($individual->address->city
-                    ? "{$individual->address->name}, {$individual->address->city->name}"
-                    : $individual->address->name)
-                : null,
+            'address' => $individual->address?->formattedLabel(),
             'indigenous' => (bool) $individual->indigenous,
             'ethnicity' => $individual->ethnicity,
             'pwd' => (bool) $individual->pwd,
@@ -216,17 +213,20 @@ class IndividualBeneficiaryService
             'is_solo_parent' => (bool) $individual->is_solo_parent,
             'spouse' => $individual->spouse,
             'identifications' => $individual->identification
-                ->map(static fn($identification): array => [
+                ->map(static fn ($identification): array => [
                     'name' => $identification->name,
                     'number' => $identification->pivot->number,
                 ])
                 ->values()
                 ->all(),
             'organizations' => $individual->organization
-                ->map(static fn(Organization $organization): array => [
+                ->sortBy(static fn (Organization $organization): string => $organization->name)
+                ->map(fn (Organization $organization): array => [
                     'id' => $organization->id,
+                    'beneficiary_id' => $organization->beneficiaryRecord?->id,
                     'name' => $organization->name,
                     'cais_number' => $organization->cais_number,
+                    'is_president' => $organization->beneficiary_id === $individual->id,
                 ])
                 ->values()
                 ->all(),

@@ -28,7 +28,7 @@ test('authenticated users can create organization beneficiaries with president a
     ]), [
         'name' => 'Samahan ng Magsasaka',
         'beneficiary_id' => $president->id,
-        'addrs_brgy_id' => $barangayId,
+        'address_barangay_id' => $barangayId,
         'member_ids' => [$member->id],
         'total_member' => 2,
     ]);
@@ -49,4 +49,23 @@ test('authenticated users can create organization beneficiaries with president a
         'department' => $department->slug,
         'beneficiary' => $beneficiary->id,
     ]));
+});
+
+test('organization beneficiary creation requires a barangay address', function () {
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
+
+    $president = Individual::factory()->create([
+        'first_name' => 'Ana',
+        'last_name' => 'Reyes',
+        'sex' => 'Female',
+    ]);
+
+    $response = $this->actingAs($user)->post(route('user.beneficiaries.organizations.store', [
+        'department' => $department->slug,
+    ]), [
+        'name' => 'Samahan ng Magsasaka',
+        'beneficiary_id' => $president->id,
+    ]);
+
+    $response->assertSessionHasErrors('address_barangay_id');
 });

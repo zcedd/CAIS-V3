@@ -22,7 +22,7 @@ class StoreOrganizationRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'beneficiary_id' => ['required', 'integer', Rule::exists('individuals', 'id')],
-            'addrs_brgy_id' => ['nullable', 'integer', Rule::exists('address_barangays', 'id')],
+            'address_barangay_id' => ['required', 'integer', Rule::exists('address_barangays', 'id')],
             'mobile_number' => ['nullable', 'string', 'max:20'],
             'total_member' => ['nullable', 'integer', 'min:0'],
             'member_ids' => ['nullable', 'array'],

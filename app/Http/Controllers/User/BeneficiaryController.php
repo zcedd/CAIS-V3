@@ -38,6 +38,7 @@ class BeneficiaryController extends Controller
     {
         $search = $request->search();
         $types = $request->types();
+
         return Inertia::render('user/beneficiaries/index', [
             'beneficiaries' => Inertia::scroll(
                 $this->beneficiaryService->paginate($search, $types),
@@ -179,7 +180,7 @@ class BeneficiaryController extends Controller
         }
 
         $beneficiaries = $query
-            ->get(['id', 'cais_number', 'name'])
+            ->get(['id', 'cais_number', 'name', 'beneficiable_type', 'beneficiable_id'])
             ->map(static fn(Beneficiary $beneficiary): array => [
                 'id' => $beneficiary->id,
                 'individual_id' => $beneficiary->beneficiable_type === Individual::class
