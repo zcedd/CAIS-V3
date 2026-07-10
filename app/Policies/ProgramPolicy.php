@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
 
@@ -10,9 +11,9 @@ class ProgramPolicy
     /**
      * Determine whether the user can view any models.
      */
-    public function viewAny(User $user): bool
+    public function viewAny(User $user, Department $department): bool
     {
-        return true;
+        return $user->department_id === $department->id;
     }
 
     /**
