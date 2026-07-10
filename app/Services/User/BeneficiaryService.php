@@ -18,7 +18,7 @@ use Illuminate\Support\Carbon;
 
 class BeneficiaryService
 {
-    private const BENEFICIARIES_PER_PAGE = 15;
+    private const BENEFICIARIES_PER_PAGE = 50;
 
     private const ASSISTANCES_PER_PAGE = 10;
 
@@ -37,7 +37,7 @@ class BeneficiaryService
     ): LengthAwarePaginator {
         return Beneficiary::query()
             ->when($search !== '', function ($query) use ($search): void {
-                $needle = '%'.$search.'%';
+                $needle = '%' . $search . '%';
                 $query->where(function ($builder) use ($needle): void {
                     $builder
                         ->where('name', 'like', $needle)
@@ -46,11 +46,11 @@ class BeneficiaryService
             })
             ->when(
                 count($types) === 1 && in_array('individual', $types, true),
-                fn ($query) => $query->where('beneficiable_type', Individual::class),
+                fn($query) => $query->where('beneficiable_type', Individual::class),
             )
             ->when(
                 count($types) === 1 && in_array('organization', $types, true),
-                fn ($query) => $query->where('beneficiable_type', Organization::class),
+                fn($query) => $query->where('beneficiable_type', Organization::class),
             )
             ->orderBy('name')
             ->paginate(self::BENEFICIARIES_PER_PAGE)
@@ -90,7 +90,7 @@ class BeneficiaryService
                 ->with('city:id,name')
                 ->orderBy('name')
                 ->get(['id', 'name', 'address_city_id'])
-                ->map(static fn (AddressBarangay $barangay): array => [
+                ->map(static fn(AddressBarangay $barangay): array => [
                     'id' => $barangay->id,
                     'name' => $barangay->name,
                     'address_city_id' => $barangay->address_city_id,
@@ -129,7 +129,7 @@ class BeneficiaryService
             ->whereIn('id', $programIds)
             ->orderBy('name')
             ->get(['id', 'name', 'department_id', 'is_organization'])
-            ->map(static fn (Program $program): array => [
+            ->map(static fn(Program $program): array => [
                 'id' => $program->id,
                 'name' => $program->name,
                 'department' => $program->department?->only(['id', 'name', 'slug']),
@@ -178,7 +178,7 @@ class BeneficiaryService
             ]);
 
         if ($search !== '') {
-            $needle = '%'.$search.'%';
+            $needle = '%' . $search . '%';
             $assistancesQuery->where(function ($query) use ($needle): void {
                 $query
                     ->where('programs.name', 'like', $needle)

@@ -38,7 +38,7 @@ class IndividualBeneficiaryService
     public function create(array $validated): Individual
     {
         return DB::transaction(function () use ($validated): Individual {
-            $caisNumber = $this->beneficiaryMorphService->createUniqueCaisNumber('IND');
+            $caisNumber = $this->beneficiaryMorphService->createUniqueCaisNumber('PRO');
 
             $individual = Individual::query()->create([
                 'cais_number' => $caisNumber,
@@ -168,7 +168,7 @@ class IndividualBeneficiaryService
                 'spouse' => $individual->spouse,
                 'address_barangay_id' => $individual->address_barangay_id,
                 'identifications' => $individual->identification
-                    ->map(static fn ($identification): array => [
+                    ->map(static fn($identification): array => [
                         'identification_id' => $identification->id,
                         'number' => $identification->pivot->number,
                     ])
@@ -216,14 +216,14 @@ class IndividualBeneficiaryService
             'is_solo_parent' => (bool) $individual->is_solo_parent,
             'spouse' => $individual->spouse,
             'identifications' => $individual->identification
-                ->map(static fn ($identification): array => [
+                ->map(static fn($identification): array => [
                     'name' => $identification->name,
                     'number' => $identification->pivot->number,
                 ])
                 ->values()
                 ->all(),
             'organizations' => $individual->organization
-                ->map(static fn (Organization $organization): array => [
+                ->map(static fn(Organization $organization): array => [
                     'id' => $organization->id,
                     'name' => $organization->name,
                     'cais_number' => $organization->cais_number,
