@@ -54,7 +54,7 @@ class AssistanceService
      */
     public function create(Program $program, User $user, array $validated): Assistance
     {
-        $recordedAt = Carbon::parse($validated['recorded_at'])->startOfDay();
+        $recordedAt = Carbon::parse($validated['recorded_at']);
 
         $assistance = Assistance::query()->create([
             'program_id' => $program->id,
