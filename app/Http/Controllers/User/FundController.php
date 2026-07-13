@@ -32,13 +32,18 @@ class FundController extends Controller
             $department,
             $search,
             $statuses,
+            $request->sort(),
+            $request->direction(),
+            $request->perPage(),
         );
 
         return Inertia::render('user/funds/index', [
-            'funds' => Inertia::scroll($funds),
+            'funds' => $funds,
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
             'status' => $statuses,
+            'sort' => $request->sort(),
+            'direction' => $request->direction(),
         ]);
     }
 

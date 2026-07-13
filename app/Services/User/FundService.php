@@ -9,7 +9,10 @@ use Illuminate\Validation\ValidationException;
 
 class FundService
 {
-    private const FUNDS_PER_PAGE = 12;
+    private const DEFAULT_PER_PAGE = 15;
+
+    /** @var list<string> */
+    private const SORTABLE_COLUMNS = ['name', 'amount', 'year', 'is_active'];
 
     /**
      * @param  list<string>  $statuses
@@ -18,7 +21,13 @@ class FundService
         Department $department,
         string $search,
         array $statuses,
+        string $sort,
+        string $direction,
+        int $perPage,
     ): LengthAwarePaginator {
+        $sortColumn = in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : 'name';
+        $sortDirection = $direction === 'asc' ? 'asc' : 'desc';
+
         return Fund::query()
             ->select([
                 'id',
@@ -38,8 +47,8 @@ class FundService
                 count($statuses) === 1 && in_array('inactive', $statuses, true),
                 fn ($query) => $query->where('is_active', false),
             )
-            ->orderBy('name')
-            ->paginate(self::FUNDS_PER_PAGE)
+            ->orderBy($sortColumn, $sortDirection)
+            ->paginate($perPage > 0 ? $perPage : self::DEFAULT_PER_PAGE)
             ->withQueryString();
     }
 
