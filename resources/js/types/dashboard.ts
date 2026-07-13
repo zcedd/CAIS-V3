@@ -118,14 +118,32 @@ export function buildDashboardQuery(
     return query;
 }
 
-export const EMPTY_DASHBOARD_FILTERS: DashboardFilters = {
-    year: [],
-    quarter: [],
-    program: [],
-    beneficiary_type: [],
-    sex: [],
-    pwd: [],
-    four_ps: [],
-    solo_parent: [],
-    indigenous: [],
-};
+export function getDefaultDashboardFilters(): DashboardFilters {
+    return {
+        year: [String(new Date().getFullYear())],
+        quarter: [],
+        program: [],
+        beneficiary_type: [],
+        sex: [],
+        pwd: [],
+        four_ps: [],
+        solo_parent: [],
+        indigenous: [],
+    };
+}
+
+export function hasActiveDashboardFilters(filters: DashboardFilters): boolean {
+    const defaults = getDefaultDashboardFilters();
+
+    return (Object.keys(defaults) as (keyof DashboardFilters)[]).some(
+        (key) => {
+            const current = [...filters[key]].sort();
+            const defaultValues = [...defaults[key]].sort();
+
+            return (
+                current.length !== defaultValues.length ||
+                current.some((value, index) => value !== defaultValues[index])
+            );
+        },
+    );
+}

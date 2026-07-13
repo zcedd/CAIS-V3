@@ -66,8 +66,14 @@ class IndexRequest extends FormRequest
      */
     public function filters(): array
     {
+        $year = $this->validated('year') ?? [];
+
+        if ($year === []) {
+            $year = [now()->year];
+        }
+
         return [
-            'year' => array_map('intval', $this->validated('year') ?? []),
+            'year' => array_map('intval', $year),
             'quarter' => array_values($this->validated('quarter') ?? []),
             'program' => array_map('intval', $this->validated('program') ?? []),
             'beneficiary_type' => array_values($this->validated('beneficiary_type') ?? []),

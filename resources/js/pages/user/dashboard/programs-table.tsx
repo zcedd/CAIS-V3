@@ -14,19 +14,22 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import type { DashboardProgramRow } from '@/types/dashboard';
+import { show as departmentProgramShow } from '@/routes/user/programs';
+import type { DashboardProgramRow, DepartmentSummary } from '@/types/dashboard';
+import { Link } from '@inertiajs/react';
 
 type ProgramsTableProps = {
+    department: DepartmentSummary;
     data: DashboardProgramRow[];
 };
 
-export function ProgramsTable({ data }: ProgramsTableProps) {
+export function ProgramsTable({ department, data }: ProgramsTableProps) {
     return (
         <Card data-tour="dashboard-programs-summary">
             <CardHeader>
                 <CardTitle>Programs summary</CardTitle>
                 <CardDescription>
-                    Request counts per program for the selected demographic
+                    The 10 latest programs with request counts for the selected
                     filters
                 </CardDescription>
             </CardHeader>
@@ -56,8 +59,17 @@ export function ProgramsTable({ data }: ProgramsTableProps) {
                         <TableBody>
                             {data.map((row) => (
                                 <TableRow key={row.id}>
-                                    <TableCell className="font-medium">
-                                        {row.name}
+                                    <TableCell>
+                                        <Link
+                                            href={departmentProgramShow.url({
+                                                department: department.slug,
+                                                program: row.id,
+                                            })}
+                                            prefetch
+                                            className="font-medium text-primary hover:underline"
+                                        >
+                                            {row.name}
+                                        </Link>
                                     </TableCell>
                                     <TableCell>
                                         <Badge variant="outline">
