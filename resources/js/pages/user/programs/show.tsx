@@ -34,7 +34,7 @@ import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
-import type { BreadcrumbItem } from '@/types';
+import { formatProgramPeriod } from '@/lib/format-program-period';
 import type { ProgramSummary } from '@/types/program';
 import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import { Pencil } from 'lucide-react';
@@ -341,8 +341,7 @@ export default function UserProgramShow({
                             <span className="font-medium text-foreground">
                                 Period:{' '}
                             </span>
-                            {program.start_at ?? '—'}
-                            {program.end_at ? ` – ${program.end_at}` : ''}
+                            {formatProgramPeriod(program.start_at, program.end_at)}
                         </p>
                     </CardContent>
                 </Card>

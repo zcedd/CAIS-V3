@@ -160,6 +160,58 @@ test('authenticated users can create assistance for their department program', f
     }
 });
 
+test('creating assistance preserves the recorded at time', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    ['item' => $item, 'beneficiary' => $beneficiary, 'mode' => $mode] = createAssistanceStoreFixtures(
+        $department,
+        $program,
+    );
+
+    $this->actingAs($user)->post(route('user.programs.assistances.store', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]), [
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'recorded_at' => '2026-05-20 14:30:00',
+        'item_details' => [
+            [
+                'item_id' => $item->id,
+                'quantity' => 1,
+                'specification' => null,
+            ],
+        ],
+    ])->assertRedirect();
+
+    $assistance = Assistance::query()->first();
+
+    expect($assistance)->not->toBeNull()
+        ->and(Carbon::parse($assistance->date_requested)->toDateString())->toBe('2026-05-20');
+
+    $subStatus = AssistanceRequestSubStatus::query()
+        ->where('assistance_id', $assistance->id)
+        ->latest('recorded_at')
+        ->first();
+
+    expect($subStatus)->not->toBeNull()
+        ->and(Carbon::parse($subStatus->recorded_at)->toDateTimeString())->toBe('2026-05-20 14:30:00');
+});
+
 test('users cannot create assistance for a closed program', function () {
     $department = Department::create(['name' => 'Department A']);
 

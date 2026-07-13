@@ -94,7 +94,7 @@ type AssistanceItemDetail = {
     specification: string;
 };
 
-function formatDateForSubmit(date: Date | undefined): string | undefined {
+function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
     if (!date) {
         return undefined;
     }
@@ -102,8 +102,34 @@ function formatDateForSubmit(date: Date | undefined): string | undefined {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
 
-    return `${year}-${month}-${day}`;
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+function formatTimeForInput(date: Date): string {
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+
+    return `${hours}:${minutes}`;
+}
+
+function formatRecordedAtDisplay(date: Date): string {
+    return date.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
+}
+
+function applyTimeToDate(date: Date, timeValue: string): Date {
+    const [hours, minutes] = timeValue.split(':').map(Number);
+    const next = new Date(date);
+
+    next.setHours(hours ?? 0, minutes ?? 0, 0, 0);
+
+    return next;
 }
 
 type AssistanceDatePickerProps = {
@@ -137,8 +163,8 @@ function AssistanceDatePicker({
                         className="w-full justify-between font-normal"
                     >
                         {selected
-                            ? selected.toLocaleDateString()
-                            : 'Select date'}
+                            ? formatRecordedAtDisplay(selected)
+                            : 'Select date and time'}
                         <ChevronDownIcon className="size-4 opacity-50" />
                     </Button>
                 </PopoverTrigger>
@@ -155,7 +181,7 @@ function AssistanceDatePicker({
                             className="flex items-center gap-2 bg-transparent"
                         >
                             <CalendarDays className="size-4" />
-                            Today
+                            Now
                         </Button>
                         <Button
                             type="button"
@@ -173,10 +199,40 @@ function AssistanceDatePicker({
                         selected={selected}
                         captionLayout="dropdown"
                         onSelect={(date) => {
-                            onSelect(date);
-                            onOpenChange(false);
+                            if (!date) {
+                                onSelect(undefined);
+
+                                return;
+                            }
+
+                            const current = selected ?? new Date();
+
+                            onSelect(
+                                applyTimeToDate(
+                                    date,
+                                    formatTimeForInput(current),
+                                ),
+                            );
                         }}
                     />
+                    <div className="border-t p-3">
+                        <Label htmlFor={`${id}-time`}>Time</Label>
+                        <Input
+                            id={`${id}-time`}
+                            type="time"
+                            className="mt-2 bg-background"
+                            value={
+                                selected ? formatTimeForInput(selected) : ''
+                            }
+                            onChange={(event) => {
+                                const base = selected ?? new Date();
+
+                                onSelect(
+                                    applyTimeToDate(base, event.target.value),
+                                );
+                            }}
+                        />
+                    </div>
                 </PopoverContent>
             </Popover>
             <InputError message={error} />
@@ -277,7 +333,11 @@ export function AssistanceDataTableToolbar({
     useEffect(() => {
         if (!createOpen) {
             resetCreateForm();
+
+            return;
         }
+
+        setDateRequested(new Date());
     }, [createOpen]);
 
     useEffect(() => {
@@ -450,7 +510,7 @@ export function AssistanceDataTableToolbar({
                             transform={(data) => ({
                                 ...data,
                                 recorded_at:
-                                    formatDateForSubmit(dateRequested),
+                                    formatDateTimeForSubmit(dateRequested),
                                 item_details: selectedItemIds.map((itemId) => ({
                                     item_id: Number(itemId),
                                     quantity: Number(
