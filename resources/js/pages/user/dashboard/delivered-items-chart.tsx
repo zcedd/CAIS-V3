@@ -1,87 +1,88 @@
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent,
-    type ChartConfig,
+    ChartTooltipContent
+    
 } from '@/components/ui/chart';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import type {ChartConfig} from '@/components/ui/chart';
+import { DashboardChartFrame } from '@/pages/user/dashboard/dashboard-chart-frame';
 import type { DeliveredItemsChartPoint } from '@/types/dashboard';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 
 const chartConfig = {
-    count: {
-        label: 'Deliveries',
+    quantity: {
+        label: 'Quantity',
         color: 'var(--chart-1)',
     },
 } satisfies ChartConfig;
 
 type DeliveredItemsChartProps = {
     data: DeliveredItemsChartPoint[];
+    className?: string;
 };
 
-export function DeliveredItemsChart({ data }: DeliveredItemsChartProps) {
+export function DeliveredItemsChart({
+    data,
+    className,
+}: DeliveredItemsChartProps) {
     const chartData = data.map((point) => ({
         label: `${point.item} (${point.unit})`,
+        quantity: point.quantity ?? point.count,
         count: point.count,
     }));
 
-    return (
-        <Card className="h-full" data-tour="dashboard-items-delivered-charts">
-            <CardHeader>
-                <CardTitle>Delivered items</CardTitle>
-                <CardDescription>
-                    Top items by number of deliveries
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {chartData.length === 0 ? (
-                    <p className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-                        No delivered items for the selected filters.
-                    </p>
-                ) : (
-                    <ChartContainer
-                        config={chartConfig}
-                        className="aspect-auto h-[280px] w-full"
+    const chartHeight = Math.min(
+        360,
+        Math.max(180, chartData.length * 36 + 24),
+    );
+
+    const chart =
+        chartData.length === 0 ? (
+            <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+                No delivered items for the selected filters.
+            </p>
+        ) : (
+            <DashboardChartFrame height={chartHeight} className={className}>
+                <ChartContainer
+                    config={chartConfig}
+                    className="!aspect-auto h-full w-full"
+                    initialDimension={{ width: 640, height: chartHeight }}
+                >
+                    <BarChart
+                        data={chartData}
+                        layout="vertical"
+                        margin={{ left: 4, right: 12, top: 4, bottom: 4 }}
                     >
-                        <BarChart
-                            data={chartData}
-                            layout="vertical"
-                            margin={{ left: 8, right: 8 }}
-                        >
-                            <CartesianGrid horizontal={false} />
-                            <XAxis
-                                type="number"
-                                tickLine={false}
-                                axisLine={false}
-                            />
-                            <YAxis
-                                type="category"
-                                dataKey="label"
-                                width={140}
-                                tickLine={false}
-                                axisLine={false}
-                                tickFormatter={(value: string) =>
-                                    value.length > 24
-                                        ? `${value.slice(0, 24)}…`
-                                        : value
-                                }
-                            />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            <Bar
-                                dataKey="count"
-                                fill="var(--color-count)"
-                                radius={4}
-                            />
-                        </BarChart>
-                    </ChartContainer>
-                )}
-            </CardContent>
-        </Card>
+                        <CartesianGrid horizontal={false} />
+                        <XAxis
+                            type="number"
+                            tickLine={false}
+                            axisLine={false}
+                        />
+                        <YAxis
+                            type="category"
+                            dataKey="label"
+                            width={128}
+                            tickLine={false}
+                            axisLine={false}
+                            tickFormatter={(value: string) =>
+                                value.length > 22
+                                    ? `${value.slice(0, 22)}…`
+                                    : value
+                            }
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar
+                            dataKey="quantity"
+                            fill="var(--color-quantity)"
+                            radius={4}
+                        />
+                    </BarChart>
+                </ChartContainer>
+            </DashboardChartFrame>
+        );
+
+    return (
+        <div data-tour="dashboard-items-delivered-charts">{chart}</div>
     );
 }

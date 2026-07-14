@@ -98,7 +98,7 @@ export function AppSidebar() {
     }, [props.auth.user]);
 
     return (
-        <Sidebar collapsible="icon" variant="inset" data-tour="sidebar">
+        <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -107,8 +107,8 @@ export function AppSidebar() {
                                 href={
                                     props.auth.user?.department?.slug
                                         ? departmentDashboardIndex(
-                                              props.auth.user.department.slug,
-                                          )
+                                            props.auth.user.department.slug,
+                                        )
                                         : dashboard()
                                 }
                                 prefetch
