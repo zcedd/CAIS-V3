@@ -1,13 +1,8 @@
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
 import type {
     AssistanceModeOption,
     AssistanceProgramItemOption,
@@ -31,13 +26,35 @@ import {
     type PaginatedAssistances,
 } from '@/pages/user/programs/program-assistance-table';
 import {
+    ProgramStatusBreakdown,
+    ProgramStatusBreakdownSkeleton,
+} from '@/pages/user/programs/status-breakdown';
+import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
-import { formatProgramPeriod } from '@/lib/format-program-period';
-import type { ProgramSummary } from '@/types/program';
+import {
+    formatProgramDate,
+    formatProgramPeriod,
+} from '@/lib/format-program-period';
+import { cn } from '@/lib/utils';
+import type { BreadcrumbItem } from '@/types';
+import type {
+    ProgramCoveredItem,
+    ProgramFund,
+    ProgramStatusBreakdownPoint,
+    ProgramSummary,
+} from '@/types/program';
 import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
-import { Pencil } from 'lucide-react';
+import {
+    Building2,
+    CalendarRange,
+    Coins,
+    Package,
+    Pencil,
+    UserRound,
+    Users,
+} from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 
 const ProgramAssistanceTableSection = lazy(() =>
@@ -83,9 +100,90 @@ type ProgramEditRelations = {
     item_ids: number[];
 };
 
+const MS_PER_DAY = 86_400_000;
+
+function formatFundAmount(amount: number | null): string | null {
+    if (amount === null) {
+        return null;
+    }
+
+    return amount.toLocaleString('en-PH', {
+        style: 'currency',
+        currency: 'PHP',
+        maximumFractionDigits: 2,
+    });
+}
+
+type ProgramTimelineInfo = {
+    percent: number;
+    caption: string;
+};
+
+function programTimelineInfo(
+    startInput: string | null,
+    endInput: string | null,
+): ProgramTimelineInfo | null {
+    if (!startInput || !endInput) {
+        return null;
+    }
+
+    const start = new Date(startInput).getTime();
+    const end = new Date(endInput).getTime();
+
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) {
+        return null;
+    }
+
+    const now = Date.now();
+    const percent = Math.min(
+        100,
+        Math.max(0, Math.round(((now - start) / (end - start)) * 100)),
+    );
+
+    if (now < start) {
+        const days = Math.ceil((start - now) / MS_PER_DAY);
+
+        return {
+            percent: 0,
+            caption: `Starts in ${days} ${days === 1 ? 'day' : 'days'}`,
+        };
+    }
+
+    if (now > end) {
+        const days = Math.floor((now - end) / MS_PER_DAY);
+
+        return {
+            percent: 100,
+            caption:
+                days === 0
+                    ? 'Ended today'
+                    : `Ended ${days} ${days === 1 ? 'day' : 'days'} ago`,
+        };
+    }
+
+    const daysLeft = Math.ceil((end - now) / MS_PER_DAY);
+
+    return {
+        percent,
+        caption: `${percent}% elapsed · ${daysLeft} ${daysLeft === 1 ? 'day' : 'days'} remaining`,
+    };
+}
+
+function OverviewDetailSkeleton() {
+    return (
+        <div className="space-y-2" aria-busy="true">
+            <Skeleton className="h-3 w-32 rounded-sm" />
+            <Skeleton className="h-3 w-40 rounded-sm" />
+        </div>
+    );
+}
+
 export default function UserProgramShow({
     program,
     summary,
+    status_breakdown,
+    program_funds,
+    program_covered_items,
     department,
     program_edit,
     funds,
@@ -106,6 +204,9 @@ export default function UserProgramShow({
 }: {
     program: ProgramDetail;
     summary?: ProgramSummary;
+    status_breakdown?: ProgramStatusBreakdownPoint[];
+    program_funds?: ProgramFund[];
+    program_covered_items?: ProgramCoveredItem[];
     department: DepartmentSummary | null;
     program_edit?: ProgramEditRelations;
     funds?: SelectOption[];
@@ -265,6 +366,12 @@ export default function UserProgramShow({
             !program.is_closed &&
             (transfer_program_options?.length ?? 0) > 0,
     );
+    const isClosed = Boolean(program.is_closed);
+    const description = program.descriptions?.trim();
+    const timeline = programTimelineInfo(
+        program.start_at_input,
+        program.end_at_input,
+    );
 
     const closeEditDrawer = useCallback(() => {
         setEditOpen(false);
@@ -273,17 +380,49 @@ export default function UserProgramShow({
     return (
         <>
             <Head title={heading} />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
+                    <div className="space-y-2">
                         <h1 className="text-2xl font-semibold tracking-tight">
                             {heading}
                         </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {department
-                                ? `${department.name} program details.`
-                                : 'Program details.'}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <Badge
+                                variant="outline"
+                                className={cn(
+                                    isClosed
+                                        ? 'border-border text-muted-foreground'
+                                        : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
+                                )}
+                            >
+                                <span
+                                    aria-hidden
+                                    className={cn(
+                                        'size-1.5 rounded-full',
+                                        isClosed
+                                            ? 'bg-muted-foreground/50'
+                                            : 'bg-emerald-600',
+                                    )}
+                                />
+                                {isClosed ? 'Closed' : 'Open'}
+                            </Badge>
+                            <Badge variant="outline">
+                                {program.is_organization ? (
+                                    <Users aria-hidden />
+                                ) : (
+                                    <UserRound aria-hidden />
+                                )}
+                                {program.is_organization
+                                    ? 'Organization'
+                                    : 'Individual'}
+                            </Badge>
+                            {department ? (
+                                <Badge variant="outline">
+                                    <Building2 aria-hidden />
+                                    {department.name}
+                                </Badge>
+                            ) : null}
+                        </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {canEdit ? (
@@ -311,50 +450,178 @@ export default function UserProgramShow({
                     )}
                 </WhenVisible>
 
-                <Card data-tour="program-overview">
-                    <CardHeader className="gap-1">
-                        <CardTitle className="text-lg">Overview</CardTitle>
-                        <CardDescription>
-                            <div className="flex gap-2">
-                                <Badge variant="default">
-                                    {program.is_organization
-                                        ? 'Organization'
-                                        : 'Individual'}
-                                </Badge>
-                                <Badge
-                                    variant={
-                                        program.is_closed
-                                            ? 'destructive'
-                                            : 'default'
-                                    }
-                                >
-                                    {program.is_closed ? 'Closed' : 'Open'}
-                                </Badge>
-                            </div>
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-                        <p className="whitespace-pre-wrap">
-                            {program.descriptions ?? '—'}
-                        </p>
-                        <p>
-                            <span className="font-medium text-foreground">
-                                Period:{' '}
-                            </span>
-                            {formatProgramPeriod(program.start_at, program.end_at)}
-                        </p>
-                    </CardContent>
-                </Card>
+                <WhenVisible
+                    data="status_breakdown"
+                    buffer={200}
+                    fallback={<ProgramStatusBreakdownSkeleton />}
+                >
+                    {status_breakdown ? (
+                        <ProgramStatusBreakdown breakdown={status_breakdown} />
+                    ) : (
+                        <ProgramStatusBreakdownSkeleton />
+                    )}
+                </WhenVisible>
 
-                <Card data-tour="program-assistance">
-                    <CardHeader className="gap-1">
-                        <CardTitle className="text-lg">Assistance</CardTitle>
-                        <CardDescription>
-                            Filter, sort, and manage assistance records for this
-                            program.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                <section
+                    data-tour="program-overview"
+                    className="rounded-xl border border-border bg-card"
+                >
+                    <div className="flex flex-col gap-4 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 space-y-1">
+                                <h2 className="text-[15px] font-semibold tracking-tight">
+                                    Overview
+                                </h2>
+                                <p className="text-xs text-muted-foreground">
+                                    Program details, schedule, funding, and
+                                    covered items
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="grid gap-6 lg:grid-cols-3">
+                            <div className="min-w-0 lg:col-span-2">
+                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Description
+                                </p>
+                                <p
+                                    className={cn(
+                                        'whitespace-pre-wrap text-sm leading-relaxed',
+                                        description
+                                            ? 'text-muted-foreground'
+                                            : 'text-muted-foreground/60 italic',
+                                    )}
+                                >
+                                    {description || 'No description'}
+                                </p>
+                            </div>
+
+                            <div className="min-w-0 space-y-5 lg:border-l lg:border-border lg:pl-6">
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <CalendarRange className="size-3.5" />
+                                        Program period
+                                    </p>
+                                    <p className="text-sm tabular-nums">
+                                        {formatProgramPeriod(
+                                            program.start_at,
+                                            program.end_at,
+                                        )}
+                                    </p>
+                                    {timeline ? (
+                                        <div className="space-y-1.5">
+                                            <Progress
+                                                value={timeline.percent}
+                                                aria-label={`Program timeline ${timeline.percent}% elapsed`}
+                                            />
+                                            <p className="text-xs tabular-nums text-muted-foreground">
+                                                {timeline.caption}
+                                            </p>
+                                        </div>
+                                    ) : program.start_at_input &&
+                                      !program.end_at_input ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            Ongoing since{' '}
+                                            {formatProgramDate(
+                                                program.start_at_input,
+                                            )}{' '}
+                                            — no end date set
+                                        </p>
+                                    ) : null}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <Coins className="size-3.5" />
+                                        Funding sources
+                                    </p>
+                                    {program_funds === undefined ? (
+                                        <OverviewDetailSkeleton />
+                                    ) : program_funds.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground/60 italic">
+                                            No funding sources linked
+                                        </p>
+                                    ) : (
+                                        <ul className="space-y-1.5">
+                                            {program_funds.map((fund) => (
+                                                <li
+                                                    key={fund.id}
+                                                    className="flex items-baseline justify-between gap-2 text-sm"
+                                                >
+                                                    <span className="min-w-0 truncate">
+                                                        {fund.name}
+                                                        {fund.year ? (
+                                                            <span className="ml-1.5 text-xs text-muted-foreground">
+                                                                {fund.year}
+                                                            </span>
+                                                        ) : null}
+                                                    </span>
+                                                    {formatFundAmount(
+                                                        fund.amount,
+                                                    ) ? (
+                                                        <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                                                            {formatFundAmount(
+                                                                fund.amount,
+                                                            )}
+                                                        </span>
+                                                    ) : null}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <Package className="size-3.5" />
+                                        Covered items
+                                    </p>
+                                    {program_covered_items === undefined ? (
+                                        <OverviewDetailSkeleton />
+                                    ) : program_covered_items.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground/60 italic">
+                                            No items linked
+                                        </p>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {program_covered_items.map(
+                                                (item) => (
+                                                    <Badge
+                                                        key={item.id}
+                                                        variant="secondary"
+                                                    >
+                                                        {item.name}
+                                                        {item.unit ? (
+                                                            <span className="text-muted-foreground">
+                                                                · {item.unit}
+                                                            </span>
+                                                        ) : null}
+                                                    </Badge>
+                                                ),
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section
+                    data-tour="program-assistance"
+                    className="rounded-xl border border-border bg-card"
+                >
+                    <div className="flex flex-col gap-4 p-4">
+                        <div className="space-y-1">
+                            <h2 className="text-[15px] font-semibold tracking-tight">
+                                Assistance
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Filter, sort, and manage assistance records for
+                                this program.
+                            </p>
+                        </div>
+
                         <WhenVisible
                             data={[...ASSISTANCE_TABLE_DEFER_GROUP_PROPS]}
                             buffer={200}
@@ -418,8 +685,8 @@ export default function UserProgramShow({
                                 );
                             })()}
                         </WhenVisible>
-                    </CardContent>
-                </Card>
+                    </div>
+                </section>
             </div>
 
             {canEdit && department && editOpen ? (

@@ -38,16 +38,20 @@ class BeneficiaryController extends Controller
     {
         $search = $request->search();
         $types = $request->types();
+        $perPage = $request->perPage();
 
         return Inertia::render('user/beneficiaries/index', [
-            'beneficiaries' => Inertia::scroll(
-                $this->beneficiaryService->paginate($search, $types),
-            ),
+            'beneficiaries' => $this->beneficiaryService->paginate($search, $types, $perPage),
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
             'type' => $types,
+            'per_page' => $perPage,
+            'stats' => Inertia::defer(
+                fn () => $this->beneficiaryService->registryStats(),
+                'stats',
+            ),
             'form_options' => Inertia::defer(
-                fn() => $this->beneficiaryService->formOptions(),
+                fn () => $this->beneficiaryService->formOptions(),
                 'forms',
             ),
         ]);
@@ -99,15 +103,19 @@ class BeneficiaryController extends Controller
         $search = $request->search();
 
         return Inertia::render('user/beneficiaries/show', [
-            'beneficiary' => fn() => $this->beneficiaryService->showPayload($beneficiary),
-            'department' => fn() => $department->only(['id', 'name', 'slug']),
+            'beneficiary' => fn () => $this->beneficiaryService->showPayload($beneficiary),
+            'department' => fn () => $department->only(['id', 'name', 'slug']),
+            'assistance_summary' => Inertia::defer(
+                fn () => $this->beneficiaryService->assistanceSummary($beneficiary),
+                'kpis',
+            ),
             'assistances' => Inertia::defer(
-                fn() => $this->beneficiaryService->paginatedAssistances($beneficiary, $search),
+                fn () => $this->beneficiaryService->paginatedAssistances($beneficiary, $search),
                 'table',
             ),
             'search' => $search,
             'form_options' => Inertia::defer(
-                fn() => $this->beneficiaryService->formOptions(),
+                fn () => $this->beneficiaryService->formOptions(),
                 'edit',
             ),
         ]);
@@ -170,7 +178,7 @@ class BeneficiaryController extends Controller
         }
 
         if ($search !== '') {
-            $needle = '%' . $search . '%';
+            $needle = '%'.$search.'%';
 
             $query->where(function ($builder) use ($needle): void {
                 $builder
@@ -181,7 +189,7 @@ class BeneficiaryController extends Controller
 
         $beneficiaries = $query
             ->get(['id', 'cais_number', 'name', 'beneficiable_type', 'beneficiable_id'])
-            ->map(static fn(Beneficiary $beneficiary): array => [
+            ->map(static fn (Beneficiary $beneficiary): array => [
                 'id' => $beneficiary->id,
                 'individual_id' => $beneficiary->beneficiable_type === Individual::class
                     ? $beneficiary->beneficiable_id

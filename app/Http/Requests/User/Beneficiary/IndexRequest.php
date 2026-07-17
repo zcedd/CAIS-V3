@@ -20,6 +20,7 @@ class IndexRequest extends FormRequest
     {
         return [
             'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', Rule::in([10, 15, 25, 50, 100])],
             'search' => ['nullable', 'string', 'max:255'],
             'type' => ['nullable', 'array'],
             'type.*' => ['string', Rule::in(['individual', 'organization'])],
@@ -29,6 +30,11 @@ class IndexRequest extends FormRequest
     public function search(): string
     {
         return trim($this->validated('search') ?? '');
+    }
+
+    public function perPage(): int
+    {
+        return (int) ($this->validated('per_page') ?? 25);
     }
 
     /**

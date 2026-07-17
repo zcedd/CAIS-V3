@@ -233,6 +233,9 @@ function ProgramAssistanceTable({
             onPerPageChange={(nextPerPage) => {
                 onVisitTable({ per_page: nextPerPage, page: 1 });
             }}
+            onPageChange={(nextPage) => {
+                onVisitTable({ page: nextPage });
+            }}
             selectionActions={({ table, rowSelection, selectedCount }) => (
                 <AssistanceBulkActionsBar
                     table={table}

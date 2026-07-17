@@ -27,6 +27,7 @@ class ProgramService
         string $search,
         array $types,
         array $statuses,
+        int $perPage = self::PROGRAMS_PER_PAGE,
     ): LengthAwarePaginator {
         return Program::query()
             ->select([
@@ -59,7 +60,7 @@ class ProgramService
                 fn ($query) => $query->where('is_closed', true),
             )
             ->orderByDesc('id')
-            ->paginate(self::PROGRAMS_PER_PAGE)
+            ->paginate($perPage)
             ->withQueryString();
     }
 
@@ -113,6 +114,40 @@ class ProgramService
     public function summary(Program $program): array
     {
         return $this->dashboardService->summaryForProgram($program);
+    }
+
+    /**
+     * @return list<array{status: string, count: int}>
+     */
+    public function statusBreakdown(Program $program): array
+    {
+        $program->loadMissing('department:id,name,slug');
+
+        $department = $program->department
+            ?? Department::query()->findOrFail($program->department_id);
+
+        return $this->dashboardService->requestStatusChart(
+            $department,
+            ['program' => [$program->id]],
+        );
+    }
+
+    /**
+     * @return list<array{id: int, name: string, year: string|null, amount: float|null}>
+     */
+    public function programFundsForDisplay(Program $program): array
+    {
+        return $program->fund()
+            ->orderBy('name')
+            ->get(['funds.id', 'funds.name', 'funds.year', 'funds.amount'])
+            ->map(static fn (Fund $fund): array => [
+                'id' => $fund->id,
+                'name' => $fund->name,
+                'year' => $fund->year !== null ? (string) $fund->year : null,
+                'amount' => $fund->amount !== null ? (float) $fund->amount : null,
+            ])
+            ->values()
+            ->all();
     }
 
     /**
@@ -212,7 +247,7 @@ class ProgramService
             ->whereIn('id', $itemIds)
             ->orderBy('name')
             ->with('unitMeasurement:id,name')
-            ->get(['id', 'name'])
+            ->get(['id', 'name', 'item_unit_measurement_id'])
             ->map(static fn (Item $item): array => [
                 'id' => $item->id,
                 'name' => $item->name,

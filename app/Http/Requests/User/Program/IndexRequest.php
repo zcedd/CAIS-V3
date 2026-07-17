@@ -24,6 +24,7 @@ class IndexRequest extends FormRequest
     {
         return [
             'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', Rule::in([8, 12, 16, 20, 24, 32, 48])],
             'search' => ['nullable', 'string', 'max:255'],
             'type' => ['nullable', 'array'],
             'type.*' => ['string', Rule::in(['individual', 'organization'])],
@@ -51,5 +52,10 @@ class IndexRequest extends FormRequest
     public function statuses(): array
     {
         return array_values($this->validated('status') ?? []);
+    }
+
+    public function perPage(): int
+    {
+        return (int) ($this->validated('per_page') ?? 12);
     }
 }

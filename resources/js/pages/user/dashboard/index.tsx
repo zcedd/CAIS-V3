@@ -212,7 +212,7 @@ export default function UserDashboardIndex({
     return (
         <>
             <Head title={`Dashboard — ${department.name}`} />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Dashboard
@@ -240,17 +240,22 @@ export default function UserDashboardIndex({
                 </WhenVisible>
 
                 <Tabs defaultValue="overview" className="gap-4">
-                    <TabsList variant="line" className="w-full justify-start">
-                        <TabsTrigger value="overview">Overview</TabsTrigger>
-                        <TabsTrigger value="insights">Insights</TabsTrigger>
-                        <TabsTrigger value="beneficiaries">
-                            Beneficiaries
-                        </TabsTrigger>
-                        <TabsTrigger value="demographics">
-                            Demographics
-                        </TabsTrigger>
-                        <TabsTrigger value="programs">Programs</TabsTrigger>
-                    </TabsList>
+                    <div className="-mb-1 w-full overflow-x-auto pb-1">
+                        <TabsList
+                            variant="line"
+                            className="w-full min-w-max justify-start"
+                        >
+                            <TabsTrigger value="overview">Overview</TabsTrigger>
+                            <TabsTrigger value="insights">Insights</TabsTrigger>
+                            <TabsTrigger value="beneficiaries">
+                                Beneficiaries
+                            </TabsTrigger>
+                            <TabsTrigger value="demographics">
+                                Demographics
+                            </TabsTrigger>
+                            <TabsTrigger value="programs">Programs</TabsTrigger>
+                        </TabsList>
+                    </div>
 
                     <TabsContent value="overview" className="space-y-4">
                         <div className="grid items-start gap-4 lg:grid-cols-3">

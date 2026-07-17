@@ -60,6 +60,71 @@ test('beneficiary profile lists linked programs and assistances', function () {
             ->has('beneficiary.programs', 1));
 });
 
+test('beneficiary profile exposes an assistance summary as a deferred prop', function () {
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
+
+    $individual = Individual::factory()->create([
+        'first_name' => 'Juan',
+        'middle_name' => null,
+        'last_name' => 'Cruz',
+        'sex' => 'Male',
+    ]);
+
+    $beneficiary = app(BeneficiaryMorphService::class)->syncMorphRecord(
+        $individual,
+        $individual->cais_number,
+        $individual->fullName(),
+    );
+
+    $program = Program::create([
+        'name' => 'Rice Assistance',
+        'descriptions' => 'Support program',
+        'start_at' => now()->toDateString(),
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $mode = ModeOfRequest::create(['name' => 'Walk In']);
+
+    Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => now()->subDay()->toDateString(),
+        'user_id' => $user->id,
+    ]);
+
+    Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => now()->toDateString(),
+        'date_delivered' => now()->toDateString(),
+        'user_id' => $user->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(
+            route('user.beneficiaries.show', [
+                'department' => $department->slug,
+                'beneficiary' => $beneficiary->id,
+            ]),
+            [
+                'X-Inertia' => 'true',
+                'X-Inertia-Partial-Component' => 'user/beneficiaries/show',
+                'X-Inertia-Partial-Data' => 'assistance_summary',
+            ],
+        )
+        ->assertOk()
+        ->assertJsonPath('props.assistance_summary.total', 2)
+        ->assertJsonPath('props.assistance_summary.delivered', 1)
+        ->assertJsonPath('props.assistance_summary.denied', 0)
+        ->assertJsonPath('props.assistance_summary.in_progress', 1)
+        ->assertJsonPath('props.assistance_summary.programs', 1)
+        ->assertJsonPath('props.assistance_summary.last_requested_at', now()->toDateString());
+});
+
 test('organization beneficiary profile lists members', function () {
     ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
     $barangayId = createAddressBarangay();
