@@ -1,27 +1,20 @@
 'use client';
 
-import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
-import { ServerPagination } from '@/components/server-pagination';
-import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { createBeneficiaryColumns } from '@/pages/user/beneficiaries/beneficiary-columns';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+    BeneficiaryDataTableToolbar,
+    type BeneficiaryTableFilters,
+} from '@/pages/user/beneficiaries/beneficiary-toolbar';
 import {
     create as beneficiariesCreate,
     index as beneficiariesIndex,
-    show as beneficiaryShow,
 } from '@/routes/user/beneficiaries';
 import type {
-    BeneficiaryListRow,
     BeneficiaryRegistryStats,
     DepartmentSummary,
     PaginatedBeneficiaries,
@@ -31,31 +24,25 @@ import { Head, Link, router, setLayoutProps, WhenVisible } from '@inertiajs/reac
 import {
     Building2,
     HeartHandshake,
-    MapPin,
-    Phone,
     Plus,
-    SearchX,
     UserRound,
     Users,
-    X,
     type LucideIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+const BENEFICIARIES_TABLE_PARTIAL_PROPS = [
+    'beneficiaries',
+    'search',
+    'type',
+] as const;
+const BENEFICIARIES_TABLE_SKELETON_COLUMNS = 7;
 const DEFAULT_PER_PAGE = 25;
-const PER_PAGE_OPTIONS = [10, 15, 25, 50, 100] as const;
 
-type BeneficiaryListFilters = {
-    search: string;
-    type: string[];
+type BeneficiaryListFilters = BeneficiaryTableFilters & {
     page: number;
     per_page: number;
 };
-
-const beneficiaryTypeOptions = [
-    { label: 'Individual', value: 'individual' },
-    { label: 'Organization', value: 'organization' },
-] as const;
 
 function buildBeneficiariesQuery(
     filters: BeneficiaryListFilters,
@@ -82,32 +69,16 @@ function buildBeneficiariesQuery(
     return query;
 }
 
-function typeBadge(type: BeneficiaryListRow['type']) {
-    return type === 'organization' ? (
-        <Badge variant="secondary">
-            <Building2 aria-hidden />
-            Organization
-        </Badge>
-    ) : (
-        <Badge variant="outline">
-            <UserRound aria-hidden />
-            Individual
-        </Badge>
+function isBeneficiariesPartialVisit(only?: string[]): boolean {
+    if (!only?.length) {
+        return false;
+    }
+
+    return only.some((prop) =>
+        BENEFICIARIES_TABLE_PARTIAL_PROPS.includes(
+            prop as (typeof BENEFICIARIES_TABLE_PARTIAL_PROPS)[number],
+        ),
     );
-}
-
-function formatRegisteredDate(value: string | null): string {
-    if (!value) {
-        return '—';
-    }
-
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-        return '—';
-    }
-
-    return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
 }
 
 const registryStatCards: {
@@ -123,7 +94,9 @@ const registryStatCards: {
 
 function RegistryStatCards({ stats }: { stats: BeneficiaryRegistryStats }) {
     const coverage =
-        stats.total > 0 ? Math.round((stats.assisted / stats.total) * 100) : null;
+        stats.total > 0
+            ? Math.round((stats.assisted / stats.total) * 100)
+            : null;
 
     const descriptionFor = (key: keyof BeneficiaryRegistryStats): string => {
         if (key === 'total') {
@@ -213,7 +186,26 @@ export default function UserBeneficiariesIndex({
     type: string[];
     stats?: BeneficiaryRegistryStats;
 }) {
-    const [searchQuery, setSearchQuery] = useState(initialSearch);
+    const [tableState, setTableState] = useState({
+        search: initialSearch,
+        type: initialType,
+        per_page: beneficiaries.per_page,
+    });
+    const [isTableReloading, setIsTableReloading] = useState(false);
+    const tableStateRef = useRef(tableState);
+
+    useEffect(() => {
+        tableStateRef.current = tableState;
+    }, [tableState]);
+
+    useEffect(() => {
+        setTableState((previous) => ({
+            ...previous,
+            search: initialSearch,
+            type: initialType,
+            per_page: beneficiaries.per_page,
+        }));
+    }, [initialSearch, initialType, beneficiaries.per_page]);
 
     useEffect(() => {
         setLayoutProps({
@@ -227,19 +219,46 @@ export default function UserBeneficiariesIndex({
     }, [department.slug]);
 
     useEffect(() => {
-        setSearchQuery(initialSearch);
-    }, [initialSearch]);
+        const removeStart = router.on('start', (event) => {
+            if (isBeneficiariesPartialVisit(event.detail.visit.only)) {
+                setIsTableReloading(true);
+            }
+        });
 
-    const navigateWithFilters = useCallback(
-        (overrides: Partial<BeneficiaryListFilters> = {}) => {
+        const removeFinish = router.on('finish', () => {
+            setIsTableReloading(false);
+        });
+
+        return () => {
+            removeStart();
+            removeFinish();
+        };
+    }, []);
+
+    const visitTable = useCallback(
+        (
+            overrides: Partial<
+                BeneficiaryTableFilters & {
+                    per_page: number;
+                    page: number;
+                }
+            > = {},
+        ) => {
             const next: BeneficiaryListFilters = {
-                search: overrides.search ?? searchQuery,
-                type: overrides.type ?? initialType,
-                // Filter changes reset to the first page unless a page is given.
+                search: overrides.search ?? tableStateRef.current.search,
+                type: overrides.type ?? tableStateRef.current.type,
                 page: overrides.page ?? 1,
-                per_page: overrides.per_page ?? beneficiaries.per_page,
+                per_page:
+                    overrides.per_page ?? tableStateRef.current.per_page,
             };
 
+            setTableState({
+                search: next.search,
+                type: next.type,
+                per_page: next.per_page,
+            });
+
+            router.cancelAll();
             router.get(
                 beneficiariesIndex.url(department.slug, {
                     query: buildBeneficiariesQuery(next),
@@ -247,15 +266,27 @@ export default function UserBeneficiariesIndex({
                 {},
                 {
                     preserveState: true,
+                    preserveScroll: true,
                     replace: true,
-                    only: ['beneficiaries', 'search', 'type'],
+                    only: [...BENEFICIARIES_TABLE_PARTIAL_PROPS],
                 },
             );
         },
-        [department.slug, initialType, searchQuery, beneficiaries.per_page],
+        [department.slug],
     );
 
-    const hasActiveFilters = initialSearch !== '' || initialType.length > 0;
+    const tableFilters: BeneficiaryTableFilters = {
+        search: tableState.search,
+        type: tableState.type,
+    };
+
+    const beneficiaryColumns = useMemo(
+        () =>
+            createBeneficiaryColumns({
+                departmentSlug: department.slug,
+            }),
+        [department.slug],
+    );
 
     return (
         <>
@@ -290,198 +321,48 @@ export default function UserBeneficiariesIndex({
                     )}
                 </WhenVisible>
 
-                <Card>
-                    <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <Card data-tour="beneficiaries-table">
+                    <CardHeader>
                         <CardTitle className="text-lg">Registry</CardTitle>
-                        <div
-                            className="flex flex-wrap items-center gap-2"
-                            data-tour="beneficiaries-filters"
-                        >
-                            <Input
-                                value={searchQuery}
-                                onChange={(event) =>
-                                    setSearchQuery(event.target.value)
-                                }
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        navigateWithFilters({
-                                            search: searchQuery,
-                                        });
-                                    }
-                                }}
-                                placeholder="Search by name or CAIS number..."
-                                className="h-9 w-full sm:w-64"
-                            />
-                            <DataTableFacetedFilter
-                                filterValue={initialType}
-                                title="Type"
-                                options={[...beneficiaryTypeOptions]}
-                                onFilterChange={(values) =>
-                                    navigateWithFilters({ type: values })
-                                }
-                            />
-                            {hasActiveFilters && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                        setSearchQuery('');
-                                        navigateWithFilters({
-                                            search: '',
-                                            type: [],
-                                        });
-                                    }}
-                                >
-                                    <X className="mr-1 size-4" />
-                                    Reset
-                                </Button>
-                            )}
-                        </div>
                     </CardHeader>
                     <CardContent>
-                        {beneficiaries.data.length === 0 ? (
-                            <div className="flex flex-col items-center gap-2 py-12 text-center">
-                                <SearchX className="size-8 text-muted-foreground/60" />
-                                <p className="text-sm font-medium">
-                                    No beneficiaries found
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    {hasActiveFilters
-                                        ? 'Try adjusting your search or filters.'
-                                        : 'Add a beneficiary to get started.'}
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <div className="overflow-hidden rounded-lg border border-border">
-                                    <Table>
-                                        <TableHeader className="bg-muted/50">
-                                            <TableRow className="hover:bg-transparent">
-                                                <TableHead className="pl-4 text-xs tracking-wide text-muted-foreground uppercase">
-                                                    CAIS Number
-                                                </TableHead>
-                                                <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">
-                                                    Beneficiary
-                                                </TableHead>
-                                                <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">
-                                                    Type
-                                                </TableHead>
-                                                <TableHead className="text-xs tracking-wide text-muted-foreground uppercase">
-                                                    Contact
-                                                </TableHead>
-                                                <TableHead className="text-right text-xs tracking-wide text-muted-foreground uppercase">
-                                                    Requests
-                                                </TableHead>
-                                                <TableHead className="text-right text-xs tracking-wide text-muted-foreground uppercase">
-                                                    Last assisted
-                                                </TableHead>
-                                                <TableHead className="pr-4 text-right text-xs tracking-wide text-muted-foreground uppercase">
-                                                    Registered
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {beneficiaries.data.map((row) => (
-                                                <TableRow key={row.id}>
-                                                    <TableCell className="py-3 pl-4">
-                                                        <Link
-                                                            href={beneficiaryShow.url(
-                                                                {
-                                                                    department:
-                                                                        department.slug,
-                                                                    beneficiary:
-                                                                        row.id,
-                                                                },
-                                                            )}
-                                                            className="font-medium text-primary hover:underline"
-                                                        >
-                                                            {row.cais_number}
-                                                        </Link>
-                                                    </TableCell>
-                                                    <TableCell className="py-3">
-                                                        <div className="flex flex-col gap-0.5">
-                                                            <span className="font-medium">
-                                                                {row.name}
-                                                            </span>
-                                                            {row.address ? (
-                                                                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                                                                    <MapPin
-                                                                        className="size-3 shrink-0"
-                                                                        aria-hidden
-                                                                    />
-                                                                    {
-                                                                        row.address
-                                                                    }
-                                                                </span>
-                                                            ) : null}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="py-3">
-                                                        {typeBadge(row.type)}
-                                                    </TableCell>
-                                                    <TableCell className="py-3">
-                                                        {row.contact ? (
-                                                            <span className="flex items-center gap-1.5 tabular-nums">
-                                                                <Phone
-                                                                    className="size-3.5 shrink-0 text-muted-foreground"
-                                                                    aria-hidden
-                                                                />
-                                                                {row.contact}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="text-muted-foreground/60">
-                                                                —
-                                                            </span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="py-3 text-right tabular-nums">
-                                                        {row.assistances_count >
-                                                        0 ? (
-                                                            row.assistances_count.toLocaleString()
-                                                        ) : (
-                                                            <span className="text-muted-foreground/60">
-                                                                0
-                                                            </span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="py-3 text-right tabular-nums text-muted-foreground">
-                                                        {row.last_assisted_at ? (
-                                                            formatRegisteredDate(
-                                                                row.last_assisted_at,
-                                                            )
-                                                        ) : (
-                                                            <span className="text-muted-foreground/60">
-                                                                Never
-                                                            </span>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="py-3 pr-4 text-right tabular-nums text-muted-foreground">
-                                                        {formatRegisteredDate(
-                                                            row.registered_at,
-                                                        )}
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                                <ServerPagination
-                                    pagination={beneficiaries}
-                                    onPageChange={(page) =>
-                                        navigateWithFilters({ page })
+                        <DataTable
+                            columns={beneficiaryColumns}
+                            data={beneficiaries.data}
+                            emptyMessage="No beneficiaries found."
+                            manualPagination
+                            manualFiltering
+                            serverPagination={beneficiaries}
+                            partialReloadOnly={[
+                                ...BENEFICIARIES_TABLE_PARTIAL_PROPS,
+                            ]}
+                            isLoading={isTableReloading}
+                            loadingFallback={
+                                <DataTableSkeleton
+                                    columnCount={
+                                        BENEFICIARIES_TABLE_SKELETON_COLUMNS
                                     }
-                                    onPerPageChange={(perPage) =>
-                                        navigateWithFilters({
-                                            per_page: perPage,
-                                            page: 1,
-                                        })
-                                    }
-                                    perPageOptions={PER_PAGE_OPTIONS}
-                                    className="mt-4"
+                                    rowCount={tableState.per_page}
                                 />
-                            </>
-                        )}
+                            }
+                            onPerPageChange={(nextPerPage) => {
+                                visitTable({
+                                    per_page: nextPerPage,
+                                    page: 1,
+                                });
+                            }}
+                            onPageChange={(page) => {
+                                visitTable({ page });
+                            }}
+                            toolbar={(table, columnVisibility) => (
+                                <BeneficiaryDataTableToolbar
+                                    table={table}
+                                    columnVisibility={columnVisibility}
+                                    filters={tableFilters}
+                                    onFiltersChange={visitTable}
+                                />
+                            )}
+                        />
                     </CardContent>
                 </Card>
             </div>

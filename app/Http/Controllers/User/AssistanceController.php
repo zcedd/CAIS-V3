@@ -262,6 +262,33 @@ class AssistanceController extends Controller
         $beneficiaryName = $assistance->beneficiary?->name ?? '—';
         $caisNumber = $assistance->beneficiary?->cais_number ?? '—';
 
+        $statusHistory = $assistance->requestSubStatus
+            ->sortBy(static fn ($subStatus) => $subStatus->pivot->recorded_at)
+            ->values();
+
+        $latestSubStatus = $statusHistory->last();
+
+        $status = $latestSubStatus?->requestStatus?->name
+            ?? $latestSubStatus?->name
+            ?? match (true) {
+                $assistance->date_denied !== null => 'Denied',
+                $assistance->date_delivered !== null => 'Delivered',
+                $assistance->date_verified !== null => 'Verified',
+                $assistance->date_requested !== null => 'Pending',
+                default => 'Unrequested',
+            };
+
+        $items = $assistance->assistanceItem
+            ->map(static fn ($assistanceItem): array => [
+                'name' => $assistanceItem->item?->name ?? '—',
+                'quantity' => $assistanceItem->quantity,
+                'unit' => $assistanceItem->item?->unitMeasurement?->name,
+                'specification' => $assistanceItem->specification,
+                'is_received' => (bool) $assistanceItem->is_received,
+            ])
+            ->values()
+            ->all();
+
         return Inertia::render('user/assistances/show', [
             'department' => $department->only(['id', 'name', 'slug']),
             'program' => $program->only(['id', 'name']),
@@ -273,24 +300,20 @@ class AssistanceController extends Controller
                 'beneficiary_type' => $assistance->beneficiary
                     ? class_basename($assistance->beneficiary->beneficiable_type)
                     : null,
+                'status' => $status,
+                'current_sub_status' => $latestSubStatus?->name,
                 'mode_of_request' => $assistance->modeOfRequest?->name ?? '—',
                 'date_requested' => $formatDate($assistance->date_requested),
                 'date_verified' => $formatDate($assistance->date_verified),
                 'date_delivered' => $formatDate($assistance->date_delivered),
                 'date_denied' => $formatDate($assistance->date_denied),
                 'remark' => $assistance->remark,
-                'items' => $assistance->assistanceItem
-                    ->map(static fn ($assistanceItem): array => [
-                        'name' => $assistanceItem->item?->name ?? '—',
-                        'quantity' => $assistanceItem->quantity,
-                        'unit' => $assistanceItem->item?->unitMeasurement?->name,
-                        'specification' => $assistanceItem->specification,
-                        'is_received' => (bool) $assistanceItem->is_received,
-                    ])
-                    ->values()
-                    ->all(),
-                'status_history' => $assistance->requestSubStatus
-                    ->sortBy(static fn ($subStatus) => $subStatus->pivot->recorded_at)
+                'items_count' => count($items),
+                'items_received_count' => collect($items)
+                    ->where('is_received', true)
+                    ->count(),
+                'items' => $items,
+                'status_history' => $statusHistory
                     ->map(static fn ($subStatus): array => [
                         'id' => (int) $subStatus->pivot->id,
                         'name' => $subStatus->name,

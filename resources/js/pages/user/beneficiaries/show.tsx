@@ -1,27 +1,18 @@
 'use client';
 
+import { DataTable } from '@/components/data-table';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
 import { cn } from '@/lib/utils';
 import { BeneficiaryEditDrawer } from '@/pages/user/beneficiaries/beneficiary-edit-drawer';
-import { show as assistanceShow } from '@/routes/user/assistances';
+import {
+    BeneficiaryShowTableToolbar,
+    createBeneficiaryAssistanceColumns,
+    createMembershipColumns,
+} from '@/pages/user/beneficiaries/beneficiary-show-columns';
 import {
     index as beneficiariesIndex,
     show as beneficiaryShow,
@@ -36,12 +27,13 @@ import type {
     PaginatedBeneficiaryAssistances,
 } from '@/types/beneficiary';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, setLayoutProps, WhenVisible } from '@inertiajs/react';
+import { Head, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
     Building2,
     Clock3,
     FolderOpen,
     HeartHandshake,
+    IdCard,
     MapPin,
     PackageCheck,
     Pencil,
@@ -51,38 +43,17 @@ import {
     XCircle,
     type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
-const STATUS_BADGE_CLASSES: Record<string, string> = {
-    Delivered:
-        'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
-    Verified:
-        'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300',
-    Pending:
-        'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
-    Denied: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300',
-};
-
-function statusBadge(status: string) {
-    return (
-        <Badge
-            variant="outline"
-            className={cn(STATUS_BADGE_CLASSES[status] ?? '')}
-        >
-            {status}
-        </Badge>
-    );
-}
-
-function formatDate(value: string | null | undefined): string {
+function formatDate(value: string | null | undefined): string | null {
     if (!value) {
-        return '—';
+        return null;
     }
 
     const parsed = new Date(value);
 
     if (Number.isNaN(parsed.getTime())) {
-        return '—';
+        return null;
     }
 
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
@@ -101,24 +72,28 @@ function DetailItem({
 
     return (
         <div>
-            <dt className="text-xs text-muted-foreground">{label}</dt>
-            <dd className="mt-0.5 text-sm font-medium">{String(value)}</dd>
+            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {label}
+            </dt>
+            <dd className="mt-1 text-sm font-medium">{String(value)}</dd>
         </div>
     );
 }
 
-function HeaderChip({
-    icon: Icon,
-    children,
+function SectionHeading({
+    title,
+    description,
 }: {
-    icon: LucideIcon;
-    children: ReactNode;
+    title: string;
+    description: string;
 }) {
     return (
-        <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-muted-foreground">
-            <Icon className="size-3.5 shrink-0" aria-hidden />
-            {children}
-        </span>
+        <div className="space-y-1">
+            <h2 className="text-[15px] font-semibold tracking-tight">
+                {title}
+            </h2>
+            <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
     );
 }
 
@@ -127,11 +102,11 @@ const summaryCards: {
     label: string;
     icon: LucideIcon;
 }[] = [
-        { key: 'total', label: 'Total requests', icon: HeartHandshake },
-        { key: 'delivered', label: 'Delivered', icon: PackageCheck },
-        { key: 'in_progress', label: 'In progress', icon: Clock3 },
-        { key: 'denied', label: 'Denied', icon: XCircle },
-    ];
+    { key: 'total', label: 'Total requests', icon: HeartHandshake },
+    { key: 'delivered', label: 'Delivered', icon: PackageCheck },
+    { key: 'in_progress', label: 'In progress', icon: Clock3 },
+    { key: 'denied', label: 'Denied', icon: XCircle },
+];
 
 function AssistanceSummaryCards({
     summary,
@@ -157,8 +132,10 @@ function AssistanceSummaryCards({
         }
 
         if (key === 'in_progress') {
-            return summary.last_requested_at
-                ? `Last requested ${formatDate(summary.last_requested_at)}`
+            const lastRequested = formatDate(summary.last_requested_at);
+
+            return lastRequested
+                ? `Last requested ${lastRequested}`
                 : 'Nothing requested yet';
         }
 
@@ -166,7 +143,10 @@ function AssistanceSummaryCards({
     };
 
     return (
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div
+            className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+            data-tour="beneficiary-assistance-summary"
+        >
             {summaryCards.map((card) => {
                 const Icon = card.icon;
 
@@ -218,66 +198,95 @@ function AssistanceSummaryCardsSkeleton() {
     );
 }
 
-const tableHeadClass =
-    'text-xs tracking-wide text-muted-foreground uppercase';
-
-function MembershipTable({
-    rows,
-    entityLabel,
-    departmentSlug,
+function DeliveryBreakdown({
+    summary,
 }: {
-    rows: (OrganizationMember | IndividualOrganizationMembership)[];
-    entityLabel: string;
-    departmentSlug: string;
+    summary: BeneficiaryAssistanceSummary;
 }) {
+    const total = summary.total;
+
+    if (total === 0) {
+        return (
+            <p className="text-sm text-muted-foreground/60 italic">
+                No assistance requests yet
+            </p>
+        );
+    }
+
+    const segments = [
+        {
+            label: 'Delivered',
+            count: summary.delivered,
+            className: 'bg-emerald-500',
+        },
+        {
+            label: 'In progress',
+            count: summary.in_progress,
+            className: 'bg-amber-500',
+        },
+        {
+            label: 'Denied',
+            count: summary.denied,
+            className: 'bg-red-500',
+        },
+    ].filter((segment) => segment.count > 0);
+
+    const deliveryRate = Math.round((summary.delivered / total) * 100);
+
     return (
-        <div className="overflow-hidden rounded-lg border border-border">
-            <Table>
-                <TableHeader className="bg-muted/50">
-                    <TableRow className="hover:bg-transparent">
-                        <TableHead className={cn('pl-4', tableHeadClass)}>
-                            CAIS Number
-                        </TableHead>
-                        <TableHead className={tableHeadClass}>
-                            {entityLabel}
-                        </TableHead>
-                        <TableHead className={cn('pr-4', tableHeadClass)}>
-                            Role
-                        </TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {rows.map((row) => (
-                        <TableRow key={row.id}>
-                            <TableCell className="py-3 pl-4">
-                                {row.beneficiary_id ? (
-                                    <Link
-                                        href={beneficiaryShow.url({
-                                            department: departmentSlug,
-                                            beneficiary: row.beneficiary_id,
-                                        })}
-                                        className="font-medium text-primary hover:underline"
-                                    >
-                                        {row.cais_number}
-                                    </Link>
-                                ) : (
-                                    row.cais_number
-                                )}
-                            </TableCell>
-                            <TableCell className="py-3 font-medium">
-                                {row.name}
-                            </TableCell>
-                            <TableCell className="py-3 pr-4">
-                                {row.is_president ? (
-                                    <Badge variant="secondary">President</Badge>
-                                ) : (
-                                    <Badge variant="outline">Member</Badge>
-                                )}
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+        <div className="space-y-3">
+            <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm">
+                    <span className="font-semibold tabular-nums">
+                        {deliveryRate}%
+                    </span>{' '}
+                    <span className="text-muted-foreground">delivered</span>
+                </p>
+                <p className="text-xs tabular-nums text-muted-foreground">
+                    {summary.delivered.toLocaleString()} of{' '}
+                    {total.toLocaleString()}
+                </p>
+            </div>
+            <Progress
+                value={deliveryRate}
+                aria-label={`Delivery rate ${deliveryRate}%`}
+            />
+            <div
+                role="img"
+                aria-label="Assistance status distribution"
+                className="flex h-2 w-full gap-px overflow-hidden rounded-full bg-muted"
+            >
+                {segments.map((segment) => (
+                    <div
+                        key={segment.label}
+                        className={cn('h-full', segment.className)}
+                        style={{ width: `${(segment.count / total) * 100}%` }}
+                        title={`${segment.label}: ${segment.count.toLocaleString()}`}
+                    />
+                ))}
+            </div>
+            <ul className="flex flex-wrap gap-x-5 gap-y-2">
+                {segments.map((segment) => (
+                    <li
+                        key={segment.label}
+                        className="flex items-center gap-1.5 text-xs"
+                    >
+                        <span
+                            aria-hidden
+                            className={cn(
+                                'size-2 shrink-0 rounded-full',
+                                segment.className,
+                            )}
+                        />
+                        <span className="text-muted-foreground">
+                            {segment.label}
+                        </span>
+                        <span className="font-medium tabular-nums">
+                            {segment.count.toLocaleString()}
+                        </span>
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }
@@ -304,24 +313,57 @@ export default function UserBeneficiaryShow({
         : [];
     const individualOrganizations = !isOrganization
         ? ((details.organizations as
-            | IndividualOrganizationMembership[]
-            | undefined) ?? [])
+              | IndividualOrganizationMembership[]
+              | undefined) ?? [])
         : [];
     const identifications = !isOrganization
         ? ((details.identifications as
-            | { name: string; number: string }[]
-            | undefined) ?? [])
+              | { name: string; number: string }[]
+              | undefined) ?? [])
         : [];
-
     const attributeFlags = [
         { label: 'Indigenous', active: details.indigenous === true },
         { label: 'PWD', active: details.pwd === true },
-        { label: '4Ps beneficiary', active: details.is_4ps_beneficiary === true },
+        {
+            label: '4Ps beneficiary',
+            active: details.is_4ps_beneficiary === true,
+        },
         { label: 'Solo parent', active: details.is_solo_parent === true },
     ].filter((flag) => flag.active);
 
-    const address = details.address as string | undefined;
-    const mobileNumber = details.mobile_number as string | undefined;
+    const address = (details.address as string | undefined) || null;
+    const otherAddress = (details.other_address as string | undefined) || null;
+    const mobileNumber =
+        (details.mobile_number as string | undefined) || null;
+    const president = details.president as
+        | { name?: string; cais_number?: string }
+        | null
+        | undefined;
+    const membershipRows = isOrganization
+        ? organizationMembers
+        : individualOrganizations;
+    const membershipEntityLabel = isOrganization ? 'Name' : 'Organization';
+    const membershipTitle = isOrganization ? 'Members' : 'Organizations';
+    const membershipDescription = isOrganization
+        ? 'Individuals registered under this organization'
+        : 'Organizations this individual belongs to';
+    const membershipEmpty = isOrganization
+        ? 'No members listed.'
+        : 'Not a member of any organization.';
+
+    const membershipColumns = useMemo(
+        () =>
+            createMembershipColumns({
+                departmentSlug: department.slug,
+                entityLabel: membershipEntityLabel,
+            }),
+        [department.slug, membershipEntityLabel],
+    );
+
+    const assistanceColumns = useMemo(
+        () => createBeneficiaryAssistanceColumns(),
+        [],
+    );
 
     useEffect(() => {
         setLayoutProps({
@@ -332,63 +374,55 @@ export default function UserBeneficiaryShow({
                 },
                 {
                     title: beneficiary.cais_number,
-                    href: '#',
+                    href: beneficiaryShow.url({
+                        department: department.slug,
+                        beneficiary: beneficiary.id,
+                    }),
                 },
             ] satisfies BreadcrumbItem[],
         });
-    }, [beneficiary.cais_number, department.slug]);
+    }, [beneficiary.cais_number, beneficiary.id, department.slug]);
 
     return (
         <>
             <Head title={beneficiary.name} />
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                {/* Header */}
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                            <h1 className="text-2xl font-semibold tracking-tight">
-                                {beneficiary.name}
-                            </h1>
-                            {isOrganization ? (
-                                <Badge variant="secondary">
-                                    <Building2 aria-hidden />
-                                    Organization
-                                </Badge>
-                            ) : (
-                                <Badge variant="outline">
-                                    <UserRound aria-hidden />
-                                    Individual
-                                </Badge>
-                            )}
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                            CAIS{' '}
-                            <span className="font-medium text-foreground">
-                                {beneficiary.cais_number}
-                            </span>
-                        </p>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            {beneficiary.name}
+                        </h1>
                         <div className="flex flex-wrap items-center gap-1.5">
-                            {address ? (
-                                <HeaderChip icon={MapPin}>{address}</HeaderChip>
-                            ) : null}
-                            {mobileNumber ? (
-                                <HeaderChip icon={Phone}>
-                                    {mobileNumber}
-                                </HeaderChip>
-                            ) : null}
+                            <Badge variant="outline">
+                                {isOrganization ? (
+                                    <Building2 aria-hidden />
+                                ) : (
+                                    <UserRound aria-hidden />
+                                )}
+                                {isOrganization
+                                    ? 'Organization'
+                                    : 'Individual'}
+                            </Badge>
+                            <Badge variant="outline" className="font-mono">
+                                {beneficiary.cais_number}
+                            </Badge>
                             {isOrganization &&
-                                typeof details.total_member === 'number' ? (
-                                <HeaderChip icon={Users}>
+                            typeof details.total_member === 'number' ? (
+                                <Badge variant="outline">
+                                    <Users aria-hidden />
                                     {details.total_member.toLocaleString()}{' '}
                                     members
-                                </HeaderChip>
+                                </Badge>
                             ) : null}
                             {beneficiary.programs.length > 0 ? (
-                                <HeaderChip icon={FolderOpen}>
+                                <Badge variant="outline">
+                                    <FolderOpen aria-hidden />
                                     {beneficiary.programs.length}{' '}
                                     {beneficiary.programs.length === 1
                                         ? 'program'
                                         : 'programs'}
-                                </HeaderChip>
+                                </Badge>
                             ) : null}
                         </div>
                     </div>
@@ -398,6 +432,7 @@ export default function UserBeneficiaryShow({
                     </Button>
                 </div>
 
+                {/* KPIs */}
                 <WhenVisible
                     data="assistance_summary"
                     buffer={200}
@@ -410,259 +445,320 @@ export default function UserBeneficiaryShow({
                     )}
                 </WhenVisible>
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Profile</CardTitle>
-                            <CardDescription>
-                                Beneficiary demographic and contact details.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-5">
-                            <dl className="grid gap-4 sm:grid-cols-2">
-                                {isOrganization ? (
-                                    <>
-                                        <DetailItem
-                                            label="Mobile number"
-                                            value={mobileNumber}
-                                        />
-                                        <DetailItem
-                                            label="Total members"
-                                            value={
-                                                details.total_member as
-                                                | number
-                                                | undefined
-                                            }
-                                        />
-                                        <DetailItem
-                                            label="Address"
-                                            value={address}
-                                        />
-                                        <DetailItem
-                                            label="President"
-                                            value={
-                                                (
-                                                    details.president as {
-                                                        name?: string;
-                                                    } | null
-                                                )?.name
-                                            }
-                                        />
-                                    </>
-                                ) : (
-                                    <>
-                                        <DetailItem
-                                            label="Birthday"
-                                            value={
-                                                details.birthday
-                                                    ? formatDate(
-                                                        details.birthday as string,
-                                                    )
-                                                    : null
-                                            }
-                                        />
-                                        <DetailItem
-                                            label="Sex"
-                                            value={
-                                                details.sex as
-                                                | string
-                                                | undefined
-                                            }
-                                        />
-                                        <DetailItem
-                                            label="Civil status"
-                                            value={
-                                                details.civil_status as
-                                                | string
-                                                | undefined
-                                            }
-                                        />
-                                        <DetailItem
-                                            label="Mobile number"
-                                            value={mobileNumber}
-                                        />
-                                        <DetailItem
-                                            label="Address"
-                                            value={address}
-                                        />
-                                        <DetailItem
-                                            label="Other address"
-                                            value={
-                                                details.other_address as
-                                                | string
-                                                | undefined
-                                            }
-                                        />
-                                        <DetailItem
-                                            label="Ethnicity"
-                                            value={
-                                                details.ethnicity as
-                                                | string
-                                                | undefined
-                                            }
-                                        />
-                                        <DetailItem
-                                            label="Spouse"
-                                            value={
-                                                details.spouse as
-                                                | string
-                                                | undefined
-                                            }
-                                        />
-                                    </>
-                                )}
-                            </dl>
+                {/* Overview: profile + side panel */}
+                <section
+                    data-tour="beneficiary-overview"
+                    className="rounded-xl border border-border bg-card"
+                >
+                    <div className="flex flex-col gap-4 p-4">
+                        <SectionHeading
+                            title="Overview"
+                            description={
+                                isOrganization
+                                    ? 'Organization contact, membership, and linked programs'
+                                    : 'Demographic details, contact, attributes, and linked programs'
+                            }
+                        />
 
-                            {!isOrganization ? (
+                        <div className="grid gap-6 lg:grid-cols-3">
+                            <div className="min-w-0 space-y-5 lg:col-span-2">
                                 <div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Attributes
+                                    <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        Profile
                                     </p>
-                                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                        {attributeFlags.length === 0 ? (
-                                            <span className="text-sm text-muted-foreground/60">
-                                                None
-                                            </span>
+                                    <dl className="grid gap-4 sm:grid-cols-2">
+                                        {isOrganization ? (
+                                            <>
+                                                <DetailItem
+                                                    label="President"
+                                                    value={president?.name}
+                                                />
+                                                <DetailItem
+                                                    label="Total members"
+                                                    value={
+                                                        details.total_member as
+                                                            | number
+                                                            | undefined
+                                                    }
+                                                />
+                                                <DetailItem
+                                                    label="Mobile number"
+                                                    value={mobileNumber}
+                                                />
+                                                <DetailItem
+                                                    label="Address"
+                                                    value={address}
+                                                />
+                                            </>
                                         ) : (
-                                            attributeFlags.map((flag) => (
-                                                <Badge
-                                                    key={flag.label}
-                                                    variant="secondary"
-                                                >
-                                                    {flag.label}
-                                                </Badge>
-                                            ))
+                                            <>
+                                                <DetailItem
+                                                    label="Birthday"
+                                                    value={formatDate(
+                                                        details.birthday as
+                                                            | string
+                                                            | undefined,
+                                                    )}
+                                                />
+                                                <DetailItem
+                                                    label="Sex"
+                                                    value={
+                                                        details.sex as
+                                                            | string
+                                                            | undefined
+                                                    }
+                                                />
+                                                <DetailItem
+                                                    label="Civil status"
+                                                    value={
+                                                        details.civil_status as
+                                                            | string
+                                                            | undefined
+                                                    }
+                                                />
+                                                <DetailItem
+                                                    label="Spouse"
+                                                    value={
+                                                        details.spouse as
+                                                            | string
+                                                            | undefined
+                                                    }
+                                                />
+                                                <DetailItem
+                                                    label="Ethnicity"
+                                                    value={
+                                                        details.ethnicity as
+                                                            | string
+                                                            | undefined
+                                                    }
+                                                />
+                                                <DetailItem
+                                                    label="Mobile number"
+                                                    value={mobileNumber}
+                                                />
+                                                <DetailItem
+                                                    label="Address"
+                                                    value={address}
+                                                />
+                                                <DetailItem
+                                                    label="Other address"
+                                                    value={otherAddress}
+                                                />
+                                            </>
                                         )}
+                                    </dl>
+                                </div>
+
+                                {!isOrganization ? (
+                                    <div>
+                                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                            Attributes
+                                        </p>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {attributeFlags.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground/60 italic">
+                                                    No special attributes
+                                                </p>
+                                            ) : (
+                                                attributeFlags.map((flag) => (
+                                                    <Badge
+                                                        key={flag.label}
+                                                        variant="secondary"
+                                                    >
+                                                        {flag.label}
+                                                    </Badge>
+                                                ))
+                                            )}
+                                        </div>
                                     </div>
-                                </div>
-                            ) : null}
+                                ) : null}
 
-                            {identifications.length > 0 ? (
-                                <div>
-                                    <p className="text-xs text-muted-foreground">
-                                        Identifications
+                                {identifications.length > 0 ? (
+                                    <div>
+                                        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                            <IdCard className="size-3.5" />
+                                            Identifications
+                                        </p>
+                                        <ul className="divide-y rounded-lg border border-border">
+                                            {identifications.map(
+                                                (identification) => (
+                                                    <li
+                                                        key={`${identification.name}-${identification.number}`}
+                                                        className="flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+                                                    >
+                                                        <span className="text-muted-foreground">
+                                                            {
+                                                                identification.name
+                                                            }
+                                                        </span>
+                                                        <span className="font-medium tabular-nums">
+                                                            {
+                                                                identification.number
+                                                            }
+                                                        </span>
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    </div>
+                                ) : null}
+                            </div>
+
+                            <div className="min-w-0 space-y-5 lg:border-l lg:border-border lg:pl-6">
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <Phone className="size-3.5" />
+                                        Contact
                                     </p>
-                                    <ul className="mt-1.5 space-y-1">
-                                        {identifications.map(
-                                            (identification) => (
-                                                <li
-                                                    key={`${identification.name}-${identification.number}`}
-                                                    className="flex items-center justify-between gap-2 text-sm"
-                                                >
-                                                    <span className="text-muted-foreground">
-                                                        {identification.name}
+                                    {mobileNumber || address ? (
+                                        <div className="space-y-2 text-sm">
+                                            {mobileNumber ? (
+                                                <p className="flex items-start gap-2">
+                                                    <Phone
+                                                        className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                                                        aria-hidden
+                                                    />
+                                                    <span className="tabular-nums">
+                                                        {mobileNumber}
                                                     </span>
-                                                    <span className="font-medium tabular-nums">
-                                                        {identification.number}
-                                                    </span>
-                                                </li>
-                                            ),
-                                        )}
-                                    </ul>
+                                                </p>
+                                            ) : null}
+                                            {address ? (
+                                                <p className="flex items-start gap-2">
+                                                    <MapPin
+                                                        className="mt-0.5 size-3.5 shrink-0 text-muted-foreground"
+                                                        aria-hidden
+                                                    />
+                                                    <span>{address}</span>
+                                                </p>
+                                            ) : null}
+                                            {otherAddress ? (
+                                                <p className="pl-5 text-xs text-muted-foreground">
+                                                    Also: {otherAddress}
+                                                </p>
+                                            ) : null}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground/60 italic">
+                                            No contact details on file
+                                        </p>
+                                    )}
                                 </div>
-                            ) : null}
-                        </CardContent>
-                    </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Programs</CardTitle>
-                            <CardDescription>
-                                Programs linked through assistances (
-                                {beneficiary.assistances_count.toLocaleString()}{' '}
-                                total requests).
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {beneficiary.programs.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    No programs linked yet.
-                                </p>
-                            ) : (
-                                <ul className="divide-y">
-                                    {beneficiary.programs.map((program) => (
-                                        <li
-                                            key={program.id}
-                                            className="flex items-center justify-between gap-2 py-3 text-sm"
-                                        >
-                                            <div className="min-w-0">
-                                                <p className="truncate font-medium">
-                                                    {program.name}
-                                                </p>
-                                                <p className="text-muted-foreground">
-                                                    {program.department?.name ??
-                                                        '—'}
-                                                </p>
-                                            </div>
-                                            <Badge variant="outline">
-                                                {program.is_organization
-                                                    ? 'Organization'
-                                                    : 'Individual'}
-                                            </Badge>
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <HeartHandshake className="size-3.5" />
+                                        Delivery rate
+                                    </p>
+                                    {assistance_summary === undefined ? (
+                                        <div className="space-y-2" aria-busy>
+                                            <Skeleton className="h-3 w-28 rounded-sm" />
+                                            <Skeleton className="h-2 w-full rounded-full" />
+                                        </div>
+                                    ) : (
+                                        <DeliveryBreakdown
+                                            summary={assistance_summary}
+                                        />
+                                    )}
+                                </div>
 
-                {isOrganization ? (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">Members</CardTitle>
-                            <CardDescription>
-                                Individuals registered under this organization.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {organizationMembers.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    No members listed.
-                                </p>
-                            ) : (
-                                <MembershipTable
-                                    rows={organizationMembers}
-                                    entityLabel="Name"
-                                    departmentSlug={department.slug}
-                                />
-                            )}
-                        </CardContent>
-                    </Card>
-                ) : (
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-lg">
-                                Organizations
-                            </CardTitle>
-                            <CardDescription>
-                                Organizations this individual belongs to.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {individualOrganizations.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">
-                                    Not a member of any organization.
-                                </p>
-                            ) : (
-                                <MembershipTable
-                                    rows={individualOrganizations}
-                                    entityLabel="Organization"
-                                    departmentSlug={department.slug}
-                                />
-                            )}
-                        </CardContent>
-                    </Card>
-                )}
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <FolderOpen className="size-3.5" />
+                                        Programs
+                                    </p>
+                                    {beneficiary.programs.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground/60 italic">
+                                            No programs linked yet
+                                        </p>
+                                    ) : (
+                                        <ul className="space-y-2">
+                                            {beneficiary.programs.map(
+                                                (program) => (
+                                                    <li
+                                                        key={program.id}
+                                                        className="flex items-start justify-between gap-2 text-sm"
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <p className="truncate font-medium">
+                                                                {program.name}
+                                                            </p>
+                                                            <p className="text-xs text-muted-foreground">
+                                                                {program
+                                                                    .department
+                                                                    ?.name ??
+                                                                    '—'}
+                                                            </p>
+                                                        </div>
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="shrink-0"
+                                                        >
+                                                            {program.is_organization
+                                                                ? 'Org'
+                                                                : 'Ind'}
+                                                        </Badge>
+                                                    </li>
+                                                ),
+                                            )}
+                                        </ul>
+                                    )}
+                                    {beneficiary.assistances_count > 0 ? (
+                                        <p className="text-xs tabular-nums text-muted-foreground">
+                                            {beneficiary.assistances_count.toLocaleString()}{' '}
+                                            total assistance{' '}
+                                            {beneficiary.assistances_count ===
+                                            1
+                                                ? 'request'
+                                                : 'requests'}
+                                        </p>
+                                    ) : null}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">Assistances</CardTitle>
-                        <CardDescription>
-                            Assistance records for this beneficiary.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                {/* Memberships */}
+                <section
+                    data-tour="beneficiary-memberships"
+                    className="rounded-xl border border-border bg-card"
+                >
+                    <div className="flex flex-col gap-4 p-4">
+                        <SectionHeading
+                            title={membershipTitle}
+                            description={membershipDescription}
+                        />
+                        {membershipRows.length === 0 ? (
+                            <p className="text-sm text-muted-foreground/60 italic">
+                                {membershipEmpty}
+                            </p>
+                        ) : (
+                            <DataTable
+                                columns={membershipColumns}
+                                data={membershipRows}
+                                emptyMessage={membershipEmpty}
+                                toolbar={(table, columnVisibility) => (
+                                    <BeneficiaryShowTableToolbar
+                                        table={table}
+                                        columnVisibility={columnVisibility}
+                                    />
+                                )}
+                            />
+                        )}
+                    </div>
+                </section>
+
+                {/* Assistances */}
+                <section
+                    data-tour="beneficiary-assistances"
+                    className="rounded-xl border border-border bg-card"
+                >
+                    <div className="flex flex-col gap-4 p-4">
+                        <SectionHeading
+                            title="Assistances"
+                            description="Assistance records for this beneficiary"
+                        />
                         <WhenVisible
                             data="assistances"
                             fallback={
@@ -672,109 +768,20 @@ export default function UserBeneficiaryShow({
                                 />
                             }
                         >
-                            {(assistances?.data ?? []).length === 0 ? (
-                                <p className="py-8 text-center text-sm text-muted-foreground">
-                                    No assistances found.
-                                </p>
-                            ) : (
-                                <div className="overflow-hidden rounded-lg border border-border">
-                                    <Table>
-                                        <TableHeader className="bg-muted/50">
-                                            <TableRow className="hover:bg-transparent">
-                                                <TableHead
-                                                    className={cn(
-                                                        'pl-4',
-                                                        tableHeadClass,
-                                                    )}
-                                                >
-                                                    Program
-                                                </TableHead>
-                                                <TableHead
-                                                    className={tableHeadClass}
-                                                >
-                                                    Department
-                                                </TableHead>
-                                                <TableHead
-                                                    className={tableHeadClass}
-                                                >
-                                                    Mode
-                                                </TableHead>
-                                                <TableHead
-                                                    className={tableHeadClass}
-                                                >
-                                                    Requested
-                                                </TableHead>
-                                                <TableHead
-                                                    className={cn(
-                                                        'pr-4',
-                                                        tableHeadClass,
-                                                    )}
-                                                >
-                                                    Status
-                                                </TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {(assistances?.data ?? []).map(
-                                                (row) => (
-                                                    <TableRow key={row.id}>
-                                                        <TableCell className="py-3 pl-4">
-                                                            {row.department_slug ? (
-                                                                <Link
-                                                                    href={assistanceShow.url(
-                                                                        {
-                                                                            department:
-                                                                                row.department_slug,
-                                                                            program:
-                                                                                row.program_id,
-                                                                            assistance:
-                                                                                row.id,
-                                                                        },
-                                                                    )}
-                                                                    className="font-medium text-primary hover:underline"
-                                                                >
-                                                                    {
-                                                                        row.program_name
-                                                                    }
-                                                                </Link>
-                                                            ) : (
-                                                                <span className="font-medium">
-                                                                    {
-                                                                        row.program_name
-                                                                    }
-                                                                </span>
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="py-3 text-muted-foreground">
-                                                            {
-                                                                row.department_name
-                                                            }
-                                                        </TableCell>
-                                                        <TableCell className="py-3 text-muted-foreground">
-                                                            {
-                                                                row.mode_of_request
-                                                            }
-                                                        </TableCell>
-                                                        <TableCell className="py-3 tabular-nums text-muted-foreground">
-                                                            {formatDate(
-                                                                row.date_requested,
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell className="py-3 pr-4">
-                                                            {statusBadge(
-                                                                row.status,
-                                                            )}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ),
-                                            )}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            )}
+                            <DataTable
+                                columns={assistanceColumns}
+                                data={assistances?.data ?? []}
+                                emptyMessage="No assistances found."
+                                toolbar={(table, columnVisibility) => (
+                                    <BeneficiaryShowTableToolbar
+                                        table={table}
+                                        columnVisibility={columnVisibility}
+                                    />
+                                )}
+                            />
                         </WhenVisible>
-                    </CardContent>
-                </Card>
+                    </div>
+                </section>
             </div>
 
             <BeneficiaryEditDrawer

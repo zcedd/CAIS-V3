@@ -26,37 +26,50 @@ export type UseCurrentUrlReturn = {
     whenCurrentUrl: WhenCurrentUrlFn;
 };
 
+function pathnameFrom(url: string): string {
+    if (!url.startsWith('http')) {
+        const pathOnly = url.split('?')[0]?.split('#')[0] ?? url;
+
+        return pathOnly.replace(/\/+$/, '') || '/';
+    }
+
+    try {
+        return new URL(url).pathname.replace(/\/+$/, '') || '/';
+    } catch {
+        return url.replace(/\/+$/, '') || '/';
+    }
+}
+
+function isSameOrChildPath(currentPath: string, itemPath: string): boolean {
+    return (
+        currentPath === itemPath || currentPath.startsWith(`${itemPath}/`)
+    );
+}
+
 export function useCurrentUrl(): UseCurrentUrlReturn {
     const page = usePage();
-    const currentUrlPath = new URL(
-        page.url,
-        typeof window !== 'undefined'
-            ? window.location.origin
-            : 'http://localhost',
-    ).pathname;
+    const currentUrlPath = pathnameFrom(
+        new URL(
+            page.url,
+            typeof window !== 'undefined'
+                ? window.location.origin
+                : 'http://localhost',
+        ).pathname,
+    );
 
     const isCurrentUrl: IsCurrentUrlFn = (
         urlToCheck: NonNullable<InertiaLinkProps['href']>,
         currentUrl?: string,
         startsWith: boolean = false,
     ) => {
-        const urlToCompare = currentUrl ?? currentUrlPath;
-        const urlString = toUrl(urlToCheck);
+        const urlToCompare = pathnameFrom(currentUrl ?? currentUrlPath);
+        const itemPath = pathnameFrom(toUrl(urlToCheck));
 
-        const comparePath = (path: string): boolean =>
-            startsWith ? urlToCompare.startsWith(path) : path === urlToCompare;
-
-        if (!urlString.startsWith('http')) {
-            return comparePath(urlString);
+        if (startsWith) {
+            return isSameOrChildPath(urlToCompare, itemPath);
         }
 
-        try {
-            const absoluteUrl = new URL(urlString);
-
-            return comparePath(absoluteUrl.pathname);
-        } catch {
-            return false;
-        }
+        return itemPath === urlToCompare;
     };
 
     const isCurrentOrParentUrl: IsCurrentOrParentUrlFn = (
