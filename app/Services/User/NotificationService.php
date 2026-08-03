@@ -5,10 +5,13 @@ namespace App\Services\User;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Notifications\DatabaseNotification;
+use Illuminate\Support\Facades\Cache;
 
 class NotificationService
 {
     private const NOTIFICATIONS_PER_PAGE = 15;
+
+    private const UNREAD_COUNT_CACHE_SECONDS = 60;
 
     /**
      * @return array{
@@ -57,7 +60,16 @@ class NotificationService
 
     public function unreadCountForUser(User $user): int
     {
-        return $user->unreadNotifications()->count();
+        return (int) Cache::remember(
+            $this->unreadCountCacheKey($user),
+            self::UNREAD_COUNT_CACHE_SECONDS,
+            fn (): int => $user->unreadNotifications()->count(),
+        );
+    }
+
+    public function forgetUnreadCountCache(User $user): void
+    {
+        Cache::forget($this->unreadCountCacheKey($user));
     }
 
     public function markAsReadForUser(User $user, string $notificationId): DatabaseNotification
@@ -66,6 +78,7 @@ class NotificationService
 
         if ($notification->read_at === null) {
             $notification->markAsRead();
+            $this->forgetUnreadCountCache($user);
         }
 
         return $notification->refresh();
@@ -73,9 +86,20 @@ class NotificationService
 
     public function markAllAsReadForUser(User $user): int
     {
-        return $user->unreadNotifications()->update([
+        $updated = $user->unreadNotifications()->update([
             'read_at' => now(),
         ]);
+
+        if ($updated > 0) {
+            $this->forgetUnreadCountCache($user);
+        }
+
+        return $updated;
+    }
+
+    private function unreadCountCacheKey(User $user): string
+    {
+        return "user.{$user->id}.unread_notifications_count";
     }
 
     public function category(DatabaseNotification $notification): string

@@ -2,6 +2,7 @@
 
 use App\Models\Department;
 use App\Models\User;
+use App\Services\User\NotificationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -89,6 +90,31 @@ test('shared unread notifications count reflects unread database notifications',
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('unreadNotificationsCount', 1));
+});
+
+test('marking a notification as read invalidates the unread count cache', function () {
+    $department = Department::create(['name' => 'Social Welfare']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+    $notificationId = (string) Str::uuid();
+
+    DB::table('notifications')->insert([
+        'id' => $notificationId,
+        'type' => 'App\\Notifications\\TestNotification',
+        'notifiable_type' => User::class,
+        'notifiable_id' => $user->id,
+        'data' => json_encode(['message' => 'Unread notification'], JSON_THROW_ON_ERROR),
+        'read_at' => null,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    $notificationService = app(NotificationService::class);
+
+    expect($notificationService->unreadCountForUser($user))->toBe(1);
+
+    $notificationService->markAsReadForUser($user, $notificationId);
+
+    expect($notificationService->unreadCountForUser($user))->toBe(0);
 });
 
 test('notifications page only returns notifications for the authenticated user', function () {

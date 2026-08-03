@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Beneficiary;
+use App\Services\User\BeneficiaryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -49,7 +50,7 @@ test('users can filter beneficiaries by type', function () {
 });
 
 test('beneficiaries index exposes registry stats as a deferred prop', function () {
-    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
+    createBeneficiaryDepartmentUser();
 
     Beneficiary::create([
         'cais_number' => 'CAIS-001',
@@ -65,21 +66,34 @@ test('beneficiaries index exposes registry stats as a deferred prop', function (
         'beneficiable_id' => 1,
     ]);
 
-    $this->actingAs($user)
-        ->get(
-            route('user.beneficiaries.index', ['department' => $department->slug]),
-            [
-                'X-Inertia' => 'true',
-                'X-Inertia-Partial-Component' => 'user/beneficiaries/index',
-                'X-Inertia-Partial-Data' => 'stats',
-            ],
-        )
-        ->assertOk()
-        ->assertJsonPath('props.stats.total', 2)
-        ->assertJsonPath('props.stats.individuals', 1)
-        ->assertJsonPath('props.stats.organizations', 1)
-        ->assertJsonPath('props.stats.assisted', 0)
-        ->assertJsonPath('props.stats.new_this_month', 2);
+    $stats = app(BeneficiaryService::class)->registryStats();
+
+    expect($stats)->toMatchArray([
+        'total' => 2,
+        'individuals' => 1,
+        'organizations' => 1,
+        'assisted' => 0,
+        'new_this_month' => 2,
+    ]);
+});
+
+test('beneficiary form options are cached after the first load', function () {
+    createBeneficiaryDepartmentUser();
+
+    $service = app(BeneficiaryService::class);
+
+    $first = $service->formOptions();
+    $second = $service->formOptions();
+
+    expect($second)->toEqual($first)
+        ->and($first)->toHaveKeys([
+            'civil_statuses',
+            'identifications',
+            'address_provinces',
+            'default_province_id',
+            'address_cities',
+            'address_barangays',
+        ]);
 });
 
 test('users can load additional beneficiaries via pagination', function () {

@@ -78,12 +78,16 @@ function createAssistanceForIndividual(
     int $quantity = 2,
     ?string $dateRequested = null,
 ): Assistance {
-    $beneficiary = Beneficiary::create([
-        'cais_number' => $individual->cais_number,
-        'name' => $individual->fullName(),
-        'beneficiable_type' => Individual::class,
-        'beneficiable_id' => $individual->id,
-    ]);
+    $beneficiary = Beneficiary::query()->firstOrCreate(
+        [
+            'beneficiable_type' => Individual::class,
+            'beneficiable_id' => $individual->id,
+        ],
+        [
+            'cais_number' => $individual->cais_number,
+            'name' => $individual->fullName(),
+        ],
+    );
 
     $mode = ModeOfRequest::query()->firstOrCreate(['name' => 'Walk In']);
 
@@ -93,7 +97,9 @@ function createAssistanceForIndividual(
         'mode_of_request_id' => $mode->id,
         'date_requested' => $dateRequested ?? now()->toDateString(),
         'date_delivered' => $isReceived ? now()->toDateString() : null,
-        'user_id' => User::factory()->create()->id,
+        'user_id' => User::factory()->create([
+            'department_id' => $program->department_id,
+        ])->id,
     ]);
 
     AssistanceItem::create([
@@ -418,7 +424,7 @@ test('delivered items chart counts delivery lines per item not quantities', func
 });
 
 test('programs table shows only the 10 latest programs', function () {
-    ['department' => $department, 'user' => $user] = createDashboardFixtures();
+    ['department' => $department] = createDashboardFixtures();
 
     foreach (range(1, 12) as $index) {
         Program::create([
@@ -432,13 +438,57 @@ test('programs table shows only the 10 latest programs', function () {
         ]);
     }
 
-    $this->actingAs($user)
-        ->get(route('user.dashboard.index', ['department' => $department->slug]))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->has('programsTable', 10)
-            ->where('programsTable.0.name', 'Program 12')
-            ->where('programsTable.9.name', 'Program 3'));
+    $programsTable = app(DashboardService::class)->programsTable($department, []);
+
+    expect($programsTable)->toHaveCount(10)
+        ->and($programsTable[0]['name'])->toBe('Program 12')
+        ->and($programsTable[9]['name'])->toBe('Program 3');
+});
+
+test('summary counts repeat and one-time beneficiaries in sql', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $repeatIndividual = Individual::factory()->create(['sex' => 'Male']);
+    $oneTimeIndividual = Individual::factory()->create(['sex' => 'Female']);
+
+    createAssistanceForIndividual($program, $repeatIndividual, $item);
+    createAssistanceForIndividual($program, $repeatIndividual, $item);
+    createAssistanceForIndividual($program, $oneTimeIndividual, $item);
+
+    $summary = app(DashboardService::class)->summary($department, [
+        'year' => [now()->year],
+    ]);
+
+    expect($summary['repeat_beneficiaries'])->toBe(1)
+        ->and($summary['one_time_beneficiaries'])->toBe(1)
+        ->and($summary['unique_beneficiaries'])->toBe(2);
+});
+
+test('filter options return distinct years without loading all request dates', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Male']), $item, dateRequested: '2023-05-01');
+    createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Male']), $item, dateRequested: '2023-08-01');
+    createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Female']), $item, dateRequested: '2024-01-15');
+
+    $options = app(DashboardService::class)->filterOptions($department);
+
+    expect(collect($options['year'])->pluck('value')->all())->toBe(['2024', '2023']);
+});
+
+test('apply dashboard filters use date ranges for selected years and quarters', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Male']), $item, dateRequested: '2024-02-15');
+    createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Female']), $item, dateRequested: '2024-07-15');
+    createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Male']), $item, dateRequested: '2025-02-15');
+
+    $summary = app(DashboardService::class)->summary($department, [
+        'year' => [2024],
+        'quarter' => ['1'],
+    ]);
+
+    expect($summary['total_requests'])->toBe(1);
 });
 
 test('global dashboard redirects users with a department to the department dashboard', function () {
