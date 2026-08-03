@@ -29,7 +29,7 @@ const SHARED_STEPS: Step[] = [
     },
     {
         target: '[data-tour="page-header"]',
-        content: 'This header shows where you are through breadcrumbs.',
+        content: 'Use the sidebar toggle and your account menu from this header.',
         placement: 'bottom',
     },
     {

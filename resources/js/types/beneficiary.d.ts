@@ -9,6 +9,19 @@ export type BeneficiaryListRow = {
     cais_number: string;
     name: string;
     type: 'individual' | 'organization';
+    address: string | null;
+    contact: string | null;
+    assistances_count: number;
+    last_assisted_at: string | null;
+    registered_at: string | null;
+};
+
+export type BeneficiaryRegistryStats = {
+    total: number;
+    individuals: number;
+    organizations: number;
+    assisted: number;
+    new_this_month: number;
 };
 
 export type PaginatedBeneficiaries = {
@@ -19,6 +32,8 @@ export type PaginatedBeneficiaries = {
     total: number;
     from: number | null;
     to: number | null;
+    prev_page_url: string | null;
+    next_page_url: string | null;
 };
 
 export type SelectOption = {
@@ -108,6 +123,15 @@ export type BeneficiaryProfile = {
         is_organization: boolean;
     }>;
     assistances_count: number;
+};
+
+export type BeneficiaryAssistanceSummary = {
+    total: number;
+    delivered: number;
+    denied: number;
+    in_progress: number;
+    programs: number;
+    last_requested_at: string | null;
 };
 
 export type BeneficiaryAssistanceRow = {

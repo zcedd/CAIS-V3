@@ -40,7 +40,46 @@ test('users can filter beneficiaries by type', function () {
             ->has('beneficiaries.data', 1)
             ->where('beneficiaries.data.0.id', $individual->id)
             ->where('beneficiaries.data.0.type', 'individual')
+            ->where('beneficiaries.data.0.assistances_count', 0)
+            ->where('beneficiaries.data.0.last_assisted_at', null)
+            ->where('beneficiaries.data.0.address', null)
+            ->where('beneficiaries.data.0.contact', null)
+            ->has('beneficiaries.data.0.registered_at')
             ->where('type', ['individual']));
+});
+
+test('beneficiaries index exposes registry stats as a deferred prop', function () {
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
+
+    Beneficiary::create([
+        'cais_number' => 'CAIS-001',
+        'name' => 'Juan Dela Cruz',
+        'beneficiable_type' => 'App\Models\Individual',
+        'beneficiable_id' => 1,
+    ]);
+
+    Beneficiary::create([
+        'cais_number' => 'CAIS-002',
+        'name' => 'Acme Foundation',
+        'beneficiable_type' => 'App\Models\Organization',
+        'beneficiable_id' => 1,
+    ]);
+
+    $this->actingAs($user)
+        ->get(
+            route('user.beneficiaries.index', ['department' => $department->slug]),
+            [
+                'X-Inertia' => 'true',
+                'X-Inertia-Partial-Component' => 'user/beneficiaries/index',
+                'X-Inertia-Partial-Data' => 'stats',
+            ],
+        )
+        ->assertOk()
+        ->assertJsonPath('props.stats.total', 2)
+        ->assertJsonPath('props.stats.individuals', 1)
+        ->assertJsonPath('props.stats.organizations', 1)
+        ->assertJsonPath('props.stats.assisted', 0)
+        ->assertJsonPath('props.stats.new_this_month', 2);
 });
 
 test('users can load additional beneficiaries via pagination', function () {
@@ -56,16 +95,22 @@ test('users can load additional beneficiaries via pagination', function () {
     }
 
     $this->actingAs($user)
-        ->get(route('user.beneficiaries.index', ['department' => $department->slug]))
+        ->get(route('user.beneficiaries.index', [
+            'department' => $department->slug,
+            'per_page' => 15,
+        ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->has('beneficiaries.data', 15)
             ->where('beneficiaries.current_page', 1)
-            ->where('beneficiaries.total', 16));
+            ->where('beneficiaries.per_page', 15)
+            ->where('beneficiaries.total', 16)
+            ->where('per_page', 15));
 
     $this->actingAs($user)
         ->get(route('user.beneficiaries.index', [
             'department' => $department->slug,
+            'per_page' => 15,
             'page' => 2,
         ]))
         ->assertOk()
@@ -73,4 +118,15 @@ test('users can load additional beneficiaries via pagination', function () {
             ->has('beneficiaries.data', 1)
             ->where('beneficiaries.current_page', 2)
             ->where('beneficiaries.data.0.name', 'Beneficiary 16'));
+});
+
+test('beneficiaries index uses the default page size when none is given', function () {
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
+
+    $this->actingAs($user)
+        ->get(route('user.beneficiaries.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('beneficiaries.per_page', 25)
+            ->where('per_page', 25));
 });

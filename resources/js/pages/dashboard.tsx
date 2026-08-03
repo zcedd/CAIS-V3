@@ -9,7 +9,7 @@ export default function Dashboard({
     return (
         <>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col items-center justify-center gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-4 overflow-x-hidden rounded-xl p-4">
                 {noDepartment ? (
                     <div className="max-w-md text-center">
                         <h1 className="text-2xl font-semibold tracking-tight">

@@ -1,16 +1,9 @@
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
+import type { ServerPaginationMeta } from '@/components/data-table/types';
 import InputError from '@/components/input-error';
-import { ProjectCard } from '@/components/skeleton/project-card';
-import { Badge } from '@/components/ui/badge';
+import { ServerPagination } from '@/components/server-pagination';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import {
     Drawer,
     DrawerClose,
@@ -30,6 +23,10 @@ import {
 } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import {
+    ProgramFolderCard,
+    type ProgramListRow,
+} from '@/pages/user/programs/program-folder-card';
+import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
     store as storeProgram,
@@ -39,7 +36,6 @@ import { cn } from '@/lib/utils';
 import {
     Form,
     Head,
-    InfiniteScroll,
     Link,
     router,
     setLayoutProps,
@@ -67,18 +63,11 @@ type SelectOption = {
     year: string;
 };
 
-type ProgramRow = {
-    id: number;
-    name: string;
-    descriptions: string | null;
-    start_at: string | null;
-    end_at: string | null;
-    is_closed: boolean | null;
-    is_organization: boolean | null;
+type ProgramRow = ProgramListRow & {
     department?: DepartmentSummary | null;
 };
 
-type PaginatedPrograms = {
+type PaginatedPrograms = ServerPaginationMeta & {
     data: ProgramRow[];
 };
 
@@ -86,6 +75,8 @@ type ProgramListFilters = {
     search: string;
     type: string[];
     status: string[];
+    page?: number;
+    per_page?: number;
 };
 
 const programTypeOptions = [
@@ -116,9 +107,16 @@ function buildProgramsQuery(
         query.status = filters.status;
     }
 
+    if (filters.page !== undefined && filters.page > 1) {
+        query.page = String(filters.page);
+    }
+
+    if (filters.per_page !== undefined && filters.per_page !== 12) {
+        query.per_page = String(filters.per_page);
+    }
+
     return query;
 }
-
 function formatDateForSubmit(date: Date | undefined): string | undefined {
     if (!date) {
         return undefined;
@@ -215,6 +213,7 @@ export default function UserProgramsIndex({
     search: initialSearch,
     type: initialType,
     status: initialStatus,
+    per_page: initialPerPage,
     funds,
     items,
 }: {
@@ -223,6 +222,7 @@ export default function UserProgramsIndex({
     search: string;
     type: string[];
     status: string[];
+    per_page: number;
     funds: SelectOption[];
     items: SelectOption[];
 }) {
@@ -274,6 +274,8 @@ export default function UserProgramsIndex({
                 search: overrides.search ?? searchQuery,
                 type: overrides.type ?? initialType,
                 status: overrides.status ?? initialStatus,
+                page: overrides.page ?? 1,
+                per_page: overrides.per_page ?? initialPerPage,
             };
 
             router.get(
@@ -290,15 +292,20 @@ export default function UserProgramsIndex({
                         'search',
                         'type',
                         'status',
+                        'per_page',
                         'department',
                     ],
-                    reset: ['programs'],
                 },
             );
         },
-        [department?.slug, searchQuery, initialType, initialStatus],
+        [
+            department?.slug,
+            searchQuery,
+            initialType,
+            initialStatus,
+            initialPerPage,
+        ],
     );
-
     if (department?.slug) {
         const programsHref = departmentProgramsIndex.url(department.slug);
         setLayoutProps({
@@ -335,7 +342,7 @@ export default function UserProgramsIndex({
     return (
         <>
             <Head title="Department programs" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">
@@ -412,76 +419,17 @@ export default function UserProgramsIndex({
                     </Button>
                 </div>
                 {programs.data.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        No programs match your filters.
-                    </p>
+                    <div className="flex flex-col items-start gap-1 border-t border-foreground/10 py-12">
+                        <p className="text-sm font-medium">No programs found</p>
+                        <p className="text-sm text-muted-foreground">
+                            Nothing matches your filters.
+                        </p>
+                    </div>
                 ) : (
-                    <InfiniteScroll
-                        data="programs"
-                        onlyNext
-                        next={({ loading }) =>
-                            loading ? (
-                                <div className="mt-4 grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                    <ProjectCard />
-                                    <ProjectCard />
-                                    <ProjectCard />
-                                </div>
-                            ) : null
-                        }
-                    >
-                        <div className="grid auto-rows-min gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            {programs.data.map((program) => {
-                                const card = (
-                                    <Card className="flex h-full flex-col bg-card transition-colors hover:border-primary/50 hover:shadow-sm">
-                                        <CardHeader className="gap-1">
-                                            <CardTitle className="text-lg">
-                                                {program.name}
-                                            </CardTitle>
-                                            <CardDescription>
-                                                <div className="flex gap-2">
-                                                    <Badge variant="default">
-                                                        {program.is_organization
-                                                            ? 'Organization'
-                                                            : 'Individual'}
-                                                    </Badge>
-                                                    <Badge
-                                                        variant={
-                                                            program.is_closed
-                                                                ? 'destructive'
-                                                                : 'default'
-                                                        }
-                                                    >
-                                                        {program.is_closed
-                                                            ? 'Closed'
-                                                            : 'Open'}
-                                                    </Badge>
-                                                </div>
-                                            </CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="flex flex-1 flex-col gap-2 text-sm text-muted-foreground">
-                                            <p className="line-clamp-4">
-                                                {(program.descriptions
-                                                    ?.length ?? 0) > 200
-                                                    ? program.descriptions.slice(
-                                                          0,
-                                                          200,
-                                                      ) + '…'
-                                                    : program.descriptions}
-                                            </p>
-                                            <p>
-                                                <span className="font-medium text-foreground">
-                                                    Period:{' '}
-                                                </span>
-                                                {program.start_at ?? '—'}
-                                                {program.end_at
-                                                    ? ` – ${program.end_at}`
-                                                    : ''}
-                                            </p>
-                                        </CardContent>
-                                    </Card>
-                                );
-
-                                return department?.slug ? (
+                    <div className="flex flex-col gap-4">
+                        <div className="grid auto-rows-min gap-x-5 gap-y-7 md:grid-cols-2 lg:grid-cols-4">
+                            {programs.data.map((program) =>
+                                department?.slug ? (
                                     <Link
                                         key={program.id}
                                         href={departmentProgramShow.url({
@@ -489,16 +437,31 @@ export default function UserProgramsIndex({
                                             program: program.id,
                                         })}
                                         prefetch
-                                        className="block h-full rounded-xl ring-offset-background outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     >
-                                        {card}
+                                        <ProgramFolderCard program={program} />
                                     </Link>
                                 ) : (
-                                    <div key={program.id}>{card}</div>
-                                );
-                            })}
+                                    <div key={program.id}>
+                                        <ProgramFolderCard program={program} />
+                                    </div>
+                                ),
+                            )}
                         </div>
-                    </InfiniteScroll>
+
+                        <ServerPagination
+                            pagination={programs}
+                            onPageChange={(page) =>
+                                navigateWithFilters({ page })
+                            }
+                            onPerPageChange={(perPage) =>
+                                navigateWithFilters({
+                                    per_page: perPage,
+                                    page: 1,
+                                })
+                            }
+                        />
+                    </div>
                 )}
             </div>
 

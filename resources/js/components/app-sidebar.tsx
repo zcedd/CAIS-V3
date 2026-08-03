@@ -13,7 +13,6 @@ import { useMemo } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
-import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
@@ -98,7 +97,7 @@ export function AppSidebar() {
     }, [props.auth.user]);
 
     return (
-        <Sidebar collapsible="icon" variant="inset" data-tour="sidebar">
+        <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
@@ -107,8 +106,8 @@ export function AppSidebar() {
                                 href={
                                     props.auth.user?.department?.slug
                                         ? departmentDashboardIndex(
-                                              props.auth.user.department.slug,
-                                          )
+                                            props.auth.user.department.slug,
+                                        )
                                         : dashboard()
                                 }
                                 prefetch
@@ -127,7 +126,6 @@ export function AppSidebar() {
 
             <SidebarFooter>
                 <NavFooter items={footerNavItems} className="mt-auto" />
-                <NavUser />
             </SidebarFooter>
         </Sidebar>
     );

@@ -14,11 +14,12 @@ use App\Models\Individual;
 use App\Models\Organization;
 use App\Models\Program;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 
 class BeneficiaryService
 {
-    private const BENEFICIARIES_PER_PAGE = 50;
+    private const BENEFICIARIES_PER_PAGE = 25;
 
     private const ASSISTANCES_PER_PAGE = 10;
 
@@ -34,6 +35,7 @@ class BeneficiaryService
     public function paginate(
         string $search,
         array $types,
+        int $perPage = self::BENEFICIARIES_PER_PAGE,
     ): LengthAwarePaginator {
         return Beneficiary::query()
             ->when($search !== '', function ($query) use ($search): void {
@@ -52,10 +54,27 @@ class BeneficiaryService
                 count($types) === 1 && in_array('organization', $types, true),
                 fn ($query) => $query->where('beneficiable_type', Organization::class),
             )
+            ->with(['beneficiable' => function (MorphTo $morphTo): void {
+                $morphTo->morphWith([
+                    Individual::class => ['address.city'],
+                    Organization::class => ['address.city'],
+                ]);
+            }])
+            ->withCount('assistances')
+            ->withMax('assistances as last_assisted_at', 'date_requested')
             ->orderBy('name')
-            ->paginate(self::BENEFICIARIES_PER_PAGE)
+            ->paginate($perPage)
             ->withQueryString()
             ->through(static function (Beneficiary $beneficiary): array {
+                $beneficiable = $beneficiary->beneficiable;
+                $barangay = $beneficiable?->address;
+
+                $address = $barangay === null
+                    ? null
+                    : collect([$barangay->name, $barangay->city?->name])
+                        ->filter(static fn (?string $part): bool => $part !== null && trim($part) !== '')
+                        ->implode(', ');
+
                 return [
                     'id' => $beneficiary->id,
                     'cais_number' => $beneficiary->cais_number,
@@ -63,8 +82,41 @@ class BeneficiaryService
                     'type' => $beneficiary->beneficiable_type === Organization::class
                         ? 'organization'
                         : 'individual',
+                    'address' => $address !== '' ? $address : null,
+                    'contact' => $beneficiable?->mobile_number ?: null,
+                    'assistances_count' => (int) $beneficiary->assistances_count,
+                    'last_assisted_at' => $beneficiary->last_assisted_at
+                        ? Carbon::parse($beneficiary->last_assisted_at)->toDateString()
+                        : null,
+                    'registered_at' => $beneficiary->created_at?->toIso8601String(),
                 ];
             });
+    }
+
+    /**
+     * @return array{
+     *     total: int,
+     *     individuals: int,
+     *     organizations: int,
+     *     assisted: int,
+     *     new_this_month: int
+     * }
+     */
+    public function registryStats(): array
+    {
+        return [
+            'total' => Beneficiary::query()->count(),
+            'individuals' => Beneficiary::query()
+                ->where('beneficiable_type', Individual::class)
+                ->count(),
+            'organizations' => Beneficiary::query()
+                ->where('beneficiable_type', Organization::class)
+                ->count(),
+            'assisted' => Beneficiary::query()->whereHas('assistances')->count(),
+            'new_this_month' => Beneficiary::query()
+                ->where('created_at', '>=', now()->startOfMonth())
+                ->count(),
+        ];
     }
 
     /**
@@ -146,6 +198,37 @@ class BeneficiaryService
             'assistances_count' => Assistance::query()
                 ->where('beneficiary_id', $beneficiary->id)
                 ->count(),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     total: int,
+     *     delivered: int,
+     *     denied: int,
+     *     in_progress: int,
+     *     programs: int,
+     *     last_requested_at: string|null
+     * }
+     */
+    public function assistanceSummary(Beneficiary $beneficiary): array
+    {
+        $base = Assistance::query()->where('beneficiary_id', $beneficiary->id);
+
+        $total = (clone $base)->count();
+        $delivered = (clone $base)->whereNotNull('date_delivered')->count();
+        $denied = (clone $base)->whereNotNull('date_denied')->count();
+        $lastRequested = (clone $base)->max('date_requested');
+
+        return [
+            'total' => $total,
+            'delivered' => $delivered,
+            'denied' => $denied,
+            'in_progress' => max(0, $total - $delivered - $denied),
+            'programs' => (clone $base)->distinct()->count('program_id'),
+            'last_requested_at' => $lastRequested
+                ? Carbon::parse($lastRequested)->toDateString()
+                : null,
         ];
     }
 

@@ -58,6 +58,7 @@ interface DataTableProps<TData, TValue> {
         direction: 'asc' | 'desc',
     ) => void;
     onPerPageChange?: (perPage: number) => void;
+    onPageChange?: (page: number) => void;
     partialReloadOnly?: string[];
     isLoading?: boolean;
     loadingFallback?: React.ReactNode;
@@ -110,6 +111,7 @@ export function DataTable<TData, TValue>({
     serverSorting,
     onServerSortingChange,
     onPerPageChange,
+    onPageChange,
     partialReloadOnly,
     isLoading = false,
     loadingFallback,
@@ -330,6 +332,7 @@ export function DataTable<TData, TValue>({
                     onPerPageChange={
                         manualPagination ? onPerPageChange : undefined
                     }
+                    onPageChange={manualPagination ? onPageChange : undefined}
                     partialReloadOnly={partialReloadOnly}
                 />
             </div>

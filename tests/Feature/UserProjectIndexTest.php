@@ -134,7 +134,19 @@ test('users can load additional programs via pagination', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->has('programs.data', 1)
             ->where('programs.current_page', 2)
-            ->where('programs.data.0.name', 'Program 13'));
+            ->where('programs.data.0.name', 'Program 1'));
+
+    $this->actingAs($user)
+        ->get(route('user.programs.index', [
+            'department' => $department->slug,
+            'per_page' => 8,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('programs.data', 8)
+            ->where('programs.per_page', 8)
+            ->where('per_page', 8)
+            ->where('programs.current_page', 1));
 });
 
 test('authenticated users cannot view another departments program list', function () {

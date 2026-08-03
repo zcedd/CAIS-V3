@@ -4,3 +4,21 @@ export type ProgramSummary = {
     in_progress_requests: number;
     total_delivered_items: number;
 };
+
+export type ProgramStatusBreakdownPoint = {
+    status: string;
+    count: number;
+};
+
+export type ProgramFund = {
+    id: number;
+    name: string;
+    year: string | null;
+    amount: number | null;
+};
+
+export type ProgramCoveredItem = {
+    id: number;
+    name: string;
+    unit: string | null;
+};

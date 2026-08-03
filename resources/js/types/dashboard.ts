@@ -32,6 +32,15 @@ export type DashboardSummary = {
     delivered_requests: number;
     total_delivered_items: number;
     active_programs: number;
+    in_progress_requests: number;
+    denied_requests: number;
+    unique_beneficiaries: number;
+    closed_programs: number;
+    avg_days_to_deliver: number | null;
+    avg_days_to_verify: number | null;
+    repeat_beneficiaries: number;
+    one_time_beneficiaries: number;
+    avg_requests_per_beneficiary: number;
 };
 
 export type RequestStatusChartPoint = {
@@ -43,6 +52,45 @@ export type DeliveredItemsChartPoint = {
     item: string;
     unit: string;
     count: number;
+    quantity: number;
+};
+
+export type BeneficiaryTypeChartPoint = {
+    type: string;
+    label: string;
+    count: number;
+};
+
+export type DemographicCount = {
+    label: string;
+    count: number;
+};
+
+export type DashboardDemographics = {
+    sex: DemographicCount[];
+    age: DemographicCount[];
+    civil_status: DemographicCount[];
+    pwd: DemographicCount[];
+    four_ps: DemographicCount[];
+    solo_parent: DemographicCount[];
+    indigenous: DemographicCount[];
+};
+
+export type RequestsTrendPoint = {
+    date: string;
+    count: number;
+};
+
+export type DashboardInsights = {
+    backlog_aging: DemographicCount[];
+    pending_items: number;
+    received_items: number;
+    distinct_barangays: number;
+};
+
+export type TopBarangayPoint = {
+    barangay: string;
+    count: number;
 };
 
 export type DashboardProgramRow = {
@@ -53,6 +101,8 @@ export type DashboardProgramRow = {
     total_requests: number;
     delivered: number;
     in_progress: number;
+    denied: number;
+    delivery_rate: number;
 };
 
 export type DepartmentSummary = {
@@ -65,6 +115,12 @@ export const DASHBOARD_PARTIAL_PROPS = [
     'summary',
     'requestStatusChart',
     'deliveredItemsChart',
+    'beneficiaryTypeChart',
+    'demographics',
+    'requestsTrend',
+    'insights',
+    'topBarangays',
+    'modeOfRequestChart',
     'programsTable',
     'filters',
 ] as const;
@@ -72,6 +128,14 @@ export const DASHBOARD_PARTIAL_PROPS = [
 export const DASHBOARD_CHART_DEFER_PROPS = [
     'requestStatusChart',
     'deliveredItemsChart',
+    'beneficiaryTypeChart',
+    'requestsTrend',
+] as const;
+
+export const DASHBOARD_INSIGHT_DEFER_PROPS = [
+    'insights',
+    'topBarangays',
+    'modeOfRequestChart',
 ] as const;
 
 export function buildDashboardQuery(
@@ -146,4 +210,46 @@ export function hasActiveDashboardFilters(filters: DashboardFilters): boolean {
             );
         },
     );
+}
+
+export type TrendPeriod = 'day' | 'week' | 'month';
+
+export function aggregateRequestsTrend(
+    points: RequestsTrendPoint[],
+    period: TrendPeriod,
+): { label: string; count: number }[] {
+    if (period === 'day') {
+        return points.map((point) => ({
+            label: point.date,
+            count: point.count,
+        }));
+    }
+
+    const buckets = new Map<string, number>();
+
+    for (const point of points) {
+        const date = new Date(`${point.date}T00:00:00`);
+
+        if (Number.isNaN(date.getTime())) {
+            continue;
+        }
+
+        let key: string;
+
+        if (period === 'week') {
+            const day = date.getDay();
+            const diff = day === 0 ? -6 : 1 - day;
+            const monday = new Date(date);
+            monday.setDate(date.getDate() + diff);
+            key = monday.toISOString().slice(0, 10);
+        } else {
+            key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        buckets.set(key, (buckets.get(key) ?? 0) + point.count);
+    }
+
+    return [...buckets.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([label, count]) => ({ label, count }));
 }

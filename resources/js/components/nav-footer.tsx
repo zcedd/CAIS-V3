@@ -33,7 +33,7 @@ export function NavFooter({
 }: ComponentPropsWithoutRef<typeof SidebarGroup> & {
     items: NavItem[];
 }) {
-    const { isCurrentUrl } = useCurrentUrl();
+    const { isCurrentOrParentUrl } = useCurrentUrl();
 
     return (
         <SidebarGroup
@@ -50,7 +50,10 @@ export function NavFooter({
                             <SidebarMenuItem key={item.title}>
                                 <SidebarMenuButton
                                     asChild
-                                    isActive={!isExternalHref(item.href) && isCurrentUrl(item.href)}
+                                    isActive={
+                                        !isExternalHref(item.href) &&
+                                        isCurrentOrParentUrl(item.href)
+                                    }
                                     tooltip={{ children: item.title }}
                                     className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
                                 >

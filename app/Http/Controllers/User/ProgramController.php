@@ -30,20 +30,23 @@ class ProgramController extends Controller
         $search = $request->search();
         $types = $request->types();
         $statuses = $request->statuses();
+        $perPage = $request->perPage();
 
         $programs = $this->programService->paginateForDepartment(
             $department,
             $search,
             $types,
             $statuses,
+            $perPage,
         );
 
         return Inertia::render('user/programs/index', [
-            'programs' => Inertia::scroll($programs),
+            'programs' => $programs,
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
             'type' => $types,
             'status' => $statuses,
+            'per_page' => $perPage,
             'funds' => $this->programService->departmentFundsForSelect($department),
             'items' => $this->programService->departmentItemsForSelect($department),
         ]);
@@ -95,6 +98,18 @@ class ProgramController extends Controller
             'program' => $this->programService->showOverviewPayload($program),
             'summary' => Inertia::defer(
                 fn () => $this->programService->summary($program),
+                'kpis',
+            ),
+            'status_breakdown' => Inertia::defer(
+                fn () => $this->programService->statusBreakdown($program),
+                'kpis',
+            ),
+            'program_funds' => Inertia::defer(
+                fn () => $this->programService->programFundsForDisplay($program),
+                'kpis',
+            ),
+            'program_covered_items' => Inertia::defer(
+                fn () => $this->programService->programItemsForSelect($program),
                 'kpis',
             ),
             'department' => fn () => $department->only(['id', 'name', 'slug']),

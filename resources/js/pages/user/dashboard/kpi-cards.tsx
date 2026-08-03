@@ -1,22 +1,23 @@
 import {
-    Card,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import type { DashboardSummary } from '@/types/dashboard';
-import {
+    Ban,
     CheckCircle2,
     ClipboardList,
-    Package,
     FolderKanban,
+    Loader,
+    Package,
+    Users,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { DashboardStatCard } from '@/pages/user/dashboard/dashboard-stat-card';
+import type { DashboardSummary } from '@/types/dashboard';
 
 type KpiCardsProps = {
     summary: DashboardSummary;
+    variant?: 'grid' | 'strip';
+    className?: string;
 };
 
-const kpis = [
+const primaryKpis = [
     {
         key: 'total_requests' as const,
         label: 'Total requests',
@@ -25,15 +26,36 @@ const kpis = [
     },
     {
         key: 'delivered_requests' as const,
-        label: 'Delivered requests',
+        label: 'Delivered',
         description: 'Requests marked as delivered',
         icon: CheckCircle2,
     },
+    {
+        key: 'in_progress_requests' as const,
+        label: 'In progress',
+        description: 'Not yet in a terminal status',
+        icon: Loader,
+    },
+    {
+        key: 'denied_requests' as const,
+        label: 'Denied',
+        description: 'Requests marked as denied',
+        icon: Ban,
+    },
+];
+
+const secondaryKpis = [
     {
         key: 'total_delivered_items' as const,
         label: 'Delivered items',
         description: 'Total quantity received',
         icon: Package,
+    },
+    {
+        key: 'unique_beneficiaries' as const,
+        label: 'Beneficiaries',
+        description: 'Unique beneficiaries assisted',
+        icon: Users,
     },
     {
         key: 'active_programs' as const,
@@ -43,51 +65,67 @@ const kpis = [
     },
 ];
 
-export function KpiCards({ summary }: KpiCardsProps) {
+const stripKpis = [...primaryKpis, ...secondaryKpis.slice(0, 1)];
+
+export function KpiCards({
+    summary,
+    variant = 'grid',
+    className,
+}: KpiCardsProps) {
+    const items =
+        variant === 'strip' ? stripKpis : [...primaryKpis, ...secondaryKpis];
+
     return (
         <div
-            className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+            className={cn(
+                'grid gap-4 sm:grid-cols-2 xl:grid-cols-4',
+                className,
+            )}
             data-tour="dashboard-kpis"
         >
-            {kpis.map((kpi) => (
-                <Card key={kpi.key} size="sm">
-                    <CardHeader className="flex flex-row items-start justify-between gap-2">
-                        <div className="space-y-1">
-                            <CardDescription>{kpi.label}</CardDescription>
-                            <CardTitle className="text-3xl font-semibold tabular-nums">
-                                {summary[kpi.key].toLocaleString()}
-                            </CardTitle>
-                            <p className="text-xs text-muted-foreground">
-                                {kpi.description}
-                            </p>
-                        </div>
-                        <kpi.icon className="size-5 shrink-0 text-muted-foreground" />
-                    </CardHeader>
-                </Card>
+            {items.map((kpi) => (
+                <DashboardStatCard
+                    key={kpi.key}
+                    label={kpi.label}
+                    value={summary[kpi.key].toLocaleString()}
+                    description={kpi.description}
+                    icon={kpi.icon}
+                    valueClassName={
+                        variant === 'strip' ? 'text-2xl' : 'text-3xl'
+                    }
+                />
             ))}
         </div>
     );
 }
 
-export function KpiCardsSkeleton() {
+export function KpiCardsSkeleton({
+    variant = 'grid',
+}: {
+    variant?: 'grid' | 'strip';
+}) {
+    const items =
+        variant === 'strip' ? stripKpis : [...primaryKpis, ...secondaryKpis];
+
     return (
         <div
-            className="grid gap-4 md:grid-cols-2 xl:grid-cols-4"
+            className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
             data-tour="dashboard-kpis"
             aria-busy="true"
             aria-label="Loading dashboard statistics"
         >
-            {kpis.map((kpi) => (
-                <Card key={kpi.key} size="sm">
-                    <CardHeader className="flex flex-row items-start justify-between gap-2">
-                        <div className="space-y-2">
-                            <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-                            <div className="h-9 w-16 animate-pulse rounded bg-muted" />
-                            <div className="h-3 w-32 animate-pulse rounded bg-muted" />
-                        </div>
-                        <kpi.icon className="size-5 shrink-0 text-muted-foreground/40" />
-                    </CardHeader>
-                </Card>
+            {items.map((kpi) => (
+                <DashboardStatCard
+                    key={kpi.key}
+                    label={kpi.label}
+                    value={
+                        <span className="inline-block h-8 w-16 animate-pulse rounded bg-muted" />
+                    }
+                    description={
+                        <span className="inline-block h-3 w-28 animate-pulse rounded bg-muted" />
+                    }
+                    icon={kpi.icon}
+                />
             ))}
         </div>
     );

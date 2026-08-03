@@ -44,6 +44,30 @@ class DashboardController extends Controller
                 fn () => $this->dashboardService->deliveredItemsChart($department, $filters),
                 'charts',
             ),
+            'beneficiaryTypeChart' => Inertia::defer(
+                fn () => $this->dashboardService->beneficiaryTypeChart($department, $filters),
+                'charts',
+            ),
+            'demographics' => Inertia::defer(
+                fn () => $this->dashboardService->demographics($department, $filters),
+                'demographics',
+            ),
+            'requestsTrend' => Inertia::defer(
+                fn () => $this->dashboardService->requestsTrend($department, $filters),
+                'charts',
+            ),
+            'insights' => Inertia::defer(
+                fn () => $this->dashboardService->insights($department, $filters),
+                'insights',
+            ),
+            'topBarangays' => Inertia::defer(
+                fn () => $this->dashboardService->topBarangays($department, $filters),
+                'insights',
+            ),
+            'modeOfRequestChart' => Inertia::defer(
+                fn () => $this->dashboardService->modeOfRequestChart($department, $filters),
+                'insights',
+            ),
             'programsTable' => Inertia::defer(
                 fn () => $this->dashboardService->programsTable($department, $filters),
                 'programs',

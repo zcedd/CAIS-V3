@@ -1,40 +1,48 @@
 'use client';
 
-import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
-import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
+import { createBeneficiaryColumns } from '@/pages/user/beneficiaries/beneficiary-columns';
+import {
+    BeneficiaryDataTableToolbar,
+    type BeneficiaryTableFilters,
+} from '@/pages/user/beneficiaries/beneficiary-toolbar';
 import {
     create as beneficiariesCreate,
     index as beneficiariesIndex,
-    show as beneficiaryShow,
 } from '@/routes/user/beneficiaries';
 import type {
-    BeneficiaryListRow,
+    BeneficiaryRegistryStats,
     DepartmentSummary,
     PaginatedBeneficiaries,
 } from '@/types/beneficiary';
 import type { BreadcrumbItem } from '@/types';
+import { Head, Link, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
-    Head,
-    InfiniteScroll,
-    Link,
-    router,
-    setLayoutProps,
-} from '@inertiajs/react';
-import { Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+    Building2,
+    HeartHandshake,
+    Plus,
+    UserRound,
+    Users,
+    type LucideIcon,
+} from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-type BeneficiaryListFilters = {
-    search: string;
-    type: string[];
-};
-
-const beneficiaryTypeOptions = [
-    { label: 'Individual', value: 'individual' },
-    { label: 'Organization', value: 'organization' },
+const BENEFICIARIES_TABLE_PARTIAL_PROPS = [
+    'beneficiaries',
+    'search',
+    'type',
 ] as const;
+const BENEFICIARIES_TABLE_SKELETON_COLUMNS = 7;
+const DEFAULT_PER_PAGE = 25;
+
+type BeneficiaryListFilters = BeneficiaryTableFilters & {
+    page: number;
+    per_page: number;
+};
 
 function buildBeneficiariesQuery(
     filters: BeneficiaryListFilters,
@@ -50,28 +58,118 @@ function buildBeneficiariesQuery(
         query.type = filters.type;
     }
 
+    if (filters.page > 1) {
+        query.page = `${filters.page}`;
+    }
+
+    if (filters.per_page !== DEFAULT_PER_PAGE) {
+        query.per_page = `${filters.per_page}`;
+    }
+
     return query;
 }
 
-function typeBadge(type: BeneficiaryListRow['type']) {
-    return type === 'organization' ? (
-        <Badge variant="secondary">Organization</Badge>
-    ) : (
-        <Badge variant="outline">Individual</Badge>
+function isBeneficiariesPartialVisit(only?: string[]): boolean {
+    if (!only?.length) {
+        return false;
+    }
+
+    return only.some((prop) =>
+        BENEFICIARIES_TABLE_PARTIAL_PROPS.includes(
+            prop as (typeof BENEFICIARIES_TABLE_PARTIAL_PROPS)[number],
+        ),
     );
 }
 
-function BeneficiaryTableLoadingRows() {
+const registryStatCards: {
+    key: keyof BeneficiaryRegistryStats;
+    label: string;
+    icon: LucideIcon;
+}[] = [
+    { key: 'total', label: 'Total beneficiaries', icon: Users },
+    { key: 'individuals', label: 'Individuals', icon: UserRound },
+    { key: 'organizations', label: 'Organizations', icon: Building2 },
+    { key: 'assisted', label: 'With assistance', icon: HeartHandshake },
+];
+
+function RegistryStatCards({ stats }: { stats: BeneficiaryRegistryStats }) {
+    const coverage =
+        stats.total > 0
+            ? Math.round((stats.assisted / stats.total) * 100)
+            : null;
+
+    const descriptionFor = (key: keyof BeneficiaryRegistryStats): string => {
+        if (key === 'total') {
+            return stats.new_this_month > 0
+                ? `+${stats.new_this_month.toLocaleString()} registered this month`
+                : 'No new registrations this month';
+        }
+
+        if (key === 'assisted' && coverage !== null) {
+            return `${coverage}% of the registry has received assistance`;
+        }
+
+        if (key === 'individuals') {
+            return 'Registered as individuals';
+        }
+
+        return 'Registered as organizations';
+    };
+
     return (
-        <>
-            {Array.from({ length: 3 }).map((_, index) => (
-                <tr key={index} className="border-b last:border-0">
-                    <td className="py-3 pr-4" colSpan={3}>
-                        <div className="h-4 animate-pulse rounded bg-muted" />
-                    </td>
-                </tr>
+        <div
+            className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+            data-tour="beneficiaries-stats"
+        >
+            {registryStatCards.map((card) => {
+                const Icon = card.icon;
+
+                return (
+                    <div
+                        key={card.key}
+                        className="rounded-xl border border-border bg-card p-4"
+                    >
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs text-muted-foreground">
+                                {card.label}
+                            </p>
+                            <Icon className="size-4 shrink-0 text-muted-foreground" />
+                        </div>
+                        <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">
+                            {stats[card.key].toLocaleString()}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            {descriptionFor(card.key)}
+                        </p>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function RegistryStatCardsSkeleton() {
+    return (
+        <div
+            className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+            data-tour="beneficiaries-stats"
+            aria-busy="true"
+            aria-label="Loading beneficiary statistics"
+        >
+            {registryStatCards.map((card) => (
+                <div
+                    key={card.key}
+                    className="rounded-xl border border-border bg-card p-4"
+                >
+                    <div className="flex items-center justify-between gap-2">
+                        <Skeleton className="h-3 w-24 rounded-sm" />
+                        <Skeleton className="size-4 rounded-sm" />
+                    </div>
+                    <Skeleton className="mt-2 h-8 w-16 rounded-sm" />
+                    <Skeleton className="mt-2 h-3 w-32 rounded-sm" />
+                </div>
             ))}
-        </>
+        </div>
     );
 }
 
@@ -80,13 +178,34 @@ export default function UserBeneficiariesIndex({
     department,
     search: initialSearch,
     type: initialType,
+    stats,
 }: {
     beneficiaries: PaginatedBeneficiaries;
     department: DepartmentSummary;
     search: string;
     type: string[];
+    stats?: BeneficiaryRegistryStats;
 }) {
-    const [searchQuery, setSearchQuery] = useState(initialSearch);
+    const [tableState, setTableState] = useState({
+        search: initialSearch,
+        type: initialType,
+        per_page: beneficiaries.per_page,
+    });
+    const [isTableReloading, setIsTableReloading] = useState(false);
+    const tableStateRef = useRef(tableState);
+
+    useEffect(() => {
+        tableStateRef.current = tableState;
+    }, [tableState]);
+
+    useEffect(() => {
+        setTableState((previous) => ({
+            ...previous,
+            search: initialSearch,
+            type: initialType,
+            per_page: beneficiaries.per_page,
+        }));
+    }, [initialSearch, initialType, beneficiaries.per_page]);
 
     useEffect(() => {
         setLayoutProps({
@@ -100,16 +219,46 @@ export default function UserBeneficiariesIndex({
     }, [department.slug]);
 
     useEffect(() => {
-        setSearchQuery(initialSearch);
-    }, [initialSearch]);
+        const removeStart = router.on('start', (event) => {
+            if (isBeneficiariesPartialVisit(event.detail.visit.only)) {
+                setIsTableReloading(true);
+            }
+        });
 
-    const navigateWithFilters = useCallback(
-        (overrides: Partial<BeneficiaryListFilters> = {}) => {
+        const removeFinish = router.on('finish', () => {
+            setIsTableReloading(false);
+        });
+
+        return () => {
+            removeStart();
+            removeFinish();
+        };
+    }, []);
+
+    const visitTable = useCallback(
+        (
+            overrides: Partial<
+                BeneficiaryTableFilters & {
+                    per_page: number;
+                    page: number;
+                }
+            > = {},
+        ) => {
             const next: BeneficiaryListFilters = {
-                search: overrides.search ?? searchQuery,
-                type: overrides.type ?? initialType,
+                search: overrides.search ?? tableStateRef.current.search,
+                type: overrides.type ?? tableStateRef.current.type,
+                page: overrides.page ?? 1,
+                per_page:
+                    overrides.per_page ?? tableStateRef.current.per_page,
             };
 
+            setTableState({
+                search: next.search,
+                type: next.type,
+                per_page: next.per_page,
+            });
+
+            router.cancelAll();
             router.get(
                 beneficiariesIndex.url(department.slug, {
                     query: buildBeneficiariesQuery(next),
@@ -117,22 +266,32 @@ export default function UserBeneficiariesIndex({
                 {},
                 {
                     preserveState: true,
+                    preserveScroll: true,
                     replace: true,
-                    only: ['beneficiaries', 'search', 'type'],
-                    reset: ['beneficiaries'],
+                    only: [...BENEFICIARIES_TABLE_PARTIAL_PROPS],
                 },
             );
         },
-        [department.slug, initialType, searchQuery],
+        [department.slug],
     );
 
-    const hasMorePages = beneficiaries.current_page < beneficiaries.last_page;
-    const loadedCount = beneficiaries.data.length;
+    const tableFilters: BeneficiaryTableFilters = {
+        search: tableState.search,
+        type: tableState.type,
+    };
+
+    const beneficiaryColumns = useMemo(
+        () =>
+            createBeneficiaryColumns({
+                departmentSlug: department.slug,
+            }),
+        [department.slug],
+    );
 
     return (
         <>
             <Head title="Beneficiaries" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">
@@ -150,137 +309,60 @@ export default function UserBeneficiariesIndex({
                     </Button>
                 </div>
 
-                <Card>
-                    <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <WhenVisible
+                    data="stats"
+                    buffer={200}
+                    fallback={<RegistryStatCardsSkeleton />}
+                >
+                    {stats ? (
+                        <RegistryStatCards stats={stats} />
+                    ) : (
+                        <RegistryStatCardsSkeleton />
+                    )}
+                </WhenVisible>
+
+                <Card data-tour="beneficiaries-table">
+                    <CardHeader>
                         <CardTitle className="text-lg">Registry</CardTitle>
-                        <div
-                            className="flex flex-wrap items-center gap-2"
-                            data-tour="beneficiaries-filters"
-                        >
-                            <Input
-                                value={searchQuery}
-                                onChange={(event) =>
-                                    setSearchQuery(event.target.value)
-                                }
-                                onKeyDown={(event) => {
-                                    if (event.key === 'Enter') {
-                                        navigateWithFilters({
-                                            search: searchQuery,
-                                        });
-                                    }
-                                }}
-                                placeholder="Search by name or CAIS number..."
-                                className="h-9 w-full sm:w-64"
-                            />
-                            <DataTableFacetedFilter
-                                filterValue={initialType}
-                                title="Type"
-                                options={[...beneficiaryTypeOptions]}
-                                onFilterChange={(values) =>
-                                    navigateWithFilters({ type: values })
-                                }
-                            />
-                            {(initialSearch !== '' ||
-                                initialType.length > 0) && (
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => {
-                                        setSearchQuery('');
-                                        navigateWithFilters({
-                                            search: '',
-                                            type: [],
-                                        });
-                                    }}
-                                >
-                                    <X className="mr-1 size-4" />
-                                    Reset
-                                </Button>
-                            )}
-                        </div>
                     </CardHeader>
                     <CardContent>
-                        {beneficiaries.data.length === 0 ? (
-                            <p className="py-8 text-center text-sm text-muted-foreground">
-                                No beneficiaries found.
-                            </p>
-                        ) : (
-                            <>
-                                <InfiniteScroll
-                                    data="beneficiaries"
-                                    itemsElement="#beneficiaries-table-body"
-                                    next={({ loading }) =>
-                                        loading ? (
-                                            <table className="w-full text-sm">
-                                                <tbody>
-                                                    <BeneficiaryTableLoadingRows />
-                                                </tbody>
-                                            </table>
-                                        ) : null
+                        <DataTable
+                            columns={beneficiaryColumns}
+                            data={beneficiaries.data}
+                            emptyMessage="No beneficiaries found."
+                            manualPagination
+                            manualFiltering
+                            serverPagination={beneficiaries}
+                            partialReloadOnly={[
+                                ...BENEFICIARIES_TABLE_PARTIAL_PROPS,
+                            ]}
+                            isLoading={isTableReloading}
+                            loadingFallback={
+                                <DataTableSkeleton
+                                    columnCount={
+                                        BENEFICIARIES_TABLE_SKELETON_COLUMNS
                                     }
-                                >
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="border-b text-left text-muted-foreground">
-                                                    <th className="pr-4 pb-3 font-medium">
-                                                        CAIS Number
-                                                    </th>
-                                                    <th className="pr-4 pb-3 font-medium">
-                                                        Name
-                                                    </th>
-                                                    <th className="pb-3 font-medium">
-                                                        Type
-                                                    </th>
-                                                </tr>
-                                            </thead>
-                                            <tbody id="beneficiaries-table-body">
-                                                {beneficiaries.data.map(
-                                                    (row) => (
-                                                        <tr
-                                                            key={row.id}
-                                                            className="border-b last:border-0"
-                                                        >
-                                                            <td className="py-3 pr-4">
-                                                                <Link
-                                                                    href={beneficiaryShow.url(
-                                                                        {
-                                                                            department:
-                                                                                department.slug,
-                                                                            beneficiary:
-                                                                                row.id,
-                                                                        },
-                                                                    )}
-                                                                    className="font-medium text-primary hover:underline"
-                                                                >
-                                                                    {
-                                                                        row.cais_number
-                                                                    }
-                                                                </Link>
-                                                            </td>
-                                                            <td className="py-3 pr-4">
-                                                                {row.name}
-                                                            </td>
-                                                            <td className="py-3">
-                                                                {typeBadge(
-                                                                    row.type,
-                                                                )}
-                                                            </td>
-                                                        </tr>
-                                                    ),
-                                                )}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </InfiniteScroll>
-                                <p className="mt-4 text-sm text-muted-foreground">
-                                    Showing {loadedCount} of{' '}
-                                    {beneficiaries.total} beneficiaries
-                                    {hasMorePages ? ' — scroll for more' : null}
-                                </p>
-                            </>
-                        )}
+                                    rowCount={tableState.per_page}
+                                />
+                            }
+                            onPerPageChange={(nextPerPage) => {
+                                visitTable({
+                                    per_page: nextPerPage,
+                                    page: 1,
+                                });
+                            }}
+                            onPageChange={(page) => {
+                                visitTable({ page });
+                            }}
+                            toolbar={(table, columnVisibility) => (
+                                <BeneficiaryDataTableToolbar
+                                    table={table}
+                                    columnVisibility={columnVisibility}
+                                    filters={tableFilters}
+                                    onFiltersChange={visitTable}
+                                />
+                            )}
+                        />
                     </CardContent>
                 </Card>
             </div>

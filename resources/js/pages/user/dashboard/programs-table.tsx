@@ -1,11 +1,6 @@
+import { Link } from '@inertiajs/react';
+import { FolderKanban } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
 import {
     Table,
     TableBody,
@@ -14,9 +9,9 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
 import { show as departmentProgramShow } from '@/routes/user/programs';
 import type { DashboardProgramRow, DepartmentSummary } from '@/types/dashboard';
-import { Link } from '@inertiajs/react';
 
 type ProgramsTableProps = {
     department: DepartmentSummary;
@@ -25,87 +20,91 @@ type ProgramsTableProps = {
 
 export function ProgramsTable({ department, data }: ProgramsTableProps) {
     return (
-        <Card data-tour="dashboard-programs-summary">
-            <CardHeader>
-                <CardTitle>Programs summary</CardTitle>
-                <CardDescription>
-                    The 10 latest programs with request counts for the selected
-                    filters
-                </CardDescription>
-            </CardHeader>
-            <CardContent>
-                {data.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                        No programs found for this department.
-                    </p>
-                ) : (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Program</TableHead>
-                                <TableHead>Type</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">
-                                    Total requests
-                                </TableHead>
-                                <TableHead className="text-right">
-                                    Delivered
-                                </TableHead>
-                                <TableHead className="text-right">
-                                    In progress
-                                </TableHead>
+        <DashboardSectionCard
+            title="Programs"
+            description="Latest programs with delivery rate, denied, and in-progress counts for the selected filters"
+            icon={FolderKanban}
+            data-tour="dashboard-programs-summary"
+        >
+            {data.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No programs found for this department.
+                </p>
+            ) : (
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Program</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">
+                                Requests
+                            </TableHead>
+                            <TableHead className="text-right">
+                                Delivered
+                            </TableHead>
+                            <TableHead className="text-right">Denied</TableHead>
+                            <TableHead className="text-right">
+                                In progress
+                            </TableHead>
+                            <TableHead className="text-right">Rate</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {data.map((row) => (
+                            <TableRow key={row.id}>
+                                <TableCell>
+                                    <Link
+                                        href={departmentProgramShow.url({
+                                            department: department.slug,
+                                            program: row.id,
+                                        })}
+                                        prefetch
+                                        className="font-medium text-primary hover:underline"
+                                    >
+                                        {row.name}
+                                    </Link>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="outline">
+                                        {row.type === 'organization'
+                                            ? 'Organization'
+                                            : 'Individual'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell>
+                                    <Badge
+                                        variant={
+                                            row.status === 'open'
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {row.status === 'open'
+                                            ? 'Open'
+                                            : 'Closed'}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                    {row.total_requests.toLocaleString()}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                    {row.delivered.toLocaleString()}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                    {(row.denied ?? 0).toLocaleString()}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                    {row.in_progress.toLocaleString()}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums">
+                                    {(row.delivery_rate ?? 0).toFixed(1)}%
+                                </TableCell>
                             </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {data.map((row) => (
-                                <TableRow key={row.id}>
-                                    <TableCell>
-                                        <Link
-                                            href={departmentProgramShow.url({
-                                                department: department.slug,
-                                                program: row.id,
-                                            })}
-                                            prefetch
-                                            className="font-medium text-primary hover:underline"
-                                        >
-                                            {row.name}
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge variant="outline">
-                                            {row.type === 'organization'
-                                                ? 'Organization'
-                                                : 'Individual'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={
-                                                row.status === 'open'
-                                                    ? 'default'
-                                                    : 'secondary'
-                                            }
-                                        >
-                                            {row.status === 'open'
-                                                ? 'Open'
-                                                : 'Closed'}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right tabular-nums">
-                                        {row.total_requests.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="text-right tabular-nums">
-                                        {row.delivered.toLocaleString()}
-                                    </TableCell>
-                                    <TableCell className="text-right tabular-nums">
-                                        {row.in_progress.toLocaleString()}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                )}
-            </CardContent>
-        </Card>
+                        ))}
+                    </TableBody>
+                </Table>
+            )}
+        </DashboardSectionCard>
     );
 }

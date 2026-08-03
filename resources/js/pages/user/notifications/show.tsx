@@ -57,7 +57,7 @@ export default function UserNotificationShow({
     return (
         <>
             <Head title={`${notification.title} — ${department.name}`} />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-2">
                         <Button variant="ghost" size="sm" asChild className="w-fit px-0">
