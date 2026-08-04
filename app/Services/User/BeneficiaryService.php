@@ -258,8 +258,12 @@ class BeneficiaryService
         $base = Assistance::query()->where('beneficiary_id', $beneficiary->id);
 
         $total = (clone $base)->count();
-        $delivered = (clone $base)->whereNotNull('date_delivered')->count();
-        $denied = (clone $base)->whereNotNull('date_denied')->count();
+        $delivered = (clone $base)->where('was_delivered', true)->count();
+        $denied = (clone $base)
+            ->whereHas('currentRequestSubStatus.requestStatus', static function ($query): void {
+                $query->where('name', 'Denied');
+            })
+            ->count();
         $lastRequested = (clone $base)->max('date_requested');
 
         return [
@@ -288,16 +292,14 @@ class BeneficiaryService
                 'assistances.id',
                 'assistances.program_id',
                 'assistances.date_requested',
-                'assistances.date_verified',
                 'assistances.date_delivered',
-                'assistances.date_denied',
                 'programs.name as program_name',
                 'departments.name as department_name',
                 'departments.slug as department_slug',
                 'mode_of_requests.name as mode_of_request_name',
                 'rss.name as request_sub_status_name',
                 'rs.name as request_status_name',
-                'arss.recorded_at as request_sub_status_recorded_at',
+                'assistances.current_status_recorded_at as request_sub_status_recorded_at',
             ]);
 
         if ($search !== '') {
@@ -314,13 +316,9 @@ class BeneficiaryService
             ->paginate(self::ASSISTANCES_PER_PAGE)
             ->withQueryString()
             ->through(static function (Assistance $assistance): array {
-                $status = $assistance->request_sub_status_name ?? match (true) {
-                    $assistance->date_denied !== null => 'Denied',
-                    $assistance->date_delivered !== null => 'Delivered',
-                    $assistance->date_verified !== null => 'Verified',
-                    $assistance->date_requested !== null => 'Pending',
-                    default => 'Unrequested',
-                };
+                $status = $assistance->request_sub_status_name
+                    ?? $assistance->request_status_name
+                    ?? 'Unrequested';
 
                 return [
                     'id' => $assistance->id,

@@ -38,7 +38,6 @@ test('it creates database notifications for stale open assistances', function ()
         'beneficiary_id' => $beneficiary->id,
         'date_requested' => now()->subYears(8)->toDateString(),
         'date_delivered' => null,
-        'date_denied' => null,
         'user_id' => $user->id,
         'updated_at' => now()->subDays(8),
     ]);
@@ -49,7 +48,6 @@ test('it creates database notifications for stale open assistances', function ()
         'beneficiary_id' => null,
         'date_requested' => now()->subYears(8)->toDateString(),
         'date_delivered' => now()->subYears(8)->toDateString(),
-        'date_denied' => null,
         'user_id' => $user->id,
         'updated_at' => now()->subDays(8),
     ]);
@@ -60,7 +58,6 @@ test('it creates database notifications for stale open assistances', function ()
         'beneficiary_id' => null,
         'date_requested' => now()->subYears(3)->toDateString(),
         'date_delivered' => null,
-        'date_denied' => null,
         'user_id' => $user->id,
         'updated_at' => now()->subDays(3),
     ]);
@@ -107,6 +104,23 @@ test('it creates database notifications for stale open assistances', function ()
             'updated_at' => now(),
             'deleted_at' => null,
         ],
+    ]);
+
+    // DB inserts bypass model events; mirror the denormalized columns SyncAssistanceCurrentStatus maintains.
+    DB::table('assistances')->where('id', $staleOpenAssistance->id)->update([
+        'current_request_sub_status_id' => $openSubStatusId,
+        'current_status_recorded_at' => now()->subDays(8),
+        'was_delivered' => false,
+    ]);
+    DB::table('assistances')->where('id', $staleClosedAssistance->id)->update([
+        'current_request_sub_status_id' => $closedSubStatusId,
+        'current_status_recorded_at' => now()->subDays(8),
+        'was_delivered' => false,
+    ]);
+    DB::table('assistances')->where('id', $recentOpenAssistance->id)->update([
+        'current_request_sub_status_id' => $openSubStatusId,
+        'current_status_recorded_at' => now()->subDays(3),
+        'was_delivered' => false,
     ]);
 
     $this->artisan('assistances:notify-stale')

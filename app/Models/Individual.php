@@ -104,11 +104,6 @@ class Individual extends Model
         return $this->belongsTo(CivilStatus::class);
     }
 
-    public function assistance(): HasMany
-    {
-        return $this->hasMany(Assistance::class, 'individual_id');
-    }
-
     public function organizationPivot(): HasMany
     {
         return $this->hasMany(IndividualOrganization::class);

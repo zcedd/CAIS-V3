@@ -97,6 +97,7 @@ function createAssistanceForIndividual(
         'mode_of_request_id' => $mode->id,
         'date_requested' => $dateRequested ?? now()->toDateString(),
         'date_delivered' => $isReceived ? now()->toDateString() : null,
+        'was_delivered' => $isReceived,
         'user_id' => User::factory()->create([
             'department_id' => $program->department_id,
         ])->id,
@@ -279,24 +280,18 @@ test('request status chart counts each assistance once using latest status', fun
 
     $requestStatusId = DB::table('request_statuses')->insertGetId([
         'name' => 'In Progress',
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
     $olderSubStatusId = DB::table('request_sub_statuses')->insertGetId([
         'name' => 'Awaiting Review',
         'request_status_id' => $requestStatusId,
         'description' => null,
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
     $latestSubStatusId = DB::table('request_sub_statuses')->insertGetId([
         'name' => 'Under Verification',
         'request_status_id' => $requestStatusId,
         'description' => null,
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
     DB::table('assistance_request_sub_status')->insert([
@@ -320,12 +315,15 @@ test('request status chart counts each assistance once using latest status', fun
         ],
     ]);
 
-    $this->actingAs($user)
-        ->get(route('user.dashboard.index', ['department' => $department->slug]))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_requests', 1)
-            ->where('requestStatusChart', fn (array $chart): bool => collect($chart)->sum('count') === 1));
+    DB::table('assistances')->where('id', $assistance->id)->update([
+        'current_request_sub_status_id' => $latestSubStatusId,
+        'current_status_recorded_at' => '2024-02-02 10:00:00',
+        'was_delivered' => false,
+    ]);
+
+    $chart = app(DashboardService::class)->requestStatusChart($department, []);
+
+    expect(collect($chart)->sum('count'))->toBe(1);
 });
 
 test('delivered requests count assistances with a delivered status in history even when latest status is closed', function () {
@@ -336,30 +334,22 @@ test('delivered requests count assistances with a delivered status in history ev
 
     $deliveredStatusId = DB::table('request_statuses')->insertGetId([
         'name' => 'Delivered',
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
     $closedStatusId = DB::table('request_statuses')->insertGetId([
         'name' => 'Closed',
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
     $deliveredSubStatusId = DB::table('request_sub_statuses')->insertGetId([
         'name' => 'Successfully Delivered',
         'request_status_id' => $deliveredStatusId,
         'description' => null,
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
     $closedSubStatusId = DB::table('request_sub_statuses')->insertGetId([
         'name' => 'Closed after Resolution',
         'request_status_id' => $closedStatusId,
         'description' => null,
-        'created_at' => now(),
-        'updated_at' => now(),
     ]);
 
     DB::table('assistance_request_sub_status')->insert([
@@ -383,29 +373,32 @@ test('delivered requests count assistances with a delivered status in history ev
         ],
     ]);
 
-    $this->actingAs($user)
-        ->get(route('user.dashboard.index', ['department' => $department->slug]))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.delivered_requests', 1)
-            ->where('summary.total_delivered_items', 5)
-            ->where('summary.total_requests', 1));
+    DB::table('assistances')->where('id', $assistance->id)->update([
+        'current_request_sub_status_id' => $closedSubStatusId,
+        'current_status_recorded_at' => '2024-02-02 10:00:00',
+        'was_delivered' => true,
+        'date_delivered' => '2024-02-01',
+    ]);
+
+    $summary = app(DashboardService::class)->summary($department, []);
+
+    expect($summary['delivered_requests'])->toBe(1)
+        ->and($summary['total_delivered_items'])->toBe(5)
+        ->and($summary['total_requests'])->toBe(1);
 });
 
 test('delivered items are only counted for assistances with a delivered status', function () {
-    ['department' => $department, 'user' => $user, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
 
     $individual = Individual::factory()->create(['sex' => 'Male']);
 
     createAssistanceForIndividual($program, $individual, $item, isReceived: true, quantity: 5);
     createAssistanceForIndividual($program, $individual, $item, isReceived: false, quantity: 10);
 
-    $this->actingAs($user)
-        ->get(route('user.dashboard.index', ['department' => $department->slug]))
-        ->assertOk()
-        ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_delivered_items', 5)
-            ->where('summary.total_requests', 2));
+    $summary = app(DashboardService::class)->summary($department, []);
+
+    expect($summary['total_delivered_items'])->toBe(5)
+        ->and($summary['total_requests'])->toBe(2);
 });
 
 test('delivered items chart counts delivery lines per item not quantities', function () {

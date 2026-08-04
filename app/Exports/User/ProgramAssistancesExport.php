@@ -33,9 +33,7 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
             'Request Sub-status',
             'Sub-status Recorded At',
             'Date Requested',
-            'Date Verified',
             'Date Delivered',
-            'Date Denied',
             'Remark',
         ];
     }
@@ -79,9 +77,7 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
             $assistance->request_sub_status_name ?? '—',
             $this->formatDateTime($assistance->request_sub_status_recorded_at),
             $this->formatDate($assistance->date_requested),
-            $this->formatDate($assistance->date_verified),
             $this->formatDate($assistance->date_delivered),
-            $this->formatDate($assistance->date_denied),
             $assistance->remark ?? '',
         ];
     }

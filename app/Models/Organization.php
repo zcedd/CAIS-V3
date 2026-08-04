@@ -55,11 +55,6 @@ class Organization extends Model
         return $this->belongsTo(AddressBarangay::class, 'address_barangay_id', 'id');
     }
 
-    public function assistance()
-    {
-        return $this->hasMany(Assistance::class, 'organization_id');
-    }
-
     public function beneficiaryPivot()
     {
         return $this->hasMany(BeneficiaryOrganization::class);

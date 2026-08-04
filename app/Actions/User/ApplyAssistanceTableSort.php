@@ -21,18 +21,16 @@ class ApplyAssistanceTableSort
             'mode_of_request' => $query->orderBy('mode_of_requests.name', $direction),
             'status' => $query->orderByRaw(
                 "CASE
-                    WHEN {$assistanceTable}.date_denied IS NOT NULL THEN 1
-                    WHEN {$assistanceTable}.date_delivered IS NOT NULL THEN 2
-                    WHEN {$assistanceTable}.date_verified IS NOT NULL THEN 3
-                    WHEN {$assistanceTable}.date_requested IS NOT NULL THEN 4
+                    WHEN rs.name = 'Denied' THEN 1
+                    WHEN rs.name = 'Delivered' THEN 2
+                    WHEN rs.name = 'Verification' THEN 3
+                    WHEN rs.name IS NOT NULL THEN 4
                     ELSE 5
                 END {$direction}",
             ),
-            'request_sub_status_recorded_at' => $query->orderBy('arss.recorded_at', $direction),
+            'request_sub_status_recorded_at' => $query->orderBy("{$assistanceTable}.current_status_recorded_at", $direction),
             'date_requested',
-            'date_verified',
             'date_delivered',
-            'date_denied',
             'remark' => $query->orderBy("{$assistanceTable}.{$sort}", $direction),
             default => $query->orderBy("{$assistanceTable}.id", $direction),
         };

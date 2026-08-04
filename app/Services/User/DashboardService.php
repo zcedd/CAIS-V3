@@ -6,7 +6,6 @@ use App\Actions\User\ApplyDashboardFilters;
 use App\Actions\User\JoinAssistanceStatusRelations;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
-use App\Models\AssistanceRequestSubStatus;
 use App\Models\Department;
 use App\Models\Individual;
 use App\Models\Item;
@@ -113,14 +112,17 @@ class DashboardService
         $statusExpression = $this->resolvedStatusExpression();
         $terminalList = implode("','", self::TERMINAL_STATUSES);
 
+        $firstVerifiedAt = $this->dateDiffExpression('first_verified.verified_at', 'assistances.date_requested');
+
         $stats = (clone $this->filteredAssistanceQuery($department, $filters))
+            ->leftJoinSub($this->firstVerifiedAtSubquery(), 'first_verified', 'first_verified.assistance_id', '=', 'assistances.id')
             ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered_requests")
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} = 'Denied' THEN assistances.id END) as denied_requests")
             ->selectRaw('COUNT(DISTINCT assistances.beneficiary_id) as unique_beneficiaries')
-            ->selectRaw('AVG(CASE WHEN assistances.date_delivered IS NOT NULL AND assistances.date_requested IS NOT NULL THEN DATEDIFF(assistances.date_delivered, assistances.date_requested) END) as avg_days_to_deliver')
-            ->selectRaw('AVG(CASE WHEN assistances.date_verified IS NOT NULL AND assistances.date_requested IS NOT NULL THEN DATEDIFF(assistances.date_verified, assistances.date_requested) END) as avg_days_to_verify')
+            ->selectRaw("AVG(CASE WHEN assistances.date_delivered IS NOT NULL AND assistances.date_requested IS NOT NULL THEN {$this->dateDiffExpression('assistances.date_delivered', 'assistances.date_requested')} END) as avg_days_to_deliver")
+            ->selectRaw("AVG(CASE WHEN first_verified.verified_at IS NOT NULL AND assistances.date_requested IS NOT NULL THEN {$firstVerifiedAt} END) as avg_days_to_verify")
             ->toBase()
             ->first();
 
@@ -796,39 +798,31 @@ class DashboardService
 
     private function isDeliveredSql(): string
     {
-        $assistanceItemTable = (new AssistanceItem)->getTable();
-        $pivotTable = (new AssistanceRequestSubStatus)->getTable();
-
-        return "(EXISTS (
-            SELECT 1
-            FROM {$pivotTable} as arss_delivered
-            INNER JOIN request_sub_statuses as rss_delivered ON rss_delivered.id = arss_delivered.request_sub_status_id
-            INNER JOIN request_statuses as rs_delivered ON rs_delivered.id = rss_delivered.request_status_id
-            WHERE arss_delivered.assistance_id = assistances.id
-            AND rs_delivered.name = 'Delivered'
-            AND arss_delivered.deleted_at IS NULL
-        ) OR (NOT EXISTS (
-            SELECT 1
-            FROM {$pivotTable} as arss_any
-            WHERE arss_any.assistance_id = assistances.id
-            AND arss_any.deleted_at IS NULL
-        ) AND assistances.date_delivered IS NOT NULL AND EXISTS (
-            SELECT 1
-            FROM {$assistanceItemTable} ai
-            WHERE ai.assistance_id = assistances.id
-            AND ai.is_received = 1
-            AND ai.deleted_at IS NULL
-        )))";
+        return 'assistances.was_delivered = 1';
     }
 
     private function resolvedStatusExpression(): string
     {
-        return "COALESCE(rs.name, CASE
-            WHEN assistances.date_denied IS NOT NULL THEN 'Denied'
-            WHEN assistances.date_delivered IS NOT NULL THEN 'Delivered'
-            WHEN assistances.date_verified IS NOT NULL THEN 'Verified'
-            WHEN assistances.date_requested IS NOT NULL THEN 'Pending'
-            ELSE 'Unrequested'
-        END)";
+        return "COALESCE(rs.name, 'Unrequested')";
+    }
+
+    private function dateDiffExpression(string $endColumn, string $startColumn): string
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            return "CAST(julianday({$endColumn}) - julianday({$startColumn}) AS INTEGER)";
+        }
+
+        return "DATEDIFF({$endColumn}, {$startColumn})";
+    }
+
+    private function firstVerifiedAtSubquery(): QueryBuilder
+    {
+        return DB::table('assistance_request_sub_status as arss')
+            ->join('request_sub_statuses as rss', 'rss.id', '=', 'arss.request_sub_status_id')
+            ->whereNull('arss.deleted_at')
+            ->where('rss.name', 'Verified')
+            ->groupBy('arss.assistance_id')
+            ->select('arss.assistance_id')
+            ->selectRaw('MIN(arss.recorded_at) as verified_at');
     }
 }

@@ -63,7 +63,10 @@ class NotificationService
         return (int) Cache::remember(
             $this->unreadCountCacheKey($user),
             self::UNREAD_COUNT_CACHE_SECONDS,
-            fn (): int => $user->unreadNotifications()->count(),
+            fn (): int => $user->notifications()
+                ->whereNull('read_at')
+                ->toBase()
+                ->count(),
         );
     }
 

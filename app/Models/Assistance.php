@@ -16,7 +16,31 @@ class Assistance extends Model
     use HasFactory;
     use SoftDeletes;
 
-    protected $fillable = ['program_id', 'beneficiary_id', 'organization_id', 'mode_of_request_id', 'date_verified', 'date_requested', 'date_denied', 'date_delivered', 'user_id', 'remark', 'created_at', 'updated_at'];
+    protected $fillable = [
+        'program_id',
+        'beneficiary_id',
+        'mode_of_request_id',
+        'current_request_sub_status_id',
+        'current_status_recorded_at',
+        'was_delivered',
+        'date_requested',
+        'date_delivered',
+        'user_id',
+        'remark',
+        'created_at',
+        'updated_at',
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'current_status_recorded_at' => 'datetime',
+            'was_delivered' => 'boolean',
+        ];
+    }
 
     protected function makeAllSearchableUsing($query)
     {
@@ -33,9 +57,9 @@ class Assistance extends Model
         return $this->belongsTo(Beneficiary::class);
     }
 
-    public function organization()
+    public function currentRequestSubStatus(): BelongsTo
     {
-        return $this->belongsTo(Organization::class, 'organization_id');
+        return $this->belongsTo(RequestSubStatus::class, 'current_request_sub_status_id');
     }
 
     public function modeOfRequest(): BelongsTo
@@ -93,10 +117,7 @@ class Assistance extends Model
      */
     public function scopeWherePending($query)
     {
-        $query->whereNull('date_delivered')
-            ->whereNull('date_denied')
-            ->whereNull('date_verified')
-            ->whereNotNull('date_requested');
+        $query->pending();
     }
 
     /**
@@ -104,8 +125,7 @@ class Assistance extends Model
      */
     public function scopeWhereVerified($query)
     {
-        $query->whereNull('date_delivered')
-            ->whereNotNull('date_verified');
+        $query->verified();
     }
 
     /**
@@ -113,11 +133,7 @@ class Assistance extends Model
      */
     public function scopeWhereDelivered(EloquentBuilder $query)
     {
-        // This method is deprecated. Use scopeDelivered instead.
-        $query->whereNotNull('date_delivered')
-            ->whereHas('assistanceItem', function (EloquentBuilder $query) {
-                $query->where('is_received', true);
-            });
+        $query->delivered();
     }
 
     /**
@@ -125,40 +141,48 @@ class Assistance extends Model
      */
     public function scopeWhereDenied($query)
     {
-        $query->whereNotNull('date_denied');
+        $query->denied();
     }
 
     public function scopePending($query)
     {
-        $query->whereNull('date_delivered')
-            ->whereNull('date_denied')
-            ->whereNull('date_verified')
+        $query->where('was_delivered', false)
+            ->where(function (EloquentBuilder $builder): void {
+                $builder
+                    ->whereNull('current_request_sub_status_id')
+                    ->orWhereDoesntHave('currentRequestSubStatus.requestStatus', function (EloquentBuilder $statusQuery): void {
+                        $statusQuery->whereIn('name', ['Delivered', 'Denied', 'Closed', 'Verification']);
+                    });
+            })
             ->whereNotNull('date_requested');
     }
 
     public function scopeVerified($query)
     {
-        $query->whereNull('date_delivered')
-            ->whereNotNull('date_verified');
+        $query->where('was_delivered', false)
+            ->whereHas('currentRequestSubStatus', function (EloquentBuilder $subStatusQuery): void {
+                $subStatusQuery->where('name', 'Verified');
+            });
     }
 
     public function scopeDelivered(EloquentBuilder $query)
     {
-        $query->whereNotNull('date_delivered')
-            ->whereHas('assistanceItem', function (EloquentBuilder $query) {
-                $query->where('is_received', true);
-            });
+        $query->where('was_delivered', true);
     }
 
     public function scopeDenied($query)
     {
-        $query->whereNotNull('date_denied');
+        $query->whereHas('currentRequestSubStatus.requestStatus', function (EloquentBuilder $statusQuery): void {
+            $statusQuery->where('name', 'Denied');
+        });
     }
 
     public function scopeWhereWithoutAction($query)
     {
-        $query->whereNull('date_delivered')
-            ->whereNull('date_denied');
+        $query->where('was_delivered', false)
+            ->whereDoesntHave('currentRequestSubStatus.requestStatus', function (EloquentBuilder $statusQuery): void {
+                $statusQuery->whereIn('name', ['Delivered', 'Denied', 'Closed']);
+            });
     }
 
     /**
@@ -172,18 +196,5 @@ class Assistance extends Model
     public function scopePersonalAssistance($query)
     {
         $query->whereNotNull('beneficiary_id');
-    }
-
-    /**
-     * @deprecated Use scopeOrganizationalAssistance instead.
-     */
-    public function scopeWhereOrganizationalAssistance($query)
-    {
-        $query->whereNotNull('organization_id');
-    }
-
-    public function scopeOrganizationalAssistance($query)
-    {
-        $query->whereNotNull('organization_id');
     }
 }

@@ -6,30 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
 
-it('links assistances individual_id to individuals and beneficiary_id to beneficiaries', function () {
-    expect(Schema::hasColumn('assistances', 'individual_id'))->toBeTrue();
+it('links assistances beneficiary_id to beneficiaries and drops the legacy columns', function () {
     expect(Schema::hasColumn('assistances', 'beneficiary_id'))->toBeTrue();
+    expect(Schema::hasColumn('assistances', 'individual_id'))->toBeFalse();
+    expect(Schema::hasColumn('assistances', 'organization_id'))->toBeFalse();
 
-    $foreignKeys = collect(DB::select(
-        'SELECT COLUMN_NAME, REFERENCED_TABLE_NAME
-         FROM information_schema.KEY_COLUMN_USAGE
-         WHERE TABLE_SCHEMA = DATABASE()
-         AND TABLE_NAME = ?
-         AND REFERENCED_TABLE_NAME IS NOT NULL',
-        ['assistances']
-    ))->mapWithKeys(fn ($row) => [$row->COLUMN_NAME => $row->REFERENCED_TABLE_NAME]);
+    if (DB::getDriverName() !== 'mysql') {
+        return;
+    }
 
-    expect($foreignKeys->get('individual_id'))->toBe('individuals');
-    expect($foreignKeys->get('beneficiary_id'))->toBe('beneficiaries');
+    $foreignKeys = collect(Schema::getForeignKeys('assistances'));
 
-    $constraintNames = collect(DB::select(
-        'SELECT CONSTRAINT_NAME
-         FROM information_schema.TABLE_CONSTRAINTS
-         WHERE CONSTRAINT_SCHEMA = DATABASE()
-         AND TABLE_NAME = ?
-         AND CONSTRAINT_TYPE = ?',
-        ['assistances', 'FOREIGN KEY']
-    ))->pluck('CONSTRAINT_NAME');
+    expect($foreignKeys->contains(
+        fn (array $foreignKey): bool => in_array('beneficiary_id', $foreignKey['columns'], true)
+            && $foreignKey['foreign_table'] === 'beneficiaries',
+    ))->toBeTrue();
 
-    expect($constraintNames)->toContain('assistances_morph_beneficiary_id_foreign');
+    expect($foreignKeys->pluck('name'))->toContain('assistances_morph_beneficiary_id_foreign');
 });

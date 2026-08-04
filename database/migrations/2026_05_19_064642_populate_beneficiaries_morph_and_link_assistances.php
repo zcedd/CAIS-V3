@@ -92,15 +92,27 @@ return new class extends Migration
 
     private function linkAssistancesToBeneficiaries(string $morphType, string $sourceColumn): void
     {
-        DB::table('assistances')
-            ->join('beneficiaries', function ($join) use ($morphType, $sourceColumn): void {
-                $join->on('beneficiaries.beneficiable_id', '=', "assistances.{$sourceColumn}")
-                    ->where('beneficiaries.beneficiable_type', '=', $morphType);
-            })
-            ->whereNotNull("assistances.{$sourceColumn}")
-            ->whereNull('assistances.beneficiary_id')
-            ->update([
-                'assistances.beneficiary_id' => DB::raw('beneficiaries.id'),
-            ]);
+        if (! Schema::hasColumn('assistances', $sourceColumn)) {
+            return;
+        }
+
+        DB::statement(
+            "UPDATE assistances
+            SET beneficiary_id = (
+                SELECT beneficiaries.id
+                FROM beneficiaries
+                WHERE beneficiaries.beneficiable_id = assistances.{$sourceColumn}
+                AND beneficiaries.beneficiable_type = ?
+            )
+            WHERE assistances.{$sourceColumn} IS NOT NULL
+            AND assistances.beneficiary_id IS NULL
+            AND EXISTS (
+                SELECT 1
+                FROM beneficiaries
+                WHERE beneficiaries.beneficiable_id = assistances.{$sourceColumn}
+                AND beneficiaries.beneficiable_type = ?
+            )",
+            [$morphType, $morphType],
+        );
     }
 };
