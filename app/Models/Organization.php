@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\User\BeneficiaryMorphService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphOne;
@@ -16,6 +17,24 @@ class Organization extends Model
     use SoftDeletes;
 
     protected $fillable = ['cais_number', 'name', 'beneficiary_id', 'address_barangay_id', 'mobile_number', 'total_member'];
+
+    protected static function booted(): void
+    {
+        static::saved(function (Organization $organization): void {
+            if (
+                ! $organization->wasRecentlyCreated
+                && ! $organization->wasChanged(['cais_number', 'name'])
+            ) {
+                return;
+            }
+
+            app(BeneficiaryMorphService::class)->syncMorphRecord(
+                $organization,
+                $organization->cais_number,
+                $organization->name,
+            );
+        });
+    }
 
     public function toSearchableArray()
     {

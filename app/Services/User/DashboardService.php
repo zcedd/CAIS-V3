@@ -549,16 +549,12 @@ class DashboardService
         $booleanTotals = (clone $base)
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.pwd = 1 THEN assistances.id END) as pwd_yes')
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.pwd = 0 THEN assistances.id END) as pwd_no')
-            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.pwd IS NULL THEN assistances.id END) as pwd_unspecified')
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_4ps_beneficiary = 1 THEN assistances.id END) as four_ps_yes')
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_4ps_beneficiary = 0 THEN assistances.id END) as four_ps_no')
-            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_4ps_beneficiary IS NULL THEN assistances.id END) as four_ps_unspecified')
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_solo_parent = 1 THEN assistances.id END) as solo_parent_yes')
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_solo_parent = 0 THEN assistances.id END) as solo_parent_no')
-            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_solo_parent IS NULL THEN assistances.id END) as solo_parent_unspecified')
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.indigenous = 1 THEN assistances.id END) as indigenous_yes')
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.indigenous = 0 THEN assistances.id END) as indigenous_no')
-            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.indigenous IS NULL THEN assistances.id END) as indigenous_unspecified')
             ->toBase()
             ->first();
 
@@ -731,7 +727,6 @@ class DashboardService
         $rows = [
             ['label' => 'Yes', 'count' => (int) ($totals?->{"{$prefix}_yes"} ?? 0)],
             ['label' => 'No', 'count' => (int) ($totals?->{"{$prefix}_no"} ?? 0)],
-            ['label' => 'Unspecified', 'count' => (int) ($totals?->{"{$prefix}_unspecified"} ?? 0)],
         ];
 
         usort($rows, static fn (array $left, array $right): int => $right['count'] <=> $left['count']);
