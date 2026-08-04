@@ -30,7 +30,8 @@ class AssistancePolicy
      */
     public function create(User $user, Program $program): bool
     {
-        return !$program->is_closed;
+        return $user->department_id === $program->department_id
+            && ! $program->is_closed;
     }
 
     /**

@@ -1,5 +1,10 @@
 'use client';
 
+import {
+    AssistanceFieldInputs,
+    fieldValuesToPayload,
+    initialFieldValues,
+} from '@/components/assistance-field-inputs';
 import { BeneficiarySearchCombobox } from '@/components/beneficiary-search-combobox';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
@@ -34,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import { store as storeProgramAssistance } from '@/routes/user/programs/assistances';
+import type { ProgramFieldOption } from '@/types/program-field';
 import { Form } from '@inertiajs/react';
 import { Table, VisibilityState } from '@tanstack/react-table';
 import {
@@ -262,6 +268,7 @@ interface AssistanceDataTableToolbarProps {
     canCreate: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    programFields: ProgramFieldOption[];
     onAssistanceCreated?: () => void;
 }
 
@@ -281,6 +288,7 @@ export function AssistanceDataTableToolbar({
     canCreate,
     modeOfRequestOptions,
     programItems,
+    programFields,
     onAssistanceCreated,
 }: AssistanceDataTableToolbarProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search);
@@ -293,6 +301,7 @@ export function AssistanceDataTableToolbar({
     const [itemDetails, setItemDetails] = useState<
         Record<string, AssistanceItemDetail>
     >({});
+    const [fieldValues, setFieldValues] = useState<Record<number, string>>({});
     const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState<
         number | null
     >(null);
@@ -308,6 +317,7 @@ export function AssistanceDataTableToolbar({
         setDateRequestedOpen(false);
         setSelectedItemIds([]);
         setItemDetails({});
+        setFieldValues({});
         setSelectedBeneficiaryId(null);
         setBeneficiaryFieldKey((key) => key + 1);
     };
@@ -338,7 +348,8 @@ export function AssistanceDataTableToolbar({
         }
 
         setDateRequested(new Date());
-    }, [createOpen]);
+        setFieldValues(initialFieldValues(programFields));
+    }, [createOpen, programFields]);
 
     useEffect(() => {
         setItemDetails((current) => {
@@ -520,6 +531,10 @@ export function AssistanceDataTableToolbar({
                                         itemDetails[itemId]?.specification ??
                                         '',
                                 })),
+                                field_values: fieldValuesToPayload(
+                                    programFields,
+                                    fieldValues,
+                                ),
                             })}
                             onSuccess={() => {
                                 resetCreateForm();
@@ -744,6 +759,19 @@ export function AssistanceDataTableToolbar({
                                             )}
                                         </div>
                                     ) : null}
+
+                                    <AssistanceFieldInputs
+                                        fields={programFields}
+                                        values={fieldValues}
+                                        onChange={(fieldId, value) =>
+                                            setFieldValues((current) => ({
+                                                ...current,
+                                                [fieldId]: value,
+                                            }))
+                                        }
+                                        errors={errors}
+                                        idPrefix="create-assistance-field"
+                                    />
 
                                     <div className="space-y-2">
                                         <Label htmlFor="assistance-remark">

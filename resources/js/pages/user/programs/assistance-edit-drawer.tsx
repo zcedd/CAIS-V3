@@ -1,6 +1,11 @@
 'use client';
 
 import {
+    AssistanceFieldInputs,
+    fieldValuesToPayload,
+    initialFieldValues,
+} from '@/components/assistance-field-inputs';
+import {
     BeneficiarySearchCombobox,
     type BeneficiarySearchOption,
 } from '@/components/beneficiary-search-combobox';
@@ -35,6 +40,7 @@ import {
     edit as editProgramAssistance,
     update as updateProgramAssistance,
 } from '@/routes/user/programs/assistances';
+import type { ProgramFieldOption } from '@/types/program-field';
 import { Form } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -56,6 +62,10 @@ type AssistanceEditPayload = {
         quantity: number;
         specification: string | null;
     }[];
+    field_values: {
+        program_field_id: number;
+        value: string | null;
+    }[];
 };
 
 const selectClassName = cn(
@@ -72,6 +82,7 @@ type AssistanceEditDrawerProps = {
     isOrganization: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    programFields: ProgramFieldOption[];
     onUpdated?: () => void;
 };
 
@@ -85,6 +96,7 @@ export function AssistanceEditDrawer({
     isOrganization,
     modeOfRequestOptions,
     programItems,
+    programFields,
     onUpdated,
 }: AssistanceEditDrawerProps) {
     const [isLoading, setIsLoading] = useState(false);
@@ -94,6 +106,7 @@ export function AssistanceEditDrawer({
     const [itemDetails, setItemDetails] = useState<
         Record<string, AssistanceItemDetail>
     >({});
+    const [fieldValues, setFieldValues] = useState<Record<number, string>>({});
     const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState<
         number | null
     >(null);
@@ -130,12 +143,16 @@ export function AssistanceEditDrawer({
                 ]),
             ),
         );
+        setFieldValues(
+            initialFieldValues(programFields, payload.field_values ?? []),
+        );
         setFormKey((key) => key + 1);
     };
 
     const resetForm = () => {
         setSelectedItemIds([]);
         setItemDetails({});
+        setFieldValues({});
         setSelectedBeneficiaryId(null);
         setBeneficiaryInitialOption(null);
         setDefaultModeOfRequestId('');
@@ -241,6 +258,10 @@ export function AssistanceEditDrawer({
                                 specification:
                                     itemDetails[itemId]?.specification ?? '',
                             })),
+                            field_values: fieldValuesToPayload(
+                                programFields,
+                                fieldValues,
+                            ),
                         })}
                         onSuccess={() => {
                             resetForm();
@@ -450,6 +471,19 @@ export function AssistanceEditDrawer({
                                         )}
                                     </div>
                                 ) : null}
+
+                                <AssistanceFieldInputs
+                                    fields={programFields}
+                                    values={fieldValues}
+                                    onChange={(fieldId, value) =>
+                                        setFieldValues((current) => ({
+                                            ...current,
+                                            [fieldId]: value,
+                                        }))
+                                    }
+                                    errors={errors}
+                                    idPrefix="edit-assistance-field"
+                                />
 
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-assistance-remark">

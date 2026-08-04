@@ -77,6 +77,11 @@ class Assistance extends Model
         return $this->hasMany(AssistanceItem::class);
     }
 
+    public function fieldValues(): HasMany
+    {
+        return $this->hasMany(AssistanceFieldValue::class);
+    }
+
     public function itemPivot()
     {
         return $this->hasMany(AssistanceItem::class);

@@ -163,6 +163,10 @@ class ProgramController extends Controller
                 fn () => $this->programService->programItemsForSelect($program),
                 'table',
             ),
+            'program_fields' => Inertia::defer(
+                fn () => $this->programService->programFieldsForForms($program),
+                'table',
+            ),
             'request_sub_status_options' => Inertia::defer(
                 fn () => $this->assistanceService->requestSubStatusesForSelect(),
                 'table',

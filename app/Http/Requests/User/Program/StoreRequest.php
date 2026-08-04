@@ -2,15 +2,19 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Department;
 use App\Models\Program;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreRequest extends FormRequest
 {
+    use ValidatesProgramFields;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -49,7 +53,13 @@ class StoreRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
+            ...$this->programFieldDefinitionRules(),
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->afterProgramFieldDefinitions($validator);
     }
 
     /**
@@ -65,6 +75,7 @@ class StoreRequest extends FormRequest
             'is_organization' => 'organization program',
             'fund_ids' => 'funds',
             'item_ids' => 'items',
+            ...$this->programFieldDefinitionAttributes(),
         ];
     }
 }

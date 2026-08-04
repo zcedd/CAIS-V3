@@ -1,6 +1,7 @@
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import type { ServerPaginationMeta } from '@/components/data-table/types';
 import InputError from '@/components/input-error';
+import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { ServerPagination } from '@/components/server-pagination';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -32,6 +33,7 @@ import {
     store as storeProgram,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
+import type { ProgramFieldDefinition } from '@/types/program-field';
 import { cn } from '@/lib/utils';
 import {
     Form,
@@ -234,6 +236,7 @@ export default function UserProgramsIndex({
     const [endAt, setEndAt] = useState<Date | undefined>(undefined);
     const [selectedFundIds, setSelectedFundIds] = useState<string[]>([]);
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+    const [fields, setFields] = useState<ProgramFieldDefinition[]>([]);
 
     const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
@@ -252,6 +255,7 @@ export default function UserProgramsIndex({
         setEndAtOpen(false);
         setSelectedFundIds([]);
         setSelectedItemIds([]);
+        setFields([]);
     };
 
     useEffect(() => {
@@ -491,6 +495,10 @@ export default function UserProgramsIndex({
                                 end_at: formatDateForSubmit(endAt),
                                 fund_ids: selectedFundIds,
                                 item_ids: selectedItemIds,
+                                fields: fields.map((field, index) => ({
+                                    ...field,
+                                    sort_order: index,
+                                })),
                             })}
                             onSuccess={() => {
                                 resetCreateForm();
@@ -575,6 +583,12 @@ export default function UserProgramsIndex({
                                         />
                                         <InputError message={errors.item_ids} />
                                     </div>
+
+                                    <ProgramFieldsEditor
+                                        fields={fields}
+                                        onChange={setFields}
+                                        errors={errors}
+                                    />
 
                                     <div className="flex items-start gap-3">
                                         <Input

@@ -16,6 +16,7 @@ class ProgramService
     public function __construct(
         private ItemService $itemService,
         private DashboardService $dashboardService,
+        private ProgramFieldService $programFieldService,
     ) {}
 
     /**
@@ -82,6 +83,10 @@ class ProgramService
         $program->fund()->attach($validated['fund_ids']);
         $program->item()->attach($validated['item_ids']);
 
+        if (array_key_exists('fields', $validated)) {
+            $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
+        }
+
         return $program;
     }
 
@@ -101,6 +106,10 @@ class ProgramService
 
         $program->fund()->sync($validated['fund_ids']);
         $program->item()->sync($validated['item_ids']);
+
+        if (array_key_exists('fields', $validated)) {
+            $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
+        }
     }
 
     /**
@@ -180,7 +189,20 @@ class ProgramService
     }
 
     /**
-     * @return array{fund_ids: list<int>, item_ids: list<int>}
+     * @return array{
+     *     fund_ids: list<int>,
+     *     item_ids: list<int>,
+     *     fields: list<array{
+     *         id: int,
+     *         label: string,
+     *         key: string,
+     *         type: string,
+     *         options: list<string>|null,
+     *         is_required: bool,
+     *         show_in_table: bool,
+     *         sort_order: int
+     *     }>
+     * }
      */
     public function editRelationsPayload(Program $program): array
     {
@@ -189,7 +211,25 @@ class ProgramService
         return [
             'fund_ids' => $program->fund->pluck('id')->values()->all(),
             'item_ids' => $program->item->pluck('id')->values()->all(),
+            'fields' => $this->programFieldService->fieldsPayload($program),
         ];
+    }
+
+    /**
+     * @return list<array{
+     *     id: int,
+     *     label: string,
+     *     key: string,
+     *     type: string,
+     *     options: list<string>|null,
+     *     is_required: bool,
+     *     show_in_table: bool,
+     *     sort_order: int
+     * }>
+     */
+    public function programFieldsForForms(Program $program): array
+    {
+        return $this->programFieldService->fieldsPayload($program);
     }
 
     /**

@@ -58,7 +58,9 @@ test('authenticated users can create programs for their department', function ()
 
     ['fund' => $fund, 'item' => $item] = createDepartmentFundAndItem($department);
 
-    $response = $this->actingAs($user)->post(route('user.programs.store', ['department' => $department->slug]), [
+    $response = $this->actingAs($user)->from(route('user.programs.index', [
+        'department' => $department->slug,
+    ]))->post(route('user.programs.store', ['department' => $department->slug]), [
         'name' => 'New Program',
         'descriptions' => 'A new assistance program',
         'start_at' => '2026-01-01',

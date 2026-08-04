@@ -4,9 +4,14 @@ namespace App\Actions\User;
 
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Services\User\ProgramFieldService;
 
 class UpdateProgramAssistance
 {
+    public function __construct(
+        private ProgramFieldService $programFieldService,
+    ) {}
+
     /**
      * @param  array{
      *     beneficiary_id: int,
@@ -16,6 +21,10 @@ class UpdateProgramAssistance
      *         item_id: int,
      *         quantity: int,
      *         specification?: string|null
+     *     }>,
+     *     field_values?: list<array{
+     *         program_field_id: int,
+     *         value?: string|null
      *     }>
      * }  $validated
      */
@@ -40,6 +49,11 @@ class UpdateProgramAssistance
                 'is_received' => false,
             ]);
         }
+
+        $this->programFieldService->syncValuesForAssistance(
+            $assistance,
+            $validated['field_values'] ?? [],
+        );
 
         return $assistance->refresh();
     }

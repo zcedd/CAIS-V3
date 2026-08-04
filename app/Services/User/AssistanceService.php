@@ -6,6 +6,7 @@ use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
 use App\Actions\User\JoinAssistanceTableRelations;
 use App\Models\Assistance;
+use App\Models\AssistanceFieldValue;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
 use App\Models\Beneficiary;
@@ -26,6 +27,7 @@ class AssistanceService
         private JoinAssistanceTableRelations $joinAssistanceTableRelations,
         private ApplyAssistanceTableSort $applyAssistanceTableSort,
         private ApplyAssistanceTableFilters $applyAssistanceTableFilters,
+        private ProgramFieldService $programFieldService,
     ) {}
 
     public function ensureProgramIsOpen(Program $program, string $message): void
@@ -47,6 +49,10 @@ class AssistanceService
      *         item_id: int,
      *         quantity: int,
      *         specification?: string|null
+     *     }>,
+     *     field_values?: list<array{
+     *         program_field_id: int,
+     *         value?: string|null
      *     }>
      * }  $validated
      */
@@ -86,6 +92,11 @@ class AssistanceService
             ]);
         }
 
+        $this->programFieldService->syncValuesForAssistance(
+            $assistance,
+            $validated['field_values'] ?? [],
+        );
+
         return $assistance;
     }
 
@@ -97,6 +108,7 @@ class AssistanceService
         $assistance->load([
             'beneficiary:id,cais_number,name',
             'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
+            'fieldValues:id,assistance_id,program_field_id,value',
         ]);
 
         $beneficiary = $assistance->beneficiary;
@@ -117,6 +129,13 @@ class AssistanceService
                     'item_id' => $assistanceItem->item_id,
                     'quantity' => $assistanceItem->quantity ?? 1,
                     'specification' => $assistanceItem->specification,
+                ])
+                ->values()
+                ->all(),
+            'field_values' => $assistance->fieldValues
+                ->map(static fn (AssistanceFieldValue $fieldValue): array => [
+                    'program_field_id' => $fieldValue->program_field_id,
+                    'value' => $fieldValue->value,
                 ])
                 ->values()
                 ->all(),
@@ -145,10 +164,12 @@ class AssistanceService
             $direction,
         );
 
+        $programFieldService = $this->programFieldService;
+
         return $assistancesQuery
             ->paginate($perPage)
             ->withQueryString()
-            ->through(static function (Assistance $assistance): array {
+            ->through(static function (Assistance $assistance) use ($programFieldService): array {
                 $formatDate = static function ($value): ?string {
                     if ($value === null) {
                         return null;
@@ -165,6 +186,21 @@ class AssistanceService
                 $status = $requestSubStatus
                     ?? $requestStatus
                     ?? 'Unrequested';
+
+                $fieldValues = [];
+
+                foreach ($assistance->fieldValues as $fieldValue) {
+                    $field = $fieldValue->programField;
+
+                    if ($field === null) {
+                        continue;
+                    }
+
+                    $fieldValues[$field->key] = $programFieldService->formatDisplayValue(
+                        $field,
+                        $fieldValue->value,
+                    );
+                }
 
                 return [
                     'id' => $assistance->id,
@@ -196,6 +232,7 @@ class AssistanceService
                         : null,
                     'status' => $status,
                     'remark' => $assistance->remark,
+                    'field_values' => $fieldValues,
                 ];
             });
     }
@@ -259,6 +296,8 @@ class AssistanceService
             'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
             'assistanceItem.item:id,name,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
+            'fieldValues:id,assistance_id,program_field_id,value',
+            'fieldValues.programField:id,key,type,label',
         ]);
 
         ($this->applyAssistanceTableFilters)($assistancesQuery, $search, $statuses, $modes);
