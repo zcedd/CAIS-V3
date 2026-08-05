@@ -22,7 +22,7 @@ class AssistancePolicy
      */
     public function view(User $user, Assistance $assistance): bool
     {
-        return true;
+        return $user->department_id === $assistance->program->department_id;
     }
 
     /**
