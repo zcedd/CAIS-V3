@@ -235,8 +235,9 @@ export function AppTour() {
     );
 
     const shouldRun = useMemo(
-        () => shouldStartTour(completionKey, tourDismissed),
-        [completionKey, tourDismissed],
+        () =>
+            shouldStartTour(completionKey, tourDismissed) && steps.length > 0,
+        [completionKey, steps.length, tourDismissed],
     );
 
     const dismissTour = () => {
@@ -277,15 +278,18 @@ export function AppTour() {
         }
     };
 
-    const { Tour, controls } = useJoyride({
+    const { Tour } = useJoyride({
         steps,
+        run: shouldRun,
         continuous: true,
+        scrollToFirstStep: true,
         onEvent: handleCallback,
         tooltipComponent: AppTourTooltip,
         floatingOptions: { hideArrow: true },
         options: {
             zIndex: 10000,
             buttons: ['back', 'skip', 'primary'],
+            skipBeacon: true,
         },
         locale: {
             back: 'Back',
@@ -336,20 +340,6 @@ export function AppTour() {
             window.clearTimeout(handle);
         };
     }, [assembledSteps, includeShared, pathname]);
-
-    useEffect(() => {
-        if (!shouldRun || steps.length === 0 || tourDismissedRef.current) {
-            controls.stop();
-
-            return;
-        }
-
-        controls.start();
-    }, [controls, shouldRun, steps, tourDismissed]);
-
-    if (steps.length === 0) {
-        return null;
-    }
 
     return <div key={pathname}>{Tour}</div>;
 }
