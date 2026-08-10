@@ -14,7 +14,73 @@ import {
 const TOUR_STORAGE_PREFIX = 'cais-tour-completed:';
 const SHARED_TOUR_KEY = `${TOUR_STORAGE_PREFIX}shared`;
 const TOUR_TARGET_POLL_INTERVAL_MS = 100;
-const TOUR_TARGET_MAX_WAIT_MS = 3000;
+const TOUR_TARGET_MAX_WAIT_MS = 8000;
+
+/** Targets rendered inside Inertia `WhenVisible` / deferred assistance content. */
+const DEFERRED_ASSISTANCE_TOUR_PARENT = '[data-tour="program-assistance"]';
+const DEFERRED_ASSISTANCE_TOUR_TARGETS = [
+    '[data-tour="program-assistance-toolbar"]',
+    '[data-tour="program-assistance-export"]',
+    '[data-tour="program-assistance-create"]',
+    '[data-tour="program-assistance-table"]',
+] as const;
+
+function isDeferredAssistanceTourTarget(target: string): boolean {
+    return (DEFERRED_ASSISTANCE_TOUR_TARGETS as readonly string[]).includes(
+        target,
+    );
+}
+
+function revealTourTargetParent(parentSelector: string): void {
+    const parent = document.querySelector(parentSelector);
+
+    if (parent instanceof HTMLElement) {
+        parent.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
+}
+
+function waitForTourTarget(
+    selector: string,
+    {
+        parentSelector,
+        timeoutMs = TOUR_TARGET_MAX_WAIT_MS,
+    }: {
+        parentSelector?: string;
+        timeoutMs?: number;
+    } = {},
+): Promise<void> {
+    const startedAt = Date.now();
+
+    return new Promise((resolve) => {
+        const tick = () => {
+            if (parentSelector) {
+                revealTourTargetParent(parentSelector);
+            }
+
+            if (document.querySelector(selector)) {
+                resolve();
+
+                return;
+            }
+
+            if (Date.now() - startedAt >= timeoutMs) {
+                resolve();
+
+                return;
+            }
+
+            window.setTimeout(tick, TOUR_TARGET_POLL_INTERVAL_MS);
+        };
+
+        tick();
+    });
+}
+
+function waitForDeferredAssistanceTourTarget(selector: string): Promise<void> {
+    return waitForTourTarget(selector, {
+        parentSelector: DEFERRED_ASSISTANCE_TOUR_PARENT,
+    });
+}
 
 const SHARED_STEPS: Step[] = [
     {
@@ -79,20 +145,59 @@ const PAGE_STEPS: Record<string, Step[]> = {
     ],
     'programs/show': [
         {
-            target: '[data-tour="program-overview"]',
-            content: 'Review program details, type, status, and period here.',
+            target: '[data-tour="program-header"]',
+            content: 'View program title with status and beneficiary type.',
         },
         {
             target: '[data-tour="program-edit"]',
             content: 'Edit program details when changes are needed.',
         },
         {
+            target: '[data-tour="program-kpis"]',
+            content:
+                'View program KPIs by requests, beneficiaries, and items delivered.',
+        },
+        {
+            target: '[data-tour="program-requests-status-chart"]',
+            content: 'View requests status chart by status.',
+        },
+        {
+            target: '[data-tour="program-overview"]',
+            content: 'Review program details, type, status, and period here.',
+        },
+        {
             target: '[data-tour="program-assistance"]',
             content: 'Manage assistance records for this program.',
+            before: () =>
+                waitForDeferredAssistanceTourTarget(
+                    '[data-tour="program-assistance-toolbar"]',
+                ),
+            beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
         },
         {
             target: '[data-tour="program-assistance-toolbar"]',
             content: 'Filter assistance, export data, or add new records.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+            before: () =>
+                waitForDeferredAssistanceTourTarget(
+                    '[data-tour="program-assistance-toolbar"]',
+                ),
+            beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="program-assistance-export"]',
+            content: 'Export assistance records as CSV or XLSX.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="program-assistance-create"]',
+            content: 'Create a new assistance record for this program.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="program-assistance-table"]',
+            content: 'View assistance records.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
         },
     ],
     beneficiaries: [
@@ -211,12 +316,24 @@ function filterAvailableSteps(steps: Step[]): Step[] {
         return [];
     }
 
+    const assistanceParentPresent =
+        document.querySelector(DEFERRED_ASSISTANCE_TOUR_PARENT) !== null;
+
     return steps.filter((step) => {
         if (typeof step.target !== 'string') {
             return Boolean(step.target);
         }
 
-        return document.querySelector(step.target) !== null;
+        if (document.querySelector(step.target) !== null) {
+            return true;
+        }
+
+        // Keep WhenVisible-deferred targets while their parent section exists.
+        // `before` hooks scroll the section into view and wait for mount.
+        return (
+            isDeferredAssistanceTourTarget(step.target) &&
+            assistanceParentPresent
+        );
     });
 }
 

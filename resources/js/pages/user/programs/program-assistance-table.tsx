@@ -338,26 +338,28 @@ export function ProgramAssistanceTableSection({
     );
 
     return (
-        <ProgramAssistanceTable
-            assistances={assistances}
-            assistanceColumns={assistanceColumns}
-            tableFilters={tableFilters}
-            tableState={tableState}
-            statusOptions={statusOptions}
-            modeOptions={modeOptions}
-            isLoading={isLoading}
-            departmentSlug={departmentSlug}
-            programId={programId}
-            programName={programName}
-            isOrganization={isOrganization}
-            canCreateAssistance={canCreateAssistance}
-            modeOfRequestOptions={modeOfRequestOptions}
-            programItems={programItems}
-            programFields={programFields}
-            requestSubStatusOptions={requestSubStatusOptions}
-            transferProgramOptions={transferProgramOptions}
-            canTransferAssistance={canTransferAssistance}
-            onVisitTable={onVisitTable}
-        />
+        <div data-tour="program-assistance-table">
+            <ProgramAssistanceTable
+                assistances={assistances}
+                assistanceColumns={assistanceColumns}
+                tableFilters={tableFilters}
+                tableState={tableState}
+                statusOptions={statusOptions}
+                modeOptions={modeOptions}
+                isLoading={isLoading}
+                departmentSlug={departmentSlug}
+                programId={programId}
+                programName={programName}
+                isOrganization={isOrganization}
+                canCreateAssistance={canCreateAssistance}
+                modeOfRequestOptions={modeOfRequestOptions}
+                programItems={programItems}
+                programFields={programFields}
+                requestSubStatusOptions={requestSubStatusOptions}
+                transferProgramOptions={transferProgramOptions}
+                canTransferAssistance={canTransferAssistance}
+                onVisitTable={onVisitTable}
+            />
+        </div>
     );
 }
