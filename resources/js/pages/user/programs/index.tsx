@@ -35,13 +35,7 @@ import {
 import type { BreadcrumbItem } from '@/types';
 import type { ProgramFieldDefinition } from '@/types/program-field';
 import { cn } from '@/lib/utils';
-import {
-    Form,
-    Head,
-    Link,
-    router,
-    setLayoutProps,
-} from '@inertiajs/react';
+import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import {
     CalendarDays,
     ChevronDownIcon,
@@ -422,51 +416,59 @@ export default function UserProgramsIndex({
                         Create program
                     </Button>
                 </div>
-                {programs.data.length === 0 ? (
-                    <div className="flex flex-col items-start gap-1 border-t border-foreground/10 py-12">
-                        <p className="text-sm font-medium">No programs found</p>
-                        <p className="text-sm text-muted-foreground">
-                            Nothing matches your filters.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4">
-                        <div className="grid auto-rows-min gap-x-5 gap-y-7 md:grid-cols-2 lg:grid-cols-4">
-                            {programs.data.map((program) =>
-                                department?.slug ? (
-                                    <Link
-                                        key={program.id}
-                                        href={departmentProgramShow.url({
-                                            department: department.slug,
-                                            program: program.id,
-                                        })}
-                                        prefetch
-                                        className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                    >
-                                        <ProgramFolderCard program={program} />
-                                    </Link>
-                                ) : (
-                                    <div key={program.id}>
-                                        <ProgramFolderCard program={program} />
-                                    </div>
-                                ),
-                            )}
+                <div data-tour="programs-list">
+                    {programs.data.length === 0 ? (
+                        <div className="flex flex-col items-start gap-1 border-t border-foreground/10 py-12">
+                            <p className="text-sm font-medium">
+                                No programs found
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Nothing matches your filters.
+                            </p>
                         </div>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            <div className="grid auto-rows-min gap-x-5 gap-y-7 md:grid-cols-2 lg:grid-cols-4">
+                                {programs.data.map((program) =>
+                                    department?.slug ? (
+                                        <Link
+                                            key={program.id}
+                                            href={departmentProgramShow.url({
+                                                department: department.slug,
+                                                program: program.id,
+                                            })}
+                                            prefetch
+                                            className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <ProgramFolderCard
+                                                program={program}
+                                            />
+                                        </Link>
+                                    ) : (
+                                        <div key={program.id}>
+                                            <ProgramFolderCard
+                                                program={program}
+                                            />
+                                        </div>
+                                    ),
+                                )}
+                            </div>
 
-                        <ServerPagination
-                            pagination={programs}
-                            onPageChange={(page) =>
-                                navigateWithFilters({ page })
-                            }
-                            onPerPageChange={(perPage) =>
-                                navigateWithFilters({
-                                    per_page: perPage,
-                                    page: 1,
-                                })
-                            }
-                        />
-                    </div>
-                )}
+                            <ServerPagination
+                                pagination={programs}
+                                onPageChange={(page) =>
+                                    navigateWithFilters({ page })
+                                }
+                                onPerPageChange={(perPage) =>
+                                    navigateWithFilters({
+                                        per_page: perPage,
+                                        page: 1,
+                                    })
+                                }
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
 
             <Drawer

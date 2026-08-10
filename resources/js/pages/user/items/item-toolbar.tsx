@@ -96,14 +96,15 @@ export function ItemDataTableToolbar({
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div
+                data-tour="items-filters"
+                className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+            >
                 <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
                     <Input
                         placeholder="Search items..."
                         value={searchQuery}
-                        onChange={(event) =>
-                            setSearchQuery(event.target.value)
-                        }
+                        onChange={(event) => setSearchQuery(event.target.value)}
                         className="h-9 max-w-sm"
                     />
                     {hasActiveFilters ? (
@@ -130,6 +131,7 @@ export function ItemDataTableToolbar({
                     <Button
                         type="button"
                         onClick={() => setCreateOpen(true)}
+                        data-tour="items-create"
                     >
                         <Plus className="mr-2 h-4 w-4" />
                         New item
@@ -137,7 +139,11 @@ export function ItemDataTableToolbar({
                 </div>
             </div>
 
-            <Drawer open={createOpen} onOpenChange={setCreateOpen} direction="right">
+            <Drawer
+                open={createOpen}
+                onOpenChange={setCreateOpen}
+                direction="right"
+            >
                 <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
                     <DrawerHeader>
                         <DrawerTitle>Create item</DrawerTitle>
@@ -209,10 +215,7 @@ export function ItemDataTableToolbar({
                                 </div>
 
                                 <DrawerFooter className="px-0">
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         Create item
                                     </Button>
                                     <DrawerClose asChild>

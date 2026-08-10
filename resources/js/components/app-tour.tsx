@@ -29,7 +29,8 @@ const SHARED_STEPS: Step[] = [
     },
     {
         target: '[data-tour="page-header"]',
-        content: 'Use the sidebar toggle and your account menu from this header.',
+        content:
+            'Use the sidebar toggle and your account menu from this header.',
         placement: 'bottom',
     },
     {
@@ -71,6 +72,10 @@ const PAGE_STEPS: Record<string, Step[]> = {
             target: '[data-tour="programs-create"]',
             content: 'Create a new program for your department.',
         },
+        {
+            target: '[data-tour="programs-list"]',
+            content: 'View programs list by type and status.',
+        },
     ],
     'programs/show': [
         {
@@ -92,15 +97,33 @@ const PAGE_STEPS: Record<string, Step[]> = {
     ],
     beneficiaries: [
         {
-            target: '[data-tour="beneficiaries-filters"]',
-            content: 'Find beneficiaries with search and type filters.',
+            target: '[data-tour="beneficiaries-kpis"]',
+            content:
+                'View beneficiaries KPIs by total, individual, and organization beneficiaries.',
         },
         {
             target: '[data-tour="beneficiaries-create"]',
             content: 'Add a new beneficiary from here.',
         },
+        {
+            target: '[data-tour="beneficiaries-filters"]',
+            content: 'Find beneficiaries with search and type filters.',
+        },
+        {
+            target: '[data-tour="beneficiaries-table"]',
+            content: 'View beneficiaries table by type.',
+            placement: 'top',
+        },
     ],
     items: [
+        {
+            target: '[data-tour="items-filters"]',
+            content: 'Find items with search filters.',
+        },
+        {
+            target: '[data-tour="items-create"]',
+            content: 'Create a new item for your department.',
+        },
         {
             target: '[data-tour="items-table"]',
             content: 'Manage item inventory and update item details here.',
@@ -114,6 +137,10 @@ const PAGE_STEPS: Record<string, Step[]> = {
         {
             target: '[data-tour="funds-create"]',
             content: 'Create a fund record for your department.',
+        },
+        {
+            target: '[data-tour="funds-table"]',
+            content: 'Manage funds and update fund details here.',
         },
     ],
 };
@@ -149,7 +176,9 @@ function hasCompletedPageTour(completionKey: string | null): boolean {
         return false;
     }
 
-    return localStorage.getItem(`${TOUR_STORAGE_PREFIX}${completionKey}`) === '1';
+    return (
+        localStorage.getItem(`${TOUR_STORAGE_PREFIX}${completionKey}`) === '1'
+    );
 }
 
 function shouldStartTour(
@@ -235,8 +264,7 @@ export function AppTour() {
     );
 
     const shouldRun = useMemo(
-        () =>
-            shouldStartTour(completionKey, tourDismissed) && steps.length > 0,
+        () => shouldStartTour(completionKey, tourDismissed) && steps.length > 0,
         [completionKey, steps.length, tourDismissed],
     );
 
