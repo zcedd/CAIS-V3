@@ -11,6 +11,7 @@ import type {
     AssistanceTransferProgramOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
+import type { ProgramFieldOption } from '@/types/program-field';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
 
@@ -55,6 +56,7 @@ export type UserProgramAssistanceRow = {
     request_sub_status_recorded_at: string | null;
     status: string;
     remark: string | null;
+    field_values: Record<string, string | null>;
 };
 
 function formatRequestSubStatusRecordedAt(
@@ -103,6 +105,7 @@ export type UserProgramAssistanceTableContext = {
     isOrganization: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
@@ -116,11 +119,40 @@ export function createUserProgramAssistanceColumns({
     isOrganization,
     modeOfRequestOptions,
     programItems,
+    programFields,
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
+    const dynamicFieldColumns: ColumnDef<UserProgramAssistanceRow>[] =
+        programFields
+            .filter((field) => field.show_in_table)
+            .map((field) => ({
+                id: `field_${field.key}`,
+                accessorFn: (row) => row.field_values?.[field.key] ?? '—',
+                enableSorting: false,
+                meta: {
+                    title: field.label,
+                    cellClassName: 'whitespace-normal',
+                },
+                header: ({ column }) => (
+                    <DataTableColumnHeader
+                        column={column}
+                        title={field.label}
+                    />
+                ),
+                cell: ({ row }) => {
+                    const value = row.original.field_values?.[field.key];
+
+                    return (
+                        <span className="max-w-[min(16rem,40vw)] whitespace-normal text-muted-foreground">
+                            {value?.trim() ? value : '—'}
+                        </span>
+                    );
+                },
+            }));
+
     return [
         {
             id: 'select',
@@ -360,6 +392,7 @@ export function createUserProgramAssistanceColumns({
                 );
             },
         },
+        ...dynamicFieldColumns,
         {
             id: 'actions',
             enableHiding: false,
@@ -372,6 +405,7 @@ export function createUserProgramAssistanceColumns({
                     isOrganization={isOrganization}
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
+                    programFields={programFields}
                     requestSubStatusOptions={requestSubStatusOptions}
                     transferProgramOptions={transferProgramOptions}
                     canTransferAssistance={canTransferAssistance}

@@ -2,14 +2,18 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Department;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateRequest extends FormRequest
 {
+    use ValidatesProgramFields;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -49,7 +53,37 @@ class UpdateRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
+            ...$this->programFieldDefinitionRules(),
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->afterProgramFieldDefinitions($validator);
+
+        $validator->after(function (Validator $validator): void {
+            $program = $this->program;
+            $fields = $this->input('fields', []);
+
+            if (! is_array($fields) || $program === null) {
+                return;
+            }
+
+            $ownedIds = $program->fields()->pluck('id')->all();
+
+            foreach ($fields as $index => $field) {
+                if (! is_array($field) || ! isset($field['id'])) {
+                    continue;
+                }
+
+                if (! in_array((int) $field['id'], $ownedIds, true)) {
+                    $validator->errors()->add(
+                        "fields.{$index}.id",
+                        'The selected custom field is invalid for this program.',
+                    );
+                }
+            }
+        });
     }
 
     /**
@@ -66,6 +100,7 @@ class UpdateRequest extends FormRequest
             'is_closed' => 'closed program',
             'fund_ids' => 'funds',
             'item_ids' => 'items',
+            ...$this->programFieldDefinitionAttributes(),
         ];
     }
 }

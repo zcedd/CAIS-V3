@@ -30,6 +30,7 @@ import type {
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import { destroy as destroyProgramAssistance } from '@/routes/user/programs/assistances';
+import type { ProgramFieldOption } from '@/types/program-field';
 import { Link, router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
 import { Check, Copy, Edit, Eye, MoreHorizontal, Trash, UserRound, ArrowRightLeft } from 'lucide-react';
@@ -44,6 +45,7 @@ interface AssistanceDataTableRowActionsProps {
     isOrganization: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
@@ -58,6 +60,7 @@ export function AssistanceDataTableRowActions({
     isOrganization,
     modeOfRequestOptions,
     programItems,
+    programFields,
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
@@ -198,6 +201,7 @@ export function AssistanceDataTableRowActions({
                 isOrganization={isOrganization}
                 modeOfRequestOptions={modeOfRequestOptions}
                 programItems={programItems}
+                programFields={programFields}
                 onUpdated={onAssistanceUpdated}
             />
 
