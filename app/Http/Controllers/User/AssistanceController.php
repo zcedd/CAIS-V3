@@ -249,6 +249,8 @@ class AssistanceController extends Controller
             'requestSubStatus' => function ($query): void {
                 $query->with('requestStatus:id,name');
             },
+            'currentRequestSubStatus:id,name,request_status_id',
+            'currentRequestSubStatus.requestStatus:id,name',
         ]);
 
         $formatDate = static function ($value): ?string {
@@ -270,13 +272,9 @@ class AssistanceController extends Controller
 
         $status = $latestSubStatus?->requestStatus?->name
             ?? $latestSubStatus?->name
-            ?? match (true) {
-                $assistance->date_denied !== null => 'Denied',
-                $assistance->date_delivered !== null => 'Delivered',
-                $assistance->date_verified !== null => 'Verified',
-                $assistance->date_requested !== null => 'Pending',
-                default => 'Unrequested',
-            };
+            ?? $assistance->currentRequestSubStatus?->requestStatus?->name
+            ?? $assistance->currentRequestSubStatus?->name
+            ?? 'Unrequested';
 
         $items = $assistance->assistanceItem
             ->map(static fn ($assistanceItem): array => [
@@ -304,9 +302,19 @@ class AssistanceController extends Controller
                 'current_sub_status' => $latestSubStatus?->name,
                 'mode_of_request' => $assistance->modeOfRequest?->name ?? '—',
                 'date_requested' => $formatDate($assistance->date_requested),
-                'date_verified' => $formatDate($assistance->date_verified),
+                'date_verified' => $formatDate(
+                    $statusHistory
+                        ->first(static fn ($subStatus): bool => $subStatus->name === 'Verified')
+                        ?->pivot
+                        ?->recorded_at,
+                ),
                 'date_delivered' => $formatDate($assistance->date_delivered),
-                'date_denied' => $formatDate($assistance->date_denied),
+                'date_denied' => $formatDate(
+                    $statusHistory
+                        ->first(static fn ($subStatus): bool => $subStatus->requestStatus?->name === 'Denied')
+                        ?->pivot
+                        ?->recorded_at,
+                ),
                 'remark' => $assistance->remark,
                 'items_count' => count($items),
                 'items_received_count' => collect($items)

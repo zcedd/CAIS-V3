@@ -6,7 +6,6 @@ use App\Actions\User\ApplyDashboardFilters;
 use App\Actions\User\JoinAssistanceStatusRelations;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
-use App\Models\AssistanceRequestSubStatus;
 use App\Models\Department;
 use App\Models\Individual;
 use App\Models\Item;
@@ -14,6 +13,7 @@ use App\Models\Organization;
 use App\Models\Program;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
@@ -112,14 +112,17 @@ class DashboardService
         $statusExpression = $this->resolvedStatusExpression();
         $terminalList = implode("','", self::TERMINAL_STATUSES);
 
+        $firstVerifiedAt = $this->dateDiffExpression('first_verified.verified_at', 'assistances.date_requested');
+
         $stats = (clone $this->filteredAssistanceQuery($department, $filters))
+            ->leftJoinSub($this->firstVerifiedAtSubquery(), 'first_verified', 'first_verified.assistance_id', '=', 'assistances.id')
             ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered_requests")
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} = 'Denied' THEN assistances.id END) as denied_requests")
             ->selectRaw('COUNT(DISTINCT assistances.beneficiary_id) as unique_beneficiaries')
-            ->selectRaw('AVG(CASE WHEN assistances.date_delivered IS NOT NULL AND assistances.date_requested IS NOT NULL THEN DATEDIFF(assistances.date_delivered, assistances.date_requested) END) as avg_days_to_deliver')
-            ->selectRaw('AVG(CASE WHEN assistances.date_verified IS NOT NULL AND assistances.date_requested IS NOT NULL THEN DATEDIFF(assistances.date_verified, assistances.date_requested) END) as avg_days_to_verify')
+            ->selectRaw("AVG(CASE WHEN assistances.date_delivered IS NOT NULL AND assistances.date_requested IS NOT NULL THEN {$this->dateDiffExpression('assistances.date_delivered', 'assistances.date_requested')} END) as avg_days_to_deliver")
+            ->selectRaw("AVG(CASE WHEN first_verified.verified_at IS NOT NULL AND assistances.date_requested IS NOT NULL THEN {$firstVerifiedAt} END) as avg_days_to_verify")
             ->toBase()
             ->first();
 
@@ -130,16 +133,20 @@ class DashboardService
             ->toBase()
             ->first();
 
-        $beneficiaryFrequency = (clone $this->filteredAssistanceQuery($department, $filters))
-            ->whereNotNull('assistances.beneficiary_id')
-            ->select('assistances.beneficiary_id')
-            ->selectRaw('COUNT(DISTINCT assistances.id) as request_count')
-            ->groupBy('assistances.beneficiary_id')
-            ->toBase()
-            ->get();
+        $beneficiaryFrequency = DB::query()
+            ->fromSub(
+                (clone $this->filteredAssistanceQuery($department, $filters))
+                    ->whereNotNull('assistances.beneficiary_id')
+                    ->select('assistances.beneficiary_id')
+                    ->selectRaw('COUNT(DISTINCT assistances.id) as request_count')
+                    ->groupBy('assistances.beneficiary_id')
+                    ->toBase(),
+                'beneficiary_counts',
+            )
+            ->selectRaw('COALESCE(SUM(CASE WHEN request_count > 1 THEN 1 ELSE 0 END), 0) as repeat_beneficiaries')
+            ->selectRaw('COALESCE(SUM(CASE WHEN request_count = 1 THEN 1 ELSE 0 END), 0) as one_time_beneficiaries')
+            ->first();
 
-        $repeatBeneficiaries = $beneficiaryFrequency->where('request_count', '>', 1)->count();
-        $oneTimeBeneficiaries = $beneficiaryFrequency->where('request_count', '=', 1)->count();
         $uniqueBeneficiaries = (int) ($stats->unique_beneficiaries ?? 0);
         $totalRequests = (int) ($stats->total_requests ?? 0);
 
@@ -158,8 +165,8 @@ class DashboardService
             'avg_days_to_verify' => $stats->avg_days_to_verify !== null
                 ? round((float) $stats->avg_days_to_verify, 1)
                 : null,
-            'repeat_beneficiaries' => $repeatBeneficiaries,
-            'one_time_beneficiaries' => $oneTimeBeneficiaries,
+            'repeat_beneficiaries' => (int) ($beneficiaryFrequency->repeat_beneficiaries ?? 0),
+            'one_time_beneficiaries' => (int) ($beneficiaryFrequency->one_time_beneficiaries ?? 0),
             'avg_requests_per_beneficiary' => $uniqueBeneficiaries > 0
                 ? round($totalRequests / $uniqueBeneficiaries, 2)
                 : 0.0,
@@ -287,8 +294,29 @@ class DashboardService
         $deliveredSql = $this->isDeliveredSql();
         $terminalList = implode("','", self::TERMINAL_STATUSES);
 
+        $programQuery = Program::query()
+            ->where('department_id', $department->id)
+            ->orderByDesc('id');
+
+        $selectedPrograms = $filters['program'] ?? [];
+
+        if ($selectedPrograms !== []) {
+            $programQuery->whereIn('id', $selectedPrograms);
+        }
+
+        $programs = $programQuery
+            ->limit(self::PROGRAMS_TABLE_LIMIT)
+            ->get(['id', 'name', 'is_closed', 'is_organization']);
+
+        if ($programs->isEmpty()) {
+            return [];
+        }
+
+        $programIds = $programs->pluck('id')->all();
+
         $demographicFilters = $filters;
         unset($demographicFilters['program']);
+        $demographicFilters['program'] = $programIds;
 
         $statsByProgramId = (clone $this->filteredAssistanceQuery($department, $demographicFilters))
             ->select('programs.id')
@@ -301,19 +329,7 @@ class DashboardService
             ->get()
             ->keyBy('id');
 
-        $programQuery = Program::query()
-            ->where('department_id', $department->id)
-            ->orderByDesc('id');
-
-        $selectedPrograms = $filters['program'] ?? [];
-
-        if ($selectedPrograms !== []) {
-            $programQuery->whereIn('id', $selectedPrograms);
-        }
-
-        return $programQuery
-            ->limit(self::PROGRAMS_TABLE_LIMIT)
-            ->get(['id', 'name', 'is_closed', 'is_organization'])
+        return $programs
             ->map(function (Program $program) use ($statsByProgramId): array {
                 $stats = $statsByProgramId->get($program->id);
                 $total = (int) ($stats->total_requests ?? 0);
@@ -352,66 +368,72 @@ class DashboardService
      */
     public function filterOptions(Department $department): array
     {
-        $programs = Program::query()
-            ->where('department_id', $department->id)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(static fn (Program $program): array => [
-                'label' => $program->name,
-                'value' => (string) $program->id,
-            ])
-            ->values()
-            ->all();
+        return Cache::remember(
+            "dashboard.filter_options.{$department->id}",
+            now()->addMinutes(10),
+            function () use ($department): array {
+                $programs = Program::query()
+                    ->where('department_id', $department->id)
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+                    ->map(static fn (Program $program): array => [
+                        'label' => $program->name,
+                        'value' => (string) $program->id,
+                    ])
+                    ->values()
+                    ->all();
 
-        $years = Assistance::query()
-            ->join('programs', 'programs.id', '=', 'assistances.program_id')
-            ->where('programs.department_id', $department->id)
-            ->whereNotNull('assistances.date_requested')
-            ->pluck('assistances.date_requested')
-            ->map(static fn (string $date): int => (int) date('Y', strtotime($date)))
-            ->unique()
-            ->sortDesc()
-            ->values()
-            ->map(static fn (int $year): array => [
-                'label' => (string) $year,
-                'value' => (string) $year,
-            ])
-            ->all();
+                $years = Assistance::query()
+                    ->join('programs', 'programs.id', '=', 'assistances.program_id')
+                    ->where('programs.department_id', $department->id)
+                    ->whereNotNull('assistances.date_requested')
+                    ->selectRaw('DISTINCT YEAR(assistances.date_requested) as year')
+                    ->orderByDesc('year')
+                    ->toBase()
+                    ->pluck('year')
+                    ->map(static fn (mixed $year): array => [
+                        'label' => (string) (int) $year,
+                        'value' => (string) (int) $year,
+                    ])
+                    ->values()
+                    ->all();
 
-        if ($years === []) {
-            $currentYear = now()->year;
-            $years = [
-                ['label' => (string) $currentYear, 'value' => (string) $currentYear],
-            ];
-        }
+                if ($years === []) {
+                    $currentYear = now()->year;
+                    $years = [
+                        ['label' => (string) $currentYear, 'value' => (string) $currentYear],
+                    ];
+                }
 
-        $yesNo = [
-            ['label' => 'Yes', 'value' => 'true'],
-            ['label' => 'No', 'value' => 'false'],
-        ];
+                $yesNo = [
+                    ['label' => 'Yes', 'value' => 'true'],
+                    ['label' => 'No', 'value' => 'false'],
+                ];
 
-        return [
-            'year' => $years,
-            'quarter' => [
-                ['label' => 'Q1 (Jan–Mar)', 'value' => '1'],
-                ['label' => 'Q2 (Apr–Jun)', 'value' => '2'],
-                ['label' => 'Q3 (Jul–Sep)', 'value' => '3'],
-                ['label' => 'Q4 (Oct–Dec)', 'value' => '4'],
-            ],
-            'programs' => $programs,
-            'beneficiary_type' => [
-                ['label' => 'Individual', 'value' => 'individual'],
-                ['label' => 'Organization', 'value' => 'organization'],
-            ],
-            'sex' => [
-                ['label' => 'Male', 'value' => 'Male'],
-                ['label' => 'Female', 'value' => 'Female'],
-            ],
-            'pwd' => $yesNo,
-            'four_ps' => $yesNo,
-            'solo_parent' => $yesNo,
-            'indigenous' => $yesNo,
-        ];
+                return [
+                    'year' => $years,
+                    'quarter' => [
+                        ['label' => 'Q1 (Jan–Mar)', 'value' => '1'],
+                        ['label' => 'Q2 (Apr–Jun)', 'value' => '2'],
+                        ['label' => 'Q3 (Jul–Sep)', 'value' => '3'],
+                        ['label' => 'Q4 (Oct–Dec)', 'value' => '4'],
+                    ],
+                    'programs' => $programs,
+                    'beneficiary_type' => [
+                        ['label' => 'Individual', 'value' => 'individual'],
+                        ['label' => 'Organization', 'value' => 'organization'],
+                    ],
+                    'sex' => [
+                        ['label' => 'Male', 'value' => 'Male'],
+                        ['label' => 'Female', 'value' => 'Female'],
+                    ],
+                    'pwd' => $yesNo,
+                    'four_ps' => $yesNo,
+                    'solo_parent' => $yesNo,
+                    'indigenous' => $yesNo,
+                ];
+            },
+        );
     }
 
     /**
@@ -524,14 +546,26 @@ class DashboardService
             ->values()
             ->all();
 
+        $booleanTotals = (clone $base)
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.pwd = 1 THEN assistances.id END) as pwd_yes')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.pwd = 0 THEN assistances.id END) as pwd_no')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_4ps_beneficiary = 1 THEN assistances.id END) as four_ps_yes')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_4ps_beneficiary = 0 THEN assistances.id END) as four_ps_no')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_solo_parent = 1 THEN assistances.id END) as solo_parent_yes')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.is_solo_parent = 0 THEN assistances.id END) as solo_parent_no')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.indigenous = 1 THEN assistances.id END) as indigenous_yes')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.indigenous = 0 THEN assistances.id END) as indigenous_no')
+            ->toBase()
+            ->first();
+
         return [
             'sex' => $sex,
             'age' => $age,
             'civil_status' => $civilStatus,
-            'pwd' => $this->booleanDemographicBreakdown(clone $base, 'individuals.pwd'),
-            'four_ps' => $this->booleanDemographicBreakdown(clone $base, 'individuals.is_4ps_beneficiary'),
-            'solo_parent' => $this->booleanDemographicBreakdown(clone $base, 'individuals.is_solo_parent'),
-            'indigenous' => $this->booleanDemographicBreakdown(clone $base, 'individuals.indigenous'),
+            'pwd' => $this->booleanBreakdownFromTotals($booleanTotals, 'pwd'),
+            'four_ps' => $this->booleanBreakdownFromTotals($booleanTotals, 'four_ps'),
+            'solo_parent' => $this->booleanBreakdownFromTotals($booleanTotals, 'solo_parent'),
+            'indigenous' => $this->booleanBreakdownFromTotals($booleanTotals, 'indigenous'),
         ];
     }
 
@@ -686,24 +720,21 @@ class DashboardService
     }
 
     /**
-     * @param  Builder<Assistance>  $query
      * @return list<array{label: string, count: int}>
      */
-    private function booleanDemographicBreakdown(Builder $query, string $column): array
+    private function booleanBreakdownFromTotals(?object $totals, string $prefix): array
     {
-        return $query
-            ->selectRaw("CASE WHEN {$column} = 1 THEN 'Yes' WHEN {$column} = 0 THEN 'No' ELSE 'Unspecified' END as label")
-            ->selectRaw('COUNT(DISTINCT assistances.id) as count')
-            ->groupByRaw("CASE WHEN {$column} = 1 THEN 'Yes' WHEN {$column} = 0 THEN 'No' ELSE 'Unspecified' END")
-            ->orderByDesc('count')
-            ->toBase()
-            ->get()
-            ->map(static fn ($row): array => [
-                'label' => (string) $row->label,
-                'count' => (int) $row->count,
-            ])
-            ->values()
-            ->all();
+        $rows = [
+            ['label' => 'Yes', 'count' => (int) ($totals?->{"{$prefix}_yes"} ?? 0)],
+            ['label' => 'No', 'count' => (int) ($totals?->{"{$prefix}_no"} ?? 0)],
+        ];
+
+        usort($rows, static fn (array $left, array $right): int => $right['count'] <=> $left['count']);
+
+        return array_values(array_filter(
+            $rows,
+            static fn (array $row): bool => $row['count'] > 0,
+        ));
     }
 
     /**
@@ -762,39 +793,31 @@ class DashboardService
 
     private function isDeliveredSql(): string
     {
-        $assistanceItemTable = (new AssistanceItem)->getTable();
-        $pivotTable = (new AssistanceRequestSubStatus)->getTable();
-
-        return "(EXISTS (
-            SELECT 1
-            FROM {$pivotTable} as arss_delivered
-            INNER JOIN request_sub_statuses as rss_delivered ON rss_delivered.id = arss_delivered.request_sub_status_id
-            INNER JOIN request_statuses as rs_delivered ON rs_delivered.id = rss_delivered.request_status_id
-            WHERE arss_delivered.assistance_id = assistances.id
-            AND rs_delivered.name = 'Delivered'
-            AND arss_delivered.deleted_at IS NULL
-        ) OR (NOT EXISTS (
-            SELECT 1
-            FROM {$pivotTable} as arss_any
-            WHERE arss_any.assistance_id = assistances.id
-            AND arss_any.deleted_at IS NULL
-        ) AND assistances.date_delivered IS NOT NULL AND EXISTS (
-            SELECT 1
-            FROM {$assistanceItemTable} ai
-            WHERE ai.assistance_id = assistances.id
-            AND ai.is_received = 1
-            AND ai.deleted_at IS NULL
-        )))";
+        return 'assistances.was_delivered = 1';
     }
 
     private function resolvedStatusExpression(): string
     {
-        return "COALESCE(rs.name, CASE
-            WHEN assistances.date_denied IS NOT NULL THEN 'Denied'
-            WHEN assistances.date_delivered IS NOT NULL THEN 'Delivered'
-            WHEN assistances.date_verified IS NOT NULL THEN 'Verified'
-            WHEN assistances.date_requested IS NOT NULL THEN 'Pending'
-            ELSE 'Unrequested'
-        END)";
+        return "COALESCE(rs.name, 'Unrequested')";
+    }
+
+    private function dateDiffExpression(string $endColumn, string $startColumn): string
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            return "CAST(julianday({$endColumn}) - julianday({$startColumn}) AS INTEGER)";
+        }
+
+        return "DATEDIFF({$endColumn}, {$startColumn})";
+    }
+
+    private function firstVerifiedAtSubquery(): QueryBuilder
+    {
+        return DB::table('assistance_request_sub_status as arss')
+            ->join('request_sub_statuses as rss', 'rss.id', '=', 'arss.request_sub_status_id')
+            ->whereNull('arss.deleted_at')
+            ->where('rss.name', 'Verified')
+            ->groupBy('arss.assistance_id')
+            ->select('arss.assistance_id')
+            ->selectRaw('MIN(arss.recorded_at) as verified_at');
     }
 }

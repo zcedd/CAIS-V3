@@ -9,12 +9,19 @@ use Illuminate\Support\Facades\DB;
 uses(RefreshDatabase::class);
 
 test('populate migration creates morph beneficiaries and links assistances', function () {
+    // Restore the legacy individual_id / organization_id columns the populate migration reads from.
+    Artisan::call('migrate:rollback', [
+        '--path' => 'database/migrations/2026_08_04_023304_drop_legacy_beneficiary_columns_from_assistances_table.php',
+    ]);
+
     Artisan::call('migrate:rollback', [
         '--path' => 'database/migrations/2026_05_19_064642_populate_beneficiaries_morph_and_link_assistances.php',
     ]);
 
     $cityId = DB::table('address_cities')->insertGetId([
         'name' => 'Test City',
+        'zipcode' => '1000',
+        'excel_name' => 'Test City',
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -68,7 +75,8 @@ test('populate migration creates morph beneficiaries and links assistances', fun
     ]);
 
     $userId = DB::table('users')->insertGetId([
-        'name' => 'Test User',
+        'firstName' => 'Test',
+        'lastName' => 'User',
         'email' => 'test@example.com',
         'password' => bcrypt('password'),
         'department_id' => $departmentId,
@@ -78,7 +86,7 @@ test('populate migration creates morph beneficiaries and links assistances', fun
 
     $programId = DB::table('programs')->insertGetId([
         'name' => 'Test Program',
-        'descriptions' => null,
+        'descriptions' => 'Test details',
         'start_at' => now()->toDateString(),
         'end_at' => null,
         'department_id' => $departmentId,
@@ -89,14 +97,12 @@ test('populate migration creates morph beneficiaries and links assistances', fun
     ]);
 
     $individualAssistanceId = DB::table('assistances')->insertGetId([
-        'project_id' => $programId,
+        'program_id' => $programId,
         'beneficiary_id' => null,
         'individual_id' => $individualId,
         'organization_id' => null,
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
-        'date_verified' => null,
-        'date_denied' => null,
         'date_delivered' => null,
         'user_id' => $userId,
         'remark' => null,
@@ -106,14 +112,12 @@ test('populate migration creates morph beneficiaries and links assistances', fun
     ]);
 
     $organizationAssistanceId = DB::table('assistances')->insertGetId([
-        'project_id' => $programId,
+        'program_id' => $programId,
         'beneficiary_id' => null,
         'individual_id' => null,
         'organization_id' => $organizationId,
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
-        'date_verified' => null,
-        'date_denied' => null,
         'date_delivered' => null,
         'user_id' => $userId,
         'remark' => null,
@@ -152,4 +156,9 @@ test('populate migration creates morph beneficiaries and links assistances', fun
 
     expect(DB::table('assistances')->where('id', $organizationAssistanceId)->value('beneficiary_id'))
         ->toBe($organizationBeneficiaryId);
+
+    // Restore the final schema for subsequent tests.
+    Artisan::call('migrate', [
+        '--path' => 'database/migrations/2026_08_04_023304_drop_legacy_beneficiary_columns_from_assistances_table.php',
+    ]);
 });

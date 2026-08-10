@@ -75,6 +75,7 @@ class ItemUnitMeasurementSeeder extends Seeder
             'inch' => ['name' => 'inch', 'created_at' => now(), 'updated_at' => now()],
             'foot' => ['name' => 'foot', 'created_at' => now(), 'updated_at' => now()],
             'yard' => ['name' => 'yard', 'created_at' => now(), 'updated_at' => now()],
+            'php' => ['name' => 'php', 'created_at' => now(), 'updated_at' => now()],
         );
 
         DB::table('item_unit_measurements')->insert($units);

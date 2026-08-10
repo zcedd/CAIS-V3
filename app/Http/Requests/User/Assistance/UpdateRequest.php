@@ -2,13 +2,18 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\ValidatesProgramFields;
+use App\Models\Program;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateRequest extends FormRequest
 {
+    use ValidatesProgramFields;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -44,7 +49,17 @@ class UpdateRequest extends FormRequest
             'item_details.*.item_id' => ['required', 'integer', Rule::in($programItemIds)],
             'item_details.*.quantity' => ['required', 'integer', 'min:1'],
             'item_details.*.specification' => ['nullable', 'string', 'max:255'],
+            ...$this->assistanceFieldValueRules($program),
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $program = $this->route('program');
+
+        if ($program instanceof Program) {
+            $this->afterAssistanceFieldValues($validator, $program);
+        }
     }
 
     /**
@@ -60,6 +75,7 @@ class UpdateRequest extends FormRequest
             'item_details.*.item_id' => 'item',
             'item_details.*.quantity' => 'item quantity',
             'item_details.*.specification' => 'item specification',
+            ...$this->assistanceFieldValueAttributes(),
         ];
     }
 }

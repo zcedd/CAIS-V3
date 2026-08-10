@@ -4,7 +4,6 @@ namespace App\Http\Requests\User\Assistance;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
@@ -42,9 +41,7 @@ class ExportRequest extends FormRequest
                     'status',
                     'request_sub_status_recorded_at',
                     'date_requested',
-                    'date_verified',
                     'date_delivered',
-                    'date_denied',
                     'remark',
                 ]),
             ],

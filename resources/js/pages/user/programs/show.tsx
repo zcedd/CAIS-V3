@@ -45,6 +45,10 @@ import type {
     ProgramStatusBreakdownPoint,
     ProgramSummary,
 } from '@/types/program';
+import type {
+    ProgramFieldDefinition,
+    ProgramFieldOption,
+} from '@/types/program-field';
 import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
     Building2,
@@ -98,6 +102,7 @@ type ProgramDetail = {
 type ProgramEditRelations = {
     fund_ids: number[];
     item_ids: number[];
+    fields: ProgramFieldDefinition[];
 };
 
 const MS_PER_DAY = 86_400_000;
@@ -199,6 +204,7 @@ export default function UserProgramShow({
     status_options,
     mode_of_request_options,
     program_items,
+    program_fields,
     request_sub_status_options,
     transfer_program_options,
 }: {
@@ -223,6 +229,7 @@ export default function UserProgramShow({
     mode_of_request_options?: AssistanceModeOption[];
     organization_options?: AssistanceSelectOption[];
     program_items?: AssistanceProgramItemOption[];
+    program_fields?: ProgramFieldOption[];
     request_sub_status_options?: AssistanceRequestSubStatusOption[];
     transfer_program_options?: AssistanceTransferProgramOption[];
 }) {
@@ -634,6 +641,7 @@ export default function UserProgramShow({
                                     status_options,
                                     mode_of_request_options,
                                     program_items,
+                                    program_fields,
                                     request_sub_status_options,
                                     transfer_program_options,
                                 };
@@ -669,6 +677,9 @@ export default function UserProgramShow({
                                             }
                                             programItems={
                                                 tableProps.program_items
+                                            }
+                                            programFields={
+                                                tableProps.program_fields
                                             }
                                             requestSubStatusOptions={
                                                 tableProps.request_sub_status_options

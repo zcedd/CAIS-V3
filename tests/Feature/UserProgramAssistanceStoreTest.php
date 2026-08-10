@@ -13,6 +13,7 @@ use App\Models\RequestSubStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -105,7 +106,10 @@ test('authenticated users can create assistance for their department program', f
         $program,
     );
 
-    $response = $this->actingAs($user)->post(route('user.programs.assistances.store', [
+    $response = $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]))->post(route('user.programs.assistances.store', [
         'department' => $department->slug,
         'program' => $program->id,
     ]), [
@@ -182,6 +186,17 @@ test('creating assistance preserves the recorded at time', function () {
         $program,
     );
 
+    $requestStatusId = DB::table('request_statuses')->where('name', 'In Progress')->value('id')
+        ?? DB::table('request_statuses')->insertGetId(['name' => 'In Progress']);
+
+    if (! DB::table('request_sub_statuses')->where('name', 'In Progress')->exists()) {
+        DB::table('request_sub_statuses')->insert([
+            'request_status_id' => $requestStatusId,
+            'name' => 'In Progress',
+            'description' => null,
+        ]);
+    }
+
     $this->actingAs($user)->post(route('user.programs.assistances.store', [
         'department' => $department->slug,
         'program' => $program->id,
@@ -250,7 +265,7 @@ test('users cannot create assistance for a closed program', function () {
                 ],
             ],
         ])
-        ->assertSessionHasErrors('program');
+        ->assertForbidden();
 
     expect(Assistance::query()->count())->toBe(0);
 });
@@ -294,7 +309,7 @@ test('users cannot create assistance for another department program', function (
                 ],
             ],
         ])
-        ->assertNotFound();
+        ->assertForbidden();
 
     expect(Assistance::query()->count())->toBe(0);
 });

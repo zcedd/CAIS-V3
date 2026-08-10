@@ -90,7 +90,10 @@ test('authenticated users can update assistance for their department program', f
         'is_received' => false,
     ]);
 
-    $response = $this->actingAs($user)->put(
+    $response = $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]))->put(
         route('user.programs.assistances.update', [
             'department' => $department->slug,
             'program' => $program->id,

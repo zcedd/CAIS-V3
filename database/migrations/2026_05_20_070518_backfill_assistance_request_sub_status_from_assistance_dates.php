@@ -98,14 +98,16 @@ return new class extends Migration
 
                 $this->whereLegacyDateStorableAsPivotTimestamp($query, $column);
 
+                $now = DB::getDriverName() === 'sqlite' ? "datetime('now')" : 'NOW()';
+
                 $query->whereNull('existing.id')
                     ->select([
                         'a.id',
                         new Expression((string) $subStatusId),
                         new Expression('NULL'),
                         'a.'.$column,
-                        new Expression('NOW()'),
-                        new Expression('NOW()'),
+                        new Expression($now),
+                        new Expression($now),
                         new Expression('NULL'),
                     ]);
             }

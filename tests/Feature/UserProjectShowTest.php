@@ -145,8 +145,6 @@ test('program show page summary reflects assistances for the program only', func
         'beneficiary_id' => $inProgressBeneficiaryId,
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
-        'date_verified' => null,
-        'date_denied' => null,
         'date_delivered' => null,
         'user_id' => $user->id,
     ]);
@@ -172,8 +170,6 @@ test('program show page summary reflects assistances for the program only', func
         'beneficiary_id' => $deliveredBeneficiaryId,
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
-        'date_verified' => null,
-        'date_denied' => null,
         'date_delivered' => now()->toDateString(),
         'user_id' => $user->id,
     ]);
@@ -199,8 +195,6 @@ test('program show page summary reflects assistances for the program only', func
         'beneficiary_id' => $otherBeneficiaryId,
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
-        'date_verified' => null,
-        'date_denied' => null,
         'date_delivered' => now()->toDateString(),
         'user_id' => $user->id,
     ]);
@@ -252,8 +246,6 @@ test('program show page includes assistances for the program', function () {
         'beneficiary_id' => $beneficiaryId,
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
-        'date_verified' => null,
-        'date_denied' => null,
         'date_delivered' => null,
         'user_id' => $user->id,
         'remark' => 'Follow up next week',
@@ -377,7 +369,6 @@ test('program show page uses latest request sub status for assistance status', f
     $assistance = Assistance::create([
         'program_id' => $program->id,
         'date_requested' => '2024-01-01',
-        'date_verified' => '2024-02-01',
         'user_id' => $user->id,
         'remark' => 'verified record',
     ]);
@@ -544,7 +535,6 @@ test('program show page filters assistances by request status on the server', fu
 
     $verifiedAssistance = Assistance::create([
         'program_id' => $program->id,
-        'date_verified' => '2024-02-01',
         'user_id' => $user->id,
         'remark' => 'verified record',
     ]);

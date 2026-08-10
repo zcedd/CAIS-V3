@@ -106,7 +106,10 @@ test('authenticated users can update programs for their department', function ()
     $program->fund()->attach($fund->id);
     $program->item()->attach($item->id);
 
-    $response = $this->actingAs($user)->put(route('user.programs.update', [
+    $response = $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]))->put(route('user.programs.update', [
         'department' => $department->slug,
         'program' => $program->id,
     ]), [

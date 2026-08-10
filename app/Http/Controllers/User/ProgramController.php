@@ -47,8 +47,12 @@ class ProgramController extends Controller
             'type' => $types,
             'status' => $statuses,
             'per_page' => $perPage,
-            'funds' => $this->programService->departmentFundsForSelect($department),
-            'items' => $this->programService->departmentItemsForSelect($department),
+            'funds' => Inertia::defer(
+                fn () => $this->programService->departmentFundsForSelect($department),
+            ),
+            'items' => Inertia::defer(
+                fn () => $this->programService->departmentItemsForSelect($department),
+            ),
         ]);
     }
 
@@ -157,6 +161,10 @@ class ProgramController extends Controller
             ),
             'program_items' => Inertia::defer(
                 fn () => $this->programService->programItemsForSelect($program),
+                'table',
+            ),
+            'program_fields' => Inertia::defer(
+                fn () => $this->programService->programFieldsForForms($program),
                 'table',
             ),
             'request_sub_status_options' => Inertia::defer(

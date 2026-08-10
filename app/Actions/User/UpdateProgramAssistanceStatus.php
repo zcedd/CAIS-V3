@@ -65,11 +65,8 @@ class UpdateProgramAssistanceStatus
             }
         }
 
-        if (! empty($validated['delivered_items']) && $assistance->date_delivered === null) {
-            $assistance->update([
-                'date_delivered' => $recordedAt->toDateString(),
-            ]);
-        }
+        // Milestone dates and current status are synced from status history via
+        // AssistanceRequestSubStatus model events (SyncAssistanceCurrentStatus).
 
         return $assistance->refresh();
     }

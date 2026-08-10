@@ -161,3 +161,18 @@ test('authenticated users cannot view another departments program list', functio
         ->get(route('user.programs.index', ['department' => $departmentB->slug]))
         ->assertForbidden();
 });
+
+test('program index defers funds and items for the create drawer', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.programs.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('user/programs/index')
+            ->missing('funds')
+            ->missing('items'));
+});

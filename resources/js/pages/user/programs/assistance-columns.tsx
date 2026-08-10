@@ -11,6 +11,7 @@ import type {
     AssistanceTransferProgramOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
+import type { ProgramFieldOption } from '@/types/program-field';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
 
@@ -48,15 +49,14 @@ export type UserProgramAssistanceRow = {
     items: UserProgramAssistanceItem[];
     mode_of_request: string;
     date_requested: string | null;
-    date_verified: string | null;
     date_delivered: string | null;
-    date_denied: string | null;
     request_status: string | null;
     request_sub_status_id: number | null;
     request_sub_status: string | null;
     request_sub_status_recorded_at: string | null;
     status: string;
     remark: string | null;
+    field_values: Record<string, string | null>;
 };
 
 function formatRequestSubStatusRecordedAt(
@@ -105,6 +105,7 @@ export type UserProgramAssistanceTableContext = {
     isOrganization: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
@@ -118,11 +119,40 @@ export function createUserProgramAssistanceColumns({
     isOrganization,
     modeOfRequestOptions,
     programItems,
+    programFields,
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
+    const dynamicFieldColumns: ColumnDef<UserProgramAssistanceRow>[] =
+        programFields
+            .filter((field) => field.show_in_table)
+            .map((field) => ({
+                id: `field_${field.key}`,
+                accessorFn: (row) => row.field_values?.[field.key] ?? '—',
+                enableSorting: false,
+                meta: {
+                    title: field.label,
+                    cellClassName: 'whitespace-normal',
+                },
+                header: ({ column }) => (
+                    <DataTableColumnHeader
+                        column={column}
+                        title={field.label}
+                    />
+                ),
+                cell: ({ row }) => {
+                    const value = row.original.field_values?.[field.key];
+
+                    return (
+                        <span className="max-w-[min(16rem,40vw)] whitespace-normal text-muted-foreground">
+                            {value?.trim() ? value : '—'}
+                        </span>
+                    );
+                },
+            }));
+
     return [
         {
             id: 'select',
@@ -331,22 +361,6 @@ export function createUserProgramAssistanceColumns({
             },
         },
         {
-            accessorKey: 'date_verified',
-            meta: { title: 'Verified' },
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Verified" />
-            ),
-            cell: ({ row }) => {
-                const value = row.getValue('date_verified') as string | null;
-
-                return (
-                    <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
-                    </span>
-                );
-            },
-        },
-        {
             accessorKey: 'date_delivered',
             meta: { title: 'Delivered' },
             header: ({ column }) => (
@@ -354,22 +368,6 @@ export function createUserProgramAssistanceColumns({
             ),
             cell: ({ row }) => {
                 const value = row.getValue('date_delivered') as string | null;
-
-                return (
-                    <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
-                    </span>
-                );
-            },
-        },
-        {
-            accessorKey: 'date_denied',
-            meta: { title: 'Denied' },
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Denied" />
-            ),
-            cell: ({ row }) => {
-                const value = row.getValue('date_denied') as string | null;
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
@@ -394,6 +392,7 @@ export function createUserProgramAssistanceColumns({
                 );
             },
         },
+        ...dynamicFieldColumns,
         {
             id: 'actions',
             enableHiding: false,
@@ -406,6 +405,7 @@ export function createUserProgramAssistanceColumns({
                     isOrganization={isOrganization}
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
+                    programFields={programFields}
                     requestSubStatusOptions={requestSubStatusOptions}
                     transferProgramOptions={transferProgramOptions}
                     canTransferAssistance={canTransferAssistance}
@@ -420,8 +420,6 @@ export const userProgramAssistanceInitialColumnVisibility = {
     request_sub_status_recorded_at: true,
     mode_of_request: true,
     date_requested: false,
-    date_verified: false,
     date_delivered: false,
-    date_denied: false,
     remark: true,
 };

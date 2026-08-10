@@ -29,6 +29,8 @@ class Program extends Model
     protected $casts = [
         'start_at' => 'datetime:M d, Y',
         'end_at' => 'datetime:M d, Y',
+        'is_closed' => 'boolean',
+        'is_organization' => 'boolean',
     ];
 
     public function department(): BelongsTo
@@ -69,5 +71,10 @@ class Program extends Model
     public function item(): BelongsToMany
     {
         return $this->belongsToMany(Item::class, 'item_program', 'program_id', 'item_id');
+    }
+
+    public function fields(): HasMany
+    {
+        return $this->hasMany(ProgramField::class)->orderBy('sort_order')->orderBy('id');
     }
 }

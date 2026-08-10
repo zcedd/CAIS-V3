@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import {
@@ -20,6 +21,7 @@ import {
 } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { update as updateProgram } from '@/routes/user/programs';
+import type { ProgramFieldDefinition } from '@/types/program-field';
 import { Form } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -50,6 +52,7 @@ type ProgramDetail = {
 type ProgramEditRelations = {
     fund_ids: number[];
     item_ids: number[];
+    fields: ProgramFieldDefinition[];
 };
 
 function formatDateForSubmit(date: Date | undefined): string | undefined {
@@ -191,6 +194,9 @@ export function ProgramEditDrawer({
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>(() =>
         (programEdit?.item_ids ?? []).map(String),
     );
+    const [fields, setFields] = useState<ProgramFieldDefinition[]>(
+        () => programEdit?.fields ?? [],
+    );
 
     useEffect(() => {
         setStartAt(parseProgramDateInput(program.start_at_input));
@@ -204,6 +210,7 @@ export function ProgramEditDrawer({
 
         setSelectedFundIds(programEdit.fund_ids.map(String));
         setSelectedItemIds(programEdit.item_ids.map(String));
+        setFields(programEdit.fields ?? []);
     }, [programEdit]);
 
     const fundOptions = funds.map((fund) => ({
@@ -243,6 +250,10 @@ export function ProgramEditDrawer({
                         is_closed: data.is_closed === '1' || data.is_closed === true,
                         fund_ids: selectedFundIds.map(Number),
                         item_ids: selectedItemIds.map(Number),
+                        fields: fields.map((field, index) => ({
+                            ...field,
+                            sort_order: index,
+                        })),
                     })}
                     onSuccess={() => {
                         onClose();
@@ -328,6 +339,12 @@ export function ProgramEditDrawer({
                                 />
                                 <InputError message={errors.item_ids} />
                             </div>
+
+                            <ProgramFieldsEditor
+                                fields={fields}
+                                onChange={setFields}
+                                errors={errors}
+                            />
 
                             <div className="flex items-start gap-3">
                                 <Input

@@ -3,17 +3,10 @@
 namespace App\Actions\User;
 
 use App\Models\Assistance;
-use App\Models\AssistanceRequestSubStatus;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Builder as QueryBuilder;
-use Illuminate\Support\Facades\DB;
 
 class ApplyAssistanceTableFilters
 {
-    public function __construct(
-        private BuildLatestAssistanceRequestSubStatusSubquery $buildLatestAssistanceRequestSubStatusSubquery,
-    ) {}
-
     /**
      * @param  Builder<Assistance>  $query
      * @param  list<string>  $statuses
@@ -24,7 +17,6 @@ class ApplyAssistanceTableFilters
         string $search,
         array $statuses,
         array $modes,
-        ?int $programId = null,
     ): void {
         if ($search !== '') {
             $needle = '%'.$search.'%';
@@ -41,44 +33,7 @@ class ApplyAssistanceTableFilters
         }
 
         if ($statuses !== []) {
-            $query->whereIn(
-                'assistances.id',
-                $this->latestAssistanceIdsByRequestStatusNames($statuses, $programId),
-            );
+            $query->whereIn('rs.name', $statuses);
         }
-    }
-
-    /**
-     * @param  list<string>  $statuses
-     */
-    private function latestAssistanceIdsByRequestStatusNames(array $statuses, ?int $programId = null): QueryBuilder
-    {
-        $pivotTable = (new AssistanceRequestSubStatus)->getTable();
-
-        $latestArssLookup = ($this->buildLatestAssistanceRequestSubStatusSubquery)($programId);
-
-        return DB::table($pivotTable.' as arss')
-            ->select('arss.assistance_id')
-            ->joinSub(
-                $latestArssLookup,
-                'latest_arss_lookup',
-                'latest_arss_lookup.latest_arss_id',
-                '=',
-                'arss.id',
-            )
-            ->join(
-                'request_sub_statuses as rss',
-                'rss.id',
-                '=',
-                'arss.request_sub_status_id',
-            )
-            ->join(
-                'request_statuses as rs',
-                'rs.id',
-                '=',
-                'rss.request_status_id',
-            )
-            ->whereNull('arss.deleted_at')
-            ->whereIn('rs.name', $statuses);
     }
 }

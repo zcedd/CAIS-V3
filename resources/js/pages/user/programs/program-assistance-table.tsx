@@ -16,6 +16,7 @@ import {
     type StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { AssistanceBulkActionsBar } from '@/pages/user/programs/assistance-bulk-actions-bar';
+import type { ProgramFieldOption } from '@/types/program-field';
 import { useMemo } from 'react';
 
 export const ASSISTANCE_TABLE_PARTIAL_PROPS = ['assistances'] as const;
@@ -26,6 +27,7 @@ export const ASSISTANCE_TABLE_DEFER_GROUP_PROPS = [
     'status_options',
     'mode_of_request_options',
     'program_items',
+    'program_fields',
     'request_sub_status_options',
     'transfer_program_options',
 ] as const;
@@ -91,6 +93,7 @@ export function isAssistancesTableReady(props: {
     status_options?: StatusFilterOption[];
     mode_of_request_options?: AssistanceModeOption[];
     program_items?: AssistanceProgramItemOption[];
+    program_fields?: ProgramFieldOption[];
     request_sub_status_options?: AssistanceRequestSubStatusOption[];
     transfer_program_options?: AssistanceTransferProgramOption[];
 }): props is {
@@ -99,6 +102,7 @@ export function isAssistancesTableReady(props: {
     status_options: StatusFilterOption[];
     mode_of_request_options: AssistanceModeOption[];
     program_items: AssistanceProgramItemOption[];
+    program_fields: ProgramFieldOption[];
     request_sub_status_options: AssistanceRequestSubStatusOption[];
     transfer_program_options: AssistanceTransferProgramOption[];
 } {
@@ -108,6 +112,7 @@ export function isAssistancesTableReady(props: {
         props.status_options !== undefined &&
         props.mode_of_request_options !== undefined &&
         props.program_items !== undefined &&
+        props.program_fields !== undefined &&
         props.request_sub_status_options !== undefined &&
         props.transfer_program_options !== undefined
     );
@@ -147,6 +152,7 @@ type ProgramAssistanceTableProps = {
     canCreateAssistance: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
@@ -176,6 +182,7 @@ type ProgramAssistanceTableSectionProps = {
     canCreateAssistance: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
+    programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
@@ -197,6 +204,7 @@ function ProgramAssistanceTable({
     canCreateAssistance,
     modeOfRequestOptions,
     programItems,
+    programFields,
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
@@ -267,6 +275,7 @@ function ProgramAssistanceTable({
                     canCreate={canCreateAssistance}
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
+                    programFields={programFields}
                     onAssistanceCreated={() => onVisitTable({ page: 1 })}
                 />
             )}
@@ -292,6 +301,7 @@ export function ProgramAssistanceTableSection({
     canCreateAssistance,
     modeOfRequestOptions,
     programItems,
+    programFields,
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
@@ -306,6 +316,7 @@ export function ProgramAssistanceTableSection({
                 isOrganization,
                 modeOfRequestOptions,
                 programItems,
+                programFields,
                 requestSubStatusOptions,
                 transferProgramOptions,
                 canTransferAssistance,
@@ -318,6 +329,7 @@ export function ProgramAssistanceTableSection({
             isOrganization,
             modeOfRequestOptions,
             programItems,
+            programFields,
             requestSubStatusOptions,
             transferProgramOptions,
             canTransferAssistance,
@@ -341,6 +353,7 @@ export function ProgramAssistanceTableSection({
             canCreateAssistance={canCreateAssistance}
             modeOfRequestOptions={modeOfRequestOptions}
             programItems={programItems}
+            programFields={programFields}
             requestSubStatusOptions={requestSubStatusOptions}
             transferProgramOptions={transferProgramOptions}
             canTransferAssistance={canTransferAssistance}
