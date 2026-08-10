@@ -4,7 +4,6 @@ namespace App\Services\User;
 
 use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
-use App\Actions\User\BuildLatestAssistanceRequestSubStatusSubquery;
 use App\Actions\User\JoinAssistanceTableRelations;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -27,7 +26,6 @@ class AssistanceService
         private JoinAssistanceTableRelations $joinAssistanceTableRelations,
         private ApplyAssistanceTableSort $applyAssistanceTableSort,
         private ApplyAssistanceTableFilters $applyAssistanceTableFilters,
-        private BuildLatestAssistanceRequestSubStatusSubquery $buildLatestAssistanceRequestSubStatusSubquery,
     ) {}
 
     public function ensureProgramIsOpen(Program $program, string $message): void
@@ -164,13 +162,9 @@ class AssistanceService
                 $requestStatus = $assistance->request_status_name;
                 $requestSubStatusRecordedAt = $assistance->request_sub_status_recorded_at;
 
-                $status = $requestSubStatus ?? match (true) {
-                    $assistance->date_denied !== null => 'Denied',
-                    $assistance->date_delivered !== null => 'Delivered',
-                    $assistance->date_verified !== null => 'Verified',
-                    $assistance->date_requested !== null => 'Pending',
-                    default => 'Unrequested',
-                };
+                $status = $requestSubStatus
+                    ?? $requestStatus
+                    ?? 'Unrequested';
 
                 return [
                     'id' => $assistance->id,
@@ -191,9 +185,7 @@ class AssistanceService
                         ->all(),
                     'mode_of_request' => $assistance->mode_of_request_name ?? '—',
                     'date_requested' => $formatDate($assistance->date_requested),
-                    'date_verified' => $formatDate($assistance->date_verified),
                     'date_delivered' => $formatDate($assistance->date_delivered),
-                    'date_denied' => $formatDate($assistance->date_denied),
                     'request_status' => $requestStatus,
                     'request_sub_status_id' => $requestSubStatusId !== null
                         ? (int) $requestSubStatusId
@@ -244,21 +236,17 @@ class AssistanceService
         string $sort,
         string $direction,
     ): Builder {
-        $programId = $program->id;
-
         $assistancesQuery = Assistance::query()
-            ->where('assistances.program_id', $programId);
+            ->where('assistances.program_id', $program->id);
 
-        ($this->joinAssistanceTableRelations)($assistancesQuery, $programId);
+        ($this->joinAssistanceTableRelations)($assistancesQuery);
 
         $assistancesQuery->select([
             'assistances.id',
             'assistances.beneficiary_id',
             'assistances.mode_of_request_id',
             'assistances.date_requested',
-            'assistances.date_verified',
             'assistances.date_delivered',
-            'assistances.date_denied',
             'assistances.remark',
             'beneficiaries.cais_number as beneficiary_cais_number',
             'beneficiaries.name as beneficiary_name',
@@ -266,33 +254,17 @@ class AssistanceService
             'rss.id as request_sub_status_id',
             'rss.name as request_sub_status_name',
             'rs.name as request_status_name',
-            'arss.recorded_at as request_sub_status_recorded_at',
+            'assistances.current_status_recorded_at as request_sub_status_recorded_at',
         ])->with([
             'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
             'assistanceItem.item:id,name,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
         ]);
 
-        ($this->applyAssistanceTableFilters)($assistancesQuery, $search, $statuses, $modes, $programId);
+        ($this->applyAssistanceTableFilters)($assistancesQuery, $search, $statuses, $modes);
         ($this->applyAssistanceTableSort)($assistancesQuery, $sort, $direction);
 
-        return $assistancesQuery->groupBy([
-            'assistances.id',
-            'assistances.beneficiary_id',
-            'assistances.mode_of_request_id',
-            'assistances.date_requested',
-            'assistances.date_verified',
-            'assistances.date_delivered',
-            'assistances.date_denied',
-            'assistances.remark',
-            'beneficiaries.cais_number',
-            'beneficiaries.name',
-            'mode_of_requests.name',
-            'rss.id',
-            'rss.name',
-            'rs.name',
-            'arss.recorded_at',
-        ]);
+        return $assistancesQuery;
     }
 
     /**
@@ -319,22 +291,11 @@ class AssistanceService
      */
     public function statusOptions(Program $program): array
     {
-        $latestArssLookup = ($this->buildLatestAssistanceRequestSubStatusSubquery)($program->id);
-        $pivotTable = (new AssistanceRequestSubStatus)->getTable();
-
         return RequestStatus::query()
             ->join('request_sub_statuses as rss', 'rss.request_status_id', '=', 'request_statuses.id')
-            ->join("{$pivotTable} as arss", 'arss.request_sub_status_id', '=', 'rss.id')
-            ->joinSub(
-                $latestArssLookup,
-                'latest_arss_lookup',
-                'latest_arss_lookup.latest_arss_id',
-                '=',
-                'arss.id',
-            )
-            ->join('assistances', 'assistances.id', '=', 'arss.assistance_id')
+            ->join('assistances', 'assistances.current_request_sub_status_id', '=', 'rss.id')
             ->where('assistances.program_id', $program->id)
-            ->whereNull('arss.deleted_at')
+            ->whereNull('assistances.deleted_at')
             ->distinct()
             ->orderBy('request_statuses.name')
             ->pluck('request_statuses.name')

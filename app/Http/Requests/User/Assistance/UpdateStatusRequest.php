@@ -50,7 +50,7 @@ class UpdateStatusRequest extends FormRequest
                 'distinct',
                 Rule::exists('assistance_item', 'id')
                     ->where('assistance_id', $assistance->id)
-                    ->where('is_received', false),
+                    ->where('is_received', 0),
             ],
             'delivered_items.*.quantity' => ['required', 'integer', 'min:1'],
             'delivered_items.*.specification' => ['nullable', 'string', 'max:255'],

@@ -3,7 +3,6 @@
 namespace App\Services\User;
 
 use App\Actions\User\JoinAssistanceTableRelations;
-use App\Models\AddressBarangay;
 use App\Models\AddressCity;
 use App\Models\AddressProvince;
 use App\Models\Assistance;
@@ -16,6 +15,8 @@ use App\Models\Program;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class BeneficiaryService
 {
@@ -104,18 +105,33 @@ class BeneficiaryService
      */
     public function registryStats(): array
     {
+        $individualType = Individual::class;
+        $organizationType = Organization::class;
+        $assistanceTable = (new Assistance)->getTable();
+        $startOfMonth = now()->startOfMonth()->toDateTimeString();
+
+        $stats = Beneficiary::query()
+            ->toBase()
+            ->selectRaw(
+                "COUNT(*) as total,
+                SUM(CASE WHEN beneficiable_type = ? THEN 1 ELSE 0 END) as individuals,
+                SUM(CASE WHEN beneficiable_type = ? THEN 1 ELSE 0 END) as organizations,
+                SUM(CASE WHEN EXISTS (
+                    SELECT 1 FROM {$assistanceTable} as assistances
+                    WHERE assistances.beneficiary_id = beneficiaries.id
+                    AND assistances.deleted_at IS NULL
+                ) THEN 1 ELSE 0 END) as assisted,
+                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as new_this_month",
+                [$individualType, $organizationType, $startOfMonth],
+            )
+            ->first();
+
         return [
-            'total' => Beneficiary::query()->count(),
-            'individuals' => Beneficiary::query()
-                ->where('beneficiable_type', Individual::class)
-                ->count(),
-            'organizations' => Beneficiary::query()
-                ->where('beneficiable_type', Organization::class)
-                ->count(),
-            'assisted' => Beneficiary::query()->whereHas('assistances')->count(),
-            'new_this_month' => Beneficiary::query()
-                ->where('created_at', '>=', now()->startOfMonth())
-                ->count(),
+            'total' => (int) ($stats->total ?? 0),
+            'individuals' => (int) ($stats->individuals ?? 0),
+            'organizations' => (int) ($stats->organizations ?? 0),
+            'assisted' => (int) ($stats->assisted ?? 0),
+            'new_this_month' => (int) ($stats->new_this_month ?? 0),
         ];
     }
 
@@ -124,34 +140,60 @@ class BeneficiaryService
      */
     public function formOptions(): array
     {
-        $defaultProvince = AddressProvince::query()
-            ->where('name', config('address.province'))
-            ->first(['id', 'name']);
+        return Cache::remember(
+            'beneficiary.form_options',
+            now()->addDay(),
+            function (): array {
+                $defaultProvince = AddressProvince::query()
+                    ->where('name', config('address.province'))
+                    ->first(['id', 'name']);
 
-        return [
-            'civil_statuses' => CivilStatus::query()->orderBy('name')->get(['id', 'name']),
-            'identifications' => Identification::query()->orderBy('name')->get(['id', 'name']),
-            'address_provinces' => AddressProvince::query()
-                ->orderBy('name')
-                ->get(['id', 'name']),
-            'default_province_id' => $defaultProvince?->id,
-            'address_cities' => AddressCity::query()
-                ->orderBy('name')
-                ->get(['id', 'name', 'address_province_id']),
-            'address_barangays' => AddressBarangay::query()
-                ->with('city.province:id,name')
-                ->orderBy('name')
-                ->get(['id', 'name', 'address_city_id'])
-                ->map(static fn (AddressBarangay $barangay): array => [
-                    'id' => $barangay->id,
-                    'name' => $barangay->name,
-                    'address_city_id' => $barangay->address_city_id,
-                    'city' => $barangay->city?->name,
-                    'label' => $barangay->formattedLabel() ?? $barangay->name,
-                ])
-                ->values()
-                ->all(),
-        ];
+                $barangays = DB::table('address_barangays')
+                    ->leftJoin('address_cities', 'address_cities.id', '=', 'address_barangays.address_city_id')
+                    ->leftJoin('address_provinces', 'address_provinces.id', '=', 'address_cities.address_province_id')
+                    ->whereNull('address_barangays.deleted_at')
+                    ->orderBy('address_barangays.name')
+                    ->get([
+                        'address_barangays.id',
+                        'address_barangays.name',
+                        'address_barangays.address_city_id',
+                        'address_cities.name as city_name',
+                        'address_provinces.name as province_name',
+                    ])
+                    ->map(static function (object $barangay): array {
+                        $label = collect([
+                            $barangay->name,
+                            $barangay->city_name,
+                            $barangay->province_name,
+                        ])
+                            ->filter(static fn (?string $part): bool => $part !== null && trim($part) !== '')
+                            ->implode(', ');
+
+                        return [
+                            'id' => (int) $barangay->id,
+                            'name' => (string) $barangay->name,
+                            'address_city_id' => (int) $barangay->address_city_id,
+                            'city' => $barangay->city_name,
+                            'label' => $label !== '' ? $label : (string) $barangay->name,
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                return [
+                    'civil_statuses' => CivilStatus::query()->orderBy('name')->get(['id', 'name']),
+                    'identifications' => Identification::query()->orderBy('name')->get(['id', 'name']),
+                    'address_provinces' => AddressProvince::query()
+                        ->orderBy('name')
+                        ->get(['id', 'name']),
+                    'default_province_id' => $defaultProvince?->id,
+                    'address_cities' => AddressCity::query()
+                        ->orderBy('name')
+                        ->get(['id', 'name', 'address_province_id']),
+                    'address_barangays' => $barangays,
+                ];
+            },
+        );
     }
 
     /**
@@ -216,8 +258,12 @@ class BeneficiaryService
         $base = Assistance::query()->where('beneficiary_id', $beneficiary->id);
 
         $total = (clone $base)->count();
-        $delivered = (clone $base)->whereNotNull('date_delivered')->count();
-        $denied = (clone $base)->whereNotNull('date_denied')->count();
+        $delivered = (clone $base)->where('was_delivered', true)->count();
+        $denied = (clone $base)
+            ->whereHas('currentRequestSubStatus.requestStatus', static function ($query): void {
+                $query->where('name', 'Denied');
+            })
+            ->count();
         $lastRequested = (clone $base)->max('date_requested');
 
         return [
@@ -246,16 +292,14 @@ class BeneficiaryService
                 'assistances.id',
                 'assistances.program_id',
                 'assistances.date_requested',
-                'assistances.date_verified',
                 'assistances.date_delivered',
-                'assistances.date_denied',
                 'programs.name as program_name',
                 'departments.name as department_name',
                 'departments.slug as department_slug',
                 'mode_of_requests.name as mode_of_request_name',
                 'rss.name as request_sub_status_name',
                 'rs.name as request_status_name',
-                'arss.recorded_at as request_sub_status_recorded_at',
+                'assistances.current_status_recorded_at as request_sub_status_recorded_at',
             ]);
 
         if ($search !== '') {
@@ -272,13 +316,9 @@ class BeneficiaryService
             ->paginate(self::ASSISTANCES_PER_PAGE)
             ->withQueryString()
             ->through(static function (Assistance $assistance): array {
-                $status = $assistance->request_sub_status_name ?? match (true) {
-                    $assistance->date_denied !== null => 'Denied',
-                    $assistance->date_delivered !== null => 'Delivered',
-                    $assistance->date_verified !== null => 'Verified',
-                    $assistance->date_requested !== null => 'Pending',
-                    default => 'Unrequested',
-                };
+                $status = $assistance->request_sub_status_name
+                    ?? $assistance->request_status_name
+                    ?? 'Unrequested';
 
                 return [
                     'id' => $assistance->id,

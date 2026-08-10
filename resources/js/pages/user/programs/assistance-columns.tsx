@@ -48,9 +48,7 @@ export type UserProgramAssistanceRow = {
     items: UserProgramAssistanceItem[];
     mode_of_request: string;
     date_requested: string | null;
-    date_verified: string | null;
     date_delivered: string | null;
-    date_denied: string | null;
     request_status: string | null;
     request_sub_status_id: number | null;
     request_sub_status: string | null;
@@ -331,22 +329,6 @@ export function createUserProgramAssistanceColumns({
             },
         },
         {
-            accessorKey: 'date_verified',
-            meta: { title: 'Verified' },
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Verified" />
-            ),
-            cell: ({ row }) => {
-                const value = row.getValue('date_verified') as string | null;
-
-                return (
-                    <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
-                    </span>
-                );
-            },
-        },
-        {
             accessorKey: 'date_delivered',
             meta: { title: 'Delivered' },
             header: ({ column }) => (
@@ -354,22 +336,6 @@ export function createUserProgramAssistanceColumns({
             ),
             cell: ({ row }) => {
                 const value = row.getValue('date_delivered') as string | null;
-
-                return (
-                    <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
-                    </span>
-                );
-            },
-        },
-        {
-            accessorKey: 'date_denied',
-            meta: { title: 'Denied' },
-            header: ({ column }) => (
-                <DataTableColumnHeader column={column} title="Denied" />
-            ),
-            cell: ({ row }) => {
-                const value = row.getValue('date_denied') as string | null;
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
@@ -420,8 +386,6 @@ export const userProgramAssistanceInitialColumnVisibility = {
     request_sub_status_recorded_at: true,
     mode_of_request: true,
     date_requested: false,
-    date_verified: false,
     date_delivered: false,
-    date_denied: false,
     remark: true,
 };

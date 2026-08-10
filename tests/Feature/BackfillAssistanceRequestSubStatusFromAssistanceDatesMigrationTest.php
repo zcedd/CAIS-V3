@@ -8,6 +8,13 @@ use Illuminate\Support\Facades\DB;
 uses(RefreshDatabase::class);
 
 const BACKFILL_MIGRATION_PATH = 'database/migrations/2026_05_20_070518_backfill_assistance_request_sub_status_from_assistance_dates.php';
+const DROP_DATE_COLUMNS_MIGRATION_PATH = 'database/migrations/2026_08_04_031646_drop_date_verified_and_date_denied_from_assistances_table.php';
+
+function restoreLegacyAssistanceDateColumns(): void
+{
+    Artisan::call('migrate:rollback', ['--path' => DROP_DATE_COLUMNS_MIGRATION_PATH]);
+    Artisan::call('migrate:rollback', ['--path' => BACKFILL_MIGRATION_PATH]);
+}
 
 function seedRequestStatusFixtures(): array
 {
@@ -50,7 +57,8 @@ function createAssistanceWithDates(array $dates): int
     ]);
 
     $userId = DB::table('users')->insertGetId([
-        'name' => 'Backfill User',
+        'firstName' => 'Backfill',
+        'lastName' => 'User',
         'email' => 'backfill-'.uniqid().'@example.com',
         'password' => bcrypt('password'),
         'department_id' => $departmentId,
@@ -60,7 +68,7 @@ function createAssistanceWithDates(array $dates): int
 
     $programId = DB::table('programs')->insertGetId([
         'name' => 'Backfill Program',
-        'descriptions' => null,
+        'descriptions' => 'Backfill details',
         'start_at' => now()->toDateString(),
         'end_at' => null,
         'department_id' => $departmentId,
@@ -73,8 +81,6 @@ function createAssistanceWithDates(array $dates): int
     return DB::table('assistances')->insertGetId(array_merge([
         'program_id' => $programId,
         'beneficiary_id' => null,
-        'individual_id' => null,
-        'organization_id' => null,
         'mode_of_request_id' => null,
         'date_requested' => null,
         'date_verified' => null,
@@ -89,7 +95,7 @@ function createAssistanceWithDates(array $dates): int
 }
 
 test('backfill creates a pivot row for every non-null assistance date column', function () {
-    Artisan::call('migrate:rollback', ['--path' => BACKFILL_MIGRATION_PATH]);
+    restoreLegacyAssistanceDateColumns();
 
     $subStatusIds = seedRequestStatusFixtures();
 
@@ -141,7 +147,7 @@ test('backfill creates a pivot row for every non-null assistance date column', f
 });
 
 test('backfill skips null date columns', function () {
-    Artisan::call('migrate:rollback', ['--path' => BACKFILL_MIGRATION_PATH]);
+    restoreLegacyAssistanceDateColumns();
 
     $subStatusIds = seedRequestStatusFixtures();
 
@@ -160,7 +166,7 @@ test('backfill skips null date columns', function () {
 });
 
 test('backfill is idempotent and does not duplicate existing pivot rows for the same sub-status', function () {
-    Artisan::call('migrate:rollback', ['--path' => BACKFILL_MIGRATION_PATH]);
+    restoreLegacyAssistanceDateColumns();
 
     $subStatusIds = seedRequestStatusFixtures();
 
@@ -190,7 +196,7 @@ test('backfill is idempotent and does not duplicate existing pivot rows for the 
 });
 
 test('rollback removes only the backfilled pivot rows', function () {
-    Artisan::call('migrate:rollback', ['--path' => BACKFILL_MIGRATION_PATH]);
+    restoreLegacyAssistanceDateColumns();
 
     $subStatusIds = seedRequestStatusFixtures();
 

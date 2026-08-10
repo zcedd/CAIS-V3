@@ -223,8 +223,8 @@ export default function UserProgramsIndex({
     type: string[];
     status: string[];
     per_page: number;
-    funds: SelectOption[];
-    items: SelectOption[];
+    funds?: SelectOption[];
+    items?: SelectOption[];
 }) {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(false);
@@ -235,12 +235,12 @@ export default function UserProgramsIndex({
     const [selectedFundIds, setSelectedFundIds] = useState<string[]>([]);
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
 
-    const fundOptions = funds.map((fund) => ({
+    const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
         label: String(`${fund.name} (${fund.year})`),
     }));
 
-    const itemOptions = items.map((item) => ({
+    const itemOptions = (items ?? []).map((item) => ({
         value: String(item.id),
         label: String(`${item.name} (${item.unit})`),
     }));

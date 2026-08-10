@@ -9,14 +9,43 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
-use App\Models\RequestSubStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
+/**
+ * @return array{in_progress: int, verified: int, delivered: int}
+ */
+function seedProgramAssistanceStatusCatalog(): array
+{
+    $draftStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Draft']);
+    $verificationStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Verification']);
+    $deliveredStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Delivered']);
+
+    return [
+        'in_progress' => DB::table('request_sub_statuses')->insertGetId([
+            'request_status_id' => $draftStatusId,
+            'name' => 'In Progress',
+            'description' => null,
+        ]),
+        'verified' => DB::table('request_sub_statuses')->insertGetId([
+            'request_status_id' => $verificationStatusId,
+            'name' => 'Verified',
+            'description' => null,
+        ]),
+        'delivered' => DB::table('request_sub_statuses')->insertGetId([
+            'request_status_id' => $deliveredStatusId,
+            'name' => 'Successfully Delivered',
+            'description' => null,
+        ]),
+    ];
+}
+
 test('authenticated users can update assistance status for their department program', function () {
+    $statuses = seedProgramAssistanceStatusCatalog();
     $department = Department::create(['name' => 'Department A']);
 
     $user = User::factory()->create([
@@ -51,54 +80,49 @@ test('authenticated users can update assistance status for their department prog
         'user_id' => $user->id,
     ]);
 
-    $inProgressSubStatusId = RequestSubStatus::query()
-        ->where('name', 'In Progress')
-        ->value('id');
-
-    $verifiedSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Verified')
-        ->value('id');
-
-    expect($inProgressSubStatusId)->not->toBeNull()
-        ->and($verifiedSubStatusId)->not->toBeNull();
-
     AssistanceRequestSubStatus::query()->create([
         'assistance_id' => $assistance->id,
-        'request_sub_status_id' => $inProgressSubStatusId,
+        'request_sub_status_id' => $statuses['in_progress'],
         'remark' => null,
         'recorded_at' => '2026-05-01 00:00:00',
     ]);
 
-    $response = $this->actingAs($user)->patch(
+    $programShowUrl = route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]);
+
+    $response = $this->actingAs($user)->from($programShowUrl)->patch(
         route('user.programs.assistances.status.update', [
             'department' => $department->slug,
             'program' => $program->id,
             'assistance' => $assistance->id,
         ]),
         [
-            'request_sub_status_id' => $verifiedSubStatusId,
+            'request_sub_status_id' => $statuses['verified'],
             'recorded_at' => '2026-05-10',
             'remark' => 'Verified after review',
         ],
     );
 
-    $response->assertRedirect(route('user.programs.show', [
-        'department' => $department->slug,
-        'program' => $program->id,
-    ]));
+    $response->assertRedirect($programShowUrl);
 
     $latestSubStatus = AssistanceRequestSubStatus::query()
         ->where('assistance_id', $assistance->id)
-        ->where('request_sub_status_id', $verifiedSubStatusId)
+        ->where('request_sub_status_id', $statuses['verified'])
         ->latest('recorded_at')
         ->first();
 
+    $assistance->refresh();
+
     expect($latestSubStatus)->not->toBeNull()
         ->and($latestSubStatus->remark)->toBe('Verified after review')
-        ->and(Carbon::parse($latestSubStatus->recorded_at)->toDateString())->toBe('2026-05-10');
+        ->and(Carbon::parse($latestSubStatus->recorded_at)->toDateString())->toBe('2026-05-10')
+        ->and($assistance->current_request_sub_status_id)->toBe($statuses['verified']);
 });
 
 test('updating assistance status preserves the recorded at time', function () {
+    $statuses = seedProgramAssistanceStatusCatalog();
     $department = Department::create(['name' => 'Department A']);
 
     $user = User::factory()->create([
@@ -133,29 +157,24 @@ test('updating assistance status preserves the recorded at time', function () {
         'user_id' => $user->id,
     ]);
 
-    $inProgressSubStatusId = RequestSubStatus::query()
-        ->where('name', 'In Progress')
-        ->value('id');
-
-    $verifiedSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Verified')
-        ->value('id');
-
     AssistanceRequestSubStatus::query()->create([
         'assistance_id' => $assistance->id,
-        'request_sub_status_id' => $inProgressSubStatusId,
+        'request_sub_status_id' => $statuses['in_progress'],
         'remark' => null,
         'recorded_at' => '2026-05-01 00:00:00',
     ]);
 
-    $this->actingAs($user)->patch(
+    $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]))->patch(
         route('user.programs.assistances.status.update', [
             'department' => $department->slug,
             'program' => $program->id,
             'assistance' => $assistance->id,
         ]),
         [
-            'request_sub_status_id' => $verifiedSubStatusId,
+            'request_sub_status_id' => $statuses['verified'],
             'recorded_at' => '2026-05-10 14:30:00',
             'remark' => 'Verified in the afternoon',
         ],
@@ -163,7 +182,7 @@ test('updating assistance status preserves the recorded at time', function () {
 
     $latestSubStatus = AssistanceRequestSubStatus::query()
         ->where('assistance_id', $assistance->id)
-        ->where('request_sub_status_id', $verifiedSubStatusId)
+        ->where('request_sub_status_id', $statuses['verified'])
         ->latest('recorded_at')
         ->first();
 
@@ -172,6 +191,7 @@ test('updating assistance status preserves the recorded at time', function () {
 });
 
 test('updating to delivered status requires and marks the selected assistance items as received', function () {
+    $statuses = seedProgramAssistanceStatusCatalog();
     $department = Department::create(['name' => 'Department A']);
 
     $user = User::factory()->create([
@@ -238,20 +258,19 @@ test('updating to delivered status requires and marks the selected assistance it
         'is_received' => false,
     ]);
 
-    $deliveredSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Successfully Delivered')
-        ->value('id');
+    $programShowUrl = route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]);
 
-    expect($deliveredSubStatusId)->not->toBeNull();
-
-    $response = $this->actingAs($user)->patch(
+    $response = $this->actingAs($user)->from($programShowUrl)->patch(
         route('user.programs.assistances.status.update', [
             'department' => $department->slug,
             'program' => $program->id,
             'assistance' => $assistance->id,
         ]),
         [
-            'request_sub_status_id' => $deliveredSubStatusId,
+            'request_sub_status_id' => $statuses['delivered'],
             'recorded_at' => '2026-05-15',
             'remark' => 'Handed over to beneficiary',
             'delivered_items' => [
@@ -269,10 +288,8 @@ test('updating to delivered status requires and marks the selected assistance it
         ],
     );
 
-    $response->assertRedirect(route('user.programs.show', [
-        'department' => $department->slug,
-        'program' => $program->id,
-    ]));
+    $response->assertRedirect($programShowUrl);
+    $response->assertSessionHasNoErrors();
 
     $riceAssistanceItem->refresh();
     $milkAssistanceItem->refresh();
@@ -284,18 +301,21 @@ test('updating to delivered status requires and marks the selected assistance it
         ->where('is_received', true)
         ->first();
 
-    expect($riceAssistanceItem->is_received)->toBeTrue()
+    expect((bool) $riceAssistanceItem->is_received)->toBeTrue()
         ->and($riceAssistanceItem->quantity)->toBe(2)
         ->and($riceAssistanceItem->specification)->toBe('Premium grade')
-        ->and($milkAssistanceItem->is_received)->toBeFalse()
+        ->and((bool) $milkAssistanceItem->is_received)->toBeFalse()
         ->and($milkAssistanceItem->quantity)->toBe(2)
         ->and($deliveredMilkItem)->not->toBeNull()
         ->and($deliveredMilkItem->quantity)->toBe(3)
         ->and($deliveredMilkItem->specification)->toBe('Powdered')
-        ->and($assistance->date_delivered)->toBe('2026-05-15');
+        ->and($assistance->date_delivered)->toBe('2026-05-15')
+        ->and((bool) $assistance->was_delivered)->toBeTrue()
+        ->and($assistance->current_request_sub_status_id)->toBe($statuses['delivered']);
 });
 
 test('delivered status update requires delivered items', function () {
+    $statuses = seedProgramAssistanceStatusCatalog();
     $department = Department::create(['name' => 'Department A']);
 
     $user = User::factory()->create([
@@ -330,10 +350,6 @@ test('delivered status update requires delivered items', function () {
         'user_id' => $user->id,
     ]);
 
-    $deliveredSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Successfully Delivered')
-        ->value('id');
-
     $response = $this->actingAs($user)->from(route('user.programs.show', [
         'department' => $department->slug,
         'program' => $program->id,
@@ -344,7 +360,7 @@ test('delivered status update requires delivered items', function () {
             'assistance' => $assistance->id,
         ]),
         [
-            'request_sub_status_id' => $deliveredSubStatusId,
+            'request_sub_status_id' => $statuses['delivered'],
             'recorded_at' => '2026-05-15',
         ],
     );

@@ -39,6 +39,7 @@ class StaleAssistanceReminderNotification extends Notification
                 'program:id,name,department_id',
                 'program.department:id,slug',
                 'latestAssistanceRequestSubStatus.requestSubStatus.requestStatus',
+                'currentRequestSubStatus.requestStatus',
             ])
             ->findOrFail($this->assistance->id);
 
@@ -52,13 +53,9 @@ class StaleAssistanceReminderNotification extends Notification
 
         $statusLabel = $requestSubStatus !== null
             ? ($requestStatus !== null ? "{$requestStatus} — {$requestSubStatus}" : $requestSubStatus)
-            : match (true) {
-                $assistance->date_denied !== null => 'Denied',
-                $assistance->date_delivered !== null => 'Delivered',
-                $assistance->date_verified !== null => 'Verified',
-                $assistance->date_requested !== null => 'Pending',
-                default => 'Unrequested',
-            };
+            : ($assistance->currentRequestSubStatus?->requestStatus?->name
+                ?? $assistance->currentRequestSubStatus?->name
+                ?? 'Unrequested');
 
         $lastUpdatedAt = $latestStatus?->recorded_at ?? $assistance->updated_at;
         $lastUpdatedLabel = $lastUpdatedAt !== null

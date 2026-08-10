@@ -47,8 +47,12 @@ class ProgramController extends Controller
             'type' => $types,
             'status' => $statuses,
             'per_page' => $perPage,
-            'funds' => $this->programService->departmentFundsForSelect($department),
-            'items' => $this->programService->departmentItemsForSelect($department),
+            'funds' => Inertia::defer(
+                fn () => $this->programService->departmentFundsForSelect($department),
+            ),
+            'items' => Inertia::defer(
+                fn () => $this->programService->departmentItemsForSelect($department),
+            ),
         ]);
     }
 

@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -118,46 +117,28 @@ return new class extends Migration
 
     private function foreignKeyExists(string $table, string $column, string $referencedTable): bool
     {
-        return DB::table('information_schema.KEY_COLUMN_USAGE')
-            ->whereRaw('TABLE_SCHEMA = DATABASE()')
-            ->where('TABLE_NAME', $table)
-            ->where('COLUMN_NAME', $column)
-            ->where('REFERENCED_TABLE_NAME', $referencedTable)
-            ->exists();
+        return collect(Schema::getForeignKeys($table))->contains(
+            static fn (array $foreignKey): bool => in_array($column, $foreignKey['columns'], true)
+                && $foreignKey['foreign_table'] === $referencedTable,
+        );
     }
 
     private function dropColumnForeignKeyOrIndex(string $table, string $column): void
     {
-        $foreignKeys = DB::table('information_schema.KEY_COLUMN_USAGE as usage')
-            ->join('information_schema.TABLE_CONSTRAINTS as constraints', function ($join): void {
-                $join->on('usage.CONSTRAINT_NAME', '=', 'constraints.CONSTRAINT_NAME')
-                    ->on('usage.TABLE_SCHEMA', '=', 'constraints.CONSTRAINT_SCHEMA')
-                    ->on('usage.TABLE_NAME', '=', 'constraints.TABLE_NAME');
-            })
-            ->whereRaw('usage.TABLE_SCHEMA = DATABASE()')
-            ->where('usage.TABLE_NAME', $table)
-            ->where('usage.COLUMN_NAME', $column)
-            ->where('constraints.CONSTRAINT_TYPE', 'FOREIGN KEY')
-            ->pluck('usage.CONSTRAINT_NAME');
-
-        foreach ($foreignKeys as $foreignKey) {
-            Schema::table($table, function (Blueprint $table) use ($foreignKey) {
-                $table->dropForeign($foreignKey);
-            });
+        foreach (Schema::getForeignKeys($table) as $foreignKey) {
+            if ($foreignKey['name'] !== null && in_array($column, $foreignKey['columns'], true)) {
+                Schema::table($table, function (Blueprint $tableBlueprint) use ($foreignKey) {
+                    $tableBlueprint->dropForeign($foreignKey['name']);
+                });
+            }
         }
 
-        $indexes = DB::table('information_schema.STATISTICS')
-            ->whereRaw('TABLE_SCHEMA = DATABASE()')
-            ->where('TABLE_NAME', $table)
-            ->where('COLUMN_NAME', $column)
-            ->where('INDEX_NAME', '!=', 'PRIMARY')
-            ->distinct()
-            ->pluck('INDEX_NAME');
-
-        foreach ($indexes as $index) {
-            Schema::table($table, function (Blueprint $table) use ($index) {
-                $table->dropIndex($index);
-            });
+        foreach (Schema::getIndexes($table) as $index) {
+            if (! $index['primary'] && in_array($column, $index['columns'], true)) {
+                Schema::table($table, function (Blueprint $tableBlueprint) use ($index) {
+                    $tableBlueprint->dropIndex($index['name']);
+                });
+            }
         }
     }
 };

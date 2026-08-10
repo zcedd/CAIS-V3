@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\User\BeneficiaryMorphService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -39,6 +40,43 @@ class Individual extends Model
         'created_at',
         'updated_at',
     ];
+
+    protected static function booted(): void
+    {
+        static::saved(function (Individual $individual): void {
+            if (
+                ! $individual->wasRecentlyCreated
+                && ! $individual->wasChanged([
+                    'cais_number',
+                    'first_name',
+                    'middle_name',
+                    'last_name',
+                    'suffix',
+                ])
+            ) {
+                return;
+            }
+
+            app(BeneficiaryMorphService::class)->syncMorphRecord(
+                $individual,
+                $individual->cais_number,
+                $individual->fullName(),
+            );
+        });
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'indigenous' => 'boolean',
+            'pwd' => 'boolean',
+            'is_4ps_beneficiary' => 'boolean',
+            'is_solo_parent' => 'boolean',
+        ];
+    }
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -102,11 +140,6 @@ class Individual extends Model
     public function civilStatus(): BelongsTo
     {
         return $this->belongsTo(CivilStatus::class);
-    }
-
-    public function assistance(): HasMany
-    {
-        return $this->hasMany(Assistance::class, 'individual_id');
     }
 
     public function organizationPivot(): HasMany
