@@ -34,6 +34,10 @@ import {
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
 import type { ProgramFieldDefinition } from '@/types/program-field';
+import {
+    applyCreateDrawerOpenChange,
+    useCreateDrawerTourLock,
+} from '@/lib/tour-create-drawer';
 import { cn } from '@/lib/utils';
 import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import {
@@ -224,6 +228,7 @@ export default function UserProgramsIndex({
 }) {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(false);
+    const createDrawerTourLocked = useCreateDrawerTourLock();
     const [startAtOpen, setStartAtOpen] = useState(false);
     const [startAt, setStartAt] = useState<Date | undefined>(undefined);
     const [endAtOpen, setEndAtOpen] = useState(false);
@@ -473,10 +478,22 @@ export default function UserProgramsIndex({
 
             <Drawer
                 open={createOpen}
-                onOpenChange={setCreateOpen}
+                onOpenChange={(open) =>
+                    applyCreateDrawerOpenChange(open, setCreateOpen)
+                }
+                dismissible={!createDrawerTourLocked}
+                noBodyStyles={createDrawerTourLocked}
                 direction="right"
             >
-                <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+                <DrawerContent
+                    className="data-[vaul-drawer-direction=right]:sm:max-w-3xl"
+                    data-tour="programs-create-form"
+                    onPointerDownOutside={(event) => {
+                        if (createDrawerTourLocked) {
+                            event.preventDefault();
+                        }
+                    }}
+                >
                     <DrawerHeader>
                         <DrawerTitle>Create program</DrawerTitle>
                         <DrawerDescription>
@@ -511,7 +528,10 @@ export default function UserProgramsIndex({
                         >
                             {({ errors, processing }) => (
                                 <>
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-name"
+                                    >
                                         <Label htmlFor="program-name">
                                             Name
                                         </Label>
@@ -523,7 +543,10 @@ export default function UserProgramsIndex({
                                         <InputError message={errors.name} />
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-description"
+                                    >
                                         <Label htmlFor="program-descriptions">
                                             Description
                                         </Label>
@@ -538,27 +561,35 @@ export default function UserProgramsIndex({
                                         />
                                     </div>
 
-                                    <ProgramDatePicker
-                                        id="program-start-at"
-                                        label="Start date"
-                                        selected={startAt}
-                                        onSelect={setStartAt}
-                                        open={startAtOpen}
-                                        onOpenChange={setStartAtOpen}
-                                        error={errors.start_at}
-                                    />
+                                    <div
+                                        className="flex flex-col gap-4"
+                                        data-tour="programs-create-dates"
+                                    >
+                                        <ProgramDatePicker
+                                            id="program-start-at"
+                                            label="Start date"
+                                            selected={startAt}
+                                            onSelect={setStartAt}
+                                            open={startAtOpen}
+                                            onOpenChange={setStartAtOpen}
+                                            error={errors.start_at}
+                                        />
 
-                                    <ProgramDatePicker
-                                        id="program-end-at"
-                                        label="End date"
-                                        selected={endAt}
-                                        onSelect={setEndAt}
-                                        open={endAtOpen}
-                                        onOpenChange={setEndAtOpen}
-                                        error={errors.end_at}
-                                    />
+                                        <ProgramDatePicker
+                                            id="program-end-at"
+                                            label="End date"
+                                            selected={endAt}
+                                            onSelect={setEndAt}
+                                            open={endAtOpen}
+                                            onOpenChange={setEndAtOpen}
+                                            error={errors.end_at}
+                                        />
+                                    </div>
 
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-funds"
+                                    >
                                         <Label htmlFor="program-funds">
                                             Funds
                                         </Label>
@@ -572,7 +603,10 @@ export default function UserProgramsIndex({
                                         <InputError message={errors.fund_ids} />
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-items"
+                                    >
                                         <Label htmlFor="program-items">
                                             Items
                                         </Label>
@@ -586,13 +620,18 @@ export default function UserProgramsIndex({
                                         <InputError message={errors.item_ids} />
                                     </div>
 
-                                    <ProgramFieldsEditor
-                                        fields={fields}
-                                        onChange={setFields}
-                                        errors={errors}
-                                    />
+                                    <div data-tour="programs-create-fields">
+                                        <ProgramFieldsEditor
+                                            fields={fields}
+                                            onChange={setFields}
+                                            errors={errors}
+                                        />
+                                    </div>
 
-                                    <div className="flex items-start gap-3">
+                                    <div
+                                        className="flex items-start gap-3"
+                                        data-tour="programs-create-organization"
+                                    >
                                         <Input
                                             id="program-is-organization"
                                             type="checkbox"
@@ -615,7 +654,10 @@ export default function UserProgramsIndex({
                                         </div>
                                     </div>
 
-                                    <DrawerFooter className="px-0">
+                                    <DrawerFooter
+                                        className="px-0"
+                                        data-tour="programs-create-submit"
+                                    >
                                         <Button
                                             type="submit"
                                             disabled={processing}

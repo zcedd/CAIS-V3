@@ -17,6 +17,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FundAmountField } from '@/pages/user/funds/fund-amount-field';
 import type { FundRow } from '@/types/fund';
+import {
+    applyCreateDrawerOpenChange,
+    useCreateDrawerTourLock,
+} from '@/lib/tour-create-drawer';
 import { store as storeFund } from '@/routes/user/funds';
 import { Form } from '@inertiajs/react';
 import { Table, VisibilityState } from '@tanstack/react-table';
@@ -57,6 +61,7 @@ export function FundDataTableToolbar({
 }: FundDataTableToolbarProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search);
     const [createOpen, setCreateOpen] = useState(false);
+    const createDrawerTourLocked = useCreateDrawerTourLock();
     const [createFormKey, setCreateFormKey] = useState(0);
 
     useEffect(() => {
@@ -147,10 +152,22 @@ export function FundDataTableToolbar({
 
             <Drawer
                 open={createOpen}
-                onOpenChange={setCreateOpen}
+                onOpenChange={(open) =>
+                    applyCreateDrawerOpenChange(open, setCreateOpen)
+                }
+                dismissible={!createDrawerTourLocked}
+                noBodyStyles={createDrawerTourLocked}
                 direction="right"
             >
-                <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-lg">
+                <DrawerContent
+                    className="data-[vaul-drawer-direction=right]:sm:max-w-lg"
+                    data-tour="funds-create-form"
+                    onPointerDownOutside={(event) => {
+                        if (createDrawerTourLocked) {
+                            event.preventDefault();
+                        }
+                    }}
+                >
                     <DrawerHeader>
                         <DrawerTitle>Create fund</DrawerTitle>
                         <DrawerDescription>
@@ -174,7 +191,10 @@ export function FundDataTableToolbar({
                     >
                         {({ errors, processing }) => (
                             <>
-                                <div className="space-y-2">
+                                <div
+                                    className="space-y-2"
+                                    data-tour="funds-create-name"
+                                >
                                     <Label htmlFor="fund-name">Name</Label>
                                     <Input
                                         id="fund-name"
@@ -184,13 +204,19 @@ export function FundDataTableToolbar({
                                     <InputError message={errors.name} />
                                 </div>
 
-                                <div className="space-y-2">
+                                <div
+                                    className="space-y-2"
+                                    data-tour="funds-create-amount"
+                                >
                                     <Label htmlFor="fund-amount">Amount</Label>
                                     <FundAmountField id="fund-amount" />
                                     <InputError message={errors.amount} />
                                 </div>
 
-                                <div className="space-y-2">
+                                <div
+                                    className="space-y-2"
+                                    data-tour="funds-create-year"
+                                >
                                     <Label htmlFor="fund-year">Year</Label>
                                     <Input
                                         id="fund-year"
@@ -201,7 +227,10 @@ export function FundDataTableToolbar({
                                     <InputError message={errors.year} />
                                 </div>
 
-                                <div className="flex items-start gap-3">
+                                <div
+                                    className="flex items-start gap-3"
+                                    data-tour="funds-create-active"
+                                >
                                     <Input
                                         id="fund-is-active"
                                         type="checkbox"
@@ -223,7 +252,10 @@ export function FundDataTableToolbar({
                                     </div>
                                 </div>
 
-                                <DrawerFooter className="px-0">
+                                <DrawerFooter
+                                    className="px-0"
+                                    data-tour="funds-create-submit"
+                                >
                                     <Button
                                         type="submit"
                                         disabled={processing}
