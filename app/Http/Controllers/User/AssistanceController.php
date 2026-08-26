@@ -13,6 +13,7 @@ use App\Http\Requests\User\Assistance\BulkTransferRequest;
 use App\Http\Requests\User\Assistance\BulkUpdateStatusRequest;
 use App\Http\Requests\User\Assistance\DestroyRequest;
 use App\Http\Requests\User\Assistance\EditRequest;
+use App\Http\Requests\User\Assistance\EligibilityPreviewRequest;
 use App\Http\Requests\User\Assistance\ExportRequest;
 use App\Http\Requests\User\Assistance\ShowRequest;
 use App\Http\Requests\User\Assistance\StoreRequest;
@@ -20,6 +21,7 @@ use App\Http\Requests\User\Assistance\TransferRequest;
 use App\Http\Requests\User\Assistance\UpdateRequest;
 use App\Http\Requests\User\Assistance\UpdateStatusRequest;
 use App\Models\Assistance;
+use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Program;
 use App\Services\User\AssistanceService;
@@ -63,6 +65,40 @@ class AssistanceController extends Controller
     ): JsonResponse {
         return response()->json([
             'data' => $this->assistanceService->editPayload($assistance),
+        ]);
+    }
+
+    public function eligibility(
+        EligibilityPreviewRequest $request,
+        Department $department,
+        Program $program,
+    ): JsonResponse {
+        $beneficiary = Beneficiary::query()->findOrFail($request->integer('beneficiary_id'));
+
+        $itemDetails = collect($request->input('item_details', []))
+            ->filter(static fn (mixed $row): bool => is_array($row))
+            ->map(static fn (array $row): array => [
+                'item_id' => (int) ($row['item_id'] ?? 0),
+                'quantity' => (int) ($row['quantity'] ?? 0),
+            ])
+            ->all();
+
+        $asOf = $request->filled('recorded_at')
+            ? Carbon::parse($request->input('recorded_at'))
+            : now();
+
+        $exceptAssistanceId = $request->filled('except_assistance_id')
+            ? $request->integer('except_assistance_id')
+            : null;
+
+        return response()->json([
+            'data' => $this->assistanceService->eligibilityPreview(
+                $program,
+                $beneficiary,
+                $itemDetails,
+                $asOf,
+                $exceptAssistanceId,
+            ),
         ]);
     }
 

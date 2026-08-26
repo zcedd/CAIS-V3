@@ -5,6 +5,7 @@ import {
     type BeneficiarySearchOption,
 } from '@/components/beneficiary-search-combobox';
 import { AddressCascadeSelect } from '@/components/address-cascade-select';
+import { DuplicateCandidatesAlert } from '@/components/duplicate-candidates-alert';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,7 +28,11 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { index as beneficiariesIndex } from '@/routes/user/beneficiaries';
+import { toOptionList } from '@/lib/utils';
+import {
+    duplicates as beneficiaryDuplicates,
+    index as beneficiariesIndex,
+} from '@/routes/user/beneficiaries';
 import { store as storeIndividual } from '@/routes/user/beneficiaries/individuals';
 import { store as storeOrganization } from '@/routes/user/beneficiaries/organizations';
 import type {
@@ -36,7 +41,8 @@ import type {
     IndividualFormData,
 } from '@/types/beneficiary';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
+import type { DuplicateCandidate } from '@/types/eligibility';
+import { Form, Head, Link, setLayoutProps, usePage } from '@inertiajs/react';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -63,11 +69,19 @@ const emptyIndividualForm = (): IndividualFormData => ({
 
 export default function UserBeneficiariesCreate({
     department,
-    form_options,
+    form_options: rawFormOptions,
 }: {
     department: DepartmentSummary;
-    form_options: FormOptions;
+    form_options?: FormOptions;
 }) {
+    const form_options: FormOptions = {
+        civil_statuses: toOptionList(rawFormOptions?.civil_statuses),
+        identifications: toOptionList(rawFormOptions?.identifications),
+        address_provinces: toOptionList(rawFormOptions?.address_provinces),
+        default_province_id: rawFormOptions?.default_province_id ?? null,
+        address_cities: toOptionList(rawFormOptions?.address_cities),
+        address_barangays: toOptionList(rawFormOptions?.address_barangays),
+    };
     const [beneficiaryKind, setBeneficiaryKind] = useState<
         'individual' | 'organization'
     >('individual');
@@ -83,6 +97,14 @@ export default function UserBeneficiariesCreate({
         Array<{ individual_id: number; option: BeneficiarySearchOption }>
     >([]);
     const [orgBarangayId, setOrgBarangayId] = useState<number | null>(null);
+    const [orgName, setOrgName] = useState('');
+    const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
+    const [duplicateCandidates, setDuplicateCandidates] = useState<
+        DuplicateCandidate[]
+    >([]);
+    const { duplicate_candidates: flashedDuplicates } = usePage<{
+        duplicate_candidates?: DuplicateCandidate[] | null;
+    }>().props;
     const [memberPickerKey, setMemberPickerKey] = useState(0);
     const [pendingMemberId, setPendingMemberId] = useState<number | null>(null);
     const [pendingMemberOption, setPendingMemberOption] =
@@ -152,6 +174,113 @@ export default function UserBeneficiariesCreate({
         setMemberPickerKey((value) => value + 1);
     };
 
+    useEffect(() => {
+        if (flashedDuplicates && flashedDuplicates.length > 0) {
+            setDuplicateCandidates(flashedDuplicates);
+        }
+    }, [flashedDuplicates]);
+
+    useEffect(() => {
+        if (beneficiaryKind !== 'individual') {
+            return;
+        }
+
+        const handle = window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const response = await fetch(
+                        beneficiaryDuplicates.url(department.slug, {
+                            query: {
+                                beneficiary_type: 'individual',
+                                first_name: individualForm.first_name,
+                                last_name: individualForm.last_name,
+                                birthday: individualForm.birthday || undefined,
+                                address_barangay_id:
+                                    individualForm.address_barangay_id ??
+                                    undefined,
+                                identifications: individualForm.identifications,
+                            },
+                        }),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        },
+                    );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = (await response.json()) as {
+                        data: DuplicateCandidate[];
+                    };
+
+                    setDuplicateCandidates(payload.data);
+                    setDuplicateAcknowledged(false);
+                } catch {
+                    // Preview is best-effort; submit still validates on the server.
+                }
+            })();
+        }, 400);
+
+        return () => window.clearTimeout(handle);
+    }, [
+        beneficiaryKind,
+        department.slug,
+        individualForm.first_name,
+        individualForm.last_name,
+        individualForm.birthday,
+        individualForm.address_barangay_id,
+        individualForm.identifications,
+    ]);
+
+    useEffect(() => {
+        if (beneficiaryKind !== 'organization') {
+            return;
+        }
+
+        const handle = window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const response = await fetch(
+                        beneficiaryDuplicates.url(department.slug, {
+                            query: {
+                                beneficiary_type: 'organization',
+                                name: orgName,
+                                address_barangay_id: orgBarangayId ?? undefined,
+                            },
+                        }),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        },
+                    );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = (await response.json()) as {
+                        data: DuplicateCandidate[];
+                    };
+
+                    setDuplicateCandidates(payload.data);
+                    setDuplicateAcknowledged(false);
+                } catch {
+                    // Preview is best-effort; submit still validates on the server.
+                }
+            })();
+        }, 400);
+
+        return () => window.clearTimeout(handle);
+    }, [beneficiaryKind, department.slug, orgName, orgBarangayId]);
+
     return (
         <>
             <Head title="Add beneficiary" />
@@ -174,11 +303,13 @@ export default function UserBeneficiariesCreate({
 
                 <Tabs
                     value={beneficiaryKind}
-                    onValueChange={(value) =>
+                    onValueChange={(value) => {
                         setBeneficiaryKind(
                             value as 'individual' | 'organization',
-                        )
-                    }
+                        );
+                        setDuplicateCandidates([]);
+                        setDuplicateAcknowledged(false);
+                    }}
                 >
                     <TabsList>
                         <TabsTrigger value="individual">Individual</TabsTrigger>
@@ -199,10 +330,28 @@ export default function UserBeneficiariesCreate({
                                 <Form
                                     {...storeIndividual.form(department.slug)}
                                     className="grid gap-4"
+                                    transform={(data) => ({
+                                        ...data,
+                                        duplicate_acknowledged:
+                                            duplicateAcknowledged,
+                                    })}
                                 >
                                     {({ processing, errors }) => (
                                         <>
-                                            <div className="grid gap-4 md:grid-cols-2">
+                                            <DuplicateCandidatesAlert
+                                                departmentSlug={department.slug}
+                                                candidates={duplicateCandidates}
+                                                error={errors.duplicates}
+                                                acknowledged={
+                                                    duplicateAcknowledged
+                                                }
+                                                onAcknowledge={() =>
+                                                    setDuplicateAcknowledged(
+                                                        true,
+                                                    )
+                                                }
+                                            />
+                                            <div className="grid gap-4 md:grid-cols-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="first_name">
                                                         First name
@@ -304,219 +453,24 @@ export default function UserBeneficiariesCreate({
                                                         }
                                                     />
                                                 </div>
-                                                <div className="grid gap-4 md:col-span-2 md:grid-cols-2 lg:grid-cols-4">
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="birthday">
-                                                            Birthday
-                                                        </Label>
-                                                        <Input
-                                                            id="birthday"
-                                                            name="birthday"
-                                                            type="date"
-                                                            value={
-                                                                individualForm.birthday
-                                                            }
-                                                            onChange={(event) =>
-                                                                setIndividualForm(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        birthday:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    }),
-                                                                )
-                                                            }
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="sex">
-                                                            Sex
-                                                        </Label>
-                                                        <Select
-                                                            value={
-                                                                individualForm.sex
-                                                            }
-                                                            onValueChange={(
-                                                                value,
-                                                            ) =>
-                                                                setIndividualForm(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        sex: value as
-                                                                            | 'Male'
-                                                                            | 'Female',
-                                                                    }),
-                                                                )
-                                                            }
-                                                        >
-                                                            <SelectTrigger
-                                                                className="w-full"
-                                                                id="sex"
-                                                            >
-                                                                <SelectValue placeholder="Select sex" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="Male">
-                                                                    Male
-                                                                </SelectItem>
-                                                                <SelectItem value="Female">
-                                                                    Female
-                                                                </SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <input
-                                                            type="hidden"
-                                                            name="sex"
-                                                            value={
-                                                                individualForm.sex
-                                                            }
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="mobile_number">
-                                                            Mobile number
-                                                        </Label>
-                                                        <Input
-                                                            id="mobile_number"
-                                                            name="mobile_number"
-                                                            value={
-                                                                individualForm.mobile_number
-                                                            }
-                                                            onChange={(event) =>
-                                                                setIndividualForm(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        mobile_number:
-                                                                            event
-                                                                                .target
-                                                                                .value,
-                                                                    }),
-                                                                )
-                                                            }
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label htmlFor="civil_status_id">
-                                                            Civil status
-                                                        </Label>
-                                                        <Select
-                                                            value={
-                                                                individualForm.civil_status_id
-                                                                    ? String(
-                                                                          individualForm.civil_status_id,
-                                                                      )
-                                                                    : undefined
-                                                            }
-                                                            onValueChange={(
-                                                                value,
-                                                            ) =>
-                                                                setIndividualForm(
-                                                                    (
-                                                                        current,
-                                                                    ) => ({
-                                                                        ...current,
-                                                                        civil_status_id:
-                                                                            Number(
-                                                                                value,
-                                                                            ),
-                                                                    }),
-                                                                )
-                                                            }
-                                                        >
-                                                            <SelectTrigger
-                                                                className="w-full"
-                                                                id="civil_status_id"
-                                                            >
-                                                                <SelectValue placeholder="Select civil status" />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                {form_options.civil_statuses.map(
-                                                                    (
-                                                                        status,
-                                                                    ) => (
-                                                                        <SelectItem
-                                                                            key={
-                                                                                status.id
-                                                                            }
-                                                                            value={String(
-                                                                                status.id,
-                                                                            )}
-                                                                        >
-                                                                            {
-                                                                                status.name
-                                                                            }
-                                                                        </SelectItem>
-                                                                    ),
-                                                                )}
-                                                            </SelectContent>
-                                                        </Select>
-                                                        <input
-                                                            type="hidden"
-                                                            name="civil_status_id"
-                                                            value={
-                                                                individualForm.civil_status_id ??
-                                                                ''
-                                                            }
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="space-y-2 md:col-span-2">
-                                                    <AddressCascadeSelect
-                                                        provinces={
-                                                            form_options.address_provinces
-                                                        }
-                                                        defaultProvinceId={
-                                                            form_options.default_province_id
-                                                        }
-                                                        cities={
-                                                            form_options.address_cities
-                                                        }
-                                                        barangays={
-                                                            form_options.address_barangays
-                                                        }
-                                                        value={
-                                                            individualForm.address_barangay_id
-                                                        }
-                                                        onChange={(
-                                                            barangayId,
-                                                        ) =>
-                                                            setIndividualForm(
-                                                                (current) => ({
-                                                                    ...current,
-                                                                    address_barangay_id:
-                                                                        barangayId,
-                                                                }),
-                                                            )
-                                                        }
-                                                        name="address_barangay_id"
-                                                        error={
-                                                            errors.address_barangay_id
-                                                        }
-                                                        idPrefix="individual_address"
-                                                    />
-                                                </div>
-                                                <div className="space-y-2 md:col-span-2">
-                                                    <Label htmlFor="other_address">
-                                                        Other address
+                                            </div>
+                                            <div className="grid gap-4 md:grid-cols-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="birthday">
+                                                        Birthday
                                                     </Label>
-                                                    <Textarea
-                                                        id="other_address"
-                                                        name="other_address"
+                                                    <Input
+                                                        id="birthday"
+                                                        name="birthday"
+                                                        type="date"
                                                         value={
-                                                            individualForm.other_address
+                                                            individualForm.birthday
                                                         }
                                                         onChange={(event) =>
                                                             setIndividualForm(
                                                                 (current) => ({
                                                                     ...current,
-                                                                    other_address:
+                                                                    birthday:
                                                                         event
                                                                             .target
                                                                             .value,
@@ -525,7 +479,191 @@ export default function UserBeneficiariesCreate({
                                                         }
                                                     />
                                                 </div>
-                                                <div className="space-y-2 md:col-span-2">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="sex">
+                                                        Sex
+                                                    </Label>
+                                                    <Select
+                                                        value={
+                                                            individualForm.sex
+                                                        }
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            setIndividualForm(
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    sex: value as
+                                                                        | 'Male'
+                                                                        | 'Female',
+                                                                }),
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger
+                                                            className="w-full"
+                                                            id="sex"
+                                                        >
+                                                            <SelectValue placeholder="Select sex" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="Male">
+                                                                Male
+                                                            </SelectItem>
+                                                            <SelectItem value="Female">
+                                                                Female
+                                                            </SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <input
+                                                        type="hidden"
+                                                        name="sex"
+                                                        value={
+                                                            individualForm.sex
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="mobile_number">
+                                                        Mobile number
+                                                    </Label>
+                                                    <Input
+                                                        id="mobile_number"
+                                                        name="mobile_number"
+                                                        value={
+                                                            individualForm.mobile_number
+                                                        }
+                                                        onChange={(event) =>
+                                                            setIndividualForm(
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    mobile_number:
+                                                                        event
+                                                                            .target
+                                                                            .value,
+                                                                }),
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="civil_status_id">
+                                                        Civil status
+                                                    </Label>
+                                                    <Select
+                                                        value={
+                                                            individualForm.civil_status_id
+                                                                ? String(
+                                                                      individualForm.civil_status_id,
+                                                                  )
+                                                                : undefined
+                                                        }
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            setIndividualForm(
+                                                                (current) => ({
+                                                                    ...current,
+                                                                    civil_status_id:
+                                                                        Number(
+                                                                            value,
+                                                                        ),
+                                                                }),
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger
+                                                            className="w-full"
+                                                            id="civil_status_id"
+                                                        >
+                                                            <SelectValue placeholder="Select civil status" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {form_options.civil_statuses.map(
+                                                                (status) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            status.id
+                                                                        }
+                                                                        value={String(
+                                                                            status.id,
+                                                                        )}
+                                                                    >
+                                                                        {
+                                                                            status.name
+                                                                        }
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <input
+                                                        type="hidden"
+                                                        name="civil_status_id"
+                                                        value={
+                                                            individualForm.civil_status_id ??
+                                                            ''
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <AddressCascadeSelect
+                                                    provinces={
+                                                        form_options.address_provinces
+                                                    }
+                                                    defaultProvinceId={
+                                                        form_options.default_province_id
+                                                    }
+                                                    cities={
+                                                        form_options.address_cities
+                                                    }
+                                                    barangays={
+                                                        form_options.address_barangays
+                                                    }
+                                                    value={
+                                                        individualForm.address_barangay_id
+                                                    }
+                                                    onChange={(barangayId) =>
+                                                        setIndividualForm(
+                                                            (current) => ({
+                                                                ...current,
+                                                                address_barangay_id:
+                                                                    barangayId,
+                                                            }),
+                                                        )
+                                                    }
+                                                    name="address_barangay_id"
+                                                    error={
+                                                        errors.address_barangay_id
+                                                    }
+                                                    idPrefix="individual_address"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="other_address">
+                                                    Other address
+                                                </Label>
+                                                <Textarea
+                                                    id="other_address"
+                                                    name="other_address"
+                                                    value={
+                                                        individualForm.other_address
+                                                    }
+                                                    onChange={(event) =>
+                                                        setIndividualForm(
+                                                            (current) => ({
+                                                                ...current,
+                                                                other_address:
+                                                                    event.target
+                                                                        .value,
+                                                            }),
+                                                        )
+                                                    }
+                                                />
+                                            </div>
+                                            <div className="grid gap-4 md:grid-cols-2">
+                                                <div className="space-y-2">
                                                     <Label htmlFor="spouse">
                                                         Spouse
                                                     </Label>
@@ -550,7 +688,7 @@ export default function UserBeneficiariesCreate({
                                                         message={errors.spouse}
                                                     />
                                                 </div>
-                                                <div className="space-y-2 md:col-span-2">
+                                                <div className="space-y-2">
                                                     <Label htmlFor="ethnicity">
                                                         Ethnicity
                                                     </Label>
@@ -909,9 +1047,27 @@ export default function UserBeneficiariesCreate({
                                 <Form
                                     {...storeOrganization.form(department.slug)}
                                     className="grid gap-4"
+                                    transform={(data) => ({
+                                        ...data,
+                                        duplicate_acknowledged:
+                                            duplicateAcknowledged,
+                                    })}
                                 >
                                     {({ processing, errors }) => (
                                         <>
+                                            <DuplicateCandidatesAlert
+                                                departmentSlug={department.slug}
+                                                candidates={duplicateCandidates}
+                                                error={errors.duplicates}
+                                                acknowledged={
+                                                    duplicateAcknowledged
+                                                }
+                                                onAcknowledge={() =>
+                                                    setDuplicateAcknowledged(
+                                                        true,
+                                                    )
+                                                }
+                                            />
                                             <div className="grid gap-4 md:grid-cols-2">
                                                 <div className="space-y-2 md:col-span-2">
                                                     <Label htmlFor="name">
@@ -920,6 +1076,13 @@ export default function UserBeneficiariesCreate({
                                                     <Input
                                                         id="name"
                                                         name="name"
+                                                        value={orgName}
+                                                        onChange={(event) =>
+                                                            setOrgName(
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
                                                     />
                                                     <InputError
                                                         message={errors.name}

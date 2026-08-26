@@ -229,6 +229,11 @@ export function AssistanceDataTableRowActions({
                     programId={programId}
                     programName={programName}
                     beneficiaryName={record.beneficiary_name}
+                    beneficiaryId={record.beneficiary_id}
+                    itemDetails={record.items.map((item) => ({
+                        item_id: item.item_id,
+                        quantity: item.quantity ?? 1,
+                    }))}
                     transferProgramOptions={transferProgramOptions}
                     onTransferred={onAssistanceUpdated}
                 />

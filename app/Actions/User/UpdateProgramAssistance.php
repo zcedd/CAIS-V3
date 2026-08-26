@@ -4,12 +4,15 @@ namespace App\Actions\User;
 
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Models\Beneficiary;
 use App\Services\User\ProgramFieldService;
+use Illuminate\Support\Facades\DB;
 
 class UpdateProgramAssistance
 {
     public function __construct(
         private ProgramFieldService $programFieldService,
+        private GuardAssistanceEligibility $guardAssistanceEligibility,
     ) {}
 
     /**
@@ -25,36 +28,63 @@ class UpdateProgramAssistance
      *     field_values?: list<array{
      *         program_field_id: int,
      *         value?: string|null
-     *     }>
+     *     }>,
+     *     eligibility_override_reason?: string|null
      * }  $validated
      */
     public function __invoke(Assistance $assistance, array $validated): Assistance
     {
-        $assistance->update([
-            'beneficiary_id' => $validated['beneficiary_id'],
-            'mode_of_request_id' => $validated['mode_of_request_id'],
-            'remark' => $validated['remark'] ?? null,
-        ]);
+        return DB::transaction(function () use ($assistance, $validated): Assistance {
+            $beneficiary = Beneficiary::query()
+                ->lockForUpdate()
+                ->findOrFail($validated['beneficiary_id']);
 
-        AssistanceItem::query()
-            ->where('assistance_id', $assistance->id)
-            ->delete();
+            $overrideReason = isset($validated['eligibility_override_reason'])
+                ? trim((string) $validated['eligibility_override_reason'])
+                : null;
+            $overrideReason = $overrideReason === '' ? null : $overrideReason;
 
-        foreach ($validated['item_details'] as $itemDetail) {
-            AssistanceItem::query()->create([
-                'assistance_id' => $assistance->id,
-                'item_id' => $itemDetail['item_id'],
-                'quantity' => $itemDetail['quantity'],
-                'specification' => $itemDetail['specification'] ?? null,
-                'is_received' => false,
+            $this->guardAssistanceEligibility->assert(
+                $assistance->program,
+                $beneficiary,
+                collect($validated['item_details'])
+                    ->map(static fn (array $row): array => [
+                        'item_id' => (int) $row['item_id'],
+                        'quantity' => (int) $row['quantity'],
+                    ])
+                    ->all(),
+                $overrideReason,
+                now(),
+                $assistance->id,
+            );
+
+            $assistance->update([
+                'beneficiary_id' => $beneficiary->id,
+                'mode_of_request_id' => $validated['mode_of_request_id'],
+                'remark' => $validated['remark'] ?? null,
+                'eligibility_override_reason' => $overrideReason,
             ]);
-        }
 
-        $this->programFieldService->syncValuesForAssistance(
-            $assistance,
-            $validated['field_values'] ?? [],
-        );
+            AssistanceItem::query()
+                ->where('assistance_id', $assistance->id)
+                ->delete();
 
-        return $assistance->refresh();
+            foreach ($validated['item_details'] as $itemDetail) {
+                AssistanceItem::query()->create([
+                    'assistance_id' => $assistance->id,
+                    'item_id' => $itemDetail['item_id'],
+                    'quantity' => $itemDetail['quantity'],
+                    'specification' => $itemDetail['specification'] ?? null,
+                    'is_received' => false,
+                ]);
+            }
+
+            $this->programFieldService->syncValuesForAssistance(
+                $assistance,
+                $validated['field_values'] ?? [],
+            );
+
+            return $assistance->refresh();
+        });
     }
 }

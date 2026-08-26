@@ -21,6 +21,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard.index');
 
         Route::get('beneficiaries/search', [UserBeneficiaryController::class, 'search'])->name('user.beneficiaries.search');
+        Route::get('beneficiaries/duplicates', [UserBeneficiaryController::class, 'duplicates'])->name('user.beneficiaries.duplicates');
         Route::get('beneficiaries/create', [UserBeneficiaryController::class, 'create'])->name('user.beneficiaries.create');
         Route::get('beneficiaries/{beneficiary}', [UserBeneficiaryController::class, 'show'])->name('user.beneficiaries.show');
         Route::get('beneficiaries/{beneficiary}/edit', [UserBeneficiaryController::class, 'edit'])->name('user.beneficiaries.edit');
@@ -41,6 +42,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('notifications/{notification}/read', [UserNotificationController::class, 'markAsRead'])->name('user.notifications.read');
 
         Route::post('programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
+        Route::get('programs/{program}/assistances/eligibility', [UserAssistanceController::class, 'eligibility'])->name('user.programs.assistances.eligibility');
         Route::patch('programs/{program}/assistances/bulk-status', [UserAssistanceController::class, 'bulkUpdateStatus'])->name('user.programs.assistances.status.bulk-update');
         Route::patch('programs/{program}/assistances/bulk-transfer', [UserAssistanceController::class, 'bulkTransfer'])->name('user.programs.assistances.bulk-transfer');
         Route::get('programs/{program}/assistances/export', [UserAssistanceController::class, 'export'])->name('user.programs.assistances.export');

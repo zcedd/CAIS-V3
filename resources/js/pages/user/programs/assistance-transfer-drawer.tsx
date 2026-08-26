@@ -1,5 +1,9 @@
 'use client';
 
+import {
+    EligibilityFindingsPanel,
+    hasHardEligibilityFindings,
+} from '@/components/eligibility-findings-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,8 +25,12 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import type { AssistanceTransferProgramOption } from '@/pages/user/programs/assistance-toolbar';
-import { transfer as transferProgramAssistance } from '@/routes/user/programs/assistances';
-import { Form } from '@inertiajs/react';
+import {
+    eligibility as assistanceEligibility,
+    transfer as transferProgramAssistance,
+} from '@/routes/user/programs/assistances';
+import type { EligibilityPreview } from '@/types/eligibility';
+import { Form, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -38,6 +46,8 @@ type AssistanceTransferDrawerProps = {
     programId: number;
     programName: string;
     beneficiaryName: string;
+    beneficiaryId: number | null;
+    itemDetails: Array<{ item_id: number; quantity: number }>;
     transferProgramOptions: AssistanceTransferProgramOption[];
     onTransferred?: () => void;
 };
@@ -50,14 +60,25 @@ export function AssistanceTransferDrawer({
     programId,
     programName,
     beneficiaryName,
+    beneficiaryId,
+    itemDetails,
     transferProgramOptions,
     onTransferred,
 }: AssistanceTransferDrawerProps) {
     const [formKey, setFormKey] = useState(0);
     const [selectedProgramId, setSelectedProgramId] = useState('');
+    const [eligibilityPreview, setEligibilityPreview] =
+        useState<EligibilityPreview | null>(null);
+    const [eligibilityLoading, setEligibilityLoading] = useState(false);
+    const [overrideReason, setOverrideReason] = useState('');
+    const { eligibility_findings: flashedFindings } = usePage<{
+        eligibility_findings?: EligibilityPreview['findings'] | null;
+    }>().props;
 
     const resetForm = () => {
         setSelectedProgramId('');
+        setEligibilityPreview(null);
+        setOverrideReason('');
     };
 
     useEffect(() => {
@@ -70,6 +91,68 @@ export function AssistanceTransferDrawer({
         setFormKey((key) => key + 1);
         resetForm();
     }, [open, assistanceId]);
+
+    useEffect(() => {
+        if (!open || selectedProgramId === '' || beneficiaryId === null) {
+            setEligibilityPreview(null);
+
+            return;
+        }
+
+        const handle = window.setTimeout(() => {
+            void (async () => {
+                setEligibilityLoading(true);
+
+                try {
+                    const response = await fetch(
+                        assistanceEligibility.url(
+                            {
+                                department: departmentSlug,
+                                program: Number(selectedProgramId),
+                            },
+                            {
+                                query: {
+                                    beneficiary_id: beneficiaryId,
+                                    except_assistance_id: assistanceId,
+                                    item_details: itemDetails,
+                                },
+                            },
+                        ),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        },
+                    );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = (await response.json()) as {
+                        data: EligibilityPreview;
+                    };
+
+                    setEligibilityPreview(payload.data);
+                } catch {
+                    // Preview is best-effort; submit still validates on the server.
+                } finally {
+                    setEligibilityLoading(false);
+                }
+            })();
+        }, 300);
+
+        return () => window.clearTimeout(handle);
+    }, [
+        open,
+        selectedProgramId,
+        beneficiaryId,
+        assistanceId,
+        departmentSlug,
+        itemDetails,
+    ]);
 
     const selectedProgram = transferProgramOptions.find(
         (option) => String(option.id) === selectedProgramId,
@@ -97,6 +180,7 @@ export function AssistanceTransferDrawer({
                     disableWhileProcessing
                     transform={() => ({
                         target_program_id: Number(selectedProgramId),
+                        eligibility_override_reason: overrideReason,
                     })}
                     onSuccess={() => {
                         resetForm();
@@ -159,13 +243,34 @@ export function AssistanceTransferDrawer({
                                 </p>
                             ) : null}
 
+                            <EligibilityFindingsPanel
+                                departmentSlug={departmentSlug}
+                                findings={
+                                    flashedFindings ??
+                                    eligibilityPreview?.findings ??
+                                    []
+                                }
+                                history={eligibilityPreview?.history ?? []}
+                                overrideReason={overrideReason}
+                                onOverrideReasonChange={setOverrideReason}
+                                overrideError={
+                                    errors.eligibility_override_reason
+                                }
+                                isLoading={eligibilityLoading}
+                            />
+
                             <DrawerFooter className="px-0">
                                 <Button
                                     type="submit"
                                     disabled={
                                         processing ||
                                         !selectedProgramId ||
-                                        transferProgramOptions.length === 0
+                                        transferProgramOptions.length === 0 ||
+                                        hasHardEligibilityFindings(
+                                            flashedFindings ??
+                                                eligibilityPreview?.findings ??
+                                                [],
+                                        )
                                     }
                                 >
                                     {processing

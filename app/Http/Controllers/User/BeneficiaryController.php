@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Actions\User\FindPossibleDuplicateBeneficiaries;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Beneficiary\CreateFormRequest;
 use App\Http\Requests\User\Beneficiary\EditRequest;
+use App\Http\Requests\User\Beneficiary\FindDuplicatesRequest;
 use App\Http\Requests\User\Beneficiary\IndexRequest;
 use App\Http\Requests\User\Beneficiary\ShowRequest;
 use App\Http\Requests\User\Beneficiary\StoreIndividualRequest;
@@ -206,6 +208,16 @@ class BeneficiaryController extends Controller
 
         return response()->json([
             'data' => $beneficiaries,
+        ]);
+    }
+
+    public function duplicates(
+        FindDuplicatesRequest $request,
+        Department $department,
+        FindPossibleDuplicateBeneficiaries $findPossibleDuplicateBeneficiaries,
+    ): JsonResponse {
+        return response()->json([
+            'data' => $findPossibleDuplicateBeneficiaries($request->duplicateSearchInput()),
         ]);
     }
 }

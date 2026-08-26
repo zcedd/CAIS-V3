@@ -1,5 +1,9 @@
 'use client';
 
+import {
+    EligibilityFindingsPanel,
+    hasHardEligibilityFindings,
+} from '@/components/eligibility-findings-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -19,10 +23,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { AssistanceTransferProgramOption } from '@/pages/user/programs/assistance-toolbar';
 import { bulkTransfer as bulkTransferProgramAssistance } from '@/routes/user/programs/assistances';
-import { Form } from '@inertiajs/react';
+import type { EligibilityPreview } from '@/types/eligibility';
+import { Form, usePage } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -53,11 +59,16 @@ export function AssistanceBulkTransferDrawer({
 }: AssistanceBulkTransferDrawerProps) {
     const [formKey, setFormKey] = useState(0);
     const [selectedProgramId, setSelectedProgramId] = useState('');
+    const [overrideReason, setOverrideReason] = useState('');
+    const { eligibility_findings: flashedFindings } = usePage<{
+        eligibility_findings?: EligibilityPreview['findings'] | null;
+    }>().props;
 
     const selectedCount = assistanceIds.length;
 
     const resetForm = () => {
         setSelectedProgramId('');
+        setOverrideReason('');
     };
 
     useEffect(() => {
@@ -98,6 +109,7 @@ export function AssistanceBulkTransferDrawer({
                     transform={() => ({
                         assistance_ids: assistanceIds,
                         target_program_id: Number(selectedProgramId),
+                        eligibility_override_reason: overrideReason,
                     })}
                     onSuccess={() => {
                         resetForm();
@@ -164,6 +176,41 @@ export function AssistanceBulkTransferDrawer({
 
                             <InputError message={errors.assistance_ids} />
 
+                            <EligibilityFindingsPanel
+                                departmentSlug={departmentSlug}
+                                findings={flashedFindings ?? []}
+                                history={[]}
+                                overrideReason={overrideReason}
+                                onOverrideReasonChange={setOverrideReason}
+                                overrideError={
+                                    errors.eligibility_override_reason
+                                }
+                            />
+
+                            {(flashedFindings ?? []).length === 0 ? (
+                                <div className="space-y-2">
+                                    <Label htmlFor="bulk-eligibility-override-reason">
+                                        Eligibility override reason
+                                    </Label>
+                                    <Textarea
+                                        id="bulk-eligibility-override-reason"
+                                        value={overrideReason}
+                                        onChange={(event) =>
+                                            setOverrideReason(
+                                                event.target.value,
+                                            )
+                                        }
+                                        rows={3}
+                                        placeholder="Required if a selected record already has an open request in the target program"
+                                    />
+                                    <InputError
+                                        message={
+                                            errors.eligibility_override_reason
+                                        }
+                                    />
+                                </div>
+                            ) : null}
+
                             <DrawerFooter className="px-0">
                                 <Button
                                     type="submit"
@@ -171,7 +218,10 @@ export function AssistanceBulkTransferDrawer({
                                         processing ||
                                         !selectedProgramId ||
                                         selectedCount === 0 ||
-                                        transferProgramOptions.length === 0
+                                        transferProgramOptions.length === 0 ||
+                                        hasHardEligibilityFindings(
+                                            flashedFindings ?? [],
+                                        )
                                     }
                                 >
                                     {processing

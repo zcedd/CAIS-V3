@@ -27,6 +27,7 @@ class Assistance extends Model
         'date_delivered',
         'user_id',
         'remark',
+        'eligibility_override_reason',
         'created_at',
         'updated_at',
     ];

@@ -119,7 +119,7 @@ class Individual extends Model
 
     public function beneficiaryIdentification(): HasMany
     {
-        return $this->hasMany(IndividualIdentification::class);
+        return $this->hasMany(IndividualIdentification::class, 'beneficiary_id');
     }
 
     public function identification(): BelongsToMany

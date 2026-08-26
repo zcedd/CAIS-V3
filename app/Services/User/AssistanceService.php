@@ -4,6 +4,8 @@ namespace App\Services\User;
 
 use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
+use App\Actions\User\EvaluateAssistanceEligibility;
+use App\Actions\User\GuardAssistanceEligibility;
 use App\Actions\User\JoinAssistanceTableRelations;
 use App\Models\Assistance;
 use App\Models\AssistanceFieldValue;
@@ -15,10 +17,12 @@ use App\Models\Program;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AssistanceService
@@ -28,6 +32,8 @@ class AssistanceService
         private ApplyAssistanceTableSort $applyAssistanceTableSort,
         private ApplyAssistanceTableFilters $applyAssistanceTableFilters,
         private ProgramFieldService $programFieldService,
+        private GuardAssistanceEligibility $guardAssistanceEligibility,
+        private EvaluateAssistanceEligibility $evaluateAssistanceEligibility,
     ) {}
 
     public function ensureProgramIsOpen(Program $program, string $message): void
@@ -53,51 +59,70 @@ class AssistanceService
      *     field_values?: list<array{
      *         program_field_id: int,
      *         value?: string|null
-     *     }>
+     *     }>,
+     *     eligibility_override_reason?: string|null
      * }  $validated
      */
     public function create(Program $program, User $user, array $validated): Assistance
     {
-        $recordedAt = Carbon::parse($validated['recorded_at']);
+        return DB::transaction(function () use ($program, $user, $validated): Assistance {
+            $beneficiary = Beneficiary::query()
+                ->lockForUpdate()
+                ->findOrFail($validated['beneficiary_id']);
 
-        $assistance = Assistance::query()->create([
-            'program_id' => $program->id,
-            'beneficiary_id' => $validated['beneficiary_id'],
-            'mode_of_request_id' => $validated['mode_of_request_id'],
-            'date_requested' => $recordedAt->toDateString(),
-            'remark' => $validated['remark'] ?? null,
-            'user_id' => $user->id,
-        ]);
+            $recordedAt = Carbon::parse($validated['recorded_at']);
+            $overrideReason = $this->nullableOverrideReason($validated['eligibility_override_reason'] ?? null);
 
-        $inProgressSubStatusId = RequestSubStatus::query()
-            ->where('name', 'In Progress')
-            ->value('id');
+            $this->guardAssistanceEligibility->assert(
+                $program,
+                $beneficiary,
+                $this->normalizedItemDetails($validated['item_details']),
+                $overrideReason,
+                $recordedAt,
+            );
 
-        if ($inProgressSubStatusId !== null) {
-            AssistanceRequestSubStatus::query()->create([
-                'assistance_id' => $assistance->id,
-                'request_sub_status_id' => $inProgressSubStatusId,
-                'remark' => null,
-                'recorded_at' => $recordedAt,
+            $assistance = Assistance::query()->create([
+                'program_id' => $program->id,
+                'beneficiary_id' => $beneficiary->id,
+                'mode_of_request_id' => $validated['mode_of_request_id'],
+                'date_requested' => $recordedAt->toDateString(),
+                'remark' => $validated['remark'] ?? null,
+                'eligibility_override_reason' => $overrideReason,
+                'user_id' => $user->id,
             ]);
-        }
 
-        foreach ($validated['item_details'] as $itemDetail) {
-            AssistanceItem::query()->create([
-                'assistance_id' => $assistance->id,
-                'item_id' => $itemDetail['item_id'],
-                'quantity' => $itemDetail['quantity'],
-                'specification' => $itemDetail['specification'] ?? null,
-                'is_received' => false,
-            ]);
-        }
+            $inProgressSubStatusId = RequestSubStatus::query()
+                ->where('name', 'In Progress')
+                ->value('id');
 
-        $this->programFieldService->syncValuesForAssistance(
-            $assistance,
-            $validated['field_values'] ?? [],
-        );
+            if ($inProgressSubStatusId !== null) {
+                AssistanceRequestSubStatus::query()->create([
+                    'assistance_id' => $assistance->id,
+                    'request_sub_status_id' => $inProgressSubStatusId,
+                    'remark' => $overrideReason !== null
+                        ? 'Eligibility override: '.$overrideReason
+                        : null,
+                    'recorded_at' => $recordedAt,
+                ]);
+            }
 
-        return $assistance;
+            foreach ($validated['item_details'] as $itemDetail) {
+                AssistanceItem::query()->create([
+                    'assistance_id' => $assistance->id,
+                    'item_id' => $itemDetail['item_id'],
+                    'quantity' => $itemDetail['quantity'],
+                    'specification' => $itemDetail['specification'] ?? null,
+                    'is_received' => false,
+                ]);
+            }
+
+            $this->programFieldService->syncValuesForAssistance(
+                $assistance,
+                $validated['field_values'] ?? [],
+            );
+
+            return $assistance;
+        });
     }
 
     /**
@@ -384,5 +409,118 @@ class AssistanceService
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  list<array{item_id?: int, quantity?: int}>  $itemDetails
+     * @return array{
+     *     findings: list<array{severity: string, code: string, message: string, assistance_id?: int, item_id?: int}>,
+     *     history: list<array{
+     *         id: int,
+     *         program_id: int,
+     *         program_name: string,
+     *         status: string|null,
+     *         date_requested: string|null,
+     *         date_delivered: string|null,
+     *         items: list<array{name: string, quantity: int, is_received: bool}>
+     *     }>
+     * }
+     */
+    public function eligibilityPreview(
+        Program $program,
+        Beneficiary $beneficiary,
+        array $itemDetails = [],
+        ?DateTimeInterface $asOf = null,
+        ?int $exceptAssistanceId = null,
+    ): array {
+        $asOf = $asOf instanceof Carbon ? $asOf : Carbon::parse($asOf ?? now());
+
+        $findings = ($this->evaluateAssistanceEligibility)(
+            $program,
+            $beneficiary,
+            $this->normalizedItemDetails($itemDetails),
+            $asOf,
+            $exceptAssistanceId,
+        );
+
+        $history = Assistance::query()
+            ->where('beneficiary_id', $beneficiary->id)
+            ->whereHas('program', function ($query) use ($program): void {
+                $query->where('department_id', $program->department_id);
+            })
+            ->when(
+                $exceptAssistanceId !== null,
+                fn ($query) => $query->whereKeyNot($exceptAssistanceId),
+            )
+            ->with([
+                'program:id,name',
+                'currentRequestSubStatus:id,name,request_status_id',
+                'currentRequestSubStatus.requestStatus:id,name',
+                'assistanceItem:id,assistance_id,item_id,quantity,is_received',
+                'assistanceItem.item:id,name',
+            ])
+            ->orderByDesc('date_requested')
+            ->orderByDesc('id')
+            ->limit(20)
+            ->get();
+
+        return [
+            'findings' => $findings,
+            'history' => $history
+                ->map(static function (Assistance $assistance): array {
+                    $status = $assistance->currentRequestSubStatus?->requestStatus?->name
+                        ?? $assistance->currentRequestSubStatus?->name;
+
+                    return [
+                        'id' => $assistance->id,
+                        'program_id' => $assistance->program_id,
+                        'program_name' => $assistance->program?->name ?? '—',
+                        'status' => $status,
+                        'date_requested' => $assistance->date_requested !== null
+                            ? Carbon::parse($assistance->date_requested)->toDateString()
+                            : null,
+                        'date_delivered' => $assistance->date_delivered !== null
+                            ? Carbon::parse($assistance->date_delivered)->toDateString()
+                            : null,
+                        'items' => $assistance->assistanceItem
+                            ->map(static fn (AssistanceItem $item): array => [
+                                'name' => $item->item?->name ?? '—',
+                                'quantity' => (int) $item->quantity,
+                                'is_received' => (bool) $item->is_received,
+                            ])
+                            ->values()
+                            ->all(),
+                    ];
+                })
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @param  list<array{item_id?: int, quantity?: int}>  $itemDetails
+     * @return list<array{item_id: int, quantity: int}>
+     */
+    private function normalizedItemDetails(array $itemDetails): array
+    {
+        return collect($itemDetails)
+            ->map(static fn (array $row): array => [
+                'item_id' => (int) ($row['item_id'] ?? 0),
+                'quantity' => (int) ($row['quantity'] ?? 0),
+            ])
+            ->filter(static fn (array $row): bool => $row['item_id'] > 0 && $row['quantity'] > 0)
+            ->values()
+            ->all();
+    }
+
+    private function nullableOverrideReason(?string $reason): ?string
+    {
+        if ($reason === null) {
+            return null;
+        }
+
+        $trimmed = trim($reason);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 }

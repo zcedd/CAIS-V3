@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Department;
 use App\Models\Program;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Validator;
 
 class StoreRequest extends FormRequest
 {
+    use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
 
     /**
@@ -53,6 +55,7 @@ class StoreRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
+            ...$this->programEligibilityRules($this->input('item_ids', [])),
             ...$this->programFieldDefinitionRules(),
         ];
     }
@@ -60,6 +63,7 @@ class StoreRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $this->afterProgramFieldDefinitions($validator);
+        $this->afterProgramEligibilityRules($validator);
     }
 
     /**
@@ -75,6 +79,7 @@ class StoreRequest extends FormRequest
             'is_organization' => 'organization program',
             'fund_ids' => 'funds',
             'item_ids' => 'items',
+            ...$this->programEligibilityAttributes(),
             ...$this->programFieldDefinitionAttributes(),
         ];
     }
