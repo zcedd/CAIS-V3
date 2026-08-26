@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "4bf9e8cfaf4201cac0fe61b54df8744e",
+    "content-hash": "d6a2207d3fb6b8658e3f8d8ed5e4b79f",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -8453,6 +8453,73 @@
                 "source": "https://github.com/webmozarts/assert/tree/2.3.0"
             },
             "time": "2026-04-11T10:33:05+00:00"
+        },
+        {
+            "name": "zcedd/qr-code",
+            "version": "v1.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/zcedd/qrcode.git",
+                "reference": "915e30fcd036e31dab27275ef87988088e98d4d9"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/zcedd/qrcode/zipball/915e30fcd036e31dab27275ef87988088e98d4d9",
+                "reference": "915e30fcd036e31dab27275ef87988088e98d4d9",
+                "shasum": ""
+            },
+            "require": {
+                "bacon/bacon-qr-code": "^2.0|^3.0",
+                "ext-gd": "*",
+                "php": ">=7.2|^8.0"
+            },
+            "require-dev": {
+                "mockery/mockery": "~1",
+                "phpunit/phpunit": "~9"
+            },
+            "suggest": {
+                "ext-imagick": "Allows the generation of PNG QrCodes.",
+                "illuminate/support": "Allows for use within Laravel."
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "aliases": {
+                        "QrCode": "Zcedd\\QrCode\\Facades\\QrCode"
+                    },
+                    "providers": [
+                        "Zcedd\\QrCode\\QrCodeServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Zcedd\\QrCode\\": "src"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Simple Software LLC",
+                    "email": "support@simplesoftware.io"
+                }
+            ],
+            "description": "Simple QrCode is a QR code generator made for Laravel.",
+            "homepage": "https://www.simplesoftware.io/#/docs/simple-qrcode",
+            "keywords": [
+                "Simple",
+                "generator",
+                "laravel",
+                "qrcode",
+                "wrapper"
+            ],
+            "support": {
+                "source": "https://github.com/zcedd/qrcode/tree/v1.0.2"
+            },
+            "time": "2025-10-10T03:59:51+00:00"
         }
     ],
     "packages-dev": [

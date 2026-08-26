@@ -5,10 +5,16 @@ namespace App\Actions\User;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
+use App\Models\RequestSubStatus;
+use App\Services\User\AssistanceDocumentService;
 use Illuminate\Support\Carbon;
 
 class UpdateProgramAssistanceStatus
 {
+    public function __construct(
+        private AssistanceDocumentService $assistanceDocumentService,
+    ) {}
+
     /**
      * @param  array{
      *     request_sub_status_id: int,
@@ -23,6 +29,12 @@ class UpdateProgramAssistanceStatus
      */
     public function __invoke(Assistance $assistance, array $validated): Assistance
     {
+        $subStatus = RequestSubStatus::query()
+            ->with('requestStatus:id,name')
+            ->findOrFail($validated['request_sub_status_id']);
+
+        $this->assistanceDocumentService->assertCompleteForSubStatus($assistance, $subStatus);
+
         $recordedAt = Carbon::parse($validated['recorded_at']);
 
         AssistanceRequestSubStatus::query()->create([

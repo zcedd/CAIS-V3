@@ -1,6 +1,7 @@
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import type { ServerPaginationMeta } from '@/components/data-table/types';
 import InputError from '@/components/input-error';
+import { ProgramDocumentRequirementsEditor } from '@/components/program-document-requirements-editor';
 import { ProgramEligibilityFields, eligibilityPayloadFromForm } from '@/components/program-eligibility-fields';
 import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { ServerPagination } from '@/components/server-pagination';
@@ -34,6 +35,7 @@ import {
     store as storeProgram,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
+import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
@@ -219,6 +221,7 @@ export default function UserProgramsIndex({
     per_page: initialPerPage,
     funds,
     items,
+    document_types = [],
 }: {
     programs: PaginatedPrograms;
     department: DepartmentSummary | null;
@@ -228,6 +231,7 @@ export default function UserProgramsIndex({
     per_page: number;
     funds?: SelectOption[];
     items?: SelectOption[];
+    document_types?: DocumentTypeOption[];
 }) {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(false);
@@ -239,6 +243,9 @@ export default function UserProgramsIndex({
     const [selectedFundIds, setSelectedFundIds] = useState<string[]>([]);
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
     const [fields, setFields] = useState<ProgramFieldDefinition[]>([]);
+    const [documentRequirements, setDocumentRequirements] = useState<
+        ProgramDocumentRequirementInput[]
+    >([]);
     const [isOrganization, setIsOrganization] = useState(false);
     const [eligibility, setEligibility] = useState<ProgramEligibilityFormValue>(
         emptyProgramEligibility(),
@@ -262,6 +269,7 @@ export default function UserProgramsIndex({
         setSelectedFundIds([]);
         setSelectedItemIds([]);
         setFields([]);
+        setDocumentRequirements([]);
         setIsOrganization(false);
         setEligibility(emptyProgramEligibility());
     };
@@ -527,6 +535,16 @@ export default function UserProgramsIndex({
                                     ...field,
                                     sort_order: index,
                                 })),
+                                document_requirements: documentRequirements
+                                    .filter(
+                                        (requirement) =>
+                                            requirement.document_type_id !==
+                                            null,
+                                    )
+                                    .map((requirement, index) => ({
+                                        ...requirement,
+                                        sort_order: index,
+                                    })),
                                 is_organization: isOrganization,
                                 ...eligibilityPayloadFromForm(
                                     eligibility,
@@ -641,6 +659,13 @@ export default function UserProgramsIndex({
                                             errors={errors}
                                         />
                                     </div>
+
+                                    <ProgramDocumentRequirementsEditor
+                                        requirements={documentRequirements}
+                                        documentTypes={document_types}
+                                        onChange={setDocumentRequirements}
+                                        errors={errors}
+                                    />
 
                                     <ProgramEligibilityFields
                                         value={eligibility}

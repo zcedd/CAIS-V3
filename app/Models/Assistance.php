@@ -83,6 +83,11 @@ class Assistance extends Model
         return $this->hasMany(AssistanceFieldValue::class);
     }
 
+    public function documents(): HasMany
+    {
+        return $this->hasMany(AssistanceDocument::class)->orderByDesc('id');
+    }
+
     public function itemPivot()
     {
         return $this->hasMany(AssistanceItem::class);

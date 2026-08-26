@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
+use App\Http\Controllers\User\AssistanceDocumentController as UserAssistanceDocumentController;
+use App\Http\Controllers\User\AssistanceReceiptController as UserAssistanceReceiptController;
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\FundController as UserFundController;
@@ -51,6 +53,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'destroy'])->name('user.programs.assistances.destroy');
         Route::patch('programs/{program}/assistances/{assistance}/status', [UserAssistanceController::class, 'updateStatus'])->name('user.programs.assistances.status.update');
         Route::patch('programs/{program}/assistances/{assistance}/transfer', [UserAssistanceController::class, 'transfer'])->name('user.programs.assistances.transfer');
+        Route::get('programs/{program}/assistances/{assistance}/receipt', [UserAssistanceReceiptController::class, 'show'])->name('user.assistances.receipt');
+        Route::post('programs/{program}/assistances/{assistance}/documents', [UserAssistanceDocumentController::class, 'store'])->name('user.assistances.documents.store');
+        Route::get('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'show'])->name('user.assistances.documents.show');
+        Route::delete('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'destroy'])->name('user.assistances.documents.destroy');
         Route::get('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'show'])->name('user.assistances.show');
     });
 });

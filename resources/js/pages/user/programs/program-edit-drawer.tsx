@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { ProgramDocumentRequirementsEditor } from '@/components/program-document-requirements-editor';
 import { ProgramEligibilityFields, eligibilityPayloadFromForm } from '@/components/program-eligibility-fields';
 import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { update as updateProgram } from '@/routes/user/programs';
+import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
@@ -66,6 +68,7 @@ type ProgramEditRelations = {
     fund_ids: number[];
     item_ids: number[];
     fields: ProgramFieldDefinition[];
+    document_requirements?: ProgramDocumentRequirementInput[];
     eligibility?: ProgramEligibilityPayload;
 };
 
@@ -202,6 +205,7 @@ type ProgramEditDrawerProps = {
     programEdit?: ProgramEditRelations;
     funds?: SelectOption[];
     items?: SelectOption[];
+    documentTypes?: DocumentTypeOption[];
     formKey: number;
     onClose: () => void;
 };
@@ -214,6 +218,7 @@ export function ProgramEditDrawer({
     programEdit,
     funds = [],
     items = [],
+    documentTypes = [],
     formKey,
     onClose,
 }: ProgramEditDrawerProps) {
@@ -234,6 +239,9 @@ export function ProgramEditDrawer({
     const [fields, setFields] = useState<ProgramFieldDefinition[]>(
         () => programEdit?.fields ?? [],
     );
+    const [documentRequirements, setDocumentRequirements] = useState<
+        ProgramDocumentRequirementInput[]
+    >(() => programEdit?.document_requirements ?? []);
     const [eligibility, setEligibility] = useState<ProgramEligibilityFormValue>(
         () => eligibilityFormFromPayload(programEdit?.eligibility),
     );
@@ -251,6 +259,7 @@ export function ProgramEditDrawer({
         setSelectedFundIds(programEdit.fund_ids.map(String));
         setSelectedItemIds(programEdit.item_ids.map(String));
         setFields(programEdit.fields ?? []);
+        setDocumentRequirements(programEdit.document_requirements ?? []);
         setEligibility(eligibilityFormFromPayload(programEdit.eligibility));
     }, [programEdit]);
 
@@ -295,6 +304,15 @@ export function ProgramEditDrawer({
                             ...field,
                             sort_order: index,
                         })),
+                        document_requirements: documentRequirements
+                            .filter(
+                                (requirement) =>
+                                    requirement.document_type_id !== null,
+                            )
+                            .map((requirement, index) => ({
+                                ...requirement,
+                                sort_order: index,
+                            })),
                         ...eligibilityPayloadFromForm(
                             eligibility,
                             selectedItemIds,
@@ -388,6 +406,13 @@ export function ProgramEditDrawer({
                             <ProgramFieldsEditor
                                 fields={fields}
                                 onChange={setFields}
+                                errors={errors}
+                            />
+
+                            <ProgramDocumentRequirementsEditor
+                                requirements={documentRequirements}
+                                documentTypes={documentTypes}
+                                onChange={setDocumentRequirements}
                                 errors={errors}
                             />
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Department;
@@ -13,6 +14,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateRequest extends FormRequest
 {
+    use ValidatesProgramDocumentRequirements;
     use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
 
@@ -57,6 +59,7 @@ class UpdateRequest extends FormRequest
             ],
             ...$this->programEligibilityRules($this->input('item_ids', [])),
             ...$this->programFieldDefinitionRules(),
+            ...$this->programDocumentRequirementRules(),
         ];
     }
 
@@ -64,6 +67,7 @@ class UpdateRequest extends FormRequest
     {
         $this->afterProgramFieldDefinitions($validator);
         $this->afterProgramEligibilityRules($validator);
+        $this->afterProgramDocumentRequirements($validator);
 
         $validator->after(function (Validator $validator): void {
             $program = $this->program;
@@ -87,6 +91,27 @@ class UpdateRequest extends FormRequest
                     );
                 }
             }
+
+            $requirements = $this->input('document_requirements', []);
+
+            if (! is_array($requirements)) {
+                return;
+            }
+
+            $ownedRequirementIds = $program->documentRequirements()->pluck('id')->all();
+
+            foreach ($requirements as $index => $requirement) {
+                if (! is_array($requirement) || ! isset($requirement['id'])) {
+                    continue;
+                }
+
+                if (! in_array((int) $requirement['id'], $ownedRequirementIds, true)) {
+                    $validator->errors()->add(
+                        "document_requirements.{$index}.id",
+                        'The selected document requirement is invalid for this program.',
+                    );
+                }
+            }
         });
     }
 
@@ -106,6 +131,7 @@ class UpdateRequest extends FormRequest
             'item_ids' => 'items',
             ...$this->programEligibilityAttributes(),
             ...$this->programFieldDefinitionAttributes(),
+            ...$this->programDocumentRequirementAttributes(),
         ];
     }
 }

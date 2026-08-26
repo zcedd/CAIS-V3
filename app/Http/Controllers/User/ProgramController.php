@@ -9,6 +9,7 @@ use App\Http\Requests\User\Program\StoreRequest;
 use App\Http\Requests\User\Program\UpdateRequest;
 use App\Models\Department;
 use App\Models\Program;
+use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceService;
 use App\Services\User\ProgramService;
 use Illuminate\Http\RedirectResponse;
@@ -20,6 +21,7 @@ class ProgramController extends Controller
     public function __construct(
         private ProgramService $programService,
         private AssistanceService $assistanceService,
+        private AssistanceDocumentService $assistanceDocumentService,
     ) {}
 
     /**
@@ -53,6 +55,7 @@ class ProgramController extends Controller
             'items' => Inertia::defer(
                 fn () => $this->programService->departmentItemsForSelect($department),
             ),
+            'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
         ]);
     }
 
@@ -175,6 +178,7 @@ class ProgramController extends Controller
                 fn () => $this->programService->transferProgramsForSelect($department, $program),
                 'table',
             ),
+            'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
         ]);
     }
 }

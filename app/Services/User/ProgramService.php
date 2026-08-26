@@ -19,6 +19,7 @@ class ProgramService
         private ItemService $itemService,
         private DashboardService $dashboardService,
         private ProgramFieldService $programFieldService,
+        private ProgramDocumentRequirementService $programDocumentRequirementService,
     ) {}
 
     /**
@@ -89,6 +90,13 @@ class ProgramService
             $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
         }
 
+        if (array_key_exists('document_requirements', $validated)) {
+            $this->programDocumentRequirementService->syncForProgram(
+                $program,
+                $validated['document_requirements'] ?? [],
+            );
+        }
+
         $this->syncEligibility($program, $validated);
 
         return $program;
@@ -113,6 +121,13 @@ class ProgramService
 
         if (array_key_exists('fields', $validated)) {
             $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
+        }
+
+        if (array_key_exists('document_requirements', $validated)) {
+            $this->programDocumentRequirementService->syncForProgram(
+                $program,
+                $validated['document_requirements'] ?? [],
+            );
         }
 
         $this->syncEligibility($program, $validated);
@@ -207,6 +222,13 @@ class ProgramService
      *         is_required: bool,
      *         show_in_table: bool,
      *         sort_order: int
+     *     }>,
+     *     document_requirements: list<array{
+     *         id: int,
+     *         document_type_id: int,
+     *         is_required: bool,
+     *         required_before: string,
+     *         sort_order: int
      *     }>
      * }
      */
@@ -218,6 +240,7 @@ class ProgramService
             'fund_ids' => $program->fund->pluck('id')->values()->all(),
             'item_ids' => $program->item->pluck('id')->values()->all(),
             'fields' => $this->programFieldService->fieldsPayload($program),
+            'document_requirements' => $this->programDocumentRequirementService->requirementsPayload($program),
             'eligibility' => $this->eligibilityPayload($program),
         ];
     }

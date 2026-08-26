@@ -6,18 +6,20 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import { AssistanceDocumentsSection } from '@/pages/user/assistances/assistance-documents';
 import {
     AssistanceStatusTimeline,
     type AssistanceStatusTimelineEntry,
 } from '@/pages/user/assistances/assistance-status-timeline';
 import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
-import { show as assistanceShow } from '@/routes/user/assistances';
+import { receipt as assistanceReceipt, show as assistanceShow } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
+import type { AssistanceDocumentsPayload, DocumentTypeOption } from '@/types/document';
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
 import {
@@ -30,6 +32,7 @@ import {
     ClipboardList,
     Package,
     PackageCheck,
+    Printer,
     UserRound,
     type LucideIcon,
 } from 'lucide-react';
@@ -222,10 +225,14 @@ export default function UserAssistanceShow({
     department,
     program,
     assistance,
+    documents,
+    document_types,
 }: {
     department: DepartmentSummary;
     program: ProgramSummary;
     assistance: AssistanceProfile;
+    documents: AssistanceDocumentsPayload;
+    document_types: DocumentTypeOption[];
 }) {
     const statusOption = assistanceStatuses.find(
         (entry) => entry.value === assistance.status,
@@ -337,17 +344,31 @@ export default function UserAssistanceShow({
                             </span>
                         </p>
                     </div>
-                    <Button variant="outline" asChild>
-                        <Link
-                            href={departmentProgramShow.url({
-                                department: department.slug,
-                                program: program.id,
-                            })}
-                        >
-                            <ArrowLeft className="size-4" />
-                            Back to program
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" asChild>
+                            <Link
+                                href={assistanceReceipt.url({
+                                    department: department.slug,
+                                    program: program.id,
+                                    assistance: assistance.id,
+                                })}
+                            >
+                                <Printer className="size-4" />
+                                Print acknowledgment
+                            </Link>
+                        </Button>
+                        <Button variant="outline" asChild>
+                            <Link
+                                href={departmentProgramShow.url({
+                                    department: department.slug,
+                                    program: program.id,
+                                })}
+                            >
+                                <ArrowLeft className="size-4" />
+                                Back to program
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Overview */}
@@ -673,6 +694,14 @@ export default function UserAssistanceShow({
                         />
                     </div>
                 </section>
+
+                <AssistanceDocumentsSection
+                    departmentSlug={department.slug}
+                    programId={program.id}
+                    assistanceId={assistance.id}
+                    documents={documents}
+                    documentTypes={document_types}
+                />
 
                 {/* Items */}
                 <section

@@ -134,6 +134,10 @@ export function AssistanceBulkStatusDrawer({
     }, [open, assistanceIds]);
 
     const selectedCount = assistanceIds.length;
+    const selectedSubStatus = bulkStatusOptions.find(
+        (option) => String(option.id) === selectedSubStatusId,
+    );
+    const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -156,6 +160,10 @@ export function AssistanceBulkStatusDrawer({
                     })}
                     method="patch"
                     disableWhileProcessing
+                    options={{
+                        preserveScroll: true,
+                        preserveState: true,
+                    }}
                     transform={(data) => ({
                         ...data,
                         assistance_ids: assistanceIds,
@@ -203,6 +211,14 @@ export function AssistanceBulkStatusDrawer({
                                     message={errors.request_sub_status_id}
                                 />
                             </div>
+
+                            {isVerifiedStatus ? (
+                                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                                    Required documents must be attached on each
+                                    assistance profile before bulk Verified can
+                                    proceed.
+                                </p>
+                            ) : null}
 
                             <div className="space-y-2">
                                 <Label htmlFor="bulk-assistance-status-recorded-at">
