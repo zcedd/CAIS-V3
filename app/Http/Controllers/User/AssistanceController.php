@@ -25,6 +25,7 @@ use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Program;
 use App\Services\User\AssistanceDocumentService;
+use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\AssistanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -39,6 +40,7 @@ class AssistanceController extends Controller
     public function __construct(
         private AssistanceService $assistanceService,
         private AssistanceDocumentService $assistanceDocumentService,
+        private AssistanceItemFulfillmentService $assistanceItemFulfillmentService,
     ) {}
 
     /**
@@ -281,7 +283,7 @@ class AssistanceController extends Controller
             'modeOfRequest:id,name',
             'program:id,name,department_id',
             'program.department:id,name,slug',
-            'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
+            'assistanceItem',
             'assistanceItem.item:id,name,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
             'requestSubStatus' => function ($query): void {
@@ -314,16 +316,9 @@ class AssistanceController extends Controller
             ?? $assistance->currentRequestSubStatus?->name
             ?? 'Unrequested';
 
-        $items = $assistance->assistanceItem
-            ->map(static fn ($assistanceItem): array => [
-                'name' => $assistanceItem->item?->name ?? '—',
-                'quantity' => $assistanceItem->quantity,
-                'unit' => $assistanceItem->item?->unitMeasurement?->name,
-                'specification' => $assistanceItem->specification,
-                'is_received' => (bool) $assistanceItem->is_received,
-            ])
-            ->values()
-            ->all();
+        $itemFulfillment = $this->assistanceItemFulfillmentService->summarize(
+            $assistance->assistanceItem,
+        );
 
         return Inertia::render('user/assistances/show', [
             'department' => $department->only(['id', 'name', 'slug']),
@@ -354,11 +349,9 @@ class AssistanceController extends Controller
                         ?->recorded_at,
                 ),
                 'remark' => $assistance->remark,
-                'items_count' => count($items),
-                'items_received_count' => collect($items)
-                    ->where('is_received', true)
-                    ->count(),
-                'items' => $items,
+                'requested_items' => $itemFulfillment['requested'],
+                'released_items' => $itemFulfillment['released'],
+                'item_variance' => $itemFulfillment['variance'],
                 'status_history' => $statusHistory
                     ->map(static fn ($subStatus): array => [
                         'id' => (int) $subStatus->pivot->id,

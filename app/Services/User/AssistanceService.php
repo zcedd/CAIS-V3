@@ -17,6 +17,7 @@ use App\Models\Program;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
+use App\Support\AssistanceItemOrigin;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -110,7 +111,9 @@ class AssistanceService
                 AssistanceItem::query()->create([
                     'assistance_id' => $assistance->id,
                     'item_id' => $itemDetail['item_id'],
+                    'origin' => AssistanceItemOrigin::Requested,
                     'quantity' => $itemDetail['quantity'],
+                    'requested_quantity' => $itemDetail['quantity'],
                     'specification' => $itemDetail['specification'] ?? null,
                     'is_received' => false,
                 ]);
@@ -126,13 +129,16 @@ class AssistanceService
     }
 
     /**
+     * Editing only ever touches the outstanding request; released and substituted lines are
+     * historical facts and are left out of the payload.
+     *
      * @return array<string, mixed>
      */
     public function editPayload(Assistance $assistance): array
     {
         $assistance->load([
             'beneficiary:id,cais_number,name',
-            'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
+            'assistanceItem' => static fn ($query) => $query->awaitingRelease(),
             'fieldValues:id,assistance_id,program_field_id,value',
         ]);
 
@@ -233,7 +239,7 @@ class AssistanceService
                     'cais_number' => $assistance->beneficiary_cais_number ?? '—',
                     'beneficiary_name' => $assistance->beneficiary_name ?? '—',
                     'items' => $assistance->assistanceItem
-                        ->map(static fn ($assistanceItem): array => [
+                        ->map(static fn (AssistanceItem $assistanceItem): array => [
                             'id' => $assistanceItem->id,
                             'item_id' => $assistanceItem->item_id,
                             'name' => $assistanceItem->item?->name ?? '—',
@@ -241,6 +247,10 @@ class AssistanceService
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,
                             'specification' => $assistanceItem->specification,
                             'is_received' => (bool) $assistanceItem->is_received,
+                            'origin' => $assistanceItem->origin,
+                            'requested_quantity' => (int) $assistanceItem->requested_quantity,
+                            'is_substituted' => $assistanceItem->isSubstituted(),
+                            'fulfillment_reason' => $assistanceItem->fulfillment_reason,
                         ])
                         ->values()
                         ->all(),
@@ -318,7 +328,7 @@ class AssistanceService
             'rs.name as request_status_name',
             'assistances.current_status_recorded_at as request_sub_status_recorded_at',
         ])->with([
-            'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
+            'assistanceItem',
             'assistanceItem.item:id,name,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
             'fieldValues:id,assistance_id,program_field_id,value',

@@ -7,6 +7,7 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
+use App\Support\AssistanceItemOrigin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -74,7 +75,9 @@ test('authenticated users can view an assistance profile in their department', f
     AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,
+        'origin' => AssistanceItemOrigin::Requested,
         'quantity' => 2,
+        'requested_quantity' => 2,
         'specification' => '25 kg',
         'is_received' => false,
     ]);
@@ -97,12 +100,15 @@ test('authenticated users can view an assistance profile in their department', f
             ->where('assistance.beneficiary_name', '—')
             ->where('assistance.beneficiary_type', null)
             ->where('assistance.remark', 'Needs follow-up')
-            ->where('assistance.items_count', 1)
-            ->where('assistance.items_received_count', 0)
-            ->where('assistance.items.0.name', 'Rice')
-            ->where('assistance.items.0.quantity', 2)
-            ->where('assistance.items.0.unit', 'kg')
-            ->where('assistance.items.0.is_received', false)
+            ->where('assistance.requested_items.0.name', 'Rice')
+            ->where('assistance.requested_items.0.unit', 'kg')
+            ->where('assistance.requested_items.0.requested_quantity', 2)
+            ->where('assistance.requested_items.0.released_quantity', 0)
+            ->where('assistance.requested_items.0.pending_quantity', 2)
+            ->where('assistance.released_items', [])
+            ->where('assistance.item_variance.requested_quantity', 2)
+            ->where('assistance.item_variance.released_quantity', 0)
+            ->where('assistance.item_variance.shortfall_quantity', 2)
             ->has('documents.checklist')
             ->has('documents.additional_documents')
             ->has('document_types'));

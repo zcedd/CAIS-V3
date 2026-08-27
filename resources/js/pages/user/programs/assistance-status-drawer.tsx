@@ -30,12 +30,21 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceItem } from '@/pages/user/programs/assistance-columns';
-import type { AssistanceRequestSubStatusOption } from '@/pages/user/programs/assistance-toolbar';
+import type {
+    AssistanceProgramItemOption,
+    AssistanceRequestSubStatusOption,
+} from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { update as updateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
 import { Form, Link } from '@inertiajs/react';
-import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import {
+    CalendarDays,
+    ChevronDownIcon,
+    Plus,
+    RotateCcw,
+    X,
+} from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 const selectClassName = cn(
@@ -46,6 +55,53 @@ type DeliveredItemDetail = {
     quantity: string;
     specification: string;
 };
+
+/**
+ * A line that was handed over but never applied for: either an extra item, or a stand-in for
+ * a requested item that could not be released.
+ */
+type ExtraItemDraft = {
+    key: string;
+    origin: 'additional' | 'substitute';
+    itemId: string;
+    quantity: string;
+    specification: string;
+    fulfillmentReason: string;
+    substitutedForId: string;
+};
+
+function createExtraItemDraft(): ExtraItemDraft {
+    return {
+        key:
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                ? crypto.randomUUID()
+                : String(Date.now() + Math.random()),
+        origin: 'additional',
+        itemId: '',
+        quantity: '1',
+        specification: '',
+        fulfillmentReason: '',
+        substitutedForId: '',
+    };
+}
+
+function isExtraItemDraftComplete(draft: ExtraItemDraft): boolean {
+    if (!draft.itemId || !draft.quantity || !draft.fulfillmentReason.trim()) {
+        return false;
+    }
+
+    return draft.origin !== 'substitute' || Boolean(draft.substitutedForId);
+}
+
+function substitutedAssistanceItemIds(extraItems: ExtraItemDraft[]): string[] {
+    return extraItems
+        .filter(
+            (draft) =>
+                draft.origin === 'substitute' &&
+                Boolean(draft.substitutedForId),
+        )
+        .map((draft) => draft.substitutedForId);
+}
 
 function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
     if (!date) {
@@ -113,6 +169,10 @@ function formatAssistanceItemLabel(item: UserProgramAssistanceItem): string {
     return parts.join(' ');
 }
 
+function formatProgramItemLabel(item: AssistanceProgramItemOption): string {
+    return item.unit ? `${item.name} (${item.unit})` : item.name;
+}
+
 type AssistanceStatusDrawerProps = {
     open: boolean;
     onOpenChange: (open: boolean) => void;
@@ -125,6 +185,7 @@ type AssistanceStatusDrawerProps = {
     currentRecordedAt: string | null;
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     assistanceItems: UserProgramAssistanceItem[];
+    programItems: AssistanceProgramItemOption[];
     onUpdated?: () => void;
 };
 
@@ -140,6 +201,7 @@ export function AssistanceStatusDrawer({
     currentRecordedAt,
     requestSubStatusOptions,
     assistanceItems,
+    programItems,
     onUpdated,
 }: AssistanceStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -150,6 +212,7 @@ export function AssistanceStatusDrawer({
     const [deliveredItemDetails, setDeliveredItemDetails] = useState<
         Record<string, DeliveredItemDetail>
     >({});
+    const [extraItems, setExtraItems] = useState<ExtraItemDraft[]>([]);
     const [recordedAt, setRecordedAt] = useState<Date | undefined>(undefined);
     const [recordedAtOpen, setRecordedAtOpen] = useState(false);
     const [defaultRemark, setDefaultRemark] = useState('');
@@ -161,7 +224,13 @@ export function AssistanceStatusDrawer({
     const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
     const requiresDocuments = isVerifiedStatus || isDeliveredStatus;
     const undeliveredItems = useMemo(
-        () => assistanceItems.filter((item) => !item.is_received),
+        () =>
+            assistanceItems.filter(
+                (item) =>
+                    item.origin === 'requested' &&
+                    !item.is_received &&
+                    !item.is_substituted,
+            ),
         [assistanceItems],
     );
     const undeliveredItemOptions = useMemo(
@@ -172,17 +241,36 @@ export function AssistanceStatusDrawer({
             })),
         [undeliveredItems],
     );
+    const hasIncompleteExtraItem = extraItems.some(
+        (draft) => !isExtraItemDraftComplete(draft),
+    );
+    const substitutedItemIds = useMemo(
+        () => substitutedAssistanceItemIds(extraItems),
+        [extraItems],
+    );
+    const wasDeliveredStatus = useRef(false);
+
+    const updateExtraItem = (key: string, changes: Partial<ExtraItemDraft>) => {
+        setExtraItems((current) =>
+            current.map((draft) =>
+                draft.key === key ? { ...draft, ...changes } : draft,
+            ),
+        );
+    };
 
     const resetForm = () => {
+        wasDeliveredStatus.current = false;
         setSelectedSubStatusId('');
         setSelectedDeliveredItemIds([]);
         setDeliveredItemDetails({});
+        setExtraItems([]);
         setRecordedAt(undefined);
         setRecordedAtOpen(false);
         setDefaultRemark('');
     };
 
     const populateForm = () => {
+        wasDeliveredStatus.current = false;
         setSelectedSubStatusId(
             currentSubStatusId !== null ? String(currentSubStatusId) : '',
         );
@@ -190,6 +278,7 @@ export function AssistanceStatusDrawer({
         setDefaultRemark('');
         setSelectedDeliveredItemIds([]);
         setDeliveredItemDetails({});
+        setExtraItems([]);
         setFormKey((key) => key + 1);
     };
 
@@ -205,28 +294,55 @@ export function AssistanceStatusDrawer({
 
     useEffect(() => {
         if (!isDeliveredStatus) {
-            setSelectedDeliveredItemIds([]);
-            setDeliveredItemDetails({});
+            if (wasDeliveredStatus.current) {
+                setSelectedDeliveredItemIds([]);
+                setDeliveredItemDetails({});
+                setExtraItems([]);
+            }
+
+            wasDeliveredStatus.current = false;
 
             return;
         }
 
-        if (undeliveredItems.length === 1) {
-            const item = undeliveredItems[0];
+        const switchedToDelivered = !wasDeliveredStatus.current;
+        wasDeliveredStatus.current = true;
 
-            setSelectedDeliveredItemIds([String(item.id)]);
-            setDeliveredItemDetails({
-                [String(item.id)]: {
-                    quantity: String(item.quantity ?? 1),
-                    specification: item.specification ?? '',
-                },
-            });
+        if (!switchedToDelivered || undeliveredItems.length !== 1) {
+            return;
         }
-    }, [isDeliveredStatus, selectedSubStatusId, undeliveredItems]);
+
+        const item = undeliveredItems[0];
+
+        setSelectedDeliveredItemIds([String(item.id)]);
+        setDeliveredItemDetails({
+            [String(item.id)]: {
+                quantity: String(item.quantity ?? 1),
+                specification: item.specification ?? '',
+            },
+        });
+    }, [isDeliveredStatus, undeliveredItems]);
+
+    useEffect(() => {
+        if (substitutedItemIds.length === 0) {
+            return;
+        }
+
+        setSelectedDeliveredItemIds((current) => {
+            const next = current.filter(
+                (itemId) => !substitutedItemIds.includes(itemId),
+            );
+
+            return next.length === current.length ? current : next;
+        });
+    }, [substitutedItemIds]);
 
     useEffect(() => {
         setDeliveredItemDetails((current) => {
             const next: Record<string, DeliveredItemDetail> = {};
+            const selectedIds = new Set(selectedDeliveredItemIds);
+            let changed =
+                Object.keys(current).length !== selectedDeliveredItemIds.length;
 
             selectedDeliveredItemIds.forEach((itemId) => {
                 const assistanceItem = undeliveredItems.find(
@@ -237,9 +353,19 @@ export function AssistanceStatusDrawer({
                     quantity: String(assistanceItem?.quantity ?? 1),
                     specification: assistanceItem?.specification ?? '',
                 };
+
+                if (current[itemId] === undefined) {
+                    changed = true;
+                }
             });
 
-            return next;
+            Object.keys(current).forEach((itemId) => {
+                if (!selectedIds.has(itemId)) {
+                    changed = true;
+                }
+            });
+
+            return changed ? next : current;
         });
     }, [selectedDeliveredItemIds, undeliveredItems]);
 
@@ -272,15 +398,35 @@ export function AssistanceStatusDrawer({
                         request_sub_status_id: Number(selectedSubStatusId),
                         recorded_at: formatDateTimeForSubmit(recordedAt),
                         delivered_items: isDeliveredStatus
-                            ? selectedDeliveredItemIds.map((itemId) => ({
-                                  assistance_item_id: Number(itemId),
-                                  quantity: Number(
-                                      deliveredItemDetails[itemId]?.quantity ??
-                                          1,
-                                  ),
-                                  specification:
-                                      deliveredItemDetails[itemId]
-                                          ?.specification ?? '',
+                            ? selectedDeliveredItemIds
+                                  .filter(
+                                      (itemId) =>
+                                          !substitutedItemIds.includes(itemId),
+                                  )
+                                  .map((itemId) => ({
+                                      assistance_item_id: Number(itemId),
+                                      quantity: Number(
+                                          deliveredItemDetails[itemId]
+                                              ?.quantity ?? 1,
+                                      ),
+                                      specification:
+                                          deliveredItemDetails[itemId]
+                                              ?.specification ?? '',
+                                  }))
+                            : undefined,
+                        extra_items: isDeliveredStatus
+                            ? extraItems.map((draft) => ({
+                                  origin: draft.origin,
+                                  item_id: Number(draft.itemId),
+                                  quantity: Number(draft.quantity || 1),
+                                  specification: draft.specification,
+                                  fulfillment_reason:
+                                      draft.fulfillmentReason.trim(),
+                                  substituted_for_assistance_item_id:
+                                      draft.origin === 'substitute' &&
+                                      draft.substitutedForId
+                                          ? Number(draft.substitutedForId)
+                                          : null,
                               }))
                             : undefined,
                     })}
@@ -291,6 +437,11 @@ export function AssistanceStatusDrawer({
                             'Assistance status updated successfully.',
                         );
                         onUpdated?.();
+                    }}
+                    onError={() => {
+                        toast.error(
+                            'Could not update the status. Check the highlighted fields.',
+                        );
                     }}
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
                 >
@@ -350,174 +501,608 @@ export function AssistanceStatusDrawer({
                             ) : null}
 
                             {isDeliveredStatus ? (
-                                <div className="space-y-3">
-                                    <div className="space-y-2">
-                                        <Label htmlFor="assistance-status-delivered-items">
-                                            Delivered items
-                                        </Label>
-                                        {undeliveredItems.length > 0 ? (
-                                            <MultiSelect
-                                                options={
-                                                    undeliveredItemOptions
-                                                }
-                                                selected={
-                                                    selectedDeliveredItemIds
-                                                }
-                                                onChange={
-                                                    setSelectedDeliveredItemIds
-                                                }
-                                                placeholder="Choose items delivered..."
-                                                className="w-full"
-                                            />
-                                        ) : (
-                                            <p className="text-sm text-muted-foreground">
-                                                All items on this assistance
-                                                have already been marked as
-                                                delivered.
-                                            </p>
-                                        )}
-                                        <InputError
-                                            message={errors.delivered_items}
-                                        />
-                                    </div>
-
-                                    {selectedDeliveredItemIds.length > 0 ? (
-                                        <div className="space-y-3">
-                                            <Label>Delivered item details</Label>
-                                            {selectedDeliveredItemIds.map(
-                                                (selectedItemId, index) => {
-                                                    const item =
-                                                        undeliveredItems.find(
-                                                            ({ id }) =>
-                                                                String(id) ===
-                                                                selectedItemId,
-                                                        );
-
-                                                    if (!item) {
-                                                        return null;
+                                <>
+                                    <div className="space-y-3">
+                                        <div className="space-y-2">
+                                            <Label htmlFor="assistance-status-delivered-items">
+                                                Requested items released
+                                            </Label>
+                                            {undeliveredItems.length > 0 ? (
+                                                <MultiSelect
+                                                    options={
+                                                        undeliveredItemOptions
                                                     }
+                                                    selected={
+                                                        selectedDeliveredItemIds
+                                                    }
+                                                    onChange={
+                                                        setSelectedDeliveredItemIds
+                                                    }
+                                                    placeholder="Choose requested items handed over..."
+                                                    className="w-full"
+                                                />
+                                            ) : (
+                                                <p className="text-sm text-muted-foreground">
+                                                    Nothing is still owed on
+                                                    this request. Anything else
+                                                    handed over goes below as an
+                                                    additional item.
+                                                </p>
+                                            )}
+                                            {substitutedItemIds.length > 0 ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Requested lines chosen as a
+                                                    substitute below are
+                                                    released as a replacement,
+                                                    not as the original item.
+                                                </p>
+                                            ) : null}
+                                            <InputError
+                                                message={errors.delivered_items}
+                                            />
+                                        </div>
 
-                                                    const detail =
-                                                        deliveredItemDetails[
-                                                            selectedItemId
-                                                        ] ?? {
-                                                            quantity: String(
-                                                                item.quantity ??
-                                                                    1,
-                                                            ),
-                                                            specification:
-                                                                item.specification ??
-                                                                '',
-                                                        };
+                                        {selectedDeliveredItemIds.length > 0 ? (
+                                            <div className="space-y-3">
+                                                <Label>
+                                                    Released item details
+                                                </Label>
+                                                {selectedDeliveredItemIds.map(
+                                                    (selectedItemId, index) => {
+                                                        const item =
+                                                            undeliveredItems.find(
+                                                                ({ id }) =>
+                                                                    String(
+                                                                        id,
+                                                                    ) ===
+                                                                    selectedItemId,
+                                                            );
 
-                                                    return (
-                                                        <div
-                                                            key={selectedItemId}
-                                                            className="grid gap-3 rounded-xl border p-3"
-                                                        >
-                                                            <p className="text-sm font-medium">
-                                                                {formatAssistanceItemLabel(
-                                                                    item,
-                                                                )}
-                                                            </p>
-                                                            <div className="grid gap-2 sm:grid-cols-2">
-                                                                <div className="space-y-2">
-                                                                    <Label
-                                                                        htmlFor={`delivered-item-quantity-${selectedItemId}`}
-                                                                    >
-                                                                        Quantity
-                                                                        {item.unit
-                                                                            ? ` (${item.unit})`
-                                                                            : ''}
-                                                                    </Label>
-                                                                    <Input
-                                                                        id={`delivered-item-quantity-${selectedItemId}`}
-                                                                        type="number"
-                                                                        min={1}
-                                                                        max={
-                                                                            item.quantity ??
-                                                                            undefined
-                                                                        }
-                                                                        step={1}
-                                                                        value={
-                                                                            detail.quantity
-                                                                        }
-                                                                        onChange={(
-                                                                            event,
-                                                                        ) =>
-                                                                            setDeliveredItemDetails(
-                                                                                (
-                                                                                    current,
-                                                                                ) => ({
-                                                                                    ...current,
-                                                                                    [selectedItemId]:
-                                                                                        {
-                                                                                            ...detail,
-                                                                                            quantity:
-                                                                                                event
-                                                                                                    .target
-                                                                                                    .value,
-                                                                                        },
-                                                                                }),
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                    <InputError
-                                                                        message={
-                                                                            errors[
-                                                                                `delivered_items.${index}.quantity`
-                                                                            ]
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <Label
-                                                                        htmlFor={`delivered-item-specification-${selectedItemId}`}
-                                                                    >
-                                                                        Specification
-                                                                    </Label>
-                                                                    <Input
-                                                                        id={`delivered-item-specification-${selectedItemId}`}
-                                                                        value={
-                                                                            detail.specification
-                                                                        }
-                                                                        onChange={(
-                                                                            event,
-                                                                        ) =>
-                                                                            setDeliveredItemDetails(
-                                                                                (
-                                                                                    current,
-                                                                                ) => ({
-                                                                                    ...current,
-                                                                                    [selectedItemId]:
-                                                                                        {
-                                                                                            ...detail,
-                                                                                            specification:
-                                                                                                event
-                                                                                                    .target
-                                                                                                    .value,
-                                                                                        },
-                                                                                }),
-                                                                            )
-                                                                        }
-                                                                        placeholder="Optional specification"
-                                                                    />
-                                                                    <InputError
-                                                                        message={
-                                                                            errors[
-                                                                                `delivered_items.${index}.specification`
-                                                                            ]
-                                                                        }
-                                                                    />
+                                                        if (!item) {
+                                                            return null;
+                                                        }
+
+                                                        const detail =
+                                                            deliveredItemDetails[
+                                                                selectedItemId
+                                                            ] ?? {
+                                                                quantity:
+                                                                    String(
+                                                                        item.quantity ??
+                                                                            1,
+                                                                    ),
+                                                                specification:
+                                                                    item.specification ??
+                                                                    '',
+                                                            };
+
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    selectedItemId
+                                                                }
+                                                                className="grid gap-3 rounded-xl border p-3"
+                                                            >
+                                                                <p className="text-sm font-medium">
+                                                                    {formatAssistanceItemLabel(
+                                                                        item,
+                                                                    )}
+                                                                </p>
+                                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                                    <div className="space-y-2">
+                                                                        <Label
+                                                                            htmlFor={`delivered-item-quantity-${selectedItemId}`}
+                                                                        >
+                                                                            Quantity
+                                                                            {item.unit
+                                                                                ? ` (${item.unit})`
+                                                                                : ''}
+                                                                        </Label>
+                                                                        <Input
+                                                                            id={`delivered-item-quantity-${selectedItemId}`}
+                                                                            type="number"
+                                                                            min={
+                                                                                1
+                                                                            }
+                                                                            max={
+                                                                                item.quantity ??
+                                                                                undefined
+                                                                            }
+                                                                            step={
+                                                                                1
+                                                                            }
+                                                                            value={
+                                                                                detail.quantity
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                setDeliveredItemDetails(
+                                                                                    (
+                                                                                        current,
+                                                                                    ) => ({
+                                                                                        ...current,
+                                                                                        [selectedItemId]:
+                                                                                            {
+                                                                                                ...detail,
+                                                                                                quantity:
+                                                                                                    event
+                                                                                                        .target
+                                                                                                        .value,
+                                                                                            },
+                                                                                    }),
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        <InputError
+                                                                            message={
+                                                                                errors[
+                                                                                    `delivered_items.${index}.quantity`
+                                                                                ]
+                                                                            }
+                                                                        />
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            Still
+                                                                            requested:{' '}
+                                                                            {item.quantity ??
+                                                                                0}
+                                                                            .
+                                                                            Record
+                                                                            anything
+                                                                            beyond
+                                                                            this
+                                                                            as
+                                                                            an
+                                                                            additional
+                                                                            item.
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label
+                                                                            htmlFor={`delivered-item-specification-${selectedItemId}`}
+                                                                        >
+                                                                            Specification
+                                                                        </Label>
+                                                                        <Input
+                                                                            id={`delivered-item-specification-${selectedItemId}`}
+                                                                            value={
+                                                                                detail.specification
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                setDeliveredItemDetails(
+                                                                                    (
+                                                                                        current,
+                                                                                    ) => ({
+                                                                                        ...current,
+                                                                                        [selectedItemId]:
+                                                                                            {
+                                                                                                ...detail,
+                                                                                                specification:
+                                                                                                    event
+                                                                                                        .target
+                                                                                                        .value,
+                                                                                            },
+                                                                                    }),
+                                                                                )
+                                                                            }
+                                                                            placeholder="Optional specification"
+                                                                        />
+                                                                        <InputError
+                                                                            message={
+                                                                                errors[
+                                                                                    `delivered_items.${index}.specification`
+                                                                                ]
+                                                                            }
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                },
-                                            )}
+                                                        );
+                                                    },
+                                                )}
+                                            </div>
+                                        ) : null}
+                                    </div>
+
+                                    <div className="space-y-3">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <div className="space-y-1">
+                                                <Label>
+                                                    Additional or substitute
+                                                    items
+                                                </Label>
+                                                <p className="text-xs text-muted-foreground">
+                                                    Record what was handed over
+                                                    but never applied for. The
+                                                    original request is left
+                                                    untouched.
+                                                </p>
+                                            </div>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                disabled={
+                                                    programItems.length === 0
+                                                }
+                                                onClick={() =>
+                                                    setExtraItems((current) => [
+                                                        ...current,
+                                                        createExtraItemDraft(),
+                                                    ])
+                                                }
+                                            >
+                                                <Plus className="size-4" />
+                                                Add item
+                                            </Button>
                                         </div>
-                                    ) : null}
-                                </div>
+                                        <InputError
+                                            message={errors.extra_items}
+                                        />
+
+                                        {extraItems.map((draft, index) => {
+                                            const substituteTargets =
+                                                undeliveredItems.filter(
+                                                    (item) =>
+                                                        String(item.id) ===
+                                                            draft.substitutedForId ||
+                                                        !extraItems.some(
+                                                            (other) =>
+                                                                other.key !==
+                                                                    draft.key &&
+                                                                other.substitutedForId ===
+                                                                    String(
+                                                                        item.id,
+                                                                    ),
+                                                        ),
+                                                );
+
+                                            return (
+                                                <div
+                                                    key={draft.key}
+                                                    className="grid gap-3 rounded-xl border p-3"
+                                                >
+                                                    <div className="flex items-center justify-between gap-2">
+                                                        <p className="text-sm font-medium">
+                                                            {draft.origin ===
+                                                            'substitute'
+                                                                ? 'Substitute item'
+                                                                : 'Additional item'}
+                                                        </p>
+                                                        <Button
+                                                            type="button"
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                setExtraItems(
+                                                                    (current) =>
+                                                                        current.filter(
+                                                                            (
+                                                                                other,
+                                                                            ) =>
+                                                                                other.key !==
+                                                                                draft.key,
+                                                                        ),
+                                                                )
+                                                            }
+                                                        >
+                                                            <X className="size-4" />
+                                                            <span className="sr-only">
+                                                                Remove line
+                                                            </span>
+                                                        </Button>
+                                                    </div>
+
+                                                    <div className="grid gap-2 sm:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                            <Label
+                                                                htmlFor={`extra-item-origin-${draft.key}`}
+                                                            >
+                                                                Line type
+                                                            </Label>
+                                                            <Select
+                                                                value={
+                                                                    draft.origin
+                                                                }
+                                                                onValueChange={(
+                                                                    value,
+                                                                ) =>
+                                                                    updateExtraItem(
+                                                                        draft.key,
+                                                                        {
+                                                                            origin: value as ExtraItemDraft['origin'],
+                                                                            substitutedForId:
+                                                                                '',
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <SelectTrigger
+                                                                    id={`extra-item-origin-${draft.key}`}
+                                                                    className={
+                                                                        selectClassName
+                                                                    }
+                                                                >
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="additional">
+                                                                        Additional
+                                                                        — given
+                                                                        on top
+                                                                        of the
+                                                                        request
+                                                                    </SelectItem>
+                                                                    <SelectItem
+                                                                        value="substitute"
+                                                                        disabled={
+                                                                            undeliveredItems.length ===
+                                                                            0
+                                                                        }
+                                                                    >
+                                                                        Substitute
+                                                                        — given
+                                                                        in place
+                                                                        of a
+                                                                        requested
+                                                                        item
+                                                                    </SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <InputError
+                                                                message={
+                                                                    errors[
+                                                                        `extra_items.${index}.origin`
+                                                                    ]
+                                                                }
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label
+                                                                htmlFor={`extra-item-id-${draft.key}`}
+                                                            >
+                                                                Item released
+                                                            </Label>
+                                                            <Select
+                                                                value={
+                                                                    draft.itemId
+                                                                }
+                                                                onValueChange={(
+                                                                    value,
+                                                                ) =>
+                                                                    updateExtraItem(
+                                                                        draft.key,
+                                                                        {
+                                                                            itemId: value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <SelectTrigger
+                                                                    id={`extra-item-id-${draft.key}`}
+                                                                    className={
+                                                                        selectClassName
+                                                                    }
+                                                                >
+                                                                    <SelectValue placeholder="Select an item" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {programItems.map(
+                                                                        (
+                                                                            item,
+                                                                        ) => (
+                                                                            <SelectItem
+                                                                                key={
+                                                                                    item.id
+                                                                                }
+                                                                                value={String(
+                                                                                    item.id,
+                                                                                )}
+                                                                            >
+                                                                                {formatProgramItemLabel(
+                                                                                    item,
+                                                                                )}
+                                                                            </SelectItem>
+                                                                        ),
+                                                                    )}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <InputError
+                                                                message={
+                                                                    errors[
+                                                                        `extra_items.${index}.item_id`
+                                                                    ]
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    {draft.origin ===
+                                                    'substitute' ? (
+                                                        <div className="space-y-2">
+                                                            <Label
+                                                                htmlFor={`extra-item-substituted-for-${draft.key}`}
+                                                            >
+                                                                Replaces
+                                                                requested item
+                                                            </Label>
+                                                            <Select
+                                                                value={
+                                                                    draft.substitutedForId
+                                                                }
+                                                                onValueChange={(
+                                                                    value,
+                                                                ) =>
+                                                                    updateExtraItem(
+                                                                        draft.key,
+                                                                        {
+                                                                            substitutedForId:
+                                                                                value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <SelectTrigger
+                                                                    id={`extra-item-substituted-for-${draft.key}`}
+                                                                    className={
+                                                                        selectClassName
+                                                                    }
+                                                                >
+                                                                    <SelectValue placeholder="Select the requested item it replaces" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {substituteTargets.map(
+                                                                        (
+                                                                            item,
+                                                                        ) => (
+                                                                            <SelectItem
+                                                                                key={
+                                                                                    item.id
+                                                                                }
+                                                                                value={String(
+                                                                                    item.id,
+                                                                                )}
+                                                                            >
+                                                                                {formatAssistanceItemLabel(
+                                                                                    item,
+                                                                                )}
+                                                                            </SelectItem>
+                                                                        ),
+                                                                    )}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <InputError
+                                                                message={
+                                                                    errors[
+                                                                        `extra_items.${index}.substituted_for_assistance_item_id`
+                                                                    ]
+                                                                }
+                                                            />
+                                                            <p className="text-xs text-muted-foreground">
+                                                                The requested
+                                                                line is kept and
+                                                                marked
+                                                                substituted,
+                                                                never deleted.
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+
+                                                    <div className="grid gap-2 sm:grid-cols-2">
+                                                        <div className="space-y-2">
+                                                            <Label
+                                                                htmlFor={`extra-item-quantity-${draft.key}`}
+                                                            >
+                                                                Quantity
+                                                            </Label>
+                                                            <Input
+                                                                id={`extra-item-quantity-${draft.key}`}
+                                                                type="number"
+                                                                min={1}
+                                                                step={1}
+                                                                value={
+                                                                    draft.quantity
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    updateExtraItem(
+                                                                        draft.key,
+                                                                        {
+                                                                            quantity:
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            />
+                                                            <InputError
+                                                                message={
+                                                                    errors[
+                                                                        `extra_items.${index}.quantity`
+                                                                    ]
+                                                                }
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-2">
+                                                            <Label
+                                                                htmlFor={`extra-item-specification-${draft.key}`}
+                                                            >
+                                                                Specification
+                                                            </Label>
+                                                            <Input
+                                                                id={`extra-item-specification-${draft.key}`}
+                                                                value={
+                                                                    draft.specification
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    updateExtraItem(
+                                                                        draft.key,
+                                                                        {
+                                                                            specification:
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                        },
+                                                                    )
+                                                                }
+                                                                placeholder="Optional specification"
+                                                            />
+                                                            <InputError
+                                                                message={
+                                                                    errors[
+                                                                        `extra_items.${index}.specification`
+                                                                    ]
+                                                                }
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <Label
+                                                            htmlFor={`extra-item-reason-${draft.key}`}
+                                                        >
+                                                            Reason
+                                                        </Label>
+                                                        <Textarea
+                                                            id={`extra-item-reason-${draft.key}`}
+                                                            value={
+                                                                draft.fulfillmentReason
+                                                            }
+                                                            onChange={(event) =>
+                                                                updateExtraItem(
+                                                                    draft.key,
+                                                                    {
+                                                                        fulfillmentReason:
+                                                                            event
+                                                                                .target
+                                                                                .value,
+                                                                    },
+                                                                )
+                                                            }
+                                                            rows={2}
+                                                            placeholder="Why was this released? e.g. leftover pack, on-site assessment, medical add-on"
+                                                        />
+                                                        <InputError
+                                                            message={
+                                                                errors[
+                                                                    `extra_items.${index}.fulfillment_reason`
+                                                                ]
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
                             ) : null}
 
                             <div className="space-y-2">
@@ -653,9 +1238,10 @@ export function AssistanceStatusDrawer({
                                         !selectedSubStatusId ||
                                         !recordedAt ||
                                         (isDeliveredStatus &&
-                                            (undeliveredItems.length === 0 ||
-                                                selectedDeliveredItemIds.length ===
-                                                    0))
+                                            (hasIncompleteExtraItem ||
+                                                (selectedDeliveredItemIds.length ===
+                                                    0 &&
+                                                    extraItems.length === 0)))
                                     }
                                 >
                                     {processing ? 'Saving...' : 'Update status'}

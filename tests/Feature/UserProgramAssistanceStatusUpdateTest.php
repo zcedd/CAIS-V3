@@ -10,6 +10,7 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
+use App\Support\AssistanceItemOrigin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -245,7 +246,9 @@ test('updating to delivered status requires and marks the selected assistance it
     $riceAssistanceItem = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $riceItem->id,
+        'origin' => AssistanceItemOrigin::Requested,
         'quantity' => 2,
+        'requested_quantity' => 2,
         'specification' => 'Premium',
         'is_received' => false,
     ]);
@@ -253,7 +256,9 @@ test('updating to delivered status requires and marks the selected assistance it
     $milkAssistanceItem = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $milkItem->id,
+        'origin' => AssistanceItemOrigin::Requested,
         'quantity' => 5,
+        'requested_quantity' => 5,
         'specification' => null,
         'is_received' => false,
     ]);
@@ -306,8 +311,11 @@ test('updating to delivered status requires and marks the selected assistance it
         ->and($riceAssistanceItem->specification)->toBe('Premium grade')
         ->and((bool) $milkAssistanceItem->is_received)->toBeFalse()
         ->and($milkAssistanceItem->quantity)->toBe(2)
+        ->and($milkAssistanceItem->requested_quantity)->toBe(2)
         ->and($deliveredMilkItem)->not->toBeNull()
         ->and($deliveredMilkItem->quantity)->toBe(3)
+        ->and($deliveredMilkItem->requested_quantity)->toBe(3)
+        ->and($deliveredMilkItem->origin)->toBe(AssistanceItemOrigin::Requested)
         ->and($deliveredMilkItem->specification)->toBe('Powdered')
         ->and($assistance->date_delivered)->toBe('2026-05-15')
         ->and((bool) $assistance->was_delivered)->toBeTrue()

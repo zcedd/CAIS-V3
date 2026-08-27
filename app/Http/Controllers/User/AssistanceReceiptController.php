@@ -7,6 +7,7 @@ use App\Http\Requests\User\Assistance\ShowReceiptRequest;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
+use App\Services\User\AssistanceItemFulfillmentService;
 use App\Support\QrCodeSvg;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -14,6 +15,10 @@ use Inertia\Response;
 
 class AssistanceReceiptController extends Controller
 {
+    public function __construct(
+        private AssistanceItemFulfillmentService $assistanceItemFulfillmentService,
+    ) {}
+
     /**
      * Display a printable acknowledgment receipt for the assistance.
      */
@@ -27,7 +32,7 @@ class AssistanceReceiptController extends Controller
             'beneficiary:id,name,cais_number,beneficiable_type',
             'program:id,name,department_id',
             'program.department:id,name,slug',
-            'assistanceItem:id,assistance_id,item_id,quantity,specification,is_received',
+            'assistanceItem',
             'assistanceItem.item:id,name,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
         ]);
@@ -38,15 +43,9 @@ class AssistanceReceiptController extends Controller
             'assistance' => $assistance->id,
         ]);
 
-        $items = $assistance->assistanceItem
-            ->map(static fn ($assistanceItem): array => [
-                'name' => $assistanceItem->item?->name ?? '—',
-                'quantity' => $assistanceItem->quantity,
-                'unit' => $assistanceItem->item?->unitMeasurement?->name,
-                'specification' => $assistanceItem->specification,
-                'is_received' => (bool) $assistanceItem->is_received,
-            ])
-            ->values();
+        $itemFulfillment = $this->assistanceItemFulfillmentService->summarize(
+            $assistance->assistanceItem,
+        );
 
         return Inertia::render('user/assistances/receipt', [
             'department' => $department->only(['id', 'name', 'slug']),
@@ -64,11 +63,9 @@ class AssistanceReceiptController extends Controller
                 'printed_at' => now()->toDateTimeString(),
                 'profile_url' => $profileUrl,
                 'qr_svg' => QrCodeSvg::fromString($profileUrl),
-                'requested_items' => $items->all(),
-                'released_items' => $items
-                    ->where('is_received', true)
-                    ->values()
-                    ->all(),
+                'requested_items' => $itemFulfillment['requested'],
+                'released_items' => $itemFulfillment['released'],
+                'item_variance' => $itemFulfillment['variance'],
             ],
         ]);
     }

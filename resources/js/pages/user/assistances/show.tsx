@@ -12,14 +12,29 @@ import {
     type AssistanceStatusTimelineEntry,
 } from '@/pages/user/assistances/assistance-status-timeline';
 import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
-import { receipt as assistanceReceipt, show as assistanceShow } from '@/routes/user/assistances';
+import {
+    receipt as assistanceReceipt,
+    show as assistanceShow,
+} from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
-import type { AssistanceDocumentsPayload, DocumentTypeOption } from '@/types/document';
+import {
+    ASSISTANCE_ITEM_ORIGIN_LABELS,
+    formatItemQuantity,
+} from '@/types/assistance-item';
+import type {
+    AssistanceItemVariance,
+    AssistanceReleasedItem,
+    AssistanceRequestedItem,
+} from '@/types/assistance-item';
+import type {
+    AssistanceDocumentsPayload,
+    DocumentTypeOption,
+} from '@/types/document';
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
 import {
@@ -49,14 +64,6 @@ type ProgramSummary = {
     name: string;
 };
 
-type AssistanceItem = {
-    name: string;
-    quantity: number | null;
-    unit: string | null;
-    specification: string | null;
-    is_received: boolean;
-};
-
 type AssistanceProfile = {
     id: number;
     cais_number: string;
@@ -71,9 +78,9 @@ type AssistanceProfile = {
     date_delivered: string | null;
     date_denied: string | null;
     remark: string | null;
-    items_count: number;
-    items_received_count: number;
-    items: AssistanceItem[];
+    requested_items: AssistanceRequestedItem[];
+    released_items: AssistanceReleasedItem[];
+    item_variance: AssistanceItemVariance;
     status_history: AssistanceStatusTimelineEntry[];
 };
 
@@ -101,21 +108,12 @@ function formatDate(value: string | null | undefined): string {
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
 }
 
-function formatItemAmount(item: AssistanceItem): string | null {
-    if (item.quantity !== null && item.unit) {
-        return `${item.quantity} ${item.unit}`;
-    }
-
-    if (item.quantity !== null) {
-        return String(item.quantity);
-    }
-
-    if (item.unit) {
-        return item.unit;
-    }
-
-    return null;
-}
+const ORIGIN_BADGE_CLASSES: Record<string, string> = {
+    additional:
+        'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300',
+    substitute:
+        'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-300',
+};
 
 function SectionHeading({
     title,
@@ -143,7 +141,7 @@ function DetailItem({
 }) {
     return (
         <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {label}
             </dt>
             <dd className="mt-1 text-sm font-medium tabular-nums">
@@ -153,7 +151,99 @@ function DetailItem({
     );
 }
 
-function createAssistanceItemColumns(): ColumnDef<AssistanceItem>[] {
+function createRequestedItemColumns(): ColumnDef<AssistanceRequestedItem>[] {
+    return [
+        {
+            accessorKey: 'name',
+            meta: { title: 'Item' },
+            header: 'Item',
+            cell: ({ row }) => (
+                <span className="font-medium">{row.original.name}</span>
+            ),
+        },
+        {
+            id: 'requested',
+            meta: {
+                title: 'Requested',
+                cellClassName: 'tabular-nums text-muted-foreground',
+            },
+            header: 'Requested',
+            cell: ({ row }) =>
+                formatItemQuantity(
+                    row.original.requested_quantity,
+                    row.original.unit,
+                ),
+        },
+        {
+            id: 'released',
+            meta: {
+                title: 'Released',
+                cellClassName: 'tabular-nums text-muted-foreground',
+            },
+            header: 'Released',
+            cell: ({ row }) =>
+                formatItemQuantity(
+                    row.original.released_quantity,
+                    row.original.unit,
+                ),
+        },
+        {
+            id: 'outstanding',
+            meta: { title: 'Outstanding' },
+            header: 'Outstanding',
+            cell: ({ row }) => {
+                const { pending_quantity, substituted_quantity, unit } =
+                    row.original;
+
+                if (pending_quantity > 0) {
+                    return (
+                        <Badge
+                            variant="outline"
+                            className={STATUS_BADGE_CLASSES.Pending}
+                        >
+                            {formatItemQuantity(pending_quantity, unit)} owed
+                        </Badge>
+                    );
+                }
+
+                if (substituted_quantity > 0) {
+                    return (
+                        <Badge
+                            variant="outline"
+                            className={ORIGIN_BADGE_CLASSES.substitute}
+                        >
+                            Substituted
+                        </Badge>
+                    );
+                }
+
+                return (
+                    <Badge
+                        variant="outline"
+                        className={STATUS_BADGE_CLASSES.Delivered}
+                    >
+                        <CheckCircle2 aria-hidden />
+                        Fulfilled
+                    </Badge>
+                );
+            },
+        },
+        {
+            accessorKey: 'specification',
+            meta: { title: 'Specification' },
+            header: 'Specification',
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {row.original.specification?.trim()
+                        ? row.original.specification
+                        : '—'}
+                </span>
+            ),
+        },
+    ];
+}
+
+function createReleasedItemColumns(): ColumnDef<AssistanceReleasedItem>[] {
     return [
         {
             accessorKey: 'name',
@@ -170,7 +260,44 @@ function createAssistanceItemColumns(): ColumnDef<AssistanceItem>[] {
                 cellClassName: 'tabular-nums text-muted-foreground',
             },
             header: 'Amount',
-            cell: ({ row }) => formatItemAmount(row.original) ?? '—',
+            cell: ({ row }) =>
+                formatItemQuantity(row.original.quantity, row.original.unit),
+        },
+        {
+            accessorKey: 'origin',
+            meta: { title: 'Type' },
+            header: 'Type',
+            cell: ({ row }) => {
+                const { origin, substituted_for_name } = row.original;
+
+                return (
+                    <div className="flex flex-col gap-1">
+                        <Badge
+                            variant="outline"
+                            className={ORIGIN_BADGE_CLASSES[origin] ?? ''}
+                        >
+                            {ASSISTANCE_ITEM_ORIGIN_LABELS[origin]}
+                        </Badge>
+                        {substituted_for_name ? (
+                            <span className="text-xs text-muted-foreground">
+                                in place of {substituted_for_name}
+                            </span>
+                        ) : null}
+                    </div>
+                );
+            },
+        },
+        {
+            accessorKey: 'fulfillment_reason',
+            meta: { title: 'Reason' },
+            header: 'Reason',
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {row.original.fulfillment_reason?.trim()
+                        ? row.original.fulfillment_reason
+                        : '—'}
+                </span>
+            ),
         },
         {
             accessorKey: 'specification',
@@ -184,31 +311,14 @@ function createAssistanceItemColumns(): ColumnDef<AssistanceItem>[] {
                 </span>
             ),
         },
-        {
-            accessorKey: 'is_received',
-            meta: { title: 'Received' },
-            header: 'Received',
-            cell: ({ row }) =>
-                row.original.is_received ? (
-                    <Badge
-                        variant="outline"
-                        className={STATUS_BADGE_CLASSES.Delivered}
-                    >
-                        <CheckCircle2 aria-hidden />
-                        Yes
-                    </Badge>
-                ) : (
-                    <Badge variant="outline">No</Badge>
-                ),
-        },
     ];
 }
 
-function ItemsTableToolbar({
+function ItemsTableToolbar<TItem>({
     table,
     columnVisibility,
 }: {
-    table: Table<AssistanceItem>;
+    table: Table<TItem>;
     columnVisibility: VisibilityState;
 }) {
     return (
@@ -218,6 +328,30 @@ function ItemsTableToolbar({
                 columnVisibility={columnVisibility}
             />
         </div>
+    );
+}
+
+function VarianceSummary({ variance }: { variance: AssistanceItemVariance }) {
+    const entries = [
+        variance.additional_quantity > 0
+            ? `${variance.additional_quantity} additional`
+            : null,
+        variance.substitute_quantity > 0
+            ? `${variance.substitute_quantity} substitute`
+            : null,
+        variance.shortfall_quantity > 0
+            ? `${variance.shortfall_quantity} not yet released`
+            : null,
+    ].filter((entry): entry is string => entry !== null);
+
+    if (entries.length === 0) {
+        return null;
+    }
+
+    return (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+            Variance against the request: {entries.join(', ')}.
+        </p>
     );
 }
 
@@ -239,13 +373,23 @@ export default function UserAssistanceShow({
     );
     const StatusIcon = statusOption?.icon;
 
-    const itemColumns = useMemo(() => createAssistanceItemColumns(), []);
+    const requestedItemColumns = useMemo(
+        () => createRequestedItemColumns(),
+        [],
+    );
+    const releasedItemColumns = useMemo(() => createReleasedItemColumns(), []);
 
-    const receivedPercent =
-        assistance.items_count > 0
-            ? Math.round(
-                  (assistance.items_received_count / assistance.items_count) *
-                      100,
+    const variance = assistance.item_variance;
+    const fulfilledPercent =
+        variance.requested_quantity > 0
+            ? Math.min(
+                  Math.round(
+                      ((variance.fulfilled_quantity +
+                          variance.substituted_quantity) /
+                          variance.requested_quantity) *
+                          100,
+                  ),
+                  100,
               )
             : null;
 
@@ -311,9 +455,7 @@ export default function UserAssistanceShow({
                                         '',
                                 )}
                             >
-                                {StatusIcon ? (
-                                    <StatusIcon aria-hidden />
-                                ) : null}
+                                {StatusIcon ? <StatusIcon aria-hidden /> : null}
                                 {assistance.status}
                             </Badge>
                             {assistance.current_sub_status &&
@@ -385,7 +527,7 @@ export default function UserAssistanceShow({
                         <div className="grid gap-6 lg:grid-cols-3">
                             <div className="min-w-0 space-y-5 lg:col-span-2">
                                 <div>
-                                    <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="mb-3 flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <ClipboardList className="size-3.5" />
                                         Request details
                                     </p>
@@ -432,12 +574,12 @@ export default function UserAssistanceShow({
                                 </div>
 
                                 <div>
-                                    <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         Remark
                                     </p>
                                     <p
                                         className={cn(
-                                            'whitespace-pre-wrap text-sm leading-relaxed',
+                                            'text-sm leading-relaxed whitespace-pre-wrap',
                                             assistance.remark?.trim()
                                                 ? 'text-muted-foreground'
                                                 : 'text-muted-foreground/60 italic',
@@ -450,7 +592,7 @@ export default function UserAssistanceShow({
                                 </div>
 
                                 <div>
-                                    <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="mb-3 flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         {isOrganization ? (
                                             <Building2 className="size-3.5" />
                                         ) : (
@@ -503,7 +645,7 @@ export default function UserAssistanceShow({
                             <div className="min-w-0 space-y-5 lg:border-l lg:border-border lg:pl-6">
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between gap-2">
-                                        <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                             <CalendarDays className="size-3.5" />
                                             Key dates
                                         </p>
@@ -531,7 +673,8 @@ export default function UserAssistanceShow({
                                                     icon: Circle,
                                                     tone: 'amber',
                                                     doneLabel: 'Requested',
-                                                    pendingLabel: 'Not requested',
+                                                    pendingLabel:
+                                                        'Not requested',
                                                 },
                                                 {
                                                     label: 'Verified',
@@ -539,7 +682,8 @@ export default function UserAssistanceShow({
                                                     icon: PackageCheck,
                                                     tone: 'sky',
                                                     doneLabel: 'Verified',
-                                                    pendingLabel: 'Awaiting verification',
+                                                    pendingLabel:
+                                                        'Awaiting verification',
                                                 },
                                                 {
                                                     label: 'Delivered',
@@ -547,7 +691,8 @@ export default function UserAssistanceShow({
                                                     icon: CheckCircle2,
                                                     tone: 'emerald',
                                                     doneLabel: 'Delivered',
-                                                    pendingLabel: 'Not delivered',
+                                                    pendingLabel:
+                                                        'Not delivered',
                                                 },
                                                 ...(assistance.date_denied
                                                     ? [
@@ -556,8 +701,10 @@ export default function UserAssistanceShow({
                                                               value: assistance.date_denied,
                                                               icon: CircleX,
                                                               tone: 'red' as const,
-                                                              doneLabel: 'Denied',
-                                                              pendingLabel: 'Denied',
+                                                              doneLabel:
+                                                                  'Denied',
+                                                              pendingLabel:
+                                                                  'Denied',
                                                           },
                                                       ]
                                                     : []),
@@ -565,7 +712,11 @@ export default function UserAssistanceShow({
                                                 label: string;
                                                 value: string | null;
                                                 icon: LucideIcon;
-                                                tone: 'amber' | 'sky' | 'emerald' | 'red';
+                                                tone:
+                                                    | 'amber'
+                                                    | 'sky'
+                                                    | 'emerald'
+                                                    | 'red';
                                                 doneLabel: string;
                                                 pendingLabel: string;
                                             }>
@@ -607,7 +758,7 @@ export default function UserAssistanceShow({
                                                             />
                                                         </span>
                                                         <div className="min-w-0">
-                                                            <p className="text-sm font-medium leading-tight">
+                                                            <p className="text-sm leading-tight font-medium">
                                                                 {entry.label}
                                                             </p>
                                                             <p
@@ -644,11 +795,12 @@ export default function UserAssistanceShow({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <Package className="size-3.5" />
                                         Items
                                     </p>
-                                    {assistance.items_count === 0 ? (
+                                    {variance.requested_quantity === 0 &&
+                                    variance.released_quantity === 0 ? (
                                         <p className="text-sm text-muted-foreground/60 italic">
                                             No items listed
                                         </p>
@@ -656,20 +808,28 @@ export default function UserAssistanceShow({
                                         <div className="space-y-2">
                                             <p className="text-sm">
                                                 <span className="font-semibold tabular-nums">
-                                                    {assistance.items_received_count.toLocaleString()}
+                                                    {variance.released_quantity.toLocaleString()}
                                                 </span>
                                                 <span className="text-muted-foreground">
                                                     {' '}
-                                                    of{' '}
-                                                    {assistance.items_count.toLocaleString()}{' '}
-                                                    received
+                                                    released against{' '}
+                                                    {variance.requested_quantity.toLocaleString()}{' '}
+                                                    requested
                                                 </span>
                                             </p>
-                                            {receivedPercent !== null ? (
+                                            {fulfilledPercent !== null ? (
                                                 <Progress
-                                                    value={receivedPercent}
-                                                    aria-label={`Items received ${receivedPercent}%`}
+                                                    value={fulfilledPercent}
+                                                    aria-label={`Request settled ${fulfilledPercent}%`}
                                                 />
+                                            ) : null}
+                                            {variance.additional_quantity >
+                                            0 ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                    Includes{' '}
+                                                    {variance.additional_quantity.toLocaleString()}{' '}
+                                                    additional, never requested
+                                                </p>
                                             ) : null}
                                         </div>
                                     )}
@@ -711,12 +871,33 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Items requested"
-                            description="Goods or services included in this assistance"
+                            description="What the beneficiary applied for, and how much of it is still owed"
+                        />
+                        <VarianceSummary variance={variance} />
+                        <DataTable
+                            columns={requestedItemColumns}
+                            data={assistance.requested_items}
+                            emptyMessage="No items were requested for this assistance."
+                            toolbar={(table, columnVisibility) => (
+                                <ItemsTableToolbar
+                                    table={table}
+                                    columnVisibility={columnVisibility}
+                                />
+                            )}
+                        />
+                    </div>
+                </section>
+
+                <section className="rounded-xl border border-border bg-card">
+                    <div className="flex flex-col gap-4 p-4">
+                        <SectionHeading
+                            title="Items released"
+                            description="What was actually handed over, including additional and substitute items"
                         />
                         <DataTable
-                            columns={itemColumns}
-                            data={assistance.items}
-                            emptyMessage="No items listed for this assistance."
+                            columns={releasedItemColumns}
+                            data={assistance.released_items}
+                            emptyMessage="Nothing has been released yet."
                             toolbar={(table, columnVisibility) => (
                                 <ItemsTableToolbar
                                     table={table}

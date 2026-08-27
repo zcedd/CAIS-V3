@@ -11,6 +11,7 @@ import type {
     AssistanceTransferProgramOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
+import type { AssistanceItemOrigin } from '@/types/assistance-item';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
@@ -23,6 +24,10 @@ export type UserProgramAssistanceItem = {
     unit: string | null;
     specification: string | null;
     is_received: boolean;
+    origin: AssistanceItemOrigin;
+    requested_quantity: number;
+    is_substituted: boolean;
+    fulfillment_reason: string | null;
 };
 
 function formatItemAmount(item: UserProgramAssistanceItem): string | null {
@@ -59,9 +64,7 @@ export type UserProgramAssistanceRow = {
     field_values: Record<string, string | null>;
 };
 
-function formatRequestSubStatusRecordedAt(
-    value: string | null,
-): string {
+function formatRequestSubStatusRecordedAt(value: string | null): string {
     if (!value) {
         return '—';
     }
@@ -318,9 +321,9 @@ export function createUserProgramAssistanceColumns({
                 />
             ),
             cell: ({ row }) => {
-                const value = row.getValue(
-                    'request_sub_status_recorded_at',
-                ) as string | null;
+                const value = row.getValue('request_sub_status_recorded_at') as
+                    | string
+                    | null;
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
