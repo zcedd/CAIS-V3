@@ -94,6 +94,11 @@ class Program extends Model
         return $this->hasMany(ProgramItemCap::class);
     }
 
+    public function itemStocks(): HasMany
+    {
+        return $this->hasMany(ProgramItemStock::class);
+    }
+
     /**
      * Program IDs that share eligibility (this program today; parent + batches later).
      *

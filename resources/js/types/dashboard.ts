@@ -55,6 +55,12 @@ export type DeliveredItemsChartPoint = {
     quantity: number;
 };
 
+export type UnspscReleasedChartPoint = {
+    segment: string;
+    code: string;
+    quantity: number;
+};
+
 export type BeneficiaryTypeChartPoint = {
     type: string;
     label: string;
@@ -115,6 +121,7 @@ export const DASHBOARD_PARTIAL_PROPS = [
     'summary',
     'requestStatusChart',
     'deliveredItemsChart',
+    'unspscReleasedChart',
     'beneficiaryTypeChart',
     'demographics',
     'requestsTrend',
@@ -128,6 +135,7 @@ export const DASHBOARD_PARTIAL_PROPS = [
 export const DASHBOARD_CHART_DEFER_PROPS = [
     'requestStatusChart',
     'deliveredItemsChart',
+    'unspscReleasedChart',
     'beneficiaryTypeChart',
     'requestsTrend',
 ] as const;

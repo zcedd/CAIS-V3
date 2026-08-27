@@ -8,8 +8,10 @@ use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
+use App\Http\Controllers\User\ItemStockController as UserItemStockController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
+use App\Http\Controllers\User\UnspscCodeController as UserUnspscCodeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -36,6 +38,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
 
         Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');
+        Route::get('unspsc-codes', [UserUnspscCodeController::class, 'search'])->name('user.unspsc-codes.search');
+        Route::get('items/{item}/stock', [UserItemStockController::class, 'show'])->name('user.items.stock.show');
+        Route::post('items/{item}/receipts', [UserItemStockController::class, 'storeReceipt'])->name('user.items.stock.receipts.store');
+        Route::post('items/{item}/adjustments', [UserItemStockController::class, 'storeAdjustment'])->name('user.items.stock.adjustments.store');
+        Route::post('items/{item}/allocations', [UserItemStockController::class, 'storeAllocation'])->name('user.items.stock.allocations.store');
 
         Route::resource('funds', UserFundController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.funds');
         Route::get('notifications', [UserNotificationController::class, 'index'])->name('user.notifications.index');

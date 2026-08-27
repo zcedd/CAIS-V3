@@ -93,6 +93,16 @@ function isExtraItemDraftComplete(draft: ExtraItemDraft): boolean {
     return draft.origin !== 'substitute' || Boolean(draft.substitutedForId);
 }
 
+function remainingForProgramItem(
+    programItems: AssistanceProgramItemOption[],
+    itemId: number,
+): number {
+    return (
+        programItems.find((programItem) => programItem.id === itemId)
+            ?.remaining ?? 0
+    );
+}
+
 function substitutedAssistanceItemIds(extraItems: ExtraItemDraft[]): string[] {
     return extraItems
         .filter(
@@ -244,6 +254,55 @@ export function AssistanceStatusDrawer({
     const hasIncompleteExtraItem = extraItems.some(
         (draft) => !isExtraItemDraftComplete(draft),
     );
+    const exceedsProgramStock = useMemo(() => {
+        const needed: Record<number, number> = {};
+
+        for (const selectedId of selectedDeliveredItemIds) {
+            const assistanceItem = undeliveredItems.find(
+                (item) => String(item.id) === selectedId,
+            );
+
+            if (!assistanceItem) {
+                continue;
+            }
+
+            const quantity = Number.parseInt(
+                deliveredItemDetails[selectedId]?.quantity ?? '0',
+                10,
+            );
+
+            if (!Number.isFinite(quantity) || quantity < 1) {
+                continue;
+            }
+
+            needed[assistanceItem.item_id] =
+                (needed[assistanceItem.item_id] ?? 0) + quantity;
+        }
+
+        for (const draft of extraItems) {
+            const itemId = Number.parseInt(draft.itemId, 10);
+            const quantity = Number.parseInt(draft.quantity, 10);
+
+            if (!Number.isFinite(itemId) || !Number.isFinite(quantity) || quantity < 1) {
+                continue;
+            }
+
+            needed[itemId] = (needed[itemId] ?? 0) + quantity;
+        }
+
+        return Object.entries(needed).some(([itemId, quantity]) => {
+            return (
+                quantity >
+                remainingForProgramItem(programItems, Number(itemId))
+            );
+        });
+    }, [
+        selectedDeliveredItemIds,
+        undeliveredItems,
+        deliveredItemDetails,
+        extraItems,
+        programItems,
+    ]);
     const substitutedItemIds = useMemo(
         () => substitutedAssistanceItemIds(extraItems),
         [extraItems],
@@ -647,10 +706,19 @@ export function AssistanceStatusDrawer({
                                                                             {item.quantity ??
                                                                                 0}
                                                                             .
+                                                                            Program
+                                                                            stock
+                                                                            remaining:{' '}
+                                                                            {remainingForProgramItem(
+                                                                                programItems,
+                                                                                item.item_id,
+                                                                            )}
+                                                                            .
                                                                             Record
                                                                             anything
                                                                             beyond
-                                                                            this
+                                                                            the
+                                                                            request
                                                                             as
                                                                             an
                                                                             additional
@@ -1027,6 +1095,19 @@ export function AssistanceStatusDrawer({
                                                                     ]
                                                                 }
                                                             />
+                                                            {draft.itemId ? (
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    Program
+                                                                    stock
+                                                                    remaining:{' '}
+                                                                    {remainingForProgramItem(
+                                                                        programItems,
+                                                                        Number(
+                                                                            draft.itemId,
+                                                                        ),
+                                                                    )}
+                                                                </p>
+                                                            ) : null}
                                                         </div>
 
                                                         <div className="space-y-2">
@@ -1239,6 +1320,7 @@ export function AssistanceStatusDrawer({
                                         !recordedAt ||
                                         (isDeliveredStatus &&
                                             (hasIncompleteExtraItem ||
+                                                exceedsProgramStock ||
                                                 (selectedDeliveredItemIds.length ===
                                                     0 &&
                                                     extraItems.length === 0)))

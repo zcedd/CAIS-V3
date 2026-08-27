@@ -6,15 +6,19 @@ use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
 use App\Models\RequestSubStatus;
+use App\Models\User;
 use App\Services\User\AssistanceDocumentService;
+use App\Services\User\StockLedgerService;
 use App\Support\AssistanceItemOrigin;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class UpdateProgramAssistanceStatus
 {
     public function __construct(
         private AssistanceDocumentService $assistanceDocumentService,
+        private StockLedgerService $stockLedgerService,
     ) {}
 
     /**
@@ -46,8 +50,10 @@ class UpdateProgramAssistanceStatus
         $this->assistanceDocumentService->assertCompleteForSubStatus($assistance, $subStatus);
 
         $recordedAt = Carbon::parse($validated['recorded_at']);
+        $user = Auth::user();
+        $assistance->loadMissing('program');
 
-        return DB::transaction(function () use ($assistance, $validated, $recordedAt): Assistance {
+        return DB::transaction(function () use ($assistance, $validated, $recordedAt, $subStatus, $user): Assistance {
             AssistanceRequestSubStatus::query()->create([
                 'assistance_id' => $assistance->id,
                 'request_sub_status_id' => $validated['request_sub_status_id'],
@@ -55,12 +61,26 @@ class UpdateProgramAssistanceStatus
                 'recorded_at' => $recordedAt,
             ]);
 
+            $releasedItems = [];
+
             foreach ($validated['delivered_items'] ?? [] as $deliveredItem) {
-                $this->releaseRequestedItem($assistance, $deliveredItem);
+                $releasedItems[] = $this->releaseRequestedItem($assistance, $deliveredItem);
             }
 
             foreach ($validated['extra_items'] ?? [] as $extraItem) {
-                $this->releaseUnrequestedItem($assistance, $extraItem, $recordedAt);
+                $releasedItems[] = $this->releaseUnrequestedItem($assistance, $extraItem, $recordedAt);
+            }
+
+            $program = $assistance->program;
+
+            if ($user instanceof User && $program !== null) {
+                foreach ($releasedItems as $releasedItem) {
+                    $this->stockLedgerService->issue($releasedItem, $program, $user);
+                }
+            }
+
+            if ($user instanceof User && $subStatus->requestStatus?->name === 'Denied') {
+                $this->stockLedgerService->restoreForAssistance($assistance, $user);
             }
 
             // Milestone dates and current status are synced from status history via
@@ -76,7 +96,7 @@ class UpdateProgramAssistanceStatus
      *
      * @param  array{assistance_item_id: int, quantity: int, specification?: string|null}  $deliveredItem
      */
-    private function releaseRequestedItem(Assistance $assistance, array $deliveredItem): void
+    private function releaseRequestedItem(Assistance $assistance, array $deliveredItem): AssistanceItem
     {
         $assistanceItem = AssistanceItem::query()
             ->where('assistance_id', $assistance->id)
@@ -93,7 +113,7 @@ class UpdateProgramAssistanceStatus
                 'requested_quantity' => $remainingQuantity,
             ]);
 
-            AssistanceItem::query()->create([
+            return AssistanceItem::query()->create([
                 'assistance_id' => $assistance->id,
                 'item_id' => $assistanceItem->item_id,
                 'origin' => AssistanceItemOrigin::Requested,
@@ -102,8 +122,6 @@ class UpdateProgramAssistanceStatus
                 'specification' => $deliveredItem['specification'] ?? null,
                 'is_received' => true,
             ]);
-
-            return;
         }
 
         $assistanceItem->update([
@@ -112,6 +130,8 @@ class UpdateProgramAssistanceStatus
             'specification' => $deliveredItem['specification'] ?? $assistanceItem->specification,
             'is_received' => true,
         ]);
+
+        return $assistanceItem->refresh();
     }
 
     /**
@@ -131,7 +151,7 @@ class UpdateProgramAssistanceStatus
         Assistance $assistance,
         array $extraItem,
         Carbon $recordedAt,
-    ): void {
+    ): AssistanceItem {
         $substitutedForId = null;
 
         if ($extraItem['origin'] === AssistanceItemOrigin::Substitute) {
@@ -145,7 +165,7 @@ class UpdateProgramAssistanceStatus
             $substitutedForId = $substitutedItem->id;
         }
 
-        AssistanceItem::query()->create([
+        return AssistanceItem::query()->create([
             'assistance_id' => $assistance->id,
             'item_id' => $extraItem['item_id'],
             'origin' => $extraItem['origin'],

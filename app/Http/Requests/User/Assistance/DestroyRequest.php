@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Models\Assistance;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class DestroyRequest extends FormRequest
 {
@@ -12,7 +14,9 @@ class DestroyRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return false;
+        $assistance = $this->route('assistance');
+
+        return $assistance instanceof Assistance && Gate::allows('delete', $assistance);
     }
 
     /**
@@ -22,8 +26,6 @@ class DestroyRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 }

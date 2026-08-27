@@ -47,6 +47,7 @@ class DashboardService
             'summary' => $this->summary($department, $filters),
             'requestStatusChart' => $this->requestStatusChart($department, $filters),
             'deliveredItemsChart' => $this->deliveredItemsChart($department, $filters),
+            'unspscReleasedChart' => $this->unspscReleasedChart($department, $filters),
             'programsTable' => $this->programsTable($department, $filters),
             'beneficiaryTypeChart' => $this->beneficiaryTypeChart($department, $filters),
             'demographics' => $this->demographics($department, $filters),
@@ -268,6 +269,47 @@ class DashboardService
                 'item' => (string) $row->item,
                 'unit' => (string) ($row->unit ?? '—'),
                 'count' => (int) $row->count,
+                'quantity' => (int) $row->quantity,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Released quantity grouped by UNSPSC segment. Spend waits on item cost.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return list<array{segment: string, code: string, quantity: int}>
+     */
+    public function unspscReleasedChart(Department $department, array $filters): array
+    {
+        $itemTable = (new Item)->getTable();
+
+        return DB::table((new AssistanceItem)->getTable().' as ai')
+            ->joinSub(
+                $this->filteredDeliveredAssistanceIdsSubquery($department, $filters),
+                'delivered_assistances',
+                'delivered_assistances.id',
+                '=',
+                'ai.assistance_id',
+            )
+            ->join("{$itemTable} as items", 'items.id', '=', 'ai.item_id')
+            ->join('unspsc_codes as commodity', 'commodity.id', '=', 'items.unspsc_code_id')
+            ->leftJoin('unspsc_codes as segment', 'segment.code', '=', 'commodity.segment_code')
+            ->where('ai.is_received', true)
+            ->whereNull('ai.deleted_at')
+            ->select([
+                'commodity.segment_code as code',
+            ])
+            ->selectRaw("COALESCE(segment.title, commodity.segment_code, 'Unclassified') as segment")
+            ->selectRaw('COALESCE(SUM(ai.quantity), 0) as quantity')
+            ->groupBy('commodity.segment_code', 'segment.title')
+            ->orderByDesc('quantity')
+            ->limit(10)
+            ->get()
+            ->map(static fn ($row): array => [
+                'segment' => (string) $row->segment,
+                'code' => (string) ($row->code ?? ''),
                 'quantity' => (int) $row->quantity,
             ])
             ->values()

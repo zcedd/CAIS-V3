@@ -20,6 +20,7 @@ class ProgramService
         private DashboardService $dashboardService,
         private ProgramFieldService $programFieldService,
         private ProgramDocumentRequirementService $programDocumentRequirementService,
+        private StockLedgerService $stockLedgerService,
     ) {}
 
     /**
@@ -303,7 +304,7 @@ class ProgramService
     }
 
     /**
-     * @return list<array{id: int, name: string, unit: string|null}>
+     * @return list<array{id: int, name: string, unit: string|null, remaining: int}>
      */
     public function programItemsForSelect(Program $program): array
     {
@@ -312,6 +313,8 @@ class ProgramService
         if ($itemIds->isEmpty()) {
             return [];
         }
+
+        $remaining = $this->stockLedgerService->remainingByItemId($program);
 
         return Item::query()
             ->whereIn('id', $itemIds)
@@ -322,6 +325,7 @@ class ProgramService
                 'id' => $item->id,
                 'name' => $item->name,
                 'unit' => $item->unitMeasurement?->name,
+                'remaining' => $remaining[$item->id] ?? 0,
             ])
             ->values()
             ->all();

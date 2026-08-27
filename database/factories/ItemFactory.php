@@ -26,6 +26,9 @@ class ItemFactory extends Factory
             'department_id' => Department::query()->value('id') ?? Department::create(['name' => fake()->company()])->id,
             'item_unit_measurement_id' => ItemUnitMeasurement::query()->value('id')
                 ?? ItemUnitMeasurement::factory()->create()->id,
+            'unspsc_code_id' => null,
+            'is_perishable' => false,
+            'low_stock_threshold' => null,
         ];
     }
 

@@ -1,6 +1,8 @@
 'use client';
 
 import InputError from '@/components/input-error';
+import { UnspscCodeCombobox } from '@/components/unspsc-code-combobox';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import {
     Drawer,
@@ -51,6 +53,8 @@ export function ItemEditDrawer({
 }: ItemEditDrawerProps) {
     const [formKey, setFormKey] = useState(0);
     const [defaultUnitId, setDefaultUnitId] = useState('');
+    const [unspscCodeId, setUnspscCodeId] = useState<number | null>(null);
+    const [isPerishable, setIsPerishable] = useState(false);
 
     useEffect(() => {
         if (!open) {
@@ -62,6 +66,8 @@ export function ItemEditDrawer({
                 ? String(item.item_unit_measurement_id)
                 : '',
         );
+        setUnspscCodeId(item.unspsc_code_id);
+        setIsPerishable(item.is_perishable);
         setFormKey((key) => key + 1);
     }, [open, item]);
 
@@ -71,7 +77,8 @@ export function ItemEditDrawer({
                 <DrawerHeader>
                     <DrawerTitle>Edit item</DrawerTitle>
                     <DrawerDescription>
-                        Update the item name and unit of measurement.
+                        Update the catalog item, UNSPSC classification, and
+                        stock settings.
                     </DrawerDescription>
                 </DrawerHeader>
 
@@ -138,6 +145,61 @@ export function ItemEditDrawer({
                                 </Select>
                                 <InputError
                                     message={errors.item_unit_measurement_id}
+                                />
+                            </div>
+
+                            <UnspscCodeCombobox
+                                departmentSlug={departmentSlug}
+                                value={unspscCodeId}
+                                initialOption={
+                                    item.unspsc_code_id && item.unspsc_code
+                                        ? {
+                                              id: item.unspsc_code_id,
+                                              code: item.unspsc_code,
+                                              title: item.unspsc_title ?? item.unspsc_code,
+                                              path: item.unspsc_title ?? item.unspsc_code,
+                                              is_curated: true,
+                                          }
+                                        : null
+                                }
+                                onChange={(next) => setUnspscCodeId(next)}
+                                error={errors.unspsc_code_id}
+                            />
+
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="hidden"
+                                    name="is_perishable"
+                                    value={isPerishable ? '1' : '0'}
+                                />
+                                <Checkbox
+                                    id={`edit-item-perishable-${item.id}`}
+                                    checked={isPerishable}
+                                    onCheckedChange={(checked) =>
+                                        setIsPerishable(checked === true)
+                                    }
+                                />
+                                <Label htmlFor={`edit-item-perishable-${item.id}`}>
+                                    Perishable (require batch and expiry)
+                                </Label>
+                            </div>
+                            <InputError message={errors.is_perishable} />
+
+                            <div className="space-y-2">
+                                <Label htmlFor={`edit-item-threshold-${item.id}`}>
+                                    Low-stock threshold
+                                </Label>
+                                <Input
+                                    id={`edit-item-threshold-${item.id}`}
+                                    name="low_stock_threshold"
+                                    type="number"
+                                    min={0}
+                                    defaultValue={
+                                        item.low_stock_threshold ?? ''
+                                    }
+                                />
+                                <InputError
+                                    message={errors.low_stock_threshold}
                                 />
                             </div>
 

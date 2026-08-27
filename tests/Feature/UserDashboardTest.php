@@ -9,6 +9,7 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
+use App\Models\UnspscCode;
 use App\Models\User;
 use App\Services\User\DashboardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,6 +143,7 @@ test('department users can view the dashboard with expected props', function () 
             ->where('summary.total_requests', 1)
             ->has('requestStatusChart')
             ->has('deliveredItemsChart')
+            ->has('unspscReleasedChart')
             ->has('programsTable', 2)
             ->has('filterOptions.programs', 2)
             ->where('filters.year', [(string) now()->year])
@@ -414,6 +416,22 @@ test('delivered items chart counts delivery lines per item not quantities', func
     expect($chart)->toHaveCount(1)
         ->and($chart[0]['item'])->toBe('Rice')
         ->and($chart[0]['count'])->toBe(2);
+});
+
+test('unspsc released chart groups received quantity by segment', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $rice = UnspscCode::query()->where('code', '50221101')->firstOrFail();
+    $item->update(['unspsc_code_id' => $rice->id]);
+
+    $individual = Individual::factory()->create(['sex' => 'Male']);
+    createAssistanceForIndividual($program, $individual, $item, isReceived: true, quantity: 7);
+
+    $chart = app(DashboardService::class)->unspscReleasedChart($department, []);
+
+    expect($chart)->not->toBeEmpty()
+        ->and($chart[0]['quantity'])->toBe(7)
+        ->and($chart[0]['code'])->toBe('50000000');
 });
 
 test('programs table shows only the 10 latest programs', function () {

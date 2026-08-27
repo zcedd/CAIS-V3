@@ -11,3 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('assistances:notify-stale')
     ->daily()
     ->withoutOverlapping();
+
+Schedule::command('stock:notify-low')
+    ->daily()
+    ->withoutOverlapping();

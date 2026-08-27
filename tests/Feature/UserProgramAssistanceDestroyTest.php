@@ -45,7 +45,12 @@ test('authenticated users can delete assistance for their department program', f
         'user_id' => $user->id,
     ]);
 
-    $response = $this->actingAs($user)->delete(
+    $response = $this->actingAs($user)->from(
+        route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]),
+    )->delete(
         route('user.programs.assistances.destroy', [
             'department' => $department->slug,
             'program' => $program->id,

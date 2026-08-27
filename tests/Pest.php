@@ -1,7 +1,11 @@
 <?php
 
 use App\Models\Department;
+use App\Models\Item;
+use App\Models\Program;
 use App\Models\User;
+use App\Services\User\StockLedgerService;
+use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -100,5 +104,27 @@ function seedCivilStatusAndIdentification(): void
     DB::table('identifications')->insert([
         ['name' => 'National ID', 'created_at' => now(), 'updated_at' => now()],
         ['name' => 'RSBSA ID', 'created_at' => now(), 'updated_at' => now()],
+    ]);
+}
+
+function seedProgramStock(Program $program, Item $item, int $quantity, ?User $user = null): void
+{
+    if (! $program->item()->where('items.id', $item->id)->exists()) {
+        $program->item()->attach($item->id);
+    }
+
+    $user ??= User::query()->where('department_id', $program->department_id)->first()
+        ?? User::factory()->create(['department_id' => $program->department_id]);
+
+    $ledger = app(StockLedgerService::class);
+
+    $ledger->receive($item, $user, [
+        'quantity' => $quantity,
+        'type' => StockMovementType::OpeningBalance,
+    ]);
+
+    $ledger->allocate($item, $user, [
+        'program_id' => $program->id,
+        'quantity' => $quantity,
     ]);
 }

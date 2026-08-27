@@ -86,6 +86,7 @@ export type AssistanceProgramItemOption = {
     id: number;
     name: string;
     unit: string | null;
+    remaining?: number;
 };
 
 export type AssistanceRequestSubStatusOption = {

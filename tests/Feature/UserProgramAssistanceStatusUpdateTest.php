@@ -225,6 +225,9 @@ test('updating to delivered status requires and marks the selected assistance it
 
     $program->item()->attach([$riceItem->id, $milkItem->id]);
 
+    seedProgramStock($program, $riceItem, 50, $user);
+    seedProgramStock($program, $milkItem, 50, $user);
+
     $beneficiary = Beneficiary::create([
         'cais_number' => 'CAIS-001',
         'name' => 'Juan Dela Cruz',

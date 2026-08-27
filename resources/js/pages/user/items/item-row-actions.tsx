@@ -19,11 +19,12 @@ import {
 } from '@/components/ui/dropdown-menu';
 import type { UserDepartmentItemRow } from '@/pages/user/items/item-columns';
 import { ItemEditDrawer } from '@/pages/user/items/item-edit-drawer';
+import { ItemStockDrawer } from '@/pages/user/items/item-stock-drawer';
 import type { UnitMeasurementOption } from '@/pages/user/items/item-toolbar';
 import { destroy as destroyDepartmentItem } from '@/routes/user/items';
 import { router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
-import { Edit, MoreHorizontal, Trash } from 'lucide-react';
+import { Edit, MoreHorizontal, Package, Trash } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -42,6 +43,7 @@ export function ItemDataTableRowActions({
 }: ItemDataTableRowActionsProps) {
     const record = row.original;
     const [editOpen, setEditOpen] = useState(false);
+    const [stockOpen, setStockOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -81,6 +83,10 @@ export function ItemDataTableRowActions({
                         <Edit className="mr-2 h-4 w-4" />
                         Edit item
                     </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={() => setStockOpen(true)}>
+                        <Package className="mr-2 h-4 w-4" />
+                        Manage stock
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         variant="destructive"
@@ -101,6 +107,14 @@ export function ItemDataTableRowActions({
                 item={record}
                 departmentSlug={departmentSlug}
                 unitMeasurements={unitMeasurements}
+                onUpdated={onItemUpdated}
+            />
+
+            <ItemStockDrawer
+                open={stockOpen}
+                onOpenChange={setStockOpen}
+                item={record}
+                departmentSlug={departmentSlug}
                 onUpdated={onItemUpdated}
             />
 

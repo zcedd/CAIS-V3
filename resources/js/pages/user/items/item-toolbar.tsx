@@ -2,6 +2,8 @@
 
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
+import { UnspscCodeCombobox } from '@/components/unspsc-code-combobox';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import {
     Drawer,
@@ -72,6 +74,8 @@ export function ItemDataTableToolbar({
     const [createOpen, setCreateOpen] = useState(false);
     const createDrawerTourLocked = useCreateDrawerTourLock();
     const [createFormKey, setCreateFormKey] = useState(0);
+    const [unspscCodeId, setUnspscCodeId] = useState<number | null>(null);
+    const [isPerishable, setIsPerishable] = useState(false);
 
     useEffect(() => {
         setSearchQuery(filters.search);
@@ -94,6 +98,8 @@ export function ItemDataTableToolbar({
     useEffect(() => {
         if (!createOpen) {
             setCreateFormKey((key) => key + 1);
+            setUnspscCodeId(null);
+            setIsPerishable(false);
         }
     }, [createOpen]);
 
@@ -234,6 +240,47 @@ export function ItemDataTableToolbar({
                                         message={
                                             errors.item_unit_measurement_id
                                         }
+                                    />
+                                </div>
+
+                                <UnspscCodeCombobox
+                                    departmentSlug={departmentSlug}
+                                    value={unspscCodeId}
+                                    onChange={(next) => setUnspscCodeId(next)}
+                                    error={errors.unspsc_code_id}
+                                />
+
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="hidden"
+                                        name="is_perishable"
+                                        value={isPerishable ? '1' : '0'}
+                                    />
+                                    <Checkbox
+                                        id="create-item-perishable"
+                                        checked={isPerishable}
+                                        onCheckedChange={(checked) =>
+                                            setIsPerishable(checked === true)
+                                        }
+                                    />
+                                    <Label htmlFor="create-item-perishable">
+                                        Perishable (require batch and expiry)
+                                    </Label>
+                                </div>
+                                <InputError message={errors.is_perishable} />
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="create-item-threshold">
+                                        Low-stock threshold
+                                    </Label>
+                                    <Input
+                                        id="create-item-threshold"
+                                        name="low_stock_threshold"
+                                        type="number"
+                                        min={0}
+                                    />
+                                    <InputError
+                                        message={errors.low_stock_threshold}
                                     />
                                 </div>
 

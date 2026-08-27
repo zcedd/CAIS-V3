@@ -24,12 +24,15 @@ use App\Models\Assistance;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Program;
+use App\Models\User;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\AssistanceService;
+use App\Services\User\StockLedgerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -41,6 +44,7 @@ class AssistanceController extends Controller
         private AssistanceService $assistanceService,
         private AssistanceDocumentService $assistanceDocumentService,
         private AssistanceItemFulfillmentService $assistanceItemFulfillmentService,
+        private StockLedgerService $stockLedgerService,
     ) {}
 
     /**
@@ -143,7 +147,15 @@ class AssistanceController extends Controller
             'This program is closed and assistances cannot be deleted.',
         );
 
-        $assistance->delete();
+        $user = $request->user();
+
+        DB::transaction(function () use ($assistance, $user): void {
+            if ($user instanceof User) {
+                $this->stockLedgerService->restoreForAssistance($assistance, $user);
+            }
+
+            $assistance->delete();
+        });
 
         return redirect()
             ->back()

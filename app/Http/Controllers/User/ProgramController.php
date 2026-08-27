@@ -12,6 +12,7 @@ use App\Models\Program;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceService;
 use App\Services\User\ProgramService;
+use App\Services\User\StockLedgerService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +23,7 @@ class ProgramController extends Controller
         private ProgramService $programService,
         private AssistanceService $assistanceService,
         private AssistanceDocumentService $assistanceDocumentService,
+        private StockLedgerService $stockLedgerService,
     ) {}
 
     /**
@@ -117,6 +119,10 @@ class ProgramController extends Controller
             ),
             'program_covered_items' => Inertia::defer(
                 fn () => $this->programService->programItemsForSelect($program),
+                'kpis',
+            ),
+            'program_stock' => Inertia::defer(
+                fn () => $this->stockLedgerService->programStockTable($program),
                 'kpis',
             ),
             'department' => fn () => $department->only(['id', 'name', 'slug']),
