@@ -39,6 +39,7 @@ import {
 } from '@/lib/format-program-period';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
+import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
 import type {
     ProgramCoveredItem,
     ProgramFund,
@@ -110,6 +111,7 @@ type ProgramEditRelations = {
     fund_ids: number[];
     item_ids: number[];
     fields: ProgramFieldDefinition[];
+    document_requirements?: ProgramDocumentRequirementInput[];
 };
 
 const MS_PER_DAY = 86_400_000;
@@ -214,6 +216,7 @@ export default function UserProgramShow({
     program_fields,
     request_sub_status_options,
     transfer_program_options,
+    document_types = [],
 }: {
     program: ProgramDetail;
     summary?: ProgramSummary;
@@ -239,6 +242,7 @@ export default function UserProgramShow({
     program_fields?: ProgramFieldOption[];
     request_sub_status_options?: AssistanceRequestSubStatusOption[];
     transfer_program_options?: AssistanceTransferProgramOption[];
+    document_types?: DocumentTypeOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
@@ -726,6 +730,7 @@ export default function UserProgramShow({
                         programEdit={program_edit}
                         funds={funds}
                         items={items}
+                        documentTypes={document_types}
                         formKey={editFormKey}
                         onClose={closeEditDrawer}
                     />

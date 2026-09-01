@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Models\AssistanceDocument;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -35,6 +37,8 @@ class AppServiceProvider extends ServiceProvider
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);
+
+        Route::model('document', AssistanceDocument::class);
 
         $registerSqliteSoundex = static function (Connection $connection): void {
             if ($connection->getDriverName() !== 'sqlite') {

@@ -31,8 +31,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceItem } from '@/pages/user/programs/assistance-columns';
 import type { AssistanceRequestSubStatusOption } from '@/pages/user/programs/assistance-toolbar';
+import { show as assistanceShow } from '@/routes/user/assistances';
 import { update as updateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
-import { Form } from '@inertiajs/react';
+import { Form, Link } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -157,6 +158,8 @@ export function AssistanceStatusDrawer({
         (option) => String(option.id) === selectedSubStatusId,
     );
     const isDeliveredStatus = selectedSubStatus?.request_status === 'Delivered';
+    const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
+    const requiresDocuments = isVerifiedStatus || isDeliveredStatus;
     const undeliveredItems = useMemo(
         () => assistanceItems.filter((item) => !item.is_received),
         [assistanceItems],
@@ -260,6 +263,10 @@ export function AssistanceStatusDrawer({
                     })}
                     method="patch"
                     disableWhileProcessing
+                    options={{
+                        preserveScroll: true,
+                        preserveState: true,
+                    }}
                     transform={(data) => ({
                         ...data,
                         request_sub_status_id: Number(selectedSubStatusId),
@@ -320,6 +327,27 @@ export function AssistanceStatusDrawer({
                                     message={errors.request_sub_status_id}
                                 />
                             </div>
+
+                            {requiresDocuments ? (
+                                <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+                                    Required documents must be attached on the{' '}
+                                    <Link
+                                        href={assistanceShow.url({
+                                            department: departmentSlug,
+                                            program: programId,
+                                            assistance: assistanceId,
+                                        })}
+                                        className="font-medium underline underline-offset-2"
+                                    >
+                                        assistance profile
+                                    </Link>{' '}
+                                    before this request can be marked as{' '}
+                                    {isDeliveredStatus
+                                        ? 'Delivered'
+                                        : 'Verified'}
+                                    .
+                                </p>
+                            ) : null}
 
                             {isDeliveredStatus ? (
                                 <div className="space-y-3">

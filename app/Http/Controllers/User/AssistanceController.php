@@ -24,6 +24,7 @@ use App\Models\Assistance;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Program;
+use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -37,6 +38,7 @@ class AssistanceController extends Controller
 {
     public function __construct(
         private AssistanceService $assistanceService,
+        private AssistanceDocumentService $assistanceDocumentService,
     ) {}
 
     /**
@@ -368,6 +370,8 @@ class AssistanceController extends Controller
                     ->values()
                     ->all(),
             ],
+            'documents' => $this->assistanceDocumentService->profilePayload($assistance),
+            'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
         ]);
     }
 }

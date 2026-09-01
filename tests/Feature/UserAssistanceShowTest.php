@@ -27,7 +27,7 @@ test('guests cannot view an assistance profile', function () {
     $assistance = Assistance::create([
         'program_id' => $program->id,
         'date_requested' => now()->toDateString(),
-        'user_id' => User::factory()->create()->id,
+        'user_id' => User::factory()->create(['department_id' => $department->id])->id,
     ]);
 
     $response = $this->get(route('user.assistances.show', [
@@ -91,7 +91,7 @@ test('authenticated users can view an assistance profile in their department', f
             ->where('program.id', $program->id)
             ->where('department.slug', $department->slug)
             ->where('assistance.id', $assistance->id)
-            ->where('assistance.status', 'Pending')
+            ->where('assistance.status', 'Unrequested')
             ->where('assistance.current_sub_status', null)
             ->where('assistance.cais_number', '—')
             ->where('assistance.beneficiary_name', '—')
@@ -102,7 +102,10 @@ test('authenticated users can view an assistance profile in their department', f
             ->where('assistance.items.0.name', 'Rice')
             ->where('assistance.items.0.quantity', 2)
             ->where('assistance.items.0.unit', 'kg')
-            ->where('assistance.items.0.is_received', false));
+            ->where('assistance.items.0.is_received', false)
+            ->has('documents.checklist')
+            ->has('documents.additional_documents')
+            ->has('document_types'));
 });
 
 test('authenticated users cannot view assistance from another department program', function () {

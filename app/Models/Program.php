@@ -79,6 +79,11 @@ class Program extends Model
         return $this->hasMany(ProgramField::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function documentRequirements(): HasMany
+    {
+        return $this->hasMany(ProgramDocumentRequirement::class)->orderBy('sort_order')->orderBy('id');
+    }
+
     public function eligibilityRule(): HasOne
     {
         return $this->hasOne(ProgramEligibilityRule::class);

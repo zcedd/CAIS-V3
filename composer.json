@@ -17,7 +17,8 @@
         "laravel/wayfinder": "^0.1.14",
         "maatwebsite/excel": "^3.1",
         "spatie/laravel-activitylog": "^4.12",
-        "spatie/laravel-permission": "^8.1"
+        "spatie/laravel-permission": "^8.1",
+        "zcedd/qr-code": "^1.0"
     },
     "require-dev": {
         "barryvdh/laravel-debugbar": "^4.4",
