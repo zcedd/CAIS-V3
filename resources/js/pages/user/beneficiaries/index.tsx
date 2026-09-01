@@ -20,7 +20,13 @@ import type {
     PaginatedBeneficiaries,
 } from '@/types/beneficiary';
 import type { BreadcrumbItem } from '@/types';
-import { Head, Link, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
+import {
+    Head,
+    Link,
+    router,
+    setLayoutProps,
+    WhenVisible,
+} from '@inertiajs/react';
 import {
     Building2,
     HeartHandshake,
@@ -248,8 +254,7 @@ export default function UserBeneficiariesIndex({
                 search: overrides.search ?? tableStateRef.current.search,
                 type: overrides.type ?? tableStateRef.current.type,
                 page: overrides.page ?? 1,
-                per_page:
-                    overrides.per_page ?? tableStateRef.current.per_page,
+                per_page: overrides.per_page ?? tableStateRef.current.per_page,
             };
 
             setTableState({
@@ -309,60 +314,64 @@ export default function UserBeneficiariesIndex({
                     </Button>
                 </div>
 
-                <WhenVisible
-                    data="stats"
-                    buffer={200}
-                    fallback={<RegistryStatCardsSkeleton />}
-                >
-                    {stats ? (
-                        <RegistryStatCards stats={stats} />
-                    ) : (
-                        <RegistryStatCardsSkeleton />
-                    )}
-                </WhenVisible>
+                <div data-tour="beneficiaries-kpis">
+                    <WhenVisible
+                        data="stats"
+                        buffer={200}
+                        fallback={<RegistryStatCardsSkeleton />}
+                    >
+                        {stats ? (
+                            <RegistryStatCards stats={stats} />
+                        ) : (
+                            <RegistryStatCardsSkeleton />
+                        )}
+                    </WhenVisible>
+                </div>
 
-                <Card data-tour="beneficiaries-table">
+                <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">Registry</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <DataTable
-                            columns={beneficiaryColumns}
-                            data={beneficiaries.data}
-                            emptyMessage="No beneficiaries found."
-                            manualPagination
-                            manualFiltering
-                            serverPagination={beneficiaries}
-                            partialReloadOnly={[
-                                ...BENEFICIARIES_TABLE_PARTIAL_PROPS,
-                            ]}
-                            isLoading={isTableReloading}
-                            loadingFallback={
-                                <DataTableSkeleton
-                                    columnCount={
-                                        BENEFICIARIES_TABLE_SKELETON_COLUMNS
-                                    }
-                                    rowCount={tableState.per_page}
-                                />
-                            }
-                            onPerPageChange={(nextPerPage) => {
-                                visitTable({
-                                    per_page: nextPerPage,
-                                    page: 1,
-                                });
-                            }}
-                            onPageChange={(page) => {
-                                visitTable({ page });
-                            }}
-                            toolbar={(table, columnVisibility) => (
-                                <BeneficiaryDataTableToolbar
-                                    table={table}
-                                    columnVisibility={columnVisibility}
-                                    filters={tableFilters}
-                                    onFiltersChange={visitTable}
-                                />
-                            )}
-                        />
+                        <div data-tour="beneficiaries-table">
+                            <DataTable
+                                columns={beneficiaryColumns}
+                                data={beneficiaries.data}
+                                emptyMessage="No beneficiaries found."
+                                manualPagination
+                                manualFiltering
+                                serverPagination={beneficiaries}
+                                partialReloadOnly={[
+                                    ...BENEFICIARIES_TABLE_PARTIAL_PROPS,
+                                ]}
+                                isLoading={isTableReloading}
+                                loadingFallback={
+                                    <DataTableSkeleton
+                                        columnCount={
+                                            BENEFICIARIES_TABLE_SKELETON_COLUMNS
+                                        }
+                                        rowCount={tableState.per_page}
+                                    />
+                                }
+                                onPerPageChange={(nextPerPage) => {
+                                    visitTable({
+                                        per_page: nextPerPage,
+                                        page: 1,
+                                    });
+                                }}
+                                onPageChange={(page) => {
+                                    visitTable({ page });
+                                }}
+                                toolbar={(table, columnVisibility) => (
+                                    <BeneficiaryDataTableToolbar
+                                        table={table}
+                                        columnVisibility={columnVisibility}
+                                        filters={tableFilters}
+                                        onFiltersChange={visitTable}
+                                    />
+                                )}
+                            />
+                        </div>
                     </CardContent>
                 </Card>
             </div>

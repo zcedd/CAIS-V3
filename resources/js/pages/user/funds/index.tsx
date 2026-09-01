@@ -187,7 +187,7 @@ export default function UserFundsIndex({
             <div className="flex flex-col gap-6 p-4 md:p-6">
                 <div>
                     <h1 className="text-2xl font-semibold tracking-tight">
-                        {department.name} funds
+                        Funds
                     </h1>
                     <p className="text-sm text-muted-foreground">
                         Manage funds assigned to your department.
@@ -195,64 +195,64 @@ export default function UserFundsIndex({
                 </div>
 
                 <Card data-tour="funds-table">
-                    <CardHeader>
-                        <CardTitle>Department funds</CardTitle>
-                        <CardDescription>
-                            Create and maintain funds available for programs.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <DataTable
-                            columns={fundColumns}
-                            data={funds.data}
-                            emptyMessage="No funds match your filters."
-                            manualPagination
-                            manualSorting
-                            manualFiltering
-                            serverPagination={funds}
-                            serverSorting={{
-                                sort: tableState.sort,
-                                direction: tableState.direction,
-                            }}
-                            partialReloadOnly={[...FUNDS_TABLE_PARTIAL_PROPS]}
-                            isLoading={isTableReloading}
-                            loadingFallback={
-                                <DataTableSkeleton
-                                    columnCount={FUNDS_TABLE_SKELETON_COLUMNS}
-                                    rowCount={tableState.per_page}
-                                />
-                            }
-                            onServerSortingChange={(
-                                columnId,
-                                nextDirection,
-                            ) => {
-                                visitTable({
-                                    sort: columnId,
-                                    direction: nextDirection,
-                                    page: 1,
-                                });
-                            }}
-                            onPerPageChange={(nextPerPage) => {
-                                visitTable({
-                                    per_page: nextPerPage,
-                                    page: 1,
-                                });
-                            }}
-                            toolbar={(table, columnVisibility) => (
-                                <FundDataTableToolbar
-                                    table={table}
-                                    columnVisibility={columnVisibility}
-                                    filters={tableFilters}
-                                    departmentSlug={department.slug}
-                                    departmentName={department.name}
-                                    onFiltersChange={visitTable}
-                                    onFundCreated={() =>
-                                        visitTable({ page: 1 })
-                                    }
-                                />
-                            )}
-                        />
-                    </CardContent>
+                    <div data-tour="funds-table">
+                        <CardContent>
+                            <DataTable
+                                columns={fundColumns}
+                                data={funds.data}
+                                emptyMessage="No funds match your filters."
+                                manualPagination
+                                manualSorting
+                                manualFiltering
+                                serverPagination={funds}
+                                serverSorting={{
+                                    sort: tableState.sort,
+                                    direction: tableState.direction,
+                                }}
+                                partialReloadOnly={[
+                                    ...FUNDS_TABLE_PARTIAL_PROPS,
+                                ]}
+                                isLoading={isTableReloading}
+                                loadingFallback={
+                                    <DataTableSkeleton
+                                        columnCount={
+                                            FUNDS_TABLE_SKELETON_COLUMNS
+                                        }
+                                        rowCount={tableState.per_page}
+                                    />
+                                }
+                                onServerSortingChange={(
+                                    columnId,
+                                    nextDirection,
+                                ) => {
+                                    visitTable({
+                                        sort: columnId,
+                                        direction: nextDirection,
+                                        page: 1,
+                                    });
+                                }}
+                                onPerPageChange={(nextPerPage) => {
+                                    visitTable({
+                                        per_page: nextPerPage,
+                                        page: 1,
+                                    });
+                                }}
+                                toolbar={(table, columnVisibility) => (
+                                    <FundDataTableToolbar
+                                        table={table}
+                                        columnVisibility={columnVisibility}
+                                        filters={tableFilters}
+                                        departmentSlug={department.slug}
+                                        departmentName={department.name}
+                                        onFiltersChange={visitTable}
+                                        onFundCreated={() =>
+                                            visitTable({ page: 1 })
+                                        }
+                                    />
+                                )}
+                            />
+                        </CardContent>
+                    </div>
                 </Card>
             </div>
         </>

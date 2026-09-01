@@ -198,13 +198,6 @@ export default function UserDepartmentItemsIndex({
                 </div>
 
                 <Card data-tour="items-table">
-                    <CardHeader>
-                        <CardTitle>Department items</CardTitle>
-                        <CardDescription>
-                            Create and maintain items available for programs
-                            and assistances.
-                        </CardDescription>
-                    </CardHeader>
                     <CardContent>
                         <DataTable
                             columns={itemColumns}
@@ -242,7 +235,11 @@ export default function UserDepartmentItemsIndex({
                                     page: 1,
                                 });
                             }}
-                            toolbar={(table, columnVisibility, _rowSelection) => (
+                            toolbar={(
+                                table,
+                                columnVisibility,
+                                _rowSelection,
+                            ) => (
                                 <ItemDataTableToolbar
                                     table={table}
                                     columnVisibility={columnVisibility}

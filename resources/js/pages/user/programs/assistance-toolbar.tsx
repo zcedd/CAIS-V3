@@ -227,9 +227,7 @@ function AssistanceDatePicker({
                             id={`${id}-time`}
                             type="time"
                             className="mt-2 bg-background"
-                            value={
-                                selected ? formatTimeForInput(selected) : ''
-                            }
+                            value={selected ? formatTimeForInput(selected) : ''}
                             onChange={(event) => {
                                 const base = selected ?? new Date();
 
@@ -464,36 +462,40 @@ export function AssistanceDataTableToolbar({
                     ) : null}
                 </div>
                 <div className="flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2">
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="h-8 px-2 lg:px-3"
-                        onClick={() => triggerExport('csv')}
-                    >
-                        Export CSV
-                    </Button>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        className="h-8 px-2 lg:px-3"
-                        onClick={() => triggerExport('xlsx')}
-                    >
-                        Export XLSX
-                    </Button>
+                    <div data-tour="program-assistance-export">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 px-2 lg:px-3"
+                            onClick={() => triggerExport('csv')}
+                        >
+                            Export CSV
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="h-8 px-2 lg:px-3"
+                            onClick={() => triggerExport('xlsx')}
+                        >
+                            Export XLSX
+                        </Button>
+                    </div>
                     <DataTableViewOptions
                         table={table}
                         columnVisibility={columnVisibility}
                     />
-                    <Button
-                        type="button"
-                        variant="default"
-                        className="h-8 px-2 lg:px-3"
-                        disabled={!canCreate}
-                        onClick={() => setCreateOpen(true)}
-                    >
-                        <Plus className="size-4" />
-                        Add Assistance
-                    </Button>
+                    <div data-tour="program-assistance-create">
+                        <Button
+                            type="button"
+                            variant="default"
+                            className="h-8 px-2 lg:px-3"
+                            disabled={!canCreate}
+                            onClick={() => setCreateOpen(true)}
+                        >
+                            <Plus className="size-4" />
+                            Add Assistance
+                        </Button>
+                    </div>
                 </div>
             </div>
 

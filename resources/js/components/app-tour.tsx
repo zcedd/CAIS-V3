@@ -6,6 +6,11 @@ import { ACTIONS, EVENTS, ORIGIN, STATUS, useJoyride } from 'react-joyride';
 import type { EventData, Step } from 'react-joyride';
 import { AppTourTooltip } from '@/components/app-tour-tooltip';
 import {
+    lockCreateDrawerTour,
+    unlockCreateDrawerTour,
+    waitForCreateDrawerTourLockSync,
+} from '@/lib/tour-create-drawer';
+import {
     normalizePath,
     resolveTourCompletionKey,
     resolveTourRouteKey,
@@ -14,7 +19,304 @@ import {
 const TOUR_STORAGE_PREFIX = 'cais-tour-completed:';
 const SHARED_TOUR_KEY = `${TOUR_STORAGE_PREFIX}shared`;
 const TOUR_TARGET_POLL_INTERVAL_MS = 100;
-const TOUR_TARGET_MAX_WAIT_MS = 3000;
+const TOUR_TARGET_MAX_WAIT_MS = 8000;
+
+/** Targets rendered inside Inertia `WhenVisible` / deferred assistance content. */
+const DEFERRED_ASSISTANCE_TOUR_PARENT = '[data-tour="program-assistance"]';
+const DEFERRED_ASSISTANCE_TOUR_TARGETS = [
+    '[data-tour="program-assistance-toolbar"]',
+    '[data-tour="program-assistance-export"]',
+    '[data-tour="program-assistance-create"]',
+    '[data-tour="program-assistance-table"]',
+] as const;
+
+const TOUR_DRAWER_ANIMATION_MS = 400;
+
+type CreateDrawerField = {
+    target: string;
+    content: string;
+};
+
+type CreateDrawerTour = {
+    trigger: string;
+    form: string;
+    intro: string;
+    fields: readonly CreateDrawerField[];
+};
+
+const CREATE_DRAWER_TOURS = {
+    programs: {
+        trigger: '[data-tour="programs-create"]',
+        form: '[data-tour="programs-create-form"]',
+        intro: 'This form creates a program for your department.',
+        fields: [
+            {
+                target: '[data-tour="programs-create-name"]',
+                content: 'Enter the program name.',
+            },
+            {
+                target: '[data-tour="programs-create-description"]',
+                content: 'Add a short description of the program.',
+            },
+            {
+                target: '[data-tour="programs-create-dates"]',
+                content: 'Set the program start and end dates.',
+            },
+            {
+                target: '[data-tour="programs-create-funds"]',
+                content: 'Choose the funds this program can use.',
+            },
+            {
+                target: '[data-tour="programs-create-items"]',
+                content: 'Choose the items this program can distribute.',
+            },
+            {
+                target: '[data-tour="programs-create-fields"]',
+                content:
+                    'Add optional custom fields for assistance records.',
+            },
+            {
+                target: '[data-tour="programs-create-organization"]',
+                content:
+                    'Enable this when the program is for organizations.',
+            },
+            {
+                target: '[data-tour="programs-create-submit"]',
+                content: 'Save the program when the form is complete.',
+            },
+        ],
+    },
+    items: {
+        trigger: '[data-tour="items-create"]',
+        form: '[data-tour="items-create-form"]',
+        intro: 'This form creates an item for your department.',
+        fields: [
+            {
+                target: '[data-tour="items-create-name"]',
+                content: 'Enter the item name.',
+            },
+            {
+                target: '[data-tour="items-create-unit"]',
+                content: 'Select the unit of measurement.',
+            },
+            {
+                target: '[data-tour="items-create-submit"]',
+                content: 'Save the item when the form is complete.',
+            },
+        ],
+    },
+    funds: {
+        trigger: '[data-tour="funds-create"]',
+        form: '[data-tour="funds-create-form"]',
+        intro: 'This form creates a fund for your department.',
+        fields: [
+            {
+                target: '[data-tour="funds-create-name"]',
+                content: 'Enter the fund name.',
+            },
+            {
+                target: '[data-tour="funds-create-amount"]',
+                content: 'Enter the fund amount.',
+            },
+            {
+                target: '[data-tour="funds-create-year"]',
+                content: 'Set the fund year.',
+            },
+            {
+                target: '[data-tour="funds-create-active"]',
+                content:
+                    'Leave this on to make the fund available right away.',
+            },
+            {
+                target: '[data-tour="funds-create-submit"]',
+                content: 'Save the fund when the form is complete.',
+            },
+        ],
+    },
+} as const satisfies Record<string, CreateDrawerTour>;
+
+function isDeferredAssistanceTourTarget(target: string): boolean {
+    return (DEFERRED_ASSISTANCE_TOUR_TARGETS as readonly string[]).includes(
+        target,
+    );
+}
+
+function revealTourTargetParent(parentSelector: string): void {
+    const parent = document.querySelector(parentSelector);
+
+    if (parent instanceof HTMLElement) {
+        parent.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
+}
+
+function waitForTourTarget(
+    selector: string,
+    {
+        parentSelector,
+        timeoutMs = TOUR_TARGET_MAX_WAIT_MS,
+    }: {
+        parentSelector?: string;
+        timeoutMs?: number;
+    } = {},
+): Promise<void> {
+    const startedAt = Date.now();
+
+    return new Promise((resolve) => {
+        const tick = () => {
+            if (parentSelector) {
+                revealTourTargetParent(parentSelector);
+            }
+
+            if (document.querySelector(selector)) {
+                resolve();
+
+                return;
+            }
+
+            if (Date.now() - startedAt >= timeoutMs) {
+                resolve();
+
+                return;
+            }
+
+            window.setTimeout(tick, TOUR_TARGET_POLL_INTERVAL_MS);
+        };
+
+        tick();
+    });
+}
+
+function waitForDeferredAssistanceTourTarget(selector: string): Promise<void> {
+    return waitForTourTarget(selector, {
+        parentSelector: DEFERRED_ASSISTANCE_TOUR_PARENT,
+    });
+}
+
+function wait(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+        window.setTimeout(resolve, ms);
+    });
+}
+
+function findCreateDrawerTour(target: string): CreateDrawerTour | undefined {
+    return Object.values(CREATE_DRAWER_TOURS).find(
+        (drawer) =>
+            drawer.form === target ||
+            drawer.fields.some((field) => field.target === target),
+    );
+}
+
+function canOpenCreateDrawer(triggerSelector: string): boolean {
+    const trigger = document.querySelector(triggerSelector);
+
+    return (
+        trigger instanceof HTMLButtonElement &&
+        !trigger.disabled &&
+        trigger.getAttribute('aria-disabled') !== 'true'
+    );
+}
+
+function closeCreateDrawer(formSelector: string): void {
+    const closeButton = document.querySelector(
+        `${formSelector} [data-slot="drawer-close"]`,
+    );
+
+    if (closeButton instanceof HTMLElement) {
+        closeButton.click();
+    }
+}
+
+async function closeAllCreateDrawers(): Promise<void> {
+    unlockCreateDrawerTour();
+    await waitForCreateDrawerTourLockSync();
+
+    for (const drawer of Object.values(CREATE_DRAWER_TOURS)) {
+        closeCreateDrawer(drawer.form);
+    }
+}
+
+async function openCreateDrawer(drawer: CreateDrawerTour): Promise<void> {
+    lockCreateDrawerTour();
+    await waitForCreateDrawerTourLockSync();
+
+    const alreadyOpen = document.querySelector(drawer.form) !== null;
+
+    if (!alreadyOpen) {
+        const trigger = document.querySelector(drawer.trigger);
+
+        if (trigger instanceof HTMLButtonElement && !trigger.disabled) {
+            trigger.click();
+        }
+    }
+
+    await waitForTourTarget(drawer.form);
+
+    if (!alreadyOpen) {
+        await wait(TOUR_DRAWER_ANIMATION_MS);
+    }
+}
+
+async function closeCreateDrawerAnimated(
+    drawer: CreateDrawerTour,
+): Promise<void> {
+    const wasOpen = document.querySelector(drawer.form) !== null;
+
+    unlockCreateDrawerTour();
+
+    if (!wasOpen) {
+        return;
+    }
+
+    await waitForCreateDrawerTourLockSync();
+    closeCreateDrawer(drawer.form);
+    await wait(TOUR_DRAWER_ANIMATION_MS);
+}
+
+function createDrawerFormStep(drawer: CreateDrawerTour): Step {
+    return {
+        target: drawer.form,
+        content: drawer.intro,
+        placement: 'left',
+        skipScroll: true,
+        disableFocusTrap: true,
+        overlayClickAction: false,
+        targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        before: () => openCreateDrawer(drawer),
+        beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
+    };
+}
+
+function createDrawerFieldStep(
+    drawer: CreateDrawerTour,
+    field: CreateDrawerField,
+): Step {
+    return {
+        target: field.target,
+        content: field.content,
+        placement: 'left',
+        skipScroll: true,
+        disableFocusTrap: true,
+        overlayClickAction: false,
+        targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        before: async () => {
+            await openCreateDrawer(drawer);
+
+            const element = document.querySelector(field.target);
+
+            if (element instanceof HTMLElement) {
+                element.scrollIntoView({ block: 'nearest', behavior: 'auto' });
+            }
+        },
+        beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
+    };
+}
+
+function createDrawerTourSteps(drawer: CreateDrawerTour): Step[] {
+    return [
+        createDrawerFormStep(drawer),
+        ...drawer.fields.map((field) => createDrawerFieldStep(drawer, field)),
+    ];
+}
 
 const SHARED_STEPS: Step[] = [
     {
@@ -29,7 +331,8 @@ const SHARED_STEPS: Step[] = [
     },
     {
         target: '[data-tour="page-header"]',
-        content: 'Use the sidebar toggle and your account menu from this header.',
+        content:
+            'Use the sidebar toggle and your account menu from this header.',
         placement: 'bottom',
     },
     {
@@ -70,40 +373,109 @@ const PAGE_STEPS: Record<string, Step[]> = {
         {
             target: '[data-tour="programs-create"]',
             content: 'Create a new program for your department.',
+            before: () =>
+                closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.programs),
+        },
+        ...createDrawerTourSteps(CREATE_DRAWER_TOURS.programs),
+        {
+            target: '[data-tour="programs-list"]',
+            content: 'View programs list by type and status.',
+            before: () =>
+                closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.programs),
         },
     ],
     'programs/show': [
         {
-            target: '[data-tour="program-overview"]',
-            content: 'Review program details, type, status, and period here.',
+            target: '[data-tour="program-header"]',
+            content: 'View program title with status and beneficiary type.',
         },
         {
             target: '[data-tour="program-edit"]',
             content: 'Edit program details when changes are needed.',
         },
         {
+            target: '[data-tour="program-kpis"]',
+            content:
+                'View program KPIs by requests, beneficiaries, and items delivered.',
+        },
+        {
+            target: '[data-tour="program-requests-status-chart"]',
+            content: 'View requests status chart by status.',
+        },
+        {
+            target: '[data-tour="program-overview"]',
+            content: 'Review program details, type, status, and period here.',
+        },
+        {
             target: '[data-tour="program-assistance"]',
             content: 'Manage assistance records for this program.',
+            before: () =>
+                waitForDeferredAssistanceTourTarget(
+                    '[data-tour="program-assistance-toolbar"]',
+                ),
+            beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
         },
         {
             target: '[data-tour="program-assistance-toolbar"]',
             content: 'Filter assistance, export data, or add new records.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+            before: () =>
+                waitForDeferredAssistanceTourTarget(
+                    '[data-tour="program-assistance-toolbar"]',
+                ),
+            beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="program-assistance-export"]',
+            content: 'Export assistance records as CSV or XLSX.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="program-assistance-create"]',
+            content: 'Create a new assistance record for this program.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="program-assistance-table"]',
+            content: 'View assistance records.',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
         },
     ],
     beneficiaries: [
         {
-            target: '[data-tour="beneficiaries-filters"]',
-            content: 'Find beneficiaries with search and type filters.',
+            target: '[data-tour="beneficiaries-kpis"]',
+            content:
+                'View beneficiaries KPIs by total, individual, and organization beneficiaries.',
         },
         {
             target: '[data-tour="beneficiaries-create"]',
             content: 'Add a new beneficiary from here.',
         },
+        {
+            target: '[data-tour="beneficiaries-filters"]',
+            content: 'Find beneficiaries with search and type filters.',
+        },
+        {
+            target: '[data-tour="beneficiaries-table"]',
+            content: 'View beneficiaries table by type.',
+            placement: 'top',
+        },
     ],
     items: [
         {
+            target: '[data-tour="items-filters"]',
+            content: 'Find items with search filters.',
+        },
+        {
+            target: '[data-tour="items-create"]',
+            content: 'Create a new item for your department.',
+            before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.items),
+        },
+        ...createDrawerTourSteps(CREATE_DRAWER_TOURS.items),
+        {
             target: '[data-tour="items-table"]',
             content: 'Manage item inventory and update item details here.',
+            before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.items),
         },
     ],
     funds: [
@@ -114,6 +486,13 @@ const PAGE_STEPS: Record<string, Step[]> = {
         {
             target: '[data-tour="funds-create"]',
             content: 'Create a fund record for your department.',
+            before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.funds),
+        },
+        ...createDrawerTourSteps(CREATE_DRAWER_TOURS.funds),
+        {
+            target: '[data-tour="funds-table"]',
+            content: 'Manage funds and update fund details here.',
+            before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.funds),
         },
     ],
 };
@@ -149,7 +528,9 @@ function hasCompletedPageTour(completionKey: string | null): boolean {
         return false;
     }
 
-    return localStorage.getItem(`${TOUR_STORAGE_PREFIX}${completionKey}`) === '1';
+    return (
+        localStorage.getItem(`${TOUR_STORAGE_PREFIX}${completionKey}`) === '1'
+    );
 }
 
 function shouldStartTour(
@@ -182,12 +563,30 @@ function filterAvailableSteps(steps: Step[]): Step[] {
         return [];
     }
 
+    const assistanceParentPresent =
+        document.querySelector(DEFERRED_ASSISTANCE_TOUR_PARENT) !== null;
+
     return steps.filter((step) => {
         if (typeof step.target !== 'string') {
             return Boolean(step.target);
         }
 
-        return document.querySelector(step.target) !== null;
+        if (document.querySelector(step.target) !== null) {
+            return true;
+        }
+
+        const createDrawer = findCreateDrawerTour(step.target);
+
+        if (createDrawer) {
+            return canOpenCreateDrawer(createDrawer.trigger);
+        }
+
+        // Keep WhenVisible-deferred targets while their parent section exists.
+        // `before` hooks scroll the section into view and wait for mount.
+        return (
+            isDeferredAssistanceTourTarget(step.target) &&
+            assistanceParentPresent
+        );
     });
 }
 
@@ -235,8 +634,8 @@ export function AppTour() {
     );
 
     const shouldRun = useMemo(
-        () => shouldStartTour(completionKey, tourDismissed),
-        [completionKey, tourDismissed],
+        () => shouldStartTour(completionKey, tourDismissed) && steps.length > 0,
+        [completionKey, steps.length, tourDismissed],
     );
 
     const dismissTour = () => {
@@ -248,6 +647,8 @@ export function AppTour() {
         const { status, type, action, origin } = data;
 
         const markTourCompleted = () => {
+            void closeAllCreateDrawers();
+
             if (completionKey !== null) {
                 localStorage.setItem(
                     `${TOUR_STORAGE_PREFIX}${completionKey}`,
@@ -277,15 +678,18 @@ export function AppTour() {
         }
     };
 
-    const { Tour, controls } = useJoyride({
+    const { Tour } = useJoyride({
         steps,
+        run: shouldRun,
         continuous: true,
+        scrollToFirstStep: true,
         onEvent: handleCallback,
         tooltipComponent: AppTourTooltip,
         floatingOptions: { hideArrow: true },
         options: {
             zIndex: 10000,
             buttons: ['back', 'skip', 'primary'],
+            skipBeacon: true,
         },
         locale: {
             back: 'Back',
@@ -336,20 +740,6 @@ export function AppTour() {
             window.clearTimeout(handle);
         };
     }, [assembledSteps, includeShared, pathname]);
-
-    useEffect(() => {
-        if (!shouldRun || steps.length === 0 || tourDismissedRef.current) {
-            controls.stop();
-
-            return;
-        }
-
-        controls.start();
-    }, [controls, shouldRun, steps, tourDismissed]);
-
-    if (steps.length === 0) {
-        return null;
-    }
 
     return <div key={pathname}>{Tour}</div>;
 }

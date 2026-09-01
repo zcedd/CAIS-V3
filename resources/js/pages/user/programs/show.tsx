@@ -59,7 +59,14 @@ import {
     UserRound,
     Users,
 } from 'lucide-react';
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
 
 const ProgramAssistanceTableSection = lazy(() =>
     import('@/pages/user/programs/program-assistance-table').then((module) => ({
@@ -370,8 +377,8 @@ export default function UserProgramShow({
     const canCreateAssistance = Boolean(department?.slug && !program.is_closed);
     const canTransferAssistance = Boolean(
         department?.slug &&
-            !program.is_closed &&
-            (transfer_program_options?.length ?? 0) > 0,
+        !program.is_closed &&
+        (transfer_program_options?.length ?? 0) > 0,
     );
     const isClosed = Boolean(program.is_closed);
     const description = program.descriptions?.trim();
@@ -389,7 +396,7 @@ export default function UserProgramShow({
             <Head title={heading} />
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div className="space-y-2">
+                    <div data-tour="program-header" className="space-y-2">
                         <h1 className="text-2xl font-semibold tracking-tight">
                             {heading}
                         </h1>
@@ -445,29 +452,35 @@ export default function UserProgramShow({
                     </div>
                 </div>
 
-                <WhenVisible
-                    data="summary"
-                    buffer={200}
-                    fallback={<ProgramKpiCardsSkeleton />}
-                >
-                    {summary ? (
-                        <ProgramKpiCards summary={summary} />
-                    ) : (
-                        <ProgramKpiCardsSkeleton />
-                    )}
-                </WhenVisible>
+                <div data-tour="program-kpis">
+                    <WhenVisible
+                        data="summary"
+                        buffer={200}
+                        fallback={<ProgramKpiCardsSkeleton />}
+                    >
+                        {summary ? (
+                            <ProgramKpiCards summary={summary} />
+                        ) : (
+                            <ProgramKpiCardsSkeleton />
+                        )}
+                    </WhenVisible>
+                </div>
 
-                <WhenVisible
-                    data="status_breakdown"
-                    buffer={200}
-                    fallback={<ProgramStatusBreakdownSkeleton />}
-                >
-                    {status_breakdown ? (
-                        <ProgramStatusBreakdown breakdown={status_breakdown} />
-                    ) : (
-                        <ProgramStatusBreakdownSkeleton />
-                    )}
-                </WhenVisible>
+                <div data-tour="program-requests-status-chart">
+                    <WhenVisible
+                        data="status_breakdown"
+                        buffer={200}
+                        fallback={<ProgramStatusBreakdownSkeleton />}
+                    >
+                        {status_breakdown ? (
+                            <ProgramStatusBreakdown
+                                breakdown={status_breakdown}
+                            />
+                        ) : (
+                            <ProgramStatusBreakdownSkeleton />
+                        )}
+                    </WhenVisible>
+                </div>
 
                 <section
                     data-tour="program-overview"
@@ -488,12 +501,12 @@ export default function UserProgramShow({
 
                         <div className="grid gap-6 lg:grid-cols-3">
                             <div className="min-w-0 lg:col-span-2">
-                                <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                     Description
                                 </p>
                                 <p
                                     className={cn(
-                                        'whitespace-pre-wrap text-sm leading-relaxed',
+                                        'text-sm leading-relaxed whitespace-pre-wrap',
                                         description
                                             ? 'text-muted-foreground'
                                             : 'text-muted-foreground/60 italic',
@@ -505,7 +518,7 @@ export default function UserProgramShow({
 
                             <div className="min-w-0 space-y-5 lg:border-l lg:border-border lg:pl-6">
                                 <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <CalendarRange className="size-3.5" />
                                         Program period
                                     </p>
@@ -521,7 +534,7 @@ export default function UserProgramShow({
                                                 value={timeline.percent}
                                                 aria-label={`Program timeline ${timeline.percent}% elapsed`}
                                             />
-                                            <p className="text-xs tabular-nums text-muted-foreground">
+                                            <p className="text-xs text-muted-foreground tabular-nums">
                                                 {timeline.caption}
                                             </p>
                                         </div>
@@ -538,7 +551,7 @@ export default function UserProgramShow({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <Coins className="size-3.5" />
                                         Funding sources
                                     </p>
@@ -566,7 +579,7 @@ export default function UserProgramShow({
                                                     {formatFundAmount(
                                                         fund.amount,
                                                     ) ? (
-                                                        <span className="shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                                                        <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
                                                             {formatFundAmount(
                                                                 fund.amount,
                                                             )}
@@ -579,7 +592,7 @@ export default function UserProgramShow({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <Package className="size-3.5" />
                                         Covered items
                                     </p>
@@ -659,7 +672,9 @@ export default function UserProgramShow({
                                             statusOptions={
                                                 tableProps.status_options
                                             }
-                                            modeOptions={tableProps.mode_options}
+                                            modeOptions={
+                                                tableProps.mode_options
+                                            }
                                             isLoading={isTableReloading}
                                             departmentSlug={
                                                 department?.slug ?? ''

@@ -21,6 +21,10 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    applyCreateDrawerOpenChange,
+    useCreateDrawerTourLock,
+} from '@/lib/tour-create-drawer';
 import { cn } from '@/lib/utils';
 import type { UserDepartmentItemRow } from '@/pages/user/items/item-columns';
 import { store as storeDepartmentItem } from '@/routes/user/items';
@@ -66,6 +70,7 @@ export function ItemDataTableToolbar({
 }: ItemDataTableToolbarProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search);
     const [createOpen, setCreateOpen] = useState(false);
+    const createDrawerTourLocked = useCreateDrawerTourLock();
     const [createFormKey, setCreateFormKey] = useState(0);
 
     useEffect(() => {
@@ -96,14 +101,15 @@ export function ItemDataTableToolbar({
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div
+                data-tour="items-filters"
+                className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"
+            >
                 <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:items-center">
                     <Input
                         placeholder="Search items..."
                         value={searchQuery}
-                        onChange={(event) =>
-                            setSearchQuery(event.target.value)
-                        }
+                        onChange={(event) => setSearchQuery(event.target.value)}
                         className="h-9 max-w-sm"
                     />
                     {hasActiveFilters ? (
@@ -130,6 +136,7 @@ export function ItemDataTableToolbar({
                     <Button
                         type="button"
                         onClick={() => setCreateOpen(true)}
+                        data-tour="items-create"
                     >
                         <Plus className="mr-2 h-4 w-4" />
                         New item
@@ -137,8 +144,24 @@ export function ItemDataTableToolbar({
                 </div>
             </div>
 
-            <Drawer open={createOpen} onOpenChange={setCreateOpen} direction="right">
-                <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+            <Drawer
+                open={createOpen}
+                onOpenChange={(open) =>
+                    applyCreateDrawerOpenChange(open, setCreateOpen)
+                }
+                dismissible={!createDrawerTourLocked}
+                noBodyStyles={createDrawerTourLocked}
+                direction="right"
+            >
+                <DrawerContent
+                    className="data-[vaul-drawer-direction=right]:sm:max-w-3xl"
+                    data-tour="items-create-form"
+                    onPointerDownOutside={(event) => {
+                        if (createDrawerTourLocked) {
+                            event.preventDefault();
+                        }
+                    }}
+                >
                     <DrawerHeader>
                         <DrawerTitle>Create item</DrawerTitle>
                         <DrawerDescription>
@@ -164,7 +187,10 @@ export function ItemDataTableToolbar({
                     >
                         {({ errors, processing }) => (
                             <>
-                                <div className="space-y-2">
+                                <div
+                                    className="space-y-2"
+                                    data-tour="items-create-name"
+                                >
                                     <Label htmlFor="create-item-name">
                                         Name
                                     </Label>
@@ -176,7 +202,10 @@ export function ItemDataTableToolbar({
                                     <InputError message={errors.name} />
                                 </div>
 
-                                <div className="space-y-2">
+                                <div
+                                    className="space-y-2"
+                                    data-tour="items-create-unit"
+                                >
                                     <Label htmlFor="create-item-unit">
                                         Unit of measurement
                                     </Label>
@@ -208,11 +237,11 @@ export function ItemDataTableToolbar({
                                     />
                                 </div>
 
-                                <DrawerFooter className="px-0">
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                <DrawerFooter
+                                    className="px-0"
+                                    data-tour="items-create-submit"
+                                >
+                                    <Button type="submit" disabled={processing}>
                                         Create item
                                     </Button>
                                     <DrawerClose asChild>

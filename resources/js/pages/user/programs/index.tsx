@@ -34,14 +34,12 @@ import {
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
 import type { ProgramFieldDefinition } from '@/types/program-field';
-import { cn } from '@/lib/utils';
 import {
-    Form,
-    Head,
-    Link,
-    router,
-    setLayoutProps,
-} from '@inertiajs/react';
+    applyCreateDrawerOpenChange,
+    useCreateDrawerTourLock,
+} from '@/lib/tour-create-drawer';
+import { cn } from '@/lib/utils';
+import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import {
     CalendarDays,
     ChevronDownIcon,
@@ -230,6 +228,7 @@ export default function UserProgramsIndex({
 }) {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(false);
+    const createDrawerTourLocked = useCreateDrawerTourLock();
     const [startAtOpen, setStartAtOpen] = useState(false);
     const [startAt, setStartAt] = useState<Date | undefined>(undefined);
     const [endAtOpen, setEndAtOpen] = useState(false);
@@ -422,59 +421,79 @@ export default function UserProgramsIndex({
                         Create program
                     </Button>
                 </div>
-                {programs.data.length === 0 ? (
-                    <div className="flex flex-col items-start gap-1 border-t border-foreground/10 py-12">
-                        <p className="text-sm font-medium">No programs found</p>
-                        <p className="text-sm text-muted-foreground">
-                            Nothing matches your filters.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="flex flex-col gap-4">
-                        <div className="grid auto-rows-min gap-x-5 gap-y-7 md:grid-cols-2 lg:grid-cols-4">
-                            {programs.data.map((program) =>
-                                department?.slug ? (
-                                    <Link
-                                        key={program.id}
-                                        href={departmentProgramShow.url({
-                                            department: department.slug,
-                                            program: program.id,
-                                        })}
-                                        prefetch
-                                        className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                    >
-                                        <ProgramFolderCard program={program} />
-                                    </Link>
-                                ) : (
-                                    <div key={program.id}>
-                                        <ProgramFolderCard program={program} />
-                                    </div>
-                                ),
-                            )}
+                <div data-tour="programs-list">
+                    {programs.data.length === 0 ? (
+                        <div className="flex flex-col items-start gap-1 border-t border-foreground/10 py-12">
+                            <p className="text-sm font-medium">
+                                No programs found
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Nothing matches your filters.
+                            </p>
                         </div>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            <div className="grid auto-rows-min gap-x-5 gap-y-7 md:grid-cols-2 lg:grid-cols-4">
+                                {programs.data.map((program) =>
+                                    department?.slug ? (
+                                        <Link
+                                            key={program.id}
+                                            href={departmentProgramShow.url({
+                                                department: department.slug,
+                                                program: program.id,
+                                            })}
+                                            prefetch
+                                            className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                        >
+                                            <ProgramFolderCard
+                                                program={program}
+                                            />
+                                        </Link>
+                                    ) : (
+                                        <div key={program.id}>
+                                            <ProgramFolderCard
+                                                program={program}
+                                            />
+                                        </div>
+                                    ),
+                                )}
+                            </div>
 
-                        <ServerPagination
-                            pagination={programs}
-                            onPageChange={(page) =>
-                                navigateWithFilters({ page })
-                            }
-                            onPerPageChange={(perPage) =>
-                                navigateWithFilters({
-                                    per_page: perPage,
-                                    page: 1,
-                                })
-                            }
-                        />
-                    </div>
-                )}
+                            <ServerPagination
+                                pagination={programs}
+                                onPageChange={(page) =>
+                                    navigateWithFilters({ page })
+                                }
+                                onPerPageChange={(perPage) =>
+                                    navigateWithFilters({
+                                        per_page: perPage,
+                                        page: 1,
+                                    })
+                                }
+                            />
+                        </div>
+                    )}
+                </div>
             </div>
 
             <Drawer
                 open={createOpen}
-                onOpenChange={setCreateOpen}
+                onOpenChange={(open) =>
+                    applyCreateDrawerOpenChange(open, setCreateOpen)
+                }
+                dismissible={!createDrawerTourLocked}
+                noBodyStyles={createDrawerTourLocked}
                 direction="right"
             >
-                <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+                <DrawerContent
+                    className="data-[vaul-drawer-direction=right]:sm:max-w-3xl"
+                    data-tour="programs-create-form"
+                    onPointerDownOutside={(event) => {
+                        if (createDrawerTourLocked) {
+                            event.preventDefault();
+                        }
+                    }}
+                >
                     <DrawerHeader>
                         <DrawerTitle>Create program</DrawerTitle>
                         <DrawerDescription>
@@ -509,7 +528,10 @@ export default function UserProgramsIndex({
                         >
                             {({ errors, processing }) => (
                                 <>
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-name"
+                                    >
                                         <Label htmlFor="program-name">
                                             Name
                                         </Label>
@@ -521,7 +543,10 @@ export default function UserProgramsIndex({
                                         <InputError message={errors.name} />
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-description"
+                                    >
                                         <Label htmlFor="program-descriptions">
                                             Description
                                         </Label>
@@ -536,27 +561,35 @@ export default function UserProgramsIndex({
                                         />
                                     </div>
 
-                                    <ProgramDatePicker
-                                        id="program-start-at"
-                                        label="Start date"
-                                        selected={startAt}
-                                        onSelect={setStartAt}
-                                        open={startAtOpen}
-                                        onOpenChange={setStartAtOpen}
-                                        error={errors.start_at}
-                                    />
+                                    <div
+                                        className="flex flex-col gap-4"
+                                        data-tour="programs-create-dates"
+                                    >
+                                        <ProgramDatePicker
+                                            id="program-start-at"
+                                            label="Start date"
+                                            selected={startAt}
+                                            onSelect={setStartAt}
+                                            open={startAtOpen}
+                                            onOpenChange={setStartAtOpen}
+                                            error={errors.start_at}
+                                        />
 
-                                    <ProgramDatePicker
-                                        id="program-end-at"
-                                        label="End date"
-                                        selected={endAt}
-                                        onSelect={setEndAt}
-                                        open={endAtOpen}
-                                        onOpenChange={setEndAtOpen}
-                                        error={errors.end_at}
-                                    />
+                                        <ProgramDatePicker
+                                            id="program-end-at"
+                                            label="End date"
+                                            selected={endAt}
+                                            onSelect={setEndAt}
+                                            open={endAtOpen}
+                                            onOpenChange={setEndAtOpen}
+                                            error={errors.end_at}
+                                        />
+                                    </div>
 
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-funds"
+                                    >
                                         <Label htmlFor="program-funds">
                                             Funds
                                         </Label>
@@ -570,7 +603,10 @@ export default function UserProgramsIndex({
                                         <InputError message={errors.fund_ids} />
                                     </div>
 
-                                    <div className="space-y-2">
+                                    <div
+                                        className="space-y-2"
+                                        data-tour="programs-create-items"
+                                    >
                                         <Label htmlFor="program-items">
                                             Items
                                         </Label>
@@ -584,13 +620,18 @@ export default function UserProgramsIndex({
                                         <InputError message={errors.item_ids} />
                                     </div>
 
-                                    <ProgramFieldsEditor
-                                        fields={fields}
-                                        onChange={setFields}
-                                        errors={errors}
-                                    />
+                                    <div data-tour="programs-create-fields">
+                                        <ProgramFieldsEditor
+                                            fields={fields}
+                                            onChange={setFields}
+                                            errors={errors}
+                                        />
+                                    </div>
 
-                                    <div className="flex items-start gap-3">
+                                    <div
+                                        className="flex items-start gap-3"
+                                        data-tour="programs-create-organization"
+                                    >
                                         <Input
                                             id="program-is-organization"
                                             type="checkbox"
@@ -613,7 +654,10 @@ export default function UserProgramsIndex({
                                         </div>
                                     </div>
 
-                                    <DrawerFooter className="px-0">
+                                    <DrawerFooter
+                                        className="px-0"
+                                        data-tour="programs-create-submit"
+                                    >
                                         <Button
                                             type="submit"
                                             disabled={processing}

@@ -1,3 +1,4 @@
+import type { MouseEvent, PointerEvent } from 'react';
 import type { TooltipRenderProps } from 'react-joyride';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -9,10 +10,19 @@ function pickTourButtonProps({
     'data-action': dataAction,
 }: TooltipRenderProps['primaryProps']) {
     return {
-        onClick,
         'aria-label': ariaLabel,
         title,
         'data-action': dataAction,
+        onPointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+            if (event.button !== 0) {
+                return;
+            }
+
+            // Fire on pointer down so the drawer focus trap cannot cancel the click.
+            event.preventDefault();
+            event.stopPropagation();
+            onClick?.(event as unknown as MouseEvent<HTMLButtonElement>);
+        },
     };
 }
 
@@ -33,7 +43,7 @@ export function AppTourTooltip({
         <div
             {...tooltipProps}
             className={cn(
-                'w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-popover p-4 text-popover-foreground shadow-2xl ring-1 ring-foreground/5',
+                'pointer-events-auto relative z-10001 w-80 max-w-[calc(100vw-2rem)] rounded-2xl bg-popover p-4 text-popover-foreground shadow-2xl ring-1 ring-foreground/5',
             )}
         >
             {step.title ? (
