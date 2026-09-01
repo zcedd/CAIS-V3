@@ -2,13 +2,17 @@
 
 namespace App\Http\Requests\User\Beneficiary;
 
+use App\Http\Requests\User\Concerns\ValidatesDuplicateBeneficiaries;
 use App\Models\Department;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreIndividualRequest extends FormRequest
 {
+    use ValidatesDuplicateBeneficiaries;
+
     public function authorize(): bool
     {
         return $this->userBelongsToDepartment();
@@ -20,6 +24,7 @@ class StoreIndividualRequest extends FormRequest
     public function rules(): array
     {
         return [
+            ...$this->duplicateAcknowledgementRules(),
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -39,6 +44,38 @@ class StoreIndividualRequest extends FormRequest
             'identifications' => ['nullable', 'array'],
             'identifications.*.identification_id' => ['required', 'integer', Rule::exists('identifications', 'id')],
             'identifications.*.number' => ['required', 'string', 'max:255'],
+        ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $this->afterDuplicateCheck($validator, $this->duplicateSearchInput());
+    }
+
+    /**
+     * @return array{
+     *     type: 'individual',
+     *     first_name: string|null,
+     *     last_name: string|null,
+     *     birthday: string|null,
+     *     address_barangay_id: int|null,
+     *     identifications: list<array{identification_id?: int, number?: string}>,
+     *     exclude_beneficiary_id?: int|null
+     * }
+     */
+    protected function duplicateSearchInput(): array
+    {
+        return [
+            'type' => 'individual',
+            'first_name' => $this->input('first_name'),
+            'last_name' => $this->input('last_name'),
+            'birthday' => $this->input('birthday'),
+            'address_barangay_id' => $this->filled('address_barangay_id')
+                ? $this->integer('address_barangay_id')
+                : null,
+            'identifications' => is_array($this->input('identifications'))
+                ? $this->input('identifications')
+                : [],
         ];
     }
 

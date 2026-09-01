@@ -5,6 +5,7 @@ import {
     BeneficiarySearchCombobox,
     type BeneficiarySearchOption,
 } from '@/components/beneficiary-search-combobox';
+import { DuplicateCandidatesAlert } from '@/components/duplicate-candidates-alert';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -28,7 +29,8 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
-import { edit as beneficiaryEdit } from '@/routes/user/beneficiaries';
+import { toOptionList } from '@/lib/utils';
+import { duplicates as beneficiaryDuplicates, edit as beneficiaryEdit } from '@/routes/user/beneficiaries';
 import { update as updateIndividual } from '@/routes/user/beneficiaries/individuals';
 import { update as updateOrganization } from '@/routes/user/beneficiaries/organizations';
 import type {
@@ -36,7 +38,8 @@ import type {
     FormOptions,
     IndividualFormData,
 } from '@/types/beneficiary';
-import { Form } from '@inertiajs/react';
+import type { DuplicateCandidate } from '@/types/eligibility';
+import { Form, usePage } from '@inertiajs/react';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -173,6 +176,13 @@ export function BeneficiaryEditDrawer({
     const [organizationBarangayId, setOrganizationBarangayId] = useState<
         number | null
     >(null);
+    const [duplicateAcknowledged, setDuplicateAcknowledged] = useState(false);
+    const [duplicateCandidates, setDuplicateCandidates] = useState<
+        DuplicateCandidate[]
+    >([]);
+    const { duplicate_candidates: flashedDuplicates } = usePage<{
+        duplicate_candidates?: DuplicateCandidate[] | null;
+    }>().props;
 
     useEffect(() => {
         if (!open) {
@@ -258,13 +268,13 @@ export function BeneficiaryEditDrawer({
             });
     }, [beneficiaryId, department.slug, onOpenChange, open]);
 
-    const options = formOptions ?? {
-        civil_statuses: [],
-        identifications: [],
-        address_provinces: [],
-        default_province_id: null,
-        address_cities: [],
-        address_barangays: [],
+    const options: FormOptions = {
+        civil_statuses: toOptionList(formOptions?.civil_statuses),
+        identifications: toOptionList(formOptions?.identifications),
+        address_provinces: toOptionList(formOptions?.address_provinces),
+        default_province_id: formOptions?.default_province_id ?? null,
+        address_cities: toOptionList(formOptions?.address_cities),
+        address_barangays: toOptionList(formOptions?.address_barangays),
     };
 
     const addIdentificationRow = () => {
@@ -316,6 +326,125 @@ export function BeneficiaryEditDrawer({
         setMemberPickerKey((value) => value + 1);
     };
 
+    useEffect(() => {
+        if (flashedDuplicates && flashedDuplicates.length > 0) {
+            setDuplicateCandidates(flashedDuplicates);
+        }
+    }, [flashedDuplicates]);
+
+    useEffect(() => {
+        if (!open || payload?.type !== 'individual') {
+            return;
+        }
+
+        const handle = window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const response = await fetch(
+                        beneficiaryDuplicates.url(department.slug, {
+                            query: {
+                                beneficiary_type: 'individual',
+                                first_name: individualForm.first_name,
+                                last_name: individualForm.last_name,
+                                birthday: individualForm.birthday || undefined,
+                                address_barangay_id:
+                                    individualForm.address_barangay_id ??
+                                    undefined,
+                                identifications: individualForm.identifications,
+                                exclude_beneficiary_id: beneficiaryId,
+                            },
+                        }),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        },
+                    );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const json = (await response.json()) as {
+                        data: DuplicateCandidate[];
+                    };
+
+                    setDuplicateCandidates(json.data);
+                    setDuplicateAcknowledged(false);
+                } catch {
+                    // Preview is best-effort; submit still validates on the server.
+                }
+            })();
+        }, 400);
+
+        return () => window.clearTimeout(handle);
+    }, [
+        open,
+        payload?.type,
+        department.slug,
+        beneficiaryId,
+        individualForm.first_name,
+        individualForm.last_name,
+        individualForm.birthday,
+        individualForm.address_barangay_id,
+        individualForm.identifications,
+    ]);
+
+    useEffect(() => {
+        if (!open || payload?.type !== 'organization') {
+            return;
+        }
+
+        const handle = window.setTimeout(() => {
+            void (async () => {
+                try {
+                    const response = await fetch(
+                        beneficiaryDuplicates.url(department.slug, {
+                            query: {
+                                beneficiary_type: 'organization',
+                                name: orgName,
+                                address_barangay_id:
+                                    organizationBarangayId ?? undefined,
+                                exclude_beneficiary_id: beneficiaryId,
+                            },
+                        }),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        },
+                    );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const json = (await response.json()) as {
+                        data: DuplicateCandidate[];
+                    };
+
+                    setDuplicateCandidates(json.data);
+                    setDuplicateAcknowledged(false);
+                } catch {
+                    // Preview is best-effort; submit still validates on the server.
+                }
+            })();
+        }, 400);
+
+        return () => window.clearTimeout(handle);
+    }, [
+        open,
+        payload?.type,
+        department.slug,
+        beneficiaryId,
+        orgName,
+        organizationBarangayId,
+    ]);
+
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
             <DrawerContent className="w-full data-[vaul-drawer-direction=right]:w-full sm:max-w-full data-[vaul-drawer-direction=right]:sm:max-w-full lg:max-w-3xl data-[vaul-drawer-direction=right]:lg:max-w-3xl">
@@ -338,9 +467,22 @@ export function BeneficiaryEditDrawer({
                                 beneficiary: beneficiaryId,
                             })}
                             className="grid gap-4"
+                            transform={(data) => ({
+                                ...data,
+                                duplicate_acknowledged: duplicateAcknowledged,
+                            })}
                         >
                             {({ processing, errors }) => (
                                 <>
+                                    <DuplicateCandidatesAlert
+                                        departmentSlug={department.slug}
+                                        candidates={duplicateCandidates}
+                                        error={errors.duplicates}
+                                        acknowledged={duplicateAcknowledged}
+                                        onAcknowledge={() =>
+                                            setDuplicateAcknowledged(true)
+                                        }
+                                    />
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div className="space-y-2">
                                             <Label htmlFor="edit_first_name">
@@ -1009,9 +1151,22 @@ export function BeneficiaryEditDrawer({
                                 beneficiary: beneficiaryId,
                             })}
                             className="grid gap-4"
+                            transform={(data) => ({
+                                ...data,
+                                duplicate_acknowledged: duplicateAcknowledged,
+                            })}
                         >
                             {({ processing, errors }) => (
                                 <>
+                                    <DuplicateCandidatesAlert
+                                        departmentSlug={department.slug}
+                                        candidates={duplicateCandidates}
+                                        error={errors.duplicates}
+                                        acknowledged={duplicateAcknowledged}
+                                        onAcknowledge={() =>
+                                            setDuplicateAcknowledged(true)
+                                        }
+                                    />
                                     <div className="grid gap-4 md:grid-cols-2">
                                         <div className="space-y-2 md:col-span-2">
                                             <Label htmlFor="edit_org_name">

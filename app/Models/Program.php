@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Program extends Model
@@ -76,5 +77,25 @@ class Program extends Model
     public function fields(): HasMany
     {
         return $this->hasMany(ProgramField::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function eligibilityRule(): HasOne
+    {
+        return $this->hasOne(ProgramEligibilityRule::class);
+    }
+
+    public function itemCaps(): HasMany
+    {
+        return $this->hasMany(ProgramItemCap::class);
+    }
+
+    /**
+     * Program IDs that share eligibility (this program today; parent + batches later).
+     *
+     * @return list<int>
+     */
+    public function familyIds(): array
+    {
+        return [$this->id];
     }
 }

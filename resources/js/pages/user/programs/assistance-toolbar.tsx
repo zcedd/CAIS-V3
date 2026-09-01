@@ -6,6 +6,10 @@ import {
     initialFieldValues,
 } from '@/components/assistance-field-inputs';
 import { BeneficiarySearchCombobox } from '@/components/beneficiary-search-combobox';
+import {
+    EligibilityFindingsPanel,
+    hasHardEligibilityFindings,
+} from '@/components/eligibility-findings-panel';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
@@ -38,9 +42,10 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
-import { store as storeProgramAssistance } from '@/routes/user/programs/assistances';
+import { store as storeProgramAssistance, eligibility as assistanceEligibility } from '@/routes/user/programs/assistances';
+import type { EligibilityPreview } from '@/types/eligibility';
 import type { ProgramFieldOption } from '@/types/program-field';
-import { Form } from '@inertiajs/react';
+import { Form, usePage } from '@inertiajs/react';
 import { Table, VisibilityState } from '@tanstack/react-table';
 import {
     CalendarDays,
@@ -304,6 +309,13 @@ export function AssistanceDataTableToolbar({
         number | null
     >(null);
     const [beneficiaryFieldKey, setBeneficiaryFieldKey] = useState(0);
+    const [eligibilityPreview, setEligibilityPreview] =
+        useState<EligibilityPreview | null>(null);
+    const [eligibilityLoading, setEligibilityLoading] = useState(false);
+    const [overrideReason, setOverrideReason] = useState('');
+    const { eligibility_findings: flashedFindings } = usePage<{
+        eligibility_findings?: EligibilityPreview['findings'] | null;
+    }>().props;
 
     const programItemSelectOptions = programItems.map((item) => ({
         value: String(item.id),
@@ -318,6 +330,8 @@ export function AssistanceDataTableToolbar({
         setFieldValues({});
         setSelectedBeneficiaryId(null);
         setBeneficiaryFieldKey((key) => key + 1);
+        setEligibilityPreview(null);
+        setOverrideReason('');
     };
 
     useEffect(() => {
@@ -376,6 +390,79 @@ export function AssistanceDataTableToolbar({
             return next;
         });
     }, [selectedItemIds]);
+
+    useEffect(() => {
+        if (!createOpen || selectedBeneficiaryId === null) {
+            setEligibilityPreview(null);
+
+            return;
+        }
+
+        const handle = window.setTimeout(() => {
+            void (async () => {
+                setEligibilityLoading(true);
+
+                try {
+                    const response = await fetch(
+                        assistanceEligibility.url(
+                            {
+                                department: departmentSlug,
+                                program: programId,
+                            },
+                            {
+                                query: {
+                                    beneficiary_id: selectedBeneficiaryId,
+                                    recorded_at:
+                                        formatDateTimeForSubmit(dateRequested),
+                                    item_details: selectedItemIds.map(
+                                        (itemId) => ({
+                                            item_id: Number(itemId),
+                                            quantity: Number(
+                                                itemDetails[itemId]
+                                                    ?.quantity ?? 1,
+                                            ),
+                                        }),
+                                    ),
+                                },
+                            },
+                        ),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        },
+                    );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = (await response.json()) as {
+                        data: EligibilityPreview;
+                    };
+
+                    setEligibilityPreview(payload.data);
+                    setOverrideReason('');
+                } catch {
+                    // Preview is best-effort; submit still validates on the server.
+                } finally {
+                    setEligibilityLoading(false);
+                }
+            })();
+        }, 300);
+
+        return () => window.clearTimeout(handle);
+    }, [
+        createOpen,
+        departmentSlug,
+        programId,
+        selectedBeneficiaryId,
+        dateRequested,
+        selectedItemIds,
+        itemDetails,
+    ]);
 
     const isFiltered =
         filters.search !== '' ||
@@ -537,6 +624,7 @@ export function AssistanceDataTableToolbar({
                                     programFields,
                                     fieldValues,
                                 ),
+                                eligibility_override_reason: overrideReason,
                             })}
                             onSuccess={() => {
                                 resetCreateForm();
@@ -575,6 +663,26 @@ export function AssistanceDataTableToolbar({
                                             error={errors.beneficiary_id}
                                         />
                                     )}
+
+                                    <EligibilityFindingsPanel
+                                        departmentSlug={departmentSlug}
+                                        findings={
+                                            flashedFindings ??
+                                            eligibilityPreview?.findings ??
+                                            []
+                                        }
+                                        history={
+                                            eligibilityPreview?.history ?? []
+                                        }
+                                        overrideReason={overrideReason}
+                                        onOverrideReasonChange={
+                                            setOverrideReason
+                                        }
+                                        overrideError={
+                                            errors.eligibility_override_reason
+                                        }
+                                        isLoading={eligibilityLoading}
+                                    />
 
                                     <div className="space-y-2">
                                         <Label htmlFor="assistance-mode">
@@ -793,7 +901,12 @@ export function AssistanceDataTableToolbar({
                                             type="submit"
                                             disabled={
                                                 processing ||
-                                                programItems.length === 0
+                                                programItems.length === 0 ||
+                                                hasHardEligibilityFindings(
+                                                    flashedFindings ??
+                                                        eligibilityPreview?.findings ??
+                                                        [],
+                                                )
                                             }
                                         >
                                             {processing

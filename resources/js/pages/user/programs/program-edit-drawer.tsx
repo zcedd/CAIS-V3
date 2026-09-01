@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { ProgramEligibilityFields, eligibilityPayloadFromForm } from '@/components/program-eligibility-fields';
 import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -21,6 +22,8 @@ import {
 } from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
 import { update as updateProgram } from '@/routes/user/programs';
+import type { ProgramEligibilityFormValue } from '@/types/eligibility';
+import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
 import { Form } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
@@ -45,14 +48,25 @@ type ProgramDetail = {
     name: string;
     descriptions: string | null;
     is_closed: boolean | null;
+    is_organization?: boolean | null;
     start_at_input: string | null;
     end_at_input: string | null;
+};
+
+type ProgramEligibilityPayload = {
+    cooldown_days: number | null;
+    require_pwd: boolean;
+    require_4ps: boolean;
+    require_solo_parent: boolean;
+    require_indigenous: boolean;
+    item_caps: Array<{ item_id: number; max_released_per_year: number }>;
 };
 
 type ProgramEditRelations = {
     fund_ids: number[];
     item_ids: number[];
     fields: ProgramFieldDefinition[];
+    eligibility?: ProgramEligibilityPayload;
 };
 
 function formatDateForSubmit(date: Date | undefined): string | undefined {
@@ -77,6 +91,29 @@ function parseProgramDateInput(
     const [year, month, day] = value.split('-').map(Number);
 
     return new Date(year, month - 1, day);
+}
+
+function eligibilityFormFromPayload(
+    payload?: ProgramEligibilityPayload,
+): ProgramEligibilityFormValue {
+    if (!payload) {
+        return emptyProgramEligibility();
+    }
+
+    return {
+        cooldown_days:
+            payload.cooldown_days !== null ? String(payload.cooldown_days) : '',
+        require_pwd: payload.require_pwd,
+        require_4ps: payload.require_4ps,
+        require_solo_parent: payload.require_solo_parent,
+        require_indigenous: payload.require_indigenous,
+        item_caps: Object.fromEntries(
+            payload.item_caps.map((cap) => [
+                String(cap.item_id),
+                String(cap.max_released_per_year),
+            ]),
+        ),
+    };
 }
 
 type ProgramDatePickerProps = {
@@ -197,6 +234,9 @@ export function ProgramEditDrawer({
     const [fields, setFields] = useState<ProgramFieldDefinition[]>(
         () => programEdit?.fields ?? [],
     );
+    const [eligibility, setEligibility] = useState<ProgramEligibilityFormValue>(
+        () => eligibilityFormFromPayload(programEdit?.eligibility),
+    );
 
     useEffect(() => {
         setStartAt(parseProgramDateInput(program.start_at_input));
@@ -211,6 +251,7 @@ export function ProgramEditDrawer({
         setSelectedFundIds(programEdit.fund_ids.map(String));
         setSelectedItemIds(programEdit.item_ids.map(String));
         setFields(programEdit.fields ?? []);
+        setEligibility(eligibilityFormFromPayload(programEdit.eligibility));
     }, [programEdit]);
 
     const fundOptions = funds.map((fund) => ({
@@ -254,6 +295,10 @@ export function ProgramEditDrawer({
                             ...field,
                             sort_order: index,
                         })),
+                        ...eligibilityPayloadFromForm(
+                            eligibility,
+                            selectedItemIds,
+                        ),
                     })}
                     onSuccess={() => {
                         onClose();
@@ -344,6 +389,16 @@ export function ProgramEditDrawer({
                                 fields={fields}
                                 onChange={setFields}
                                 errors={errors}
+                            />
+
+                            <ProgramEligibilityFields
+                                value={eligibility}
+                                onChange={setEligibility}
+                                items={items}
+                                selectedItemIds={selectedItemIds}
+                                isOrganization={program.is_organization ?? false}
+                                errors={errors}
+                                idPrefix="edit-program-eligibility"
                             />
 
                             <div className="flex items-start gap-3">

@@ -3,8 +3,11 @@
 namespace App\Providers;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Connection;
+use Illuminate\Database\Events\ConnectionEstablished;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -33,18 +36,39 @@ class AppServiceProvider extends ServiceProvider
     {
         Date::use(CarbonImmutable::class);
 
+        $registerSqliteSoundex = static function (Connection $connection): void {
+            if ($connection->getDriverName() !== 'sqlite') {
+                return;
+            }
+
+            $connection->getPdo()->sqliteCreateFunction(
+                'SOUNDEX',
+                static fn (?string $value): string => soundex((string) $value),
+                1,
+            );
+        };
+
+        foreach (DB::getConnections() as $connection) {
+            $registerSqliteSoundex($connection);
+        }
+
+        Event::listen(
+            ConnectionEstablished::class,
+            static fn (ConnectionEstablished $event) => $registerSqliteSoundex($event->connection),
+        );
+
         DB::prohibitDestructiveCommands(
             app()->isProduction(),
         );
 
         Password::defaults(
-            fn(): ?Password => app()->isProduction()
+            fn (): ?Password => app()->isProduction()
                 ? Password::min(12)
-                ->mixedCase()
-                ->letters()
-                ->numbers()
-                ->symbols()
-                ->uncompromised()
+                    ->mixedCase()
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised()
                 : null,
         );
     }

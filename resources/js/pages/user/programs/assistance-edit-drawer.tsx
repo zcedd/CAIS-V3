@@ -9,6 +9,10 @@ import {
     BeneficiarySearchCombobox,
     type BeneficiarySearchOption,
 } from '@/components/beneficiary-search-combobox';
+import {
+    EligibilityFindingsPanel,
+    hasHardEligibilityFindings,
+} from '@/components/eligibility-findings-panel';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,10 +42,12 @@ import type {
 } from '@/pages/user/programs/assistance-toolbar';
 import {
     edit as editProgramAssistance,
+    eligibility as assistanceEligibility,
     update as updateProgramAssistance,
 } from '@/routes/user/programs/assistances';
+import type { EligibilityPreview } from '@/types/eligibility';
 import type { ProgramFieldOption } from '@/types/program-field';
-import { Form } from '@inertiajs/react';
+import { Form, usePage } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -114,6 +120,13 @@ export function AssistanceEditDrawer({
         useState<BeneficiarySearchOption | null>(null);
     const [defaultModeOfRequestId, setDefaultModeOfRequestId] = useState('');
     const [defaultRemark, setDefaultRemark] = useState('');
+    const [eligibilityPreview, setEligibilityPreview] =
+        useState<EligibilityPreview | null>(null);
+    const [eligibilityLoading, setEligibilityLoading] = useState(false);
+    const [overrideReason, setOverrideReason] = useState('');
+    const { eligibility_findings: flashedFindings } = usePage<{
+        eligibility_findings?: EligibilityPreview['findings'] | null;
+    }>().props;
 
     const programItemSelectOptions = programItems.map((item) => ({
         value: String(item.id),
@@ -158,6 +171,8 @@ export function AssistanceEditDrawer({
         setDefaultModeOfRequestId('');
         setDefaultRemark('');
         setLoadError(null);
+        setEligibilityPreview(null);
+        setOverrideReason('');
     };
 
     useEffect(() => {
@@ -221,6 +236,77 @@ export function AssistanceEditDrawer({
         });
     }, [selectedItemIds]);
 
+    useEffect(() => {
+        if (!open || selectedBeneficiaryId === null) {
+            setEligibilityPreview(null);
+
+            return;
+        }
+
+        const handle = window.setTimeout(() => {
+            void (async () => {
+                setEligibilityLoading(true);
+
+                try {
+                    const response = await fetch(
+                        assistanceEligibility.url(
+                            {
+                                department: departmentSlug,
+                                program: programId,
+                            },
+                            {
+                                query: {
+                                    beneficiary_id: selectedBeneficiaryId,
+                                    except_assistance_id: assistanceId,
+                                    item_details: selectedItemIds.map(
+                                        (itemId) => ({
+                                            item_id: Number(itemId),
+                                            quantity: Number(
+                                                itemDetails[itemId]
+                                                    ?.quantity ?? 1,
+                                            ),
+                                        }),
+                                    ),
+                                },
+                            },
+                        ),
+                        {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        },
+                    );
+
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const payload = (await response.json()) as {
+                        data: EligibilityPreview;
+                    };
+
+                    setEligibilityPreview(payload.data);
+                } catch {
+                    // Preview is best-effort; submit still validates on the server.
+                } finally {
+                    setEligibilityLoading(false);
+                }
+            })();
+        }, 300);
+
+        return () => window.clearTimeout(handle);
+    }, [
+        open,
+        assistanceId,
+        departmentSlug,
+        programId,
+        selectedBeneficiaryId,
+        selectedItemIds,
+        itemDetails,
+    ]);
+
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
             <DrawerContent className="w-full data-[vaul-drawer-direction=right]:w-full sm:max-w-full data-[vaul-drawer-direction=right]:sm:max-w-full lg:max-w-3xl data-[vaul-drawer-direction=right]:lg:max-w-3xl">
@@ -262,6 +348,7 @@ export function AssistanceEditDrawer({
                                 programFields,
                                 fieldValues,
                             ),
+                            eligibility_override_reason: overrideReason,
                         })}
                         onSuccess={() => {
                             resetForm();
@@ -297,6 +384,22 @@ export function AssistanceEditDrawer({
                                         error={errors.beneficiary_id}
                                     />
                                 )}
+
+                                <EligibilityFindingsPanel
+                                    departmentSlug={departmentSlug}
+                                    findings={
+                                        flashedFindings ??
+                                        eligibilityPreview?.findings ??
+                                        []
+                                    }
+                                    history={eligibilityPreview?.history ?? []}
+                                    overrideReason={overrideReason}
+                                    onOverrideReasonChange={setOverrideReason}
+                                    overrideError={
+                                        errors.eligibility_override_reason
+                                    }
+                                    isLoading={eligibilityLoading}
+                                />
 
                                 <div className="space-y-2">
                                     <Label htmlFor="edit-assistance-mode">
@@ -504,7 +607,12 @@ export function AssistanceEditDrawer({
                                         type="submit"
                                         disabled={
                                             processing ||
-                                            programItems.length === 0
+                                            programItems.length === 0 ||
+                                            hasHardEligibilityFindings(
+                                                flashedFindings ??
+                                                    eligibilityPreview?.findings ??
+                                                    [],
+                                            )
                                         }
                                     >
                                         {processing

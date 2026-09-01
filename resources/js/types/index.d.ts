@@ -29,6 +29,8 @@ export interface SharedData {
     auth: Auth;
     sidebarOpen: boolean;
     unreadNotificationsCount: number;
+    duplicate_candidates?: unknown;
+    eligibility_findings?: unknown;
     [key: string]: unknown;
 }
 

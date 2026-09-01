@@ -35,7 +35,7 @@ test('authenticated users can create individual beneficiaries with morph row', f
     expect($individual)->not->toBeNull()
         ->and($beneficiary)->not->toBeNull()
         ->and($beneficiary->name)->toBe('Juan Dela Cruz')
-        ->and($individual->cais_number)->toStartWith('IND-');
+        ->and($individual->cais_number)->toStartWith('PRO-');
 
     $response->assertRedirect(route('user.beneficiaries.show', [
         'department' => $department->slug,

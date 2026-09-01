@@ -6,6 +6,8 @@ use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
 use App\Models\Program;
+use App\Models\ProgramEligibilityRule;
+use App\Models\ProgramItemCap;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
@@ -87,6 +89,8 @@ class ProgramService
             $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
         }
 
+        $this->syncEligibility($program, $validated);
+
         return $program;
     }
 
@@ -110,6 +114,8 @@ class ProgramService
         if (array_key_exists('fields', $validated)) {
             $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
         }
+
+        $this->syncEligibility($program, $validated);
     }
 
     /**
@@ -212,6 +218,7 @@ class ProgramService
             'fund_ids' => $program->fund->pluck('id')->values()->all(),
             'item_ids' => $program->item->pluck('id')->values()->all(),
             'fields' => $this->programFieldService->fieldsPayload($program),
+            'eligibility' => $this->eligibilityPayload($program),
         ];
     }
 
@@ -295,6 +302,86 @@ class ProgramService
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncEligibility(Program $program, array $validated): void
+    {
+        $isOrganization = (bool) ($validated['is_organization'] ?? $program->is_organization);
+
+        $program->eligibilityRule()->updateOrCreate([], [
+            'cooldown_days' => $validated['cooldown_days'] ?? null,
+            'require_pwd' => $isOrganization ? false : (bool) ($validated['require_pwd'] ?? false),
+            'require_4ps' => $isOrganization ? false : (bool) ($validated['require_4ps'] ?? false),
+            'require_solo_parent' => $isOrganization ? false : (bool) ($validated['require_solo_parent'] ?? false),
+            'require_indigenous' => $isOrganization ? false : (bool) ($validated['require_indigenous'] ?? false),
+        ]);
+
+        $itemIds = collect($validated['item_ids'] ?? [])
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->filter()
+            ->values();
+
+        $caps = collect($validated['item_caps'] ?? [])
+            ->filter(static fn (mixed $row): bool => is_array($row))
+            ->map(static fn (array $row): array => [
+                'item_id' => (int) ($row['item_id'] ?? 0),
+                'max_released_per_year' => (int) ($row['max_released_per_year'] ?? 0),
+            ])
+            ->filter(static fn (array $row): bool => $row['item_id'] > 0
+                && $row['max_released_per_year'] > 0
+                && $itemIds->contains($row['item_id']))
+            ->unique('item_id')
+            ->values();
+
+        $keptItemIds = $caps->pluck('item_id')->all();
+
+        if ($keptItemIds === []) {
+            $program->itemCaps()->delete();
+        } else {
+            $program->itemCaps()->whereNotIn('item_id', $keptItemIds)->delete();
+        }
+
+        foreach ($caps as $cap) {
+            $program->itemCaps()->updateOrCreate(
+                ['item_id' => $cap['item_id']],
+                ['max_released_per_year' => $cap['max_released_per_year']],
+            );
+        }
+    }
+
+    /**
+     * @return array{
+     *     cooldown_days: int|null,
+     *     require_pwd: bool,
+     *     require_4ps: bool,
+     *     require_solo_parent: bool,
+     *     require_indigenous: bool,
+     *     item_caps: list<array{item_id: int, max_released_per_year: int}>
+     * }
+     */
+    public function eligibilityPayload(Program $program): array
+    {
+        $program->loadMissing(['eligibilityRule', 'itemCaps']);
+
+        $rule = $program->eligibilityRule;
+
+        return [
+            'cooldown_days' => $rule instanceof ProgramEligibilityRule ? $rule->cooldown_days : null,
+            'require_pwd' => $rule instanceof ProgramEligibilityRule ? $rule->require_pwd : false,
+            'require_4ps' => $rule instanceof ProgramEligibilityRule ? $rule->require_4ps : false,
+            'require_solo_parent' => $rule instanceof ProgramEligibilityRule ? $rule->require_solo_parent : false,
+            'require_indigenous' => $rule instanceof ProgramEligibilityRule ? $rule->require_indigenous : false,
+            'item_caps' => $program->itemCaps
+                ->map(static fn (ProgramItemCap $cap): array => [
+                    'item_id' => $cap->item_id,
+                    'max_released_per_year' => $cap->max_released_per_year,
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 
     private function programDateForInput(mixed $value): ?string

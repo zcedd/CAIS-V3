@@ -12,6 +12,8 @@ class IndividualIdentification extends Model
     use HasFactory;
     use LogsActivity;
 
+    protected $table = 'individual_identification';
+
     protected $fillable = ['beneficiary_id', 'identification_id', 'number'];
 
     public $incrementing = true;

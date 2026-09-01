@@ -1,6 +1,7 @@
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import type { ServerPaginationMeta } from '@/components/data-table/types';
 import InputError from '@/components/input-error';
+import { ProgramEligibilityFields, eligibilityPayloadFromForm } from '@/components/program-eligibility-fields';
 import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { ServerPagination } from '@/components/server-pagination';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,8 @@ import {
     store as storeProgram,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
+import type { ProgramEligibilityFormValue } from '@/types/eligibility';
+import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
 import {
     applyCreateDrawerOpenChange,
@@ -236,6 +239,10 @@ export default function UserProgramsIndex({
     const [selectedFundIds, setSelectedFundIds] = useState<string[]>([]);
     const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
     const [fields, setFields] = useState<ProgramFieldDefinition[]>([]);
+    const [isOrganization, setIsOrganization] = useState(false);
+    const [eligibility, setEligibility] = useState<ProgramEligibilityFormValue>(
+        emptyProgramEligibility(),
+    );
 
     const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
@@ -255,6 +262,8 @@ export default function UserProgramsIndex({
         setSelectedFundIds([]);
         setSelectedItemIds([]);
         setFields([]);
+        setIsOrganization(false);
+        setEligibility(emptyProgramEligibility());
     };
 
     useEffect(() => {
@@ -518,6 +527,11 @@ export default function UserProgramsIndex({
                                     ...field,
                                     sort_order: index,
                                 })),
+                                is_organization: isOrganization,
+                                ...eligibilityPayloadFromForm(
+                                    eligibility,
+                                    selectedItemIds,
+                                ),
                             })}
                             onSuccess={() => {
                                 resetCreateForm();
@@ -628,6 +642,15 @@ export default function UserProgramsIndex({
                                         />
                                     </div>
 
+                                    <ProgramEligibilityFields
+                                        value={eligibility}
+                                        onChange={setEligibility}
+                                        items={items ?? []}
+                                        selectedItemIds={selectedItemIds}
+                                        isOrganization={isOrganization}
+                                        errors={errors}
+                                    />
+
                                     <div
                                         className="flex items-start gap-3"
                                         data-tour="programs-create-organization"
@@ -637,6 +660,12 @@ export default function UserProgramsIndex({
                                             type="checkbox"
                                             name="is_organization"
                                             value="1"
+                                            checked={isOrganization}
+                                            onChange={(event) =>
+                                                setIsOrganization(
+                                                    event.target.checked,
+                                                )
+                                            }
                                             className="mt-1 size-4 shrink-0 rounded border-input"
                                         />
                                         <div className="grid gap-1">

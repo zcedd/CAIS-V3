@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\ValidatesAssistanceEligibility;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Program;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -13,6 +15,8 @@ use Illuminate\Validation\Validator;
 
 class TransferRequest extends FormRequest
 {
+    use ValidatesAssistanceEligibility;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -35,12 +39,15 @@ class TransferRequest extends FormRequest
             'target_program_id' => [
                 'required',
                 'integer',
-                Rule::exists('programs', 'id')
-                    ->where('department_id', $program->department_id)
-                    ->where('is_closed', false)
-                    ->where('is_organization', $program->is_organization)
-                    ->whereNot('id', $program->id),
+                Rule::exists('programs', 'id')->where(function (Builder $query) use ($program): void {
+                    $query
+                        ->where('department_id', $program->department_id)
+                        ->where('is_closed', false)
+                        ->where('is_organization', $program->is_organization)
+                        ->whereNot('id', $program->id);
+                }),
             ],
+            ...$this->eligibilityOverrideRules(),
         ];
     }
 
@@ -89,6 +96,18 @@ class TransferRequest extends FormRequest
                     );
                 }
             },
+            function (Validator $validator): void {
+                $targetProgram = $this->targetProgram();
+                $assistance = $this->route('assistance');
+
+                if (! $targetProgram instanceof Program || ! $assistance instanceof Assistance) {
+                    return;
+                }
+
+                $assistance->loadMissing(['beneficiary', 'assistanceItem']);
+
+                $this->applyTransferEligibility($validator, $targetProgram, $assistance);
+            },
         ];
     }
 
@@ -99,6 +118,7 @@ class TransferRequest extends FormRequest
     {
         return [
             'target_program_id' => 'target program',
+            ...$this->eligibilityOverrideAttributes(),
         ];
     }
 

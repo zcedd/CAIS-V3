@@ -48,6 +48,8 @@ class HandleInertiaRequests extends Middleware
                 ? app(NotificationService::class)->unreadCountForUser($user)
                 : 0,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+            'duplicate_candidates' => $request->session()->get('duplicate_candidates'),
+            'eligibility_findings' => $request->session()->get('eligibility_findings'),
         ];
     }
 }

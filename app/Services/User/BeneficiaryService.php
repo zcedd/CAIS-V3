@@ -136,12 +136,21 @@ class BeneficiaryService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     civil_statuses: list<array{id: int, name: string}>,
+     *     identifications: list<array{id: int, name: string}>,
+     *     address_provinces: list<array{id: int, name: string}>,
+     *     default_province_id: int|null,
+     *     address_cities: list<array{id: int, name: string, address_province_id: int|null}>,
+     *     address_barangays: list<array{id: int, name: string, address_city_id: int, city: string|null, label: string}>
+     * }
      */
     public function formOptions(): array
     {
+        Cache::forget('beneficiary.form_options');
+
         return Cache::remember(
-            'beneficiary.form_options',
+            'beneficiary.form_options.v2',
             now()->addDay(),
             function (): array {
                 $defaultProvince = AddressProvince::query()
@@ -181,15 +190,46 @@ class BeneficiaryService
                     ->all();
 
                 return [
-                    'civil_statuses' => CivilStatus::query()->orderBy('name')->get(['id', 'name']),
-                    'identifications' => Identification::query()->orderBy('name')->get(['id', 'name']),
+                    'civil_statuses' => CivilStatus::query()
+                        ->orderBy('name')
+                        ->get(['id', 'name'])
+                        ->map(static fn (CivilStatus $status): array => [
+                            'id' => (int) $status->id,
+                            'name' => (string) $status->name,
+                        ])
+                        ->values()
+                        ->all(),
+                    'identifications' => Identification::query()
+                        ->orderBy('name')
+                        ->get(['id', 'name'])
+                        ->map(static fn (Identification $identification): array => [
+                            'id' => (int) $identification->id,
+                            'name' => (string) $identification->name,
+                        ])
+                        ->values()
+                        ->all(),
                     'address_provinces' => AddressProvince::query()
                         ->orderBy('name')
-                        ->get(['id', 'name']),
+                        ->get(['id', 'name'])
+                        ->map(static fn (AddressProvince $province): array => [
+                            'id' => (int) $province->id,
+                            'name' => (string) $province->name,
+                        ])
+                        ->values()
+                        ->all(),
                     'default_province_id' => $defaultProvince?->id,
                     'address_cities' => AddressCity::query()
                         ->orderBy('name')
-                        ->get(['id', 'name', 'address_province_id']),
+                        ->get(['id', 'name', 'address_province_id'])
+                        ->map(static fn (AddressCity $city): array => [
+                            'id' => (int) $city->id,
+                            'name' => (string) $city->name,
+                            'address_province_id' => $city->address_province_id !== null
+                                ? (int) $city->address_province_id
+                                : null,
+                        ])
+                        ->values()
+                        ->all(),
                     'address_barangays' => $barangays,
                 ];
             },

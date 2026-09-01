@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Department;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -12,6 +13,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateRequest extends FormRequest
 {
+    use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
 
     /**
@@ -53,6 +55,7 @@ class UpdateRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
+            ...$this->programEligibilityRules($this->input('item_ids', [])),
             ...$this->programFieldDefinitionRules(),
         ];
     }
@@ -60,6 +63,7 @@ class UpdateRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $this->afterProgramFieldDefinitions($validator);
+        $this->afterProgramEligibilityRules($validator);
 
         $validator->after(function (Validator $validator): void {
             $program = $this->program;
@@ -100,6 +104,7 @@ class UpdateRequest extends FormRequest
             'is_closed' => 'closed program',
             'fund_ids' => 'funds',
             'item_ids' => 'items',
+            ...$this->programEligibilityAttributes(),
             ...$this->programFieldDefinitionAttributes(),
         ];
     }

@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\ValidatesAssistanceEligibility;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Program;
+use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -13,6 +15,8 @@ use Illuminate\Validation\Validator;
 
 class BulkTransferRequest extends FormRequest
 {
+    use ValidatesAssistanceEligibility;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -46,12 +50,15 @@ class BulkTransferRequest extends FormRequest
             'target_program_id' => [
                 'required',
                 'integer',
-                Rule::exists('programs', 'id')
-                    ->where('department_id', $program->department_id)
-                    ->where('is_closed', false)
-                    ->where('is_organization', $program->is_organization)
-                    ->whereNot('id', $program->id),
+                Rule::exists('programs', 'id')->where(function (Builder $query) use ($program): void {
+                    $query
+                        ->where('department_id', $program->department_id)
+                        ->where('is_closed', false)
+                        ->where('is_organization', $program->is_organization)
+                        ->whereNot('id', $program->id);
+                }),
             ],
+            ...$this->eligibilityOverrideRules(),
         ];
     }
 
@@ -113,6 +120,18 @@ class BulkTransferRequest extends FormRequest
                     }
                 }
             },
+            function (Validator $validator): void {
+                $targetProgram = $this->targetProgram();
+
+                if (! $targetProgram instanceof Program) {
+                    return;
+                }
+
+                foreach ($this->assistances() as $assistance) {
+                    $assistance->loadMissing(['beneficiary', 'assistanceItem']);
+                    $this->applyTransferEligibility($validator, $targetProgram, $assistance);
+                }
+            },
         ];
     }
 
@@ -125,6 +144,7 @@ class BulkTransferRequest extends FormRequest
             'assistance_ids' => 'selected assistance records',
             'assistance_ids.*' => 'assistance record',
             'target_program_id' => 'target program',
+            ...$this->eligibilityOverrideAttributes(),
         ];
     }
 

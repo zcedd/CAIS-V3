@@ -94,6 +94,32 @@ test('beneficiary form options are cached after the first load', function () {
             'address_cities',
             'address_barangays',
         ]);
+
+    $encoded = json_decode(json_encode($second), true);
+
+    expect($encoded['civil_statuses'])->toBeArray()
+        ->and(array_is_list($encoded['civil_statuses']))->toBeTrue()
+        ->and($encoded['identifications'])->toBeArray()
+        ->and(array_is_list($encoded['identifications']))->toBeTrue()
+        ->and($encoded['address_provinces'])->toBeArray()
+        ->and(array_is_list($encoded['address_provinces']))->toBeTrue()
+        ->and($encoded['address_cities'])->toBeArray()
+        ->and(array_is_list($encoded['address_cities']))->toBeTrue();
+});
+
+test('create beneficiary page receives civil status options as a list', function () {
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
+    seedCivilStatusAndIdentification();
+
+    $this->actingAs($user)
+        ->get(route('user.beneficiaries.create', [
+            'department' => $department->slug,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('user/beneficiaries/create')
+            ->has('form_options.civil_statuses.0.id')
+            ->where('form_options.civil_statuses.0.name', 'Single'));
 });
 
 test('users can load additional beneficiaries via pagination', function () {

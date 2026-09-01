@@ -2,8 +2,8 @@
 
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
-use App\Models\Beneficiary;
 use App\Models\Department;
+use App\Models\Individual;
 use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
@@ -20,11 +20,20 @@ function createTransferAssistance(
     string $caisNumber = 'CAIS-001',
     string $name = 'Juan Dela Cruz',
 ): Assistance {
-    $beneficiary = Beneficiary::create([
+    $nameParts = preg_split('/\s+/', trim($name)) ?: ['Juan', 'Cruz'];
+    $firstName = $nameParts[0];
+    $lastName = implode(' ', array_slice($nameParts, 1)) ?: 'Cruz';
+
+    $individual = Individual::factory()->create([
+        'cais_number' => $caisNumber,
+        'first_name' => $firstName,
+        'last_name' => $lastName,
+    ]);
+
+    $beneficiary = $individual->beneficiaryRecord;
+    $beneficiary->update([
         'cais_number' => $caisNumber,
         'name' => $name,
-        'beneficiable_type' => 'App\\Models\\Individual',
-        'beneficiable_id' => 1,
     ]);
 
     $mode = ModeOfRequest::create(['name' => 'Walk In']);
@@ -89,7 +98,10 @@ test('authenticated users can transfer assistance to another open program in the
 
     $assistance = createTransferAssistance($sourceProgram, $user, $item);
 
-    $response = $this->actingAs($user)->patch(
+    $response = $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $sourceProgram->id,
+    ]))->patch(
         route('user.programs.assistances.transfer', [
             'department' => $department->slug,
             'program' => $sourceProgram->id,
@@ -149,7 +161,10 @@ test('authenticated users can bulk transfer assistance records to another open p
     $firstAssistance = createTransferAssistance($sourceProgram, $user, $item, 'CAIS-001', 'Juan Dela Cruz');
     $secondAssistance = createTransferAssistance($sourceProgram, $user, $item, 'CAIS-002', 'Maria Santos');
 
-    $response = $this->actingAs($user)->patch(
+    $response = $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $sourceProgram->id,
+    ]))->patch(
         route('user.programs.assistances.bulk-transfer', [
             'department' => $department->slug,
             'program' => $sourceProgram->id,
