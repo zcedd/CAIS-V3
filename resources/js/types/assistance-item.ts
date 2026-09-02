@@ -1,3 +1,6 @@
+import { formatPeso } from '@/lib/format-peso';
+import type { ItemKind } from '@/types/item';
+
 export type AssistanceItemOrigin = 'requested' | 'additional' | 'substitute';
 
 /**
@@ -6,6 +9,7 @@ export type AssistanceItemOrigin = 'requested' | 'additional' | 'substitute';
 export type AssistanceRequestedItem = {
     item_id: number;
     name: string;
+    kind: ItemKind | null;
     unit: string | null;
     specification: string | null;
     requested_quantity: number;
@@ -21,6 +25,7 @@ export type AssistanceReleasedItem = {
     id: number;
     item_id: number;
     name: string;
+    kind: ItemKind | null;
     unit: string | null;
     quantity: number;
     specification: string | null;
@@ -52,7 +57,12 @@ export const ASSISTANCE_ITEM_ORIGIN_LABELS: Record<
 export function formatItemQuantity(
     quantity: number | null,
     unit: string | null,
+    kind?: ItemKind | null,
 ): string {
+    if (kind === 'cash') {
+        return formatPeso(quantity ?? 0);
+    }
+
     if (quantity === null) {
         return unit ?? '—';
     }

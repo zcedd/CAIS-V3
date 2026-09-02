@@ -4,11 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { ItemDataTableRowActions } from '@/pages/user/items/item-row-actions';
 import type { UnitMeasurementOption } from '@/pages/user/items/item-toolbar';
+import { ITEM_KIND_LABELS, tracksInventory, type ItemKind } from '@/types/item';
 import { ColumnDef } from '@tanstack/react-table';
 
 export type UserDepartmentItemRow = {
     id: number;
     name: string;
+    kind: ItemKind;
     item_unit_measurement_id: number | null;
     unit: string | null;
     unspsc_code_id: number | null;
@@ -43,6 +45,9 @@ export function createUserDepartmentItemColumns({
             cell: ({ row }) => (
                 <div className="flex items-center gap-2">
                     <span className="font-medium">{row.original.name}</span>
+                    <Badge variant="outline">
+                        {ITEM_KIND_LABELS[row.original.kind]}
+                    </Badge>
                     {row.original.is_low_stock ? (
                         <Badge variant="destructive">Low stock</Badge>
                     ) : null}
@@ -63,9 +68,12 @@ export function createUserDepartmentItemColumns({
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="On hand" />
             ),
-            cell: ({ row }) => (
-                <span className="tabular-nums">{row.original.on_hand}</span>
-            ),
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind) ? (
+                    <span className="tabular-nums">{row.original.on_hand}</span>
+                ) : (
+                    '—'
+                ),
         },
         {
             id: 'allocated',
@@ -73,9 +81,14 @@ export function createUserDepartmentItemColumns({
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Allocated" />
             ),
-            cell: ({ row }) => (
-                <span className="tabular-nums">{row.original.allocated}</span>
-            ),
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind) ? (
+                    <span className="tabular-nums">
+                        {row.original.allocated}
+                    </span>
+                ) : (
+                    '—'
+                ),
         },
         {
             id: 'available',
@@ -83,9 +96,14 @@ export function createUserDepartmentItemColumns({
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Available" />
             ),
-            cell: ({ row }) => (
-                <span className="tabular-nums">{row.original.available}</span>
-            ),
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind) ? (
+                    <span className="tabular-nums">
+                        {row.original.available}
+                    </span>
+                ) : (
+                    '—'
+                ),
         },
         {
             id: 'unspsc',
@@ -110,7 +128,10 @@ export function createUserDepartmentItemColumns({
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Nearest expiry" />
             ),
-            cell: ({ row }) => row.original.nearest_expiry ?? '—',
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind)
+                    ? (row.original.nearest_expiry ?? '—')
+                    : '—',
         },
         {
             id: 'actions',

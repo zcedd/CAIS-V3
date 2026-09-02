@@ -189,3 +189,16 @@ test('issuing the same released line twice does not double-deduct', function () 
     expect(StockMovement::query()->where('type', StockMovementType::Issue)->sum('quantity'))->toBe(3)
         ->and(ProgramItemStock::query()->where('program_id', $program->id)->where('item_id', $item->id)->value('remaining'))->toBe(7);
 });
+
+test('cash catalog items cannot receive warehouse stock', function () {
+    ['user' => $user, 'program' => $program, 'ledger' => $ledger] = stockLedgerContext();
+    $cash = Item::factory()->forDepartment($program->department)->cash()->create([
+        'name' => 'Cash assistance',
+    ]);
+    $program->item()->attach($cash->id);
+
+    expect(fn () => $ledger->receive($cash, $user, [
+        'quantity' => 5000,
+        'type' => StockMovementType::OpeningBalance,
+    ]))->toThrow(ValidationException::class);
+});

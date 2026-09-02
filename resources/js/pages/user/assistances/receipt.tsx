@@ -80,12 +80,14 @@ function RequestedItemsTable({ items }: { items: AssistanceRequestedItem[] }) {
                                     {formatItemQuantity(
                                         item.requested_quantity,
                                         item.unit,
+                                        item.kind,
                                     )}
                                 </td>
                                 <td className="py-1.5 pr-3 tabular-nums">
                                     {formatItemQuantity(
                                         item.released_quantity,
                                         item.unit,
+                                        item.kind,
                                     )}
                                     {item.substituted_quantity > 0
                                         ? ' (substituted)'
@@ -138,6 +140,7 @@ function ReleasedItemsTable({ items }: { items: AssistanceReleasedItem[] }) {
                                     {formatItemQuantity(
                                         item.quantity,
                                         item.unit,
+                                        item.kind,
                                     )}
                                 </td>
                                 <td className="py-1.5 pr-3">

@@ -4,6 +4,7 @@ use App\Models\Department;
 use App\Models\ItemUnitMeasurement;
 use App\Models\UnspscCode;
 use App\Models\User;
+use App\Support\ItemKind;
 use App\Support\UnspscCodeLevel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -52,6 +53,7 @@ test('items can be created with an optional unspsc classification', function () 
     $this->actingAs($user)
         ->post(route('user.items.store', ['department' => $department->slug]), [
             'name' => 'Rice 25kg',
+            'kind' => ItemKind::Goods,
             'item_unit_measurement_id' => $unit->id,
             'unspsc_code_id' => $code->id,
             'is_perishable' => 1,

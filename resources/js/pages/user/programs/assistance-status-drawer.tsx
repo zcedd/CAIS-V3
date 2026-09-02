@@ -36,6 +36,8 @@ import type {
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { update as updateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
+import { formatItemQuantity } from '@/types/assistance-item';
+import { itemQuantityFieldLabel, tracksInventory } from '@/types/item';
 import { Form, Link } from '@inertiajs/react';
 import {
     CalendarDays,
@@ -96,11 +98,19 @@ function isExtraItemDraftComplete(draft: ExtraItemDraft): boolean {
 function remainingForProgramItem(
     programItems: AssistanceProgramItemOption[],
     itemId: number,
-): number {
-    return (
-        programItems.find((programItem) => programItem.id === itemId)
-            ?.remaining ?? 0
-    );
+): number | null {
+    const remaining = programItems.find(
+        (programItem) => programItem.id === itemId,
+    )?.remaining;
+
+    return remaining === undefined ? 0 : remaining;
+}
+
+function programItemKind(
+    programItems: AssistanceProgramItemOption[],
+    itemId: number,
+) {
+    return programItems.find((programItem) => programItem.id === itemId)?.kind;
 }
 
 function substitutedAssistanceItemIds(extraItems: ExtraItemDraft[]): string[] {
@@ -166,20 +176,16 @@ function parseRecordedAt(value: string | null): Date | undefined {
 }
 
 function formatAssistanceItemLabel(item: UserProgramAssistanceItem): string {
-    const parts = [item.name];
+    const amount = formatItemQuantity(item.quantity, item.unit, item.kind);
 
-    if (item.quantity !== null && item.unit) {
-        parts.push(`× ${item.quantity} ${item.unit}`);
-    } else if (item.quantity !== null) {
-        parts.push(`× ${item.quantity}`);
-    } else if (item.unit) {
-        parts.push(item.unit);
-    }
-
-    return parts.join(' ');
+    return `${item.name} ${amount}`.trim();
 }
 
 function formatProgramItemLabel(item: AssistanceProgramItemOption): string {
+    if (item.kind === 'cash') {
+        return item.name;
+    }
+
     return item.unit ? `${item.name} (${item.unit})` : item.name;
 }
 
@@ -291,10 +297,12 @@ export function AssistanceStatusDrawer({
         }
 
         return Object.entries(needed).some(([itemId, quantity]) => {
-            return (
-                quantity >
-                remainingForProgramItem(programItems, Number(itemId))
+            const remaining = remainingForProgramItem(
+                programItems,
+                Number(itemId),
             );
+
+            return remaining !== null && quantity > remaining;
         });
     }, [
         selectedDeliveredItemIds,
@@ -652,8 +660,12 @@ export function AssistanceStatusDrawer({
                                                                         <Label
                                                                             htmlFor={`delivered-item-quantity-${selectedItemId}`}
                                                                         >
-                                                                            Quantity
-                                                                            {item.unit
+                                                                            {itemQuantityFieldLabel(
+                                                                                item.kind,
+                                                                            )}
+                                                                            {item.kind !==
+                                                                                'cash' &&
+                                                                            item.unit
                                                                                 ? ` (${item.unit})`
                                                                                 : ''}
                                                                         </Label>
@@ -703,17 +715,34 @@ export function AssistanceStatusDrawer({
                                                                         <p className="text-xs text-muted-foreground">
                                                                             Still
                                                                             requested:{' '}
-                                                                            {item.quantity ??
-                                                                                0}
+                                                                            {item.kind ===
+                                                                            'cash'
+                                                                                ? formatItemQuantity(
+                                                                                      item.quantity,
+                                                                                      item.unit,
+                                                                                      item.kind,
+                                                                                  )
+                                                                                : (item.quantity ??
+                                                                                  0)}
                                                                             .
-                                                                            Program
-                                                                            stock
-                                                                            remaining:{' '}
-                                                                            {remainingForProgramItem(
-                                                                                programItems,
-                                                                                item.item_id,
-                                                                            )}
-                                                                            .
+                                                                            {tracksInventory(
+                                                                                programItemKind(
+                                                                                    programItems,
+                                                                                    item.item_id,
+                                                                                ),
+                                                                            ) ? (
+                                                                                <>
+                                                                                    {' '}
+                                                                                    Program
+                                                                                    stock
+                                                                                    remaining:{' '}
+                                                                                    {remainingForProgramItem(
+                                                                                        programItems,
+                                                                                        item.item_id,
+                                                                                    )}
+                                                                                    .
+                                                                                </>
+                                                                            ) : null}{' '}
                                                                             Record
                                                                             anything
                                                                             beyond
@@ -1064,7 +1093,14 @@ export function AssistanceStatusDrawer({
                                                             <Label
                                                                 htmlFor={`extra-item-quantity-${draft.key}`}
                                                             >
-                                                                Quantity
+                                                                {itemQuantityFieldLabel(
+                                                                    programItemKind(
+                                                                        programItems,
+                                                                        Number(
+                                                                            draft.itemId,
+                                                                        ),
+                                                                    ),
+                                                                )}
                                                             </Label>
                                                             <Input
                                                                 id={`extra-item-quantity-${draft.key}`}
@@ -1095,7 +1131,15 @@ export function AssistanceStatusDrawer({
                                                                     ]
                                                                 }
                                                             />
-                                                            {draft.itemId ? (
+                                                            {draft.itemId &&
+                                                            tracksInventory(
+                                                                programItemKind(
+                                                                    programItems,
+                                                                    Number(
+                                                                        draft.itemId,
+                                                                    ),
+                                                                ),
+                                                            ) ? (
                                                                 <p className="text-xs text-muted-foreground">
                                                                     Program
                                                                     stock

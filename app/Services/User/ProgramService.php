@@ -276,7 +276,7 @@ class ProgramService
     }
 
     /**
-     * @return list<array{id: int, name: string, unit: string|null}>
+     * @return list<array{id: int, name: string, unit: string|null, kind: string}>
      */
     public function departmentItemsForSelect(Department $department): array
     {
@@ -304,7 +304,7 @@ class ProgramService
     }
 
     /**
-     * @return list<array{id: int, name: string, unit: string|null, remaining: int}>
+     * @return list<array{id: int, name: string, unit: string|null, kind: string, remaining: int|null}>
      */
     public function programItemsForSelect(Program $program): array
     {
@@ -320,12 +320,15 @@ class ProgramService
             ->whereIn('id', $itemIds)
             ->orderBy('name')
             ->with('unitMeasurement:id,name')
-            ->get(['id', 'name', 'item_unit_measurement_id'])
+            ->get(['id', 'name', 'kind', 'item_unit_measurement_id'])
             ->map(static fn (Item $item): array => [
                 'id' => $item->id,
                 'name' => $item->name,
                 'unit' => $item->unitMeasurement?->name,
-                'remaining' => $remaining[$item->id] ?? 0,
+                'kind' => $item->kind,
+                'remaining' => $item->tracksInventory()
+                    ? ($remaining[$item->id] ?? 0)
+                    : null,
             ])
             ->values()
             ->all();

@@ -3,6 +3,7 @@
 namespace App\Exports\User;
 
 use App\Models\Assistance;
+use App\Support\ItemKind;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -48,16 +49,25 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
                 $name = $assistanceItem->item?->name ?? '—';
                 $quantity = $assistanceItem->quantity;
                 $unit = $assistanceItem->item?->unitMeasurement?->name;
+                $kind = $assistanceItem->item?->kind;
                 $specification = trim((string) $assistanceItem->specification);
 
                 $detail = $name;
 
-                if ($quantity !== null) {
-                    $detail .= " x{$quantity}";
-                }
+                if (ItemKind::isCash($kind)) {
+                    $detail .= ' '.ItemKind::formatQuantity(
+                        $quantity !== null ? (int) $quantity : null,
+                        $unit,
+                        $kind,
+                    );
+                } else {
+                    if ($quantity !== null) {
+                        $detail .= " x{$quantity}";
+                    }
 
-                if ($unit !== null) {
-                    $detail .= " {$unit}";
+                    if ($unit !== null) {
+                        $detail .= " {$unit}";
+                    }
                 }
 
                 if ($specification !== '') {

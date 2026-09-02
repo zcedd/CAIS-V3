@@ -2,14 +2,19 @@
 
 namespace App\Http\Requests\User\Item;
 
+use App\Http\Requests\User\Concerns\ValidatesItemKind;
 use App\Models\Item;
+use App\Support\ItemKind;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreRequest extends FormRequest
 {
+    use ValidatesItemKind;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -27,6 +32,7 @@ class StoreRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'kind' => ['required', 'string', Rule::in(ItemKind::values())],
             'item_unit_measurement_id' => [
                 'required',
                 'integer',
@@ -56,12 +62,25 @@ class StoreRequest extends FormRequest
     }
 
     /**
+     * @return list<\Closure(Validator): void>
+     */
+    public function after(): array
+    {
+        return [
+            function (Validator $validator): void {
+                $this->assertCashUsesPhpUnit($validator);
+            },
+        ];
+    }
+
+    /**
      * @return array<string, string>
      */
     public function attributes(): array
     {
         return [
             'name' => 'item name',
+            'kind' => 'kind',
             'item_unit_measurement_id' => 'unit of measurement',
             'unspsc_code_id' => 'UNSPSC classification',
             'is_perishable' => 'perishable',

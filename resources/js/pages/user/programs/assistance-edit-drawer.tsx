@@ -46,6 +46,7 @@ import {
     update as updateProgramAssistance,
 } from '@/routes/user/programs/assistances';
 import type { EligibilityPreview } from '@/types/eligibility';
+import { itemQuantityFieldLabel } from '@/types/item';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Form, usePage } from '@inertiajs/react';
 import { Loader2 } from 'lucide-react';
@@ -489,7 +490,9 @@ export function AssistanceEditDrawer({
                                                                 <Label
                                                                     htmlFor={`edit-item-quantity-${selectedItemId}`}
                                                                 >
-                                                                    Quantity
+                                                                    {itemQuantityFieldLabel(
+                                                                        item.kind,
+                                                                    )}
                                                                 </Label>
                                                                 <Input
                                                                     id={`edit-item-quantity-${selectedItemId}`}

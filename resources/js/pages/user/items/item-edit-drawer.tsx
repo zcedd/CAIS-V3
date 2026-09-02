@@ -24,6 +24,11 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { update as updateDepartmentItem } from '@/routes/user/items';
+import {
+    ITEM_KIND_OPTIONS,
+    tracksInventory,
+    type ItemKind,
+} from '@/types/item';
 import { Form } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -53,6 +58,7 @@ export function ItemEditDrawer({
 }: ItemEditDrawerProps) {
     const [formKey, setFormKey] = useState(0);
     const [defaultUnitId, setDefaultUnitId] = useState('');
+    const [kind, setKind] = useState<ItemKind>('goods');
     const [unspscCodeId, setUnspscCodeId] = useState<number | null>(null);
     const [isPerishable, setIsPerishable] = useState(false);
 
@@ -66,6 +72,7 @@ export function ItemEditDrawer({
                 ? String(item.item_unit_measurement_id)
                 : '',
         );
+        setKind(item.kind);
         setUnspscCodeId(item.unspsc_code_id);
         setIsPerishable(item.is_perishable);
         setFormKey((key) => key + 1);
@@ -115,6 +122,58 @@ export function ItemEditDrawer({
                             </div>
 
                             <div className="space-y-2">
+                                <Label htmlFor={`edit-item-kind-${item.id}`}>
+                                    Kind
+                                </Label>
+                                <Select
+                                    name="kind"
+                                    value={kind}
+                                    onValueChange={(value) => {
+                                        const nextKind = value as ItemKind;
+                                        setKind(nextKind);
+
+                                        if (nextKind === 'cash') {
+                                            const phpUnit =
+                                                unitMeasurements.find(
+                                                    (unit) =>
+                                                        unit.name.toLowerCase() ===
+                                                        'php',
+                                                );
+
+                                            if (phpUnit) {
+                                                setDefaultUnitId(
+                                                    String(phpUnit.id),
+                                                );
+                                            }
+                                        }
+
+                                        if (nextKind !== 'goods') {
+                                            setIsPerishable(false);
+                                        }
+                                    }}
+                                    required
+                                >
+                                    <SelectTrigger
+                                        id={`edit-item-kind-${item.id}`}
+                                        className={selectClassName}
+                                    >
+                                        <SelectValue placeholder="Select kind" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ITEM_KIND_OPTIONS.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.kind} />
+                            </div>
+
+                            <div className="space-y-2">
                                 <Label
                                     htmlFor={`edit-item-unit-${item.id}`}
                                 >
@@ -123,8 +182,10 @@ export function ItemEditDrawer({
                                 <Select
                                     key={defaultUnitId}
                                     name="item_unit_measurement_id"
-                                    defaultValue={defaultUnitId}
+                                    value={defaultUnitId}
+                                    onValueChange={setDefaultUnitId}
                                     required
+                                    disabled={kind === 'cash'}
                                 >
                                     <SelectTrigger
                                         id={`edit-item-unit-${item.id}`}
@@ -143,6 +204,13 @@ export function ItemEditDrawer({
                                         ))}
                                     </SelectContent>
                                 </Select>
+                                {kind === 'cash' && defaultUnitId ? (
+                                    <input
+                                        type="hidden"
+                                        name="item_unit_measurement_id"
+                                        value={defaultUnitId}
+                                    />
+                                ) : null}
                                 <InputError
                                     message={errors.item_unit_measurement_id}
                                 />
@@ -166,42 +234,57 @@ export function ItemEditDrawer({
                                 error={errors.unspsc_code_id}
                             />
 
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="hidden"
-                                    name="is_perishable"
-                                    value={isPerishable ? '1' : '0'}
-                                />
-                                <Checkbox
-                                    id={`edit-item-perishable-${item.id}`}
-                                    checked={isPerishable}
-                                    onCheckedChange={(checked) =>
-                                        setIsPerishable(checked === true)
-                                    }
-                                />
-                                <Label htmlFor={`edit-item-perishable-${item.id}`}>
-                                    Perishable (require batch and expiry)
-                                </Label>
-                            </div>
-                            <InputError message={errors.is_perishable} />
+                            {tracksInventory(kind) ? (
+                                <>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="hidden"
+                                            name="is_perishable"
+                                            value={isPerishable ? '1' : '0'}
+                                        />
+                                        <Checkbox
+                                            id={`edit-item-perishable-${item.id}`}
+                                            checked={isPerishable}
+                                            onCheckedChange={(checked) =>
+                                                setIsPerishable(
+                                                    checked === true,
+                                                )
+                                            }
+                                        />
+                                        <Label
+                                            htmlFor={`edit-item-perishable-${item.id}`}
+                                        >
+                                            Perishable (require batch and
+                                            expiry)
+                                        </Label>
+                                    </div>
+                                    <InputError
+                                        message={errors.is_perishable}
+                                    />
 
-                            <div className="space-y-2">
-                                <Label htmlFor={`edit-item-threshold-${item.id}`}>
-                                    Low-stock threshold
-                                </Label>
-                                <Input
-                                    id={`edit-item-threshold-${item.id}`}
-                                    name="low_stock_threshold"
-                                    type="number"
-                                    min={0}
-                                    defaultValue={
-                                        item.low_stock_threshold ?? ''
-                                    }
-                                />
-                                <InputError
-                                    message={errors.low_stock_threshold}
-                                />
-                            </div>
+                                    <div className="space-y-2">
+                                        <Label
+                                            htmlFor={`edit-item-threshold-${item.id}`}
+                                        >
+                                            Low-stock threshold
+                                        </Label>
+                                        <Input
+                                            id={`edit-item-threshold-${item.id}`}
+                                            name="low_stock_threshold"
+                                            type="number"
+                                            min={0}
+                                            defaultValue={
+                                                item.low_stock_threshold ?? ''
+                                            }
+                                        />
+                                        <InputError
+                                            message={
+                                                errors.low_stock_threshold
+                                            }
+                                        />
+                                    </div>
+                                </>
+                            ) : null}
 
                             <DrawerFooter className="px-0">
                                 <Button type="submit" disabled={processing}>

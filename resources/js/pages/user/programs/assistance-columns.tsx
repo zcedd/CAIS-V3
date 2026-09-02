@@ -12,6 +12,8 @@ import type {
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import type { AssistanceItemOrigin } from '@/types/assistance-item';
+import { formatItemQuantity } from '@/types/assistance-item';
+import type { ItemKind } from '@/types/item';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
@@ -20,6 +22,7 @@ export type UserProgramAssistanceItem = {
     id: number;
     item_id: number;
     name: string;
+    kind: ItemKind | null;
     quantity: number | null;
     unit: string | null;
     specification: string | null;
@@ -31,6 +34,10 @@ export type UserProgramAssistanceItem = {
 };
 
 function formatItemAmount(item: UserProgramAssistanceItem): string | null {
+    if (item.kind === 'cash') {
+        return formatItemQuantity(item.quantity, item.unit, item.kind);
+    }
+
     if (item.quantity !== null && item.unit) {
         return `× ${item.quantity} ${item.unit}`;
     }

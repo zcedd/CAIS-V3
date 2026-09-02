@@ -2,8 +2,10 @@
 
 namespace App\Http\Requests\User\Item;
 
+use App\Http\Requests\User\Concerns\ValidatesItemKind;
 use App\Models\Department;
 use App\Models\Item;
+use App\Support\ItemKind;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -12,6 +14,8 @@ use Illuminate\Validation\Validator;
 
 class UpdateRequest extends FormRequest
 {
+    use ValidatesItemKind;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -29,6 +33,7 @@ class UpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
+            'kind' => ['required', 'string', Rule::in(ItemKind::values())],
             'item_unit_measurement_id' => [
                 'required',
                 'integer',
@@ -57,20 +62,28 @@ class UpdateRequest extends FormRequest
         }
     }
 
-    public function withValidator(Validator $validator): void
+    /**
+     * @return list<\Closure(Validator): void>
+     */
+    public function after(): array
     {
-        $validator->after(function (Validator $validator): void {
-            $department = $this->route('department');
-            $item = $this->route('item');
+        return [
+            function (Validator $validator): void {
+                $department = $this->route('department');
+                $item = $this->route('item');
 
-            if (! $department instanceof Department || ! $item instanceof Item) {
-                return;
-            }
+                if (! $department instanceof Department || ! $item instanceof Item) {
+                    return;
+                }
 
-            if ($item->department_id !== $department->id) {
-                $validator->errors()->add('item', 'The selected item does not belong to this department.');
-            }
-        });
+                if ($item->department_id !== $department->id) {
+                    $validator->errors()->add('item', 'The selected item does not belong to this department.');
+                }
+
+                $this->assertCashUsesPhpUnit($validator);
+                $this->assertCannotChangeStockedGoodsKind($validator, $item);
+            },
+        ];
     }
 
     /**
@@ -80,6 +93,7 @@ class UpdateRequest extends FormRequest
     {
         return [
             'name' => 'item name',
+            'kind' => 'kind',
             'item_unit_measurement_id' => 'unit of measurement',
             'unspsc_code_id' => 'UNSPSC classification',
             'is_perishable' => 'perishable',

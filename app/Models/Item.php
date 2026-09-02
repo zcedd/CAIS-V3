@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\ItemKind;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,11 +21,19 @@ class Item extends Model
 
     protected $fillable = [
         'name',
+        'kind',
         'department_id',
         'item_unit_measurement_id',
         'unspsc_code_id',
         'is_perishable',
         'low_stock_threshold',
+    ];
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'kind' => ItemKind::Goods,
     ];
 
     /**
@@ -36,6 +45,11 @@ class Item extends Model
             'is_perishable' => 'boolean',
             'low_stock_threshold' => 'integer',
         ];
+    }
+
+    public function tracksInventory(): bool
+    {
+        return ItemKind::tracksInventory($this->kind);
     }
 
     public function getActivitylogOptions(): LogOptions

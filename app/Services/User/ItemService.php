@@ -9,6 +9,7 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\StockLot;
 use App\Models\StockMovement;
+use App\Support\ItemKind;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -41,6 +42,7 @@ class ItemService
             ->select([
                 'items.id',
                 'items.name',
+                'items.kind',
                 'items.department_id',
                 'items.item_unit_measurement_id',
                 'items.unspsc_code_id',
@@ -87,6 +89,7 @@ class ItemService
                 return [
                     'id' => $item->id,
                     'name' => $item->name,
+                    'kind' => $item->kind,
                     'item_unit_measurement_id' => $item->item_unit_measurement_id,
                     'unit' => $item->unitMeasurement?->name,
                     'unspsc_code_id' => $item->unspsc_code_id,
@@ -98,7 +101,9 @@ class ItemService
                     'allocated' => (int) $item->getAttribute('allocated'),
                     'available' => (int) $item->getAttribute('available'),
                     'nearest_expiry' => $item->getAttribute('nearest_expiry'),
-                    'is_low_stock' => $threshold !== null && $onHand <= $threshold,
+                    'is_low_stock' => $item->tracksInventory()
+                        && $threshold !== null
+                        && $onHand <= $threshold,
                 ];
             });
     }
@@ -106,6 +111,7 @@ class ItemService
     /**
      * @param  array{
      *     name: string,
+     *     kind: string,
      *     item_unit_measurement_id: int,
      *     unspsc_code_id?: int|null,
      *     is_perishable?: bool,
@@ -116,17 +122,18 @@ class ItemService
     {
         return Item::query()->create([
             'name' => $validated['name'],
+            'kind' => $validated['kind'],
             'department_id' => $department->id,
             'item_unit_measurement_id' => $validated['item_unit_measurement_id'],
             'unspsc_code_id' => $validated['unspsc_code_id'] ?? null,
-            'is_perishable' => (bool) ($validated['is_perishable'] ?? false),
-            'low_stock_threshold' => $validated['low_stock_threshold'] ?? null,
+            ...$this->inventoryAttributes($validated),
         ]);
     }
 
     /**
      * @param  array{
      *     name: string,
+     *     kind: string,
      *     item_unit_measurement_id: int,
      *     unspsc_code_id?: int|null,
      *     is_perishable?: bool,
@@ -137,10 +144,10 @@ class ItemService
     {
         $item->update([
             'name' => $validated['name'],
+            'kind' => $validated['kind'],
             'item_unit_measurement_id' => $validated['item_unit_measurement_id'],
             'unspsc_code_id' => $validated['unspsc_code_id'] ?? null,
-            'is_perishable' => (bool) ($validated['is_perishable'] ?? false),
-            'low_stock_threshold' => $validated['low_stock_threshold'] ?? null,
+            ...$this->inventoryAttributes($validated),
         ]);
     }
 
@@ -180,7 +187,7 @@ class ItemService
     }
 
     /**
-     * @return list<array{id: int, name: string, unit: string|null}>
+     * @return list<array{id: int, name: string, unit: string|null, kind: string}>
      */
     public function departmentItemsForSelect(Department $department): array
     {
@@ -188,11 +195,12 @@ class ItemService
             ->where('department_id', $department->id)
             ->orderBy('name')
             ->with('unitMeasurement:id,name')
-            ->get(['id', 'name'])
+            ->get(['id', 'name', 'kind', 'item_unit_measurement_id'])
             ->map(static fn (Item $item): array => [
                 'id' => $item->id,
                 'name' => $item->name,
                 'unit' => $item->unitMeasurement?->name,
+                'kind' => $item->kind,
             ])
             ->values()
             ->all();
@@ -268,6 +276,29 @@ class ItemService
             'lots' => $lots,
             'movements' => $movements,
             'programs' => $this->programsForItem($item),
+        ];
+    }
+
+    /**
+     * @param  array{
+     *     kind: string,
+     *     is_perishable?: bool,
+     *     low_stock_threshold?: int|null
+     * }  $validated
+     * @return array{is_perishable: bool, low_stock_threshold: int|null}
+     */
+    private function inventoryAttributes(array $validated): array
+    {
+        if (! ItemKind::tracksInventory($validated['kind'])) {
+            return [
+                'is_perishable' => false,
+                'low_stock_threshold' => null,
+            ];
+        }
+
+        return [
+            'is_perishable' => (bool) ($validated['is_perishable'] ?? false),
+            'low_stock_threshold' => $validated['low_stock_threshold'] ?? null,
         ];
     }
 }

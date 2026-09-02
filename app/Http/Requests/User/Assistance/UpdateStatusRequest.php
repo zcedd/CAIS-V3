@@ -276,22 +276,27 @@ class UpdateStatusRequest extends FormRequest
         }
 
         $remainingByItemId = app(StockLedgerService::class)->remainingByItemId($program);
-        $catalogNames = Item::query()
+        $catalogItems = Item::query()
             ->whereIn('id', array_keys($neededByItemId))
-            ->pluck('name', 'id');
+            ->get(['id', 'name', 'kind'])
+            ->keyBy('id');
 
         foreach ($neededByItemId as $itemId => $needed) {
+            $item = $catalogItems->get($itemId);
+
+            if (! $item instanceof Item || ! $item->tracksInventory()) {
+                continue;
+            }
+
             $remaining = $remainingByItemId[$itemId] ?? 0;
 
             if ($needed <= $remaining) {
                 continue;
             }
 
-            $itemName = $catalogNames[$itemId] ?? 'this item';
-
             $validator->errors()->add(
                 'delivered_items',
-                "Not enough allocated stock of {$itemName} for this program. Remaining allocation is {$remaining}.",
+                "Not enough allocated stock of {$item->name} for this program. Remaining allocation is {$remaining}.",
             );
         }
     }

@@ -9,6 +9,7 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
+use App\Support\ItemKind;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -81,6 +82,7 @@ test('authenticated users can view items for their department', function () {
             ->has('items.data', 1)
             ->where('items.data.0.id', $item->id)
             ->where('items.data.0.name', 'Rice')
+            ->where('items.data.0.kind', ItemKind::Goods)
             ->where('department.slug', $department->slug));
 });
 
@@ -102,6 +104,7 @@ test('authenticated users can create items for their department', function () {
 
     $response = $this->actingAs($user)->post(route('user.items.store', ['department' => $department->slug]), [
         'name' => 'Blankets',
+        'kind' => ItemKind::Goods,
         'item_unit_measurement_id' => $unit->id,
     ]);
 
@@ -112,6 +115,7 @@ test('authenticated users can create items for their department', function () {
         'name' => 'Blankets',
         'department_id' => $department->id,
         'item_unit_measurement_id' => $unit->id,
+        'kind' => ItemKind::Goods,
     ]);
 });
 
@@ -124,6 +128,7 @@ test('authenticated users cannot create items for another department', function 
     $this->actingAs($user)
         ->post(route('user.items.store', ['department' => $departmentB->slug]), [
             'name' => 'Blankets',
+            'kind' => ItemKind::Goods,
             'item_unit_measurement_id' => $unit->id,
         ])
         ->assertForbidden();
@@ -137,7 +142,7 @@ test('item creation requires valid input', function () {
 
     $this->actingAs($user)
         ->post(route('user.items.store', ['department' => $department->slug]), [])
-        ->assertSessionHasErrors(['name', 'item_unit_measurement_id']);
+        ->assertSessionHasErrors(['name', 'item_unit_measurement_id', 'kind']);
 
     expect(Item::query()->count())->toBe(0);
 });
@@ -151,6 +156,7 @@ test('authenticated users can update items for their department', function () {
     $this->actingAs($user)
         ->put(route('user.items.update', ['department' => $department->slug, 'item' => $item->id]), [
             'name' => 'Updated Rice',
+            'kind' => ItemKind::Goods,
             'item_unit_measurement_id' => $newUnit->id,
         ])
         ->assertRedirect()
@@ -173,6 +179,7 @@ test('authenticated users cannot update items for another department', function 
     $this->actingAs($user)
         ->put(route('user.items.update', ['department' => $departmentB->slug, 'item' => $item->id]), [
             'name' => 'Updated Rice',
+            'kind' => ItemKind::Goods,
             'item_unit_measurement_id' => $unit->id,
         ])
         ->assertForbidden();

@@ -33,7 +33,7 @@ class AssistanceReceiptController extends Controller
             'program:id,name,department_id',
             'program.department:id,name,slug',
             'assistanceItem',
-            'assistanceItem.item:id,name,item_unit_measurement_id',
+            'assistanceItem.item:id,name,kind,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
         ]);
 

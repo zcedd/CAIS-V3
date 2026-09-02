@@ -14,6 +14,7 @@ use App\Models\StockLotBalance;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Notifications\LowStockNotification;
+use App\Support\ItemKind;
 use App\Support\StockMovementType;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,8 @@ class StockLedgerService
         if ($quantity < 1) {
             throw new InsufficientStockException('Quantity must be at least 1.');
         }
+
+        $this->assertTracksInventory($item);
 
         if (! in_array($type, StockMovementType::receiptValues(), true)) {
             throw ValidationException::withMessages([
@@ -102,6 +105,8 @@ class StockLedgerService
         if ($quantity < 1) {
             throw new InsufficientStockException('Quantity must be at least 1.');
         }
+
+        $this->assertTracksInventory($item);
 
         if (! in_array($type, [StockMovementType::AdjustmentIn, StockMovementType::AdjustmentOut], true)) {
             throw ValidationException::withMessages([
@@ -173,7 +178,11 @@ class StockLedgerService
             return;
         }
 
-        $item = $assistanceItem->item ?? Item::query()->findOrFail($assistanceItem->item_id);
+        $item = Item::query()->findOrFail($assistanceItem->item_id);
+
+        if (! $item->tracksInventory()) {
+            return;
+        }
 
         DB::transaction(function () use ($assistanceItem, $program, $user, $item, $quantity): void {
             $alreadyIssued = StockMovement::query()
@@ -309,12 +318,13 @@ class StockLedgerService
 
         return Item::query()
             ->whereIn('id', $itemIds)
+            ->where('kind', ItemKind::Goods)
             ->with([
                 'unitMeasurement:id,name',
                 'stockBalance' => fn ($query) => $query->where('department_id', $program->department_id),
             ])
             ->orderBy('name')
-            ->get(['id', 'name', 'item_unit_measurement_id', 'low_stock_threshold', 'department_id'])
+            ->get(['id', 'name', 'kind', 'item_unit_measurement_id', 'low_stock_threshold', 'department_id'])
             ->map(function (Item $item) use ($program, $remaining): array {
                 $remainingQty = (int) ($remaining[$item->id] ?? 0);
                 $onHand = (int) ($item->stockBalance?->on_hand ?? 0);
@@ -347,6 +357,8 @@ class StockLedgerService
         if ($quantity < 1) {
             throw new InsufficientStockException('Quantity must be at least 1.');
         }
+
+        $this->assertTracksInventory($item);
 
         $program = Program::query()->findOrFail($payload['program_id']);
 
@@ -412,6 +424,11 @@ class StockLedgerService
         }
 
         $item = Item::query()->findOrFail($issue->item_id);
+
+        if (! $item->tracksInventory()) {
+            return;
+        }
+
         $this->lockItemBalance($item);
 
         if ($issue->stock_lot_id !== null) {
@@ -489,6 +506,17 @@ class StockLedgerService
         }
 
         return $picks;
+    }
+
+    private function assertTracksInventory(Item $item): void
+    {
+        if ($item->tracksInventory()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'item' => ['This catalog entry is not stocked.'],
+        ]);
     }
 
     private function lockItemBalance(Item $item): ItemStockBalance
@@ -586,7 +614,7 @@ class StockLedgerService
 
         $threshold = $item->low_stock_threshold;
 
-        if ($threshold === null) {
+        if ($threshold === null || ! $item->tracksInventory()) {
             return;
         }
 
@@ -629,13 +657,13 @@ class StockLedgerService
         $sent = 0;
 
         ItemStockBalance::query()
-            ->with(['item:id,name,department_id,low_stock_threshold', 'item.department:id,name,slug'])
+            ->with(['item:id,name,kind,department_id,low_stock_threshold', 'item.department:id,name,slug'])
             ->where('low_stock_notified', false)
             ->chunkById(100, function ($balances) use (&$sent): void {
                 foreach ($balances as $balance) {
                     $item = $balance->item;
 
-                    if (! $item instanceof Item || $item->low_stock_threshold === null) {
+                    if (! $item instanceof Item || ! $item->tracksInventory() || $item->low_stock_threshold === null) {
                         continue;
                     }
 

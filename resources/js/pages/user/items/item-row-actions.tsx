@@ -22,6 +22,7 @@ import { ItemEditDrawer } from '@/pages/user/items/item-edit-drawer';
 import { ItemStockDrawer } from '@/pages/user/items/item-stock-drawer';
 import type { UnitMeasurementOption } from '@/pages/user/items/item-toolbar';
 import { destroy as destroyDepartmentItem } from '@/routes/user/items';
+import { tracksInventory } from '@/types/item';
 import { router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
 import { Edit, MoreHorizontal, Package, Trash } from 'lucide-react';
@@ -83,10 +84,12 @@ export function ItemDataTableRowActions({
                         <Edit className="mr-2 h-4 w-4" />
                         Edit item
                     </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => setStockOpen(true)}>
-                        <Package className="mr-2 h-4 w-4" />
-                        Manage stock
-                    </DropdownMenuItem>
+                    {tracksInventory(record.kind) ? (
+                        <DropdownMenuItem onSelect={() => setStockOpen(true)}>
+                            <Package className="mr-2 h-4 w-4" />
+                            Manage stock
+                        </DropdownMenuItem>
+                    ) : null}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                         variant="destructive"
