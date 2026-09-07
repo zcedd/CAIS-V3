@@ -1,3 +1,5 @@
+export type ProgramKind = 'standalone' | 'scheme' | 'batch';
+
 export type ProgramSummary = {
     total_requests: number;
     delivered_requests: number;

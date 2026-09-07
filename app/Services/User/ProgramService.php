@@ -2,14 +2,17 @@
 
 namespace App\Services\User;
 
+use App\Actions\User\CreateProgramBatch;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
 use App\Models\Program;
 use App\Models\ProgramEligibilityRule;
 use App\Models\ProgramItemCap;
+use App\Support\ProgramKind;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 
 class ProgramService
 {
@@ -21,6 +24,7 @@ class ProgramService
         private ProgramFieldService $programFieldService,
         private ProgramDocumentRequirementService $programDocumentRequirementService,
         private StockLedgerService $stockLedgerService,
+        private CreateProgramBatch $createProgramBatch,
     ) {}
 
     /**
@@ -44,10 +48,26 @@ class ProgramService
                 'is_closed',
                 'is_organization',
                 'department_id',
+                'kind',
             ])
             ->with(['department:id,name,slug'])
+            ->withCount([
+                'batches',
+                'batches as open_batches_count' => fn ($query) => $query->where('is_closed', false),
+            ])
+            ->roots()
             ->where('department_id', $department->id)
-            ->when($search !== '', fn ($query) => $query->where('name', 'like', '%'.$search.'%'))
+            ->when($search !== '', function ($query) use ($search): void {
+                $query->where(function ($searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('name', 'like', '%'.$search.'%')
+                        ->orWhereHas('batches', function ($batchQuery) use ($search): void {
+                            $batchQuery
+                                ->where('name', 'like', '%'.$search.'%')
+                                ->orWhere('batch_name', 'like', '%'.$search.'%');
+                        });
+                });
+            })
             ->when(
                 count($types) === 1 && in_array('individual', $types, true),
                 fn ($query) => $query->where('is_organization', false),
@@ -74,6 +94,8 @@ class ProgramService
      */
     public function create(Department $department, array $validated): Program
     {
+        $kind = $validated['kind'] ?? ProgramKind::Standalone;
+
         $program = Program::query()->create([
             'name' => $validated['name'],
             'descriptions' => $validated['descriptions'],
@@ -82,9 +104,13 @@ class ProgramService
             'department_id' => $department->id,
             'is_closed' => false,
             'is_organization' => $validated['is_organization'] ?? false,
+            'kind' => $kind,
         ]);
 
-        $program->fund()->attach($validated['fund_ids']);
+        if ($kind !== ProgramKind::Scheme) {
+            $program->fund()->attach($validated['fund_ids'] ?? []);
+        }
+
         $program->item()->attach($validated['item_ids']);
 
         if (array_key_exists('fields', $validated)) {
@@ -100,7 +126,13 @@ class ProgramService
 
         $this->syncEligibility($program, $validated);
 
-        return $program;
+        if ($kind === ProgramKind::Scheme && isset($validated['first_batch']) && is_array($validated['first_batch'])) {
+            ($this->createProgramBatch)($program, $validated['first_batch']);
+        }
+
+        $this->forgetDashboardFilterOptions($department->id);
+
+        return $program->refresh();
     }
 
     /**
@@ -108,6 +140,18 @@ class ProgramService
      */
     public function update(Program $program, array $validated): void
     {
+        if ($program->isBatch()) {
+            $this->updateBatch($program, $validated);
+
+            return;
+        }
+
+        if ($program->isScheme()) {
+            $this->updateScheme($program, $validated);
+
+            return;
+        }
+
         $program->update([
             'name' => $validated['name'],
             'descriptions' => $validated['descriptions'],
@@ -132,6 +176,7 @@ class ProgramService
         }
 
         $this->syncEligibility($program, $validated);
+        $this->forgetDashboardFilterOptions($program->department_id);
     }
 
     /**
@@ -194,6 +239,10 @@ class ProgramService
      */
     public function showOverviewPayload(Program $program): array
     {
+        $program->loadMissing('parent:id,name');
+
+        $parent = $program->parent;
+
         return [
             ...$program->only([
                 'id',
@@ -204,9 +253,18 @@ class ProgramService
                 'is_closed',
                 'is_organization',
                 'department_id',
+                'kind',
+                'batch_number',
+                'batch_name',
             ]),
             'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
             'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
+            'parent' => $parent instanceof Program
+                ? [
+                    'id' => $parent->id,
+                    'name' => $parent->name,
+                ]
+                : null,
         ];
     }
 
@@ -289,10 +347,7 @@ class ProgramService
     public function transferProgramsForSelect(Department $department, Program $program): array
     {
         return Program::query()
-            ->where('department_id', $department->id)
-            ->whereKeyNot($program->id)
-            ->where('is_closed', false)
-            ->where('is_organization', $program->is_organization)
+            ->transferTargetsFor($program)
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(static fn (Program $candidate): array => [
@@ -394,9 +449,10 @@ class ProgramService
      */
     public function eligibilityPayload(Program $program): array
     {
-        $program->loadMissing(['eligibilityRule', 'itemCaps']);
+        $source = $program->eligibilityProgram();
+        $source->loadMissing(['eligibilityRule', 'itemCaps']);
 
-        $rule = $program->eligibilityRule;
+        $rule = $source->eligibilityRule;
 
         return [
             'cooldown_days' => $rule instanceof ProgramEligibilityRule ? $rule->cooldown_days : null,
@@ -404,7 +460,7 @@ class ProgramService
             'require_4ps' => $rule instanceof ProgramEligibilityRule ? $rule->require_4ps : false,
             'require_solo_parent' => $rule instanceof ProgramEligibilityRule ? $rule->require_solo_parent : false,
             'require_indigenous' => $rule instanceof ProgramEligibilityRule ? $rule->require_indigenous : false,
-            'item_caps' => $program->itemCaps
+            'item_caps' => $source->itemCaps
                 ->map(static fn (ProgramItemCap $cap): array => [
                     'item_id' => $cap->item_id,
                     'max_released_per_year' => $cap->max_released_per_year,
@@ -412,6 +468,150 @@ class ProgramService
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * @return list<array{
+     *     id: int,
+     *     name: string,
+     *     batch_name: string|null,
+     *     batch_number: int|null,
+     *     start_at: mixed,
+     *     end_at: mixed,
+     *     is_closed: bool,
+     *     total_requests: int
+     * }>
+     */
+    public function schemeBatchesPayload(Program $scheme): array
+    {
+        $scheme->loadMissing('batches');
+
+        $requestCounts = $scheme->batches
+            ->isEmpty()
+            ? collect()
+            : $scheme->batches()->withCount('assistance')->get()->keyBy('id');
+
+        return $scheme->batches
+            ->map(static function (Program $batch) use ($requestCounts): array {
+                $counted = $requestCounts->get($batch->id);
+
+                return [
+                    'id' => $batch->id,
+                    'name' => $batch->name,
+                    'batch_name' => $batch->batch_name,
+                    'batch_number' => $batch->batch_number,
+                    'start_at' => $batch->start_at,
+                    'end_at' => $batch->end_at,
+                    'is_closed' => (bool) $batch->is_closed,
+                    'total_requests' => (int) ($counted?->assistance_count ?? 0),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function updateScheme(Program $program, array $validated): void
+    {
+        $previousName = $program->name;
+
+        $payload = [
+            'name' => $validated['name'],
+            'descriptions' => $validated['descriptions'],
+            'start_at' => $validated['start_at'],
+            'end_at' => $validated['end_at'] ?? null,
+        ];
+
+        if (! $program->batches()->exists()) {
+            $payload['is_organization'] = $validated['is_organization'] ?? $program->is_organization;
+        }
+
+        $program->update($payload);
+        $program->item()->sync($validated['item_ids']);
+
+        if (array_key_exists('fields', $validated)) {
+            $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
+        }
+
+        if (array_key_exists('document_requirements', $validated)) {
+            $this->programDocumentRequirementService->syncForProgram(
+                $program,
+                $validated['document_requirements'] ?? [],
+            );
+        }
+
+        $this->syncEligibility($program, $validated);
+
+        if ($previousName !== $program->name) {
+            $program->batches()->each(function (Program $batch) use ($program): void {
+                $batchName = $batch->batch_name ?? 'Batch';
+                $batch->update([
+                    'name' => Program::composeBatchDisplayName($program->name, $batchName),
+                ]);
+            });
+        }
+
+        $this->forgetDashboardFilterOptions($program->department_id);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function updateBatch(Program $program, array $validated): void
+    {
+        $batchName = $validated['batch_name'] ?? $program->batch_name ?? 'Batch';
+        $parent = $program->parent;
+        $schemeName = $parent instanceof Program ? $parent->name : $program->name;
+
+        $program->update([
+            'batch_name' => $batchName,
+            'name' => Program::composeBatchDisplayName($schemeName, $batchName),
+            'descriptions' => $validated['descriptions'] ?? $program->descriptions,
+            'start_at' => $validated['start_at'],
+            'end_at' => $validated['end_at'] ?? null,
+            'is_closed' => $validated['is_closed'] ?? false,
+        ]);
+
+        $program->fund()->sync($validated['fund_ids'] ?? []);
+        $program->item()->sync($validated['item_ids']);
+
+        if (array_key_exists('fields', $validated)) {
+            $this->programFieldService->syncForProgram($program, $validated['fields'] ?? []);
+        }
+
+        if (array_key_exists('document_requirements', $validated)) {
+            $this->programDocumentRequirementService->syncForProgram(
+                $program,
+                $validated['document_requirements'] ?? [],
+            );
+        }
+
+        $this->syncSchemeClosedState($program);
+        $this->forgetDashboardFilterOptions($program->department_id);
+    }
+
+    public function syncSchemeClosedState(Program $program): void
+    {
+        $scheme = $program->isBatch() ? $program->parent : ($program->isScheme() ? $program : null);
+
+        if (! $scheme instanceof Program) {
+            return;
+        }
+
+        $hasOpenBatch = $scheme->batches()->where('is_closed', false)->exists();
+        $hasBatches = $scheme->batches()->exists();
+        $shouldClose = $hasBatches && ! $hasOpenBatch;
+
+        if ((bool) $scheme->is_closed !== $shouldClose) {
+            $scheme->update(['is_closed' => $shouldClose]);
+        }
+    }
+
+    private function forgetDashboardFilterOptions(int $departmentId): void
+    {
+        Cache::forget("dashboard.filter_options.{$departmentId}");
     }
 
     private function programDateForInput(mixed $value): ?string

@@ -32,7 +32,16 @@ class EvaluateAssistanceEligibility
         ?int $exceptAssistanceId = null,
     ): array {
         $asOf = $asOf instanceof Carbon ? $asOf : Carbon::parse($asOf ?? now());
-        $program->loadMissing(['eligibilityRule', 'itemCaps.item:id,name']);
+        $eligibilityProgram = $program->eligibilityProgram();
+
+        if ($eligibilityProgram->id !== $program->id) {
+            $eligibilityProgram->loadMissing(['eligibilityRule', 'itemCaps.item:id,name']);
+            $program->setRelation('eligibilityRule', $eligibilityProgram->eligibilityRule);
+            $program->setRelation('itemCaps', $eligibilityProgram->itemCaps);
+        } else {
+            $program->loadMissing(['eligibilityRule', 'itemCaps.item:id,name']);
+        }
+
         $beneficiary->loadMissing('beneficiable');
 
         $findings = [

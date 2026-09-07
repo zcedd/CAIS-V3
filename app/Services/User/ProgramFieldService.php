@@ -108,6 +108,23 @@ class ProgramFieldService
         }
     }
 
+    public function copyToProgram(Program $source, Program $target): void
+    {
+        $source->loadMissing('fields');
+
+        foreach ($source->fields as $field) {
+            $target->fields()->create([
+                'label' => $field->label,
+                'key' => $this->uniqueKeyForProgram($target, $field->label),
+                'type' => $field->type,
+                'options' => $field->options,
+                'is_required' => $field->is_required,
+                'show_in_table' => $field->show_in_table,
+                'sort_order' => $field->sort_order,
+            ]);
+        }
+    }
+
     /**
      * @return list<array{
      *     id: int,

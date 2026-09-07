@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\ProgramKind;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,8 +25,21 @@ class Program extends Model
         'department_id',
         'is_closed',
         'is_organization',
+        'kind',
+        'parent_id',
+        'batch_number',
+        'batch_name',
         'created_at',
         'updated_at',
+    ];
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'kind' => ProgramKind::Standalone,
+        'is_closed' => false,
+        'is_organization' => false,
     ];
 
     protected $casts = [
@@ -32,11 +47,22 @@ class Program extends Model
         'end_at' => 'datetime:M d, Y',
         'is_closed' => 'boolean',
         'is_organization' => 'boolean',
+        'batch_number' => 'integer',
     ];
 
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class, 'department_id', 'id');
+    }
+
+    public function parent(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_id');
+    }
+
+    public function batches(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_id')->orderBy('batch_number')->orderBy('id');
     }
 
     public function assistance(): HasMany
@@ -100,12 +126,123 @@ class Program extends Model
     }
 
     /**
-     * Program IDs that share eligibility (this program today; parent + batches later).
+     * @param  Builder<Program>  $query
+     * @return Builder<Program>
+     */
+    public function scopeRoots(Builder $query): Builder
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    /**
+     * @param  Builder<Program>  $query
+     * @return Builder<Program>
+     */
+    public function scopeEncodable(Builder $query): Builder
+    {
+        return $query->whereIn('kind', ProgramKind::encodableValues());
+    }
+
+    /**
+     * @param  Builder<Program>  $query
+     * @return Builder<Program>
+     */
+    public function scopeTransferTargetsFor(Builder $query, Program $program): Builder
+    {
+        $query
+            ->where('department_id', $program->department_id)
+            ->whereKeyNot($program->id)
+            ->where('is_closed', false)
+            ->where('is_organization', $program->is_organization);
+
+        if ($program->isBatch()) {
+            return $query
+                ->where('kind', ProgramKind::Batch)
+                ->where('parent_id', $program->parent_id);
+        }
+
+        return $query->where('kind', ProgramKind::Standalone);
+    }
+
+    public function isScheme(): bool
+    {
+        return ProgramKind::isScheme($this->kind);
+    }
+
+    public function isBatch(): bool
+    {
+        return ProgramKind::isBatch($this->kind);
+    }
+
+    public function isStandalone(): bool
+    {
+        return ProgramKind::isStandalone($this->kind);
+    }
+
+    public function isEncodable(): bool
+    {
+        return ProgramKind::isEncodable($this->kind) && ! $this->is_closed;
+    }
+
+    public function isEffectivelyClosed(): bool
+    {
+        if (! $this->isScheme()) {
+            return (bool) $this->is_closed;
+        }
+
+        if (! $this->relationLoaded('batches')) {
+            return $this->batches()->exists()
+                && ! $this->batches()->where('is_closed', false)->exists();
+        }
+
+        if ($this->batches->isEmpty()) {
+            return (bool) $this->is_closed;
+        }
+
+        return $this->batches->every(static fn (Program $batch): bool => (bool) $batch->is_closed);
+    }
+
+    /**
+     * Program IDs that share eligibility (sibling batches, or this standalone).
      *
      * @return list<int>
      */
     public function familyIds(): array
     {
-        return [$this->id];
+        if ($this->isStandalone() || $this->kind === null) {
+            return [$this->id];
+        }
+
+        $parentId = $this->isScheme() ? $this->id : $this->parent_id;
+
+        if ($parentId === null) {
+            return [$this->id];
+        }
+
+        return self::query()
+            ->where('parent_id', $parentId)
+            ->where('kind', ProgramKind::Batch)
+            ->orderBy('id')
+            ->pluck('id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+    }
+
+    public function eligibilityProgram(): Program
+    {
+        if ($this->isBatch()) {
+            $parent = $this->parent;
+
+            if ($parent instanceof self) {
+                return $parent;
+            }
+        }
+
+        return $this;
+    }
+
+    public static function composeBatchDisplayName(string $schemeName, string $batchName): string
+    {
+        return $schemeName.' — '.$batchName;
     }
 }

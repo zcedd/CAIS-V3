@@ -10,6 +10,7 @@ use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ItemStockController as UserItemStockController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
+use App\Http\Controllers\User\ProgramBatchController as UserProgramBatchController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use App\Http\Controllers\User\UnspscCodeController as UserUnspscCodeController;
 use Illuminate\Support\Facades\Route;
@@ -36,6 +37,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('beneficiaries/organizations/{beneficiary}', [UserBeneficiaryController::class, 'updateOrganization'])->name('user.beneficiaries.organizations.update');
 
         Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
+        Route::post('programs/{program}/batches', [UserProgramBatchController::class, 'store'])->name('user.programs.batches.store');
 
         Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');
         Route::get('unspsc-codes', [UserUnspscCodeController::class, 'search'])->name('user.unspsc-codes.search');

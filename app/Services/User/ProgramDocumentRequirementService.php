@@ -54,6 +54,20 @@ class ProgramDocumentRequirementService
         }
     }
 
+    public function copyToProgram(Program $source, Program $target): void
+    {
+        $source->loadMissing('documentRequirements');
+
+        foreach ($source->documentRequirements as $requirement) {
+            $target->documentRequirements()->create([
+                'document_type_id' => $requirement->document_type_id,
+                'is_required' => $requirement->is_required,
+                'required_before' => $requirement->required_before,
+                'sort_order' => $requirement->sort_order,
+            ]);
+        }
+    }
+
     /**
      * @return list<array{
      *     id: int,

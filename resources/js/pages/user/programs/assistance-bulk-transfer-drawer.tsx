@@ -60,6 +60,7 @@ export function AssistanceBulkTransferDrawer({
     const [formKey, setFormKey] = useState(0);
     const [selectedProgramId, setSelectedProgramId] = useState('');
     const [overrideReason, setOverrideReason] = useState('');
+    const [transferReason, setTransferReason] = useState('');
     const { eligibility_findings: flashedFindings } = usePage<{
         eligibility_findings?: EligibilityPreview['findings'] | null;
     }>().props;
@@ -69,6 +70,7 @@ export function AssistanceBulkTransferDrawer({
     const resetForm = () => {
         setSelectedProgramId('');
         setOverrideReason('');
+        setTransferReason('');
     };
 
     useEffect(() => {
@@ -109,6 +111,7 @@ export function AssistanceBulkTransferDrawer({
                     transform={() => ({
                         assistance_ids: assistanceIds,
                         target_program_id: Number(selectedProgramId),
+                        reason: transferReason,
                         eligibility_override_reason: overrideReason,
                     })}
                     onSuccess={() => {
@@ -174,6 +177,22 @@ export function AssistanceBulkTransferDrawer({
                                 </p>
                             ) : null}
 
+                            <div className="space-y-2">
+                                <Label htmlFor="bulk-assistance-transfer-reason">
+                                    Reason
+                                </Label>
+                                <Textarea
+                                    id="bulk-assistance-transfer-reason"
+                                    value={transferReason}
+                                    onChange={(event) =>
+                                        setTransferReason(event.target.value)
+                                    }
+                                    rows={3}
+                                    placeholder="Why are these requests moving to another program?"
+                                />
+                                <InputError message={errors.reason} />
+                            </div>
+
                             <InputError message={errors.assistance_ids} />
 
                             <EligibilityFindingsPanel
@@ -217,6 +236,7 @@ export function AssistanceBulkTransferDrawer({
                                     disabled={
                                         processing ||
                                         !selectedProgramId ||
+                                        transferReason.trim() === '' ||
                                         selectedCount === 0 ||
                                         transferProgramOptions.length === 0 ||
                                         hasHardEligibilityFindings(

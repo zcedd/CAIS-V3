@@ -105,7 +105,10 @@ type ProgramDetail = {
     end_at_input: string | null;
     is_closed: boolean | null;
     is_organization: boolean | null;
+    kind?: string | null;
+    batch_name?: string | null;
     department_id: number;
+    parent?: { id: number; name: string } | null;
 };
 
 type ProgramEditRelations = {
@@ -322,19 +325,32 @@ export default function UserProgramShow({
             program: program.id,
         });
 
-        setLayoutProps({
-            breadcrumbs: [
-                {
-                    title: 'Programs',
-                    href: programsHref,
-                },
-                {
-                    title: program.name,
-                    href: selfHref,
-                },
-            ] satisfies BreadcrumbItem[],
+        const breadcrumbs: BreadcrumbItem[] = [
+            {
+                title: 'Programs',
+                href: programsHref,
+            },
+        ];
+
+        if (program.parent) {
+            breadcrumbs.push({
+                title: program.parent.name,
+                href: departmentProgramShow.url({
+                    department: department.slug,
+                    program: program.parent.id,
+                }),
+            });
+        }
+
+        breadcrumbs.push({
+            title: program.batch_name ?? program.name,
+            href: selfHref,
         });
-    }, [department?.slug, program.id, program.name]);
+
+        setLayoutProps({
+            breadcrumbs,
+        });
+    }, [department?.slug, program.id, program.name, program.batch_name, program.parent]);
 
     const visitTable = useCallback(
         (
@@ -437,6 +453,11 @@ export default function UserProgramShow({
                                     ? 'Organization'
                                     : 'Individual'}
                             </Badge>
+                            {program.kind === 'batch' && program.batch_name ? (
+                                <Badge variant="outline">
+                                    {program.batch_name}
+                                </Badge>
+                            ) : null}
                             {department ? (
                                 <Badge variant="outline">
                                     <Building2 aria-hidden />

@@ -39,6 +39,12 @@ class AssistanceService
 
     public function ensureProgramIsOpen(Program $program, string $message): void
     {
+        if ($program->isScheme()) {
+            throw ValidationException::withMessages([
+                'program' => ['Assistances can only be encoded on a program batch or a one-off program.'],
+            ]);
+        }
+
         if ($program->is_closed) {
             throw ValidationException::withMessages([
                 'program' => [$message],

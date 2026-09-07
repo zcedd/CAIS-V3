@@ -51,8 +51,11 @@ type ProgramDetail = {
     descriptions: string | null;
     is_closed: boolean | null;
     is_organization?: boolean | null;
+    kind?: string | null;
+    batch_name?: string | null;
     start_at_input: string | null;
     end_at_input: string | null;
+    parent?: { id: number; name: string } | null;
 };
 
 type ProgramEligibilityPayload = {
@@ -208,6 +211,7 @@ type ProgramEditDrawerProps = {
     documentTypes?: DocumentTypeOption[];
     formKey: number;
     onClose: () => void;
+    lockOrganization?: boolean;
 };
 
 export function ProgramEditDrawer({
@@ -221,6 +225,7 @@ export function ProgramEditDrawer({
     documentTypes = [],
     formKey,
     onClose,
+    lockOrganization = false,
 }: ProgramEditDrawerProps) {
     const [startAtOpen, setStartAtOpen] = useState(false);
     const [startAt, setStartAt] = useState<Date | undefined>(() =>
@@ -273,6 +278,9 @@ export function ProgramEditDrawer({
         label: String(`${item.name} (${item.unit})`),
     }));
 
+    const isScheme = program.kind === 'scheme';
+    const isBatch = program.kind === 'batch';
+
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
             <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
@@ -297,8 +305,12 @@ export function ProgramEditDrawer({
                         ...data,
                         start_at: formatDateForSubmit(startAt),
                         end_at: formatDateForSubmit(endAt),
-                        is_closed: data.is_closed === '1' || data.is_closed === true,
-                        fund_ids: selectedFundIds.map(Number),
+                        is_closed: isScheme
+                            ? undefined
+                            : data.is_closed === '1' || data.is_closed === true,
+                        fund_ids: isScheme
+                            ? []
+                            : selectedFundIds.map(Number),
                         item_ids: selectedItemIds.map(Number),
                         fields: fields.map((field, index) => ({
                             ...field,
@@ -313,10 +325,12 @@ export function ProgramEditDrawer({
                                 ...requirement,
                                 sort_order: index,
                             })),
-                        ...eligibilityPayloadFromForm(
-                            eligibility,
-                            selectedItemIds,
-                        ),
+                        ...(isBatch
+                            ? {}
+                            : eligibilityPayloadFromForm(
+                                  eligibility,
+                                  selectedItemIds,
+                              )),
                     })}
                     onSuccess={() => {
                         onClose();
@@ -335,14 +349,33 @@ export function ProgramEditDrawer({
                         return (
                         <>
                             <div className="space-y-2">
-                                <Label htmlFor="edit-program-name">Name</Label>
-                                <Input
-                                    id="edit-program-name"
-                                    name="name"
-                                    defaultValue={program.name}
-                                    placeholder="Program name"
+                                <Label htmlFor="edit-program-name">
+                                    {isBatch ? 'Batch name' : 'Name'}
+                                </Label>
+                                {isBatch ? (
+                                    <Input
+                                        id="edit-program-name"
+                                        name="batch_name"
+                                        defaultValue={
+                                            program.batch_name ?? program.name
+                                        }
+                                        placeholder="Batch name"
+                                    />
+                                ) : (
+                                    <Input
+                                        id="edit-program-name"
+                                        name="name"
+                                        defaultValue={program.name}
+                                        placeholder="Program name"
+                                    />
+                                )}
+                                <InputError
+                                    message={
+                                        isBatch
+                                            ? errors.batch_name
+                                            : errors.name
+                                    }
                                 />
-                                <InputError message={errors.name} />
                             </div>
 
                             <div className="space-y-2">
@@ -379,6 +412,7 @@ export function ProgramEditDrawer({
                                 error={errors.end_at}
                             />
 
+                            {isScheme ? null : (
                             <div className="space-y-2">
                                 <Label htmlFor="edit-program-funds">Funds</Label>
                                 <MultiSelect
@@ -390,6 +424,7 @@ export function ProgramEditDrawer({
                                 />
                                 <InputError message={errors.fund_ids} />
                             </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label htmlFor="edit-program-items">Items</Label>
@@ -416,6 +451,20 @@ export function ProgramEditDrawer({
                                 errors={errors}
                             />
 
+                            {isScheme && lockOrganization ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Beneficiary type cannot change after batches
+                                    exist.
+                                </p>
+                            ) : null}
+
+                            {isBatch ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Eligibility rules are managed on the parent
+                                    program
+                                    {program.parent ? ` (${program.parent.name})` : ''}.
+                                </p>
+                            ) : (
                             <ProgramEligibilityFields
                                 value={eligibility}
                                 onChange={setEligibility}
@@ -425,7 +474,9 @@ export function ProgramEditDrawer({
                                 errors={errors}
                                 idPrefix="edit-program-eligibility"
                             />
+                            )}
 
+                            {isScheme ? null : (
                             <div className="flex items-start gap-3">
                                 <Input
                                     id="edit-program-is-closed"
@@ -448,6 +499,7 @@ export function ProgramEditDrawer({
                                     </p>
                                 </div>
                             </div>
+                            )}
 
                             <DrawerFooter className="px-0">
                                 <Button

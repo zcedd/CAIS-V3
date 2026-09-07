@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User\ItemStock;
 
 use App\Models\Item;
+use App\Support\ProgramKind;
 use App\Support\StockMovementType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -30,7 +31,11 @@ class StoreAllocationRequest extends FormRequest
             'program_id' => [
                 'required',
                 'integer',
-                Rule::exists('programs', 'id')->where('department_id', $departmentId),
+                Rule::exists('programs', 'id')->where(function ($query) use ($departmentId): void {
+                    $query
+                        ->where('department_id', $departmentId)
+                        ->whereIn('kind', ProgramKind::encodableValues());
+                }),
             ],
             'type' => [
                 'required',

@@ -23,6 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 import type { AssistanceTransferProgramOption } from '@/pages/user/programs/assistance-toolbar';
 import {
@@ -71,6 +72,7 @@ export function AssistanceTransferDrawer({
         useState<EligibilityPreview | null>(null);
     const [eligibilityLoading, setEligibilityLoading] = useState(false);
     const [overrideReason, setOverrideReason] = useState('');
+    const [transferReason, setTransferReason] = useState('');
     const { eligibility_findings: flashedFindings } = usePage<{
         eligibility_findings?: EligibilityPreview['findings'] | null;
     }>().props;
@@ -79,6 +81,7 @@ export function AssistanceTransferDrawer({
         setSelectedProgramId('');
         setEligibilityPreview(null);
         setOverrideReason('');
+        setTransferReason('');
     };
 
     useEffect(() => {
@@ -180,6 +183,7 @@ export function AssistanceTransferDrawer({
                     disableWhileProcessing
                     transform={() => ({
                         target_program_id: Number(selectedProgramId),
+                        reason: transferReason,
                         eligibility_override_reason: overrideReason,
                     })}
                     onSuccess={() => {
@@ -243,6 +247,22 @@ export function AssistanceTransferDrawer({
                                 </p>
                             ) : null}
 
+                            <div className="space-y-2">
+                                <Label htmlFor="assistance-transfer-reason">
+                                    Reason
+                                </Label>
+                                <Textarea
+                                    id="assistance-transfer-reason"
+                                    value={transferReason}
+                                    onChange={(event) =>
+                                        setTransferReason(event.target.value)
+                                    }
+                                    rows={3}
+                                    placeholder="Why is this request moving to another program?"
+                                />
+                                <InputError message={errors.reason} />
+                            </div>
+
                             <EligibilityFindingsPanel
                                 departmentSlug={departmentSlug}
                                 findings={
@@ -265,6 +285,7 @@ export function AssistanceTransferDrawer({
                                     disabled={
                                         processing ||
                                         !selectedProgramId ||
+                                        transferReason.trim() === '' ||
                                         transferProgramOptions.length === 0 ||
                                         hasHardEligibilityFindings(
                                             flashedFindings ??

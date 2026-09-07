@@ -104,6 +104,19 @@ export type DashboardProgramRow = {
     name: string;
     type: 'individual' | 'organization';
     status: 'open' | 'closed';
+    kind?: string;
+    total_requests: number;
+    delivered: number;
+    in_progress: number;
+    denied: number;
+    delivery_rate: number;
+    batches?: DashboardProgramBatchRow[];
+};
+
+export type DashboardProgramBatchRow = {
+    id: number;
+    name: string;
+    status: 'open' | 'closed';
     total_requests: number;
     delivered: number;
     in_progress: number;

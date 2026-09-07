@@ -6,6 +6,7 @@ use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Department;
+use App\Models\Program;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -35,15 +36,19 @@ class UpdateRequest extends FormRequest
     {
         $department = $this->route('department');
         $departmentId = $department instanceof Department ? $department->id : null;
+        $program = $this->route('program');
+        $isScheme = $program instanceof Program && $program->isScheme();
+        $isBatch = $program instanceof Program && $program->isBatch();
 
-        return [
-            'name' => ['required', 'string', 'max:255'],
+        $rules = [
+            'name' => $isBatch ? ['nullable', 'string', 'max:255'] : ['required', 'string', 'max:255'],
+            'batch_name' => $isBatch ? ['required', 'string', 'max:255'] : ['nullable', 'string', 'max:255'],
             'descriptions' => ['required', 'string'],
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
-            'is_organization' => ['nullable', 'boolean'],
-            'is_closed' => ['nullable', 'boolean'],
-            'fund_ids' => ['required', 'array', 'min:1'],
+            'is_organization' => $isBatch ? ['prohibited'] : ['nullable', 'boolean'],
+            'is_closed' => $isScheme ? ['prohibited'] : ['nullable', 'boolean'],
+            'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
             'fund_ids.*' => [
                 'integer',
                 Rule::exists('funds', 'id')->where(
@@ -57,17 +62,30 @@ class UpdateRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
-            ...$this->programEligibilityRules($this->input('item_ids', [])),
             ...$this->programFieldDefinitionRules(),
             ...$this->programDocumentRequirementRules(),
         ];
+
+        if (! $isBatch) {
+            $rules = [
+                ...$rules,
+                ...$this->programEligibilityRules($this->input('item_ids', [])),
+            ];
+        }
+
+        return $rules;
     }
 
     public function withValidator(Validator $validator): void
     {
         $this->afterProgramFieldDefinitions($validator);
-        $this->afterProgramEligibilityRules($validator);
         $this->afterProgramDocumentRequirements($validator);
+
+        $program = $this->route('program');
+
+        if (! ($program instanceof Program && $program->isBatch())) {
+            $this->afterProgramEligibilityRules($validator);
+        }
 
         $validator->after(function (Validator $validator): void {
             $program = $this->program;
@@ -122,6 +140,7 @@ class UpdateRequest extends FormRequest
     {
         return [
             'name' => 'program name',
+            'batch_name' => 'batch name',
             'descriptions' => 'description',
             'start_at' => 'start date',
             'end_at' => 'end date',

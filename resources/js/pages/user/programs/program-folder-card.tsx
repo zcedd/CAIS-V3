@@ -9,6 +9,9 @@ export type ProgramListRow = {
     end_at: string | null;
     is_closed: boolean | null;
     is_organization: boolean | null;
+    kind?: string | null;
+    batches_count?: number | null;
+    open_batches_count?: number | null;
 };
 
 type ProgramFolderCardProps = {
@@ -33,6 +36,9 @@ export function ProgramFolderCard({
     className,
 }: ProgramFolderCardProps) {
     const isClosed = Boolean(program.is_closed);
+    const isScheme = program.kind === 'scheme';
+    const batchCount = program.batches_count ?? 0;
+    const openBatchCount = program.open_batches_count ?? 0;
     const description = program.descriptions?.trim();
 
     return (
@@ -67,6 +73,20 @@ export function ProgramFolderCard({
                             >
                                 {isClosed ? 'Closed' : 'Open'}
                             </span>
+                            {isScheme ? (
+                                <>
+                                    <span className="mx-1.5 text-border">
+                                        ·
+                                    </span>
+                                    <span>
+                                        {batchCount}{' '}
+                                        {batchCount === 1 ? 'batch' : 'batches'}
+                                        {batchCount > 0
+                                            ? ` · ${openBatchCount} open`
+                                            : ''}
+                                    </span>
+                                </>
+                            ) : null}
                         </p>
                     </div>
 

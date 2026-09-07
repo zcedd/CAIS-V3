@@ -64,6 +64,14 @@ export function ProgramsTable({ department, data }: ProgramsTableProps) {
                                     >
                                         {row.name}
                                     </Link>
+                                    {row.batches && row.batches.length > 0 ? (
+                                        <p className="text-xs text-muted-foreground">
+                                            {row.batches.length}{' '}
+                                            {row.batches.length === 1
+                                                ? 'batch'
+                                                : 'batches'}
+                                        </p>
+                                    ) : null}
                                 </TableCell>
                                 <TableCell>
                                     <Badge variant="outline">

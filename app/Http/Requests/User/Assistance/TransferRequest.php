@@ -40,13 +40,10 @@ class TransferRequest extends FormRequest
                 'required',
                 'integer',
                 Rule::exists('programs', 'id')->where(function (Builder $query) use ($program): void {
-                    $query
-                        ->where('department_id', $program->department_id)
-                        ->where('is_closed', false)
-                        ->where('is_organization', $program->is_organization)
-                        ->whereNot('id', $program->id);
+                    $query->whereIn('id', Program::query()->transferTargetsFor($program)->select('id'));
                 }),
             ],
+            'reason' => ['required', 'string', 'max:255'],
             ...$this->eligibilityOverrideRules(),
         ];
     }
@@ -118,6 +115,7 @@ class TransferRequest extends FormRequest
     {
         return [
             'target_program_id' => 'target program',
+            'reason' => 'reason',
             ...$this->eligibilityOverrideAttributes(),
         ];
     }

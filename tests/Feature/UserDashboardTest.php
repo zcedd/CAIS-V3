@@ -140,15 +140,16 @@ test('department users can view the dashboard with expected props', function () 
         ->assertInertia(fn (Assert $page) => $page
             ->component('user/dashboard/index')
             ->where('department.slug', $department->slug)
-            ->where('summary.total_requests', 1)
-            ->has('requestStatusChart')
-            ->has('deliveredItemsChart')
-            ->has('unspscReleasedChart')
-            ->has('programsTable', 2)
-            ->has('filterOptions.programs', 2)
-            ->where('filters.year', [(string) now()->year])
-            ->where('filters.quarter', [])
-            ->where('filters.program', []));
+            ->loadDeferredProps(['kpis', 'filters', 'charts', 'programs'], fn ($reload) => $reload
+                ->where('summary.total_requests', 1)
+                ->has('requestStatusChart')
+                ->has('deliveredItemsChart')
+                ->has('unspscReleasedChart')
+                ->has('programsTable', 2)
+                ->has('filterOptions.programs', 2)
+                ->where('filters.year', [(string) now()->year])
+                ->where('filters.quarter', [])
+                ->where('filters.program', [])));
 });
 
 test('program filter reduces total requests on the dashboard', function () {
@@ -167,8 +168,9 @@ test('program filter reduces total requests on the dashboard', function () {
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_requests', 1)
-            ->where('filters.program', [(string) $program->id]));
+            ->loadDeferredProps(['kpis', 'filters'], fn ($reload) => $reload
+                ->where('summary.total_requests', 1)
+                ->where('filters.program', [(string) $program->id])));
 });
 
 test('dashboard defaults to the current year when no year filter is provided', function () {
@@ -184,8 +186,9 @@ test('dashboard defaults to the current year when no year filter is provided', f
         ->get(route('user.dashboard.index', ['department' => $department->slug]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_requests', 1)
-            ->where('filters.year', [(string) now()->year]));
+            ->loadDeferredProps(['kpis', 'filters'], fn ($reload) => $reload
+                ->where('summary.total_requests', 1)
+                ->where('filters.year', [(string) now()->year])));
 });
 
 test('year filter returns only assistances requested in the selected year', function () {
@@ -204,8 +207,9 @@ test('year filter returns only assistances requested in the selected year', func
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_requests', 1)
-            ->where('filters.year', ['2024']));
+            ->loadDeferredProps(['kpis', 'filters'], fn ($reload) => $reload
+                ->where('summary.total_requests', 1)
+                ->where('filters.year', ['2024'])));
 });
 
 test('year and quarter filters combine to narrow assistances', function () {
@@ -227,9 +231,10 @@ test('year and quarter filters combine to narrow assistances', function () {
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_requests', 1)
-            ->where('filters.year', ['2024'])
-            ->where('filters.quarter', ['1']));
+            ->loadDeferredProps(['kpis', 'filters'], fn ($reload) => $reload
+                ->where('summary.total_requests', 1)
+                ->where('filters.year', ['2024'])
+                ->where('filters.quarter', ['1'])));
 });
 
 test('quarter filter returns only assistances requested in the selected quarter', function () {
@@ -249,9 +254,10 @@ test('quarter filter returns only assistances requested in the selected quarter'
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_requests', 1)
-            ->where('filters.year', ['2024'])
-            ->where('filters.quarter', ['1']));
+            ->loadDeferredProps(['kpis', 'filters'], fn ($reload) => $reload
+                ->where('summary.total_requests', 1)
+                ->where('filters.year', ['2024'])
+                ->where('filters.quarter', ['1'])));
 });
 
 test('sex filter returns only matching individual assistances', function () {
@@ -270,8 +276,9 @@ test('sex filter returns only matching individual assistances', function () {
         ]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('summary.total_requests', 1)
-            ->where('filters.sex', ['Male']));
+            ->loadDeferredProps(['kpis', 'filters'], fn ($reload) => $reload
+                ->where('summary.total_requests', 1)
+                ->where('filters.sex', ['Male'])));
 });
 
 test('request status chart counts each assistance once using latest status', function () {

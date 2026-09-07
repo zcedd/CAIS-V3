@@ -129,6 +129,7 @@ class DashboardService
 
         $programCounts = Program::query()
             ->where('department_id', $department->id)
+            ->roots()
             ->selectRaw('COUNT(CASE WHEN is_closed = 0 THEN 1 END) as active_programs')
             ->selectRaw('COUNT(CASE WHEN is_closed = 1 THEN 1 END) as closed_programs')
             ->toBase()
@@ -338,6 +339,8 @@ class DashboardService
 
         $programQuery = Program::query()
             ->where('department_id', $department->id)
+            ->roots()
+            ->with(['batches:id,parent_id,name,is_closed,batch_name,batch_number'])
             ->orderByDesc('id');
 
         $selectedPrograms = $filters['program'] ?? [];
@@ -348,7 +351,7 @@ class DashboardService
 
         $programs = $programQuery
             ->limit(self::PROGRAMS_TABLE_LIMIT)
-            ->get(['id', 'name', 'is_closed', 'is_organization']);
+            ->get(['id', 'name', 'is_closed', 'is_organization', 'kind']);
 
         if ($programs->isEmpty()) {
             return [];
@@ -373,22 +376,60 @@ class DashboardService
 
         return $programs
             ->map(function (Program $program) use ($statsByProgramId): array {
-                $stats = $statsByProgramId->get($program->id);
-                $total = (int) ($stats->total_requests ?? 0);
-                $delivered = (int) ($stats->delivered ?? 0);
+                $familyIds = $program->isScheme()
+                    ? $program->batches->pluck('id')->all()
+                    : [$program->id];
+
+                $total = 0;
+                $delivered = 0;
+                $inProgress = 0;
+                $denied = 0;
+
+                foreach ($familyIds as $familyId) {
+                    $stats = $statsByProgramId->get($familyId);
+                    $total += (int) ($stats->total_requests ?? 0);
+                    $delivered += (int) ($stats->delivered ?? 0);
+                    $inProgress += (int) ($stats->in_progress ?? 0);
+                    $denied += (int) ($stats->denied ?? 0);
+                }
+
+                $batches = [];
+
+                if ($program->isScheme()) {
+                    foreach ($program->batches as $batch) {
+                        $stats = $statsByProgramId->get($batch->id);
+                        $batchTotal = (int) ($stats->total_requests ?? 0);
+                        $batchDelivered = (int) ($stats->delivered ?? 0);
+
+                        $batches[] = [
+                            'id' => $batch->id,
+                            'name' => $batch->batch_name ?? $batch->name,
+                            'status' => $batch->is_closed ? 'closed' : 'open',
+                            'total_requests' => $batchTotal,
+                            'delivered' => $batchDelivered,
+                            'in_progress' => (int) ($stats->in_progress ?? 0),
+                            'denied' => (int) ($stats->denied ?? 0),
+                            'delivery_rate' => $batchTotal > 0
+                                ? round(($batchDelivered / $batchTotal) * 100, 1)
+                                : 0.0,
+                        ];
+                    }
+                }
 
                 return [
                     'id' => $program->id,
                     'name' => $program->name,
                     'type' => $program->is_organization ? 'organization' : 'individual',
                     'status' => $program->is_closed ? 'closed' : 'open',
+                    'kind' => $program->kind,
                     'total_requests' => $total,
                     'delivered' => $delivered,
-                    'in_progress' => (int) ($stats->in_progress ?? 0),
-                    'denied' => (int) ($stats->denied ?? 0),
+                    'in_progress' => $inProgress,
+                    'denied' => $denied,
                     'delivery_rate' => $total > 0
                         ? round(($delivered / $total) * 100, 1)
                         : 0.0,
+                    'batches' => $batches,
                 ];
             })
             ->values()
@@ -416,6 +457,7 @@ class DashboardService
             function () use ($department): array {
                 $programs = Program::query()
                     ->where('department_id', $department->id)
+                    ->roots()
                     ->orderBy('name')
                     ->get(['id', 'name'])
                     ->map(static fn (Program $program): array => [
@@ -425,11 +467,13 @@ class DashboardService
                     ->values()
                     ->all();
 
+                $yearExpression = $this->requestedYearExpression();
+
                 $years = Assistance::query()
                     ->join('programs', 'programs.id', '=', 'assistances.program_id')
                     ->where('programs.department_id', $department->id)
                     ->whereNotNull('assistances.date_requested')
-                    ->selectRaw('DISTINCT YEAR(assistances.date_requested) as year')
+                    ->selectRaw("DISTINCT {$yearExpression} as year")
                     ->orderByDesc('year')
                     ->toBase()
                     ->pluck('year')
@@ -850,6 +894,15 @@ class DashboardService
         }
 
         return "DATEDIFF({$endColumn}, {$startColumn})";
+    }
+
+    private function requestedYearExpression(): string
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            return "CAST(strftime('%Y', assistances.date_requested) AS INTEGER)";
+        }
+
+        return 'YEAR(assistances.date_requested)';
     }
 
     private function firstVerifiedAtSubquery(): QueryBuilder
