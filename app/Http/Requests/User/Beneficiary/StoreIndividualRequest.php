@@ -40,10 +40,23 @@ class StoreIndividualRequest extends FormRequest
             'is_4ps_beneficiary' => ['nullable', 'boolean'],
             'is_solo_parent' => ['nullable', 'boolean'],
             'spouse' => ['nullable', 'string', 'max:255'],
-            'address_barangay_id' => ['nullable', 'integer', Rule::exists('address_barangays', 'id')],
+            'address_province_id' => ['required', 'integer', Rule::exists('address_provinces', 'id')],
+            'address_city_id' => ['required', 'integer', Rule::exists('address_cities', 'id')],
+            'address_barangay_id' => ['required', 'integer', Rule::exists('address_barangays', 'id')],
             'identifications' => ['nullable', 'array'],
             'identifications.*.identification_id' => ['required', 'integer', Rule::exists('identifications', 'id')],
             'identifications.*.number' => ['required', 'string', 'max:255'],
+        ];
+    }
+
+    public function attributes(): array
+    {
+        return [
+            'address_province_id' => 'Province',
+            'address_city_id' => 'City/Municipality',
+            'address_barangay_id' => 'Barangay',
+            'civil_status_id' => 'Civil Status',
+            'pwd' => 'person with disability',
         ];
     }
 
