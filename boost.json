@@ -11,6 +11,8 @@
         "pest-testing",
         "inertia-react-development",
         "tailwindcss-development",
-        "deploying-laravel-cloud"
+        "deploying-laravel-cloud",
+        "laravel-patterns",
+        "laravel-specialist"
     ]
 }
