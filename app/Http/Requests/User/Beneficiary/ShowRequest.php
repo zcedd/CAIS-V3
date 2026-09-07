@@ -2,14 +2,16 @@
 
 namespace App\Http\Requests\User\Beneficiary;
 
-use App\Models\Department;
+use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ShowRequest extends FormRequest
 {
+    use AuthorizesDepartmentBeneficiary;
+
     public function authorize(): bool
     {
-        return $this->userBelongsToDepartment();
+        return $this->canViewBeneficiary();
     }
 
     /**
@@ -26,13 +28,5 @@ class ShowRequest extends FormRequest
     public function search(): string
     {
         return trim($this->validated('search') ?? '');
-    }
-
-    protected function userBelongsToDepartment(): bool
-    {
-        $department = $this->route('department');
-
-        return $department instanceof Department
-            && $this->user()?->department_id === $department->id;
     }
 }

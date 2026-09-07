@@ -12,6 +12,10 @@ class RequestSubStatus extends Model
 {
     use HasFactory;
 
+    public $timestamps = false;
+
+    protected $fillable = ['name', 'request_status_id', 'description'];
+
     /**
      * The assistance that belong to the RequestSubStatus
      */

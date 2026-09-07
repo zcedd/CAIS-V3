@@ -9,15 +9,20 @@ use Symfony\Component\HttpFoundation\Response;
 
 class HandleAppearance
 {
-     /**
-      * Handle an incoming request.
-      *
-      * @param  Closure(Request): (Response)  $next
-      */
-     public function handle(Request $request, Closure $next): Response
-     {
-          View::share('appearance', $request->cookie('appearance') ?? 'system');
+    /**
+     * Handle an incoming request.
+     *
+     * @param  Closure(Request): (Response)  $next
+     */
+    public function handle(Request $request, Closure $next): Response
+    {
+        $appearance = $request->cookie('appearance', 'system');
 
-          return $next($request);
-     }
+        View::share(
+            'appearance',
+            in_array($appearance, ['light', 'dark', 'system'], true) ? $appearance : 'system',
+        );
+
+        return $next($request);
+    }
 }

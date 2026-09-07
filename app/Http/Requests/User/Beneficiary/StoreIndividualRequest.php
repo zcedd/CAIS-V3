@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\User\Beneficiary;
 
+use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use App\Http\Requests\User\Concerns\ValidatesDuplicateBeneficiaries;
-use App\Models\Department;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,11 +11,12 @@ use Illuminate\Validation\Validator;
 
 class StoreIndividualRequest extends FormRequest
 {
+    use AuthorizesDepartmentBeneficiary;
     use ValidatesDuplicateBeneficiaries;
 
     public function authorize(): bool
     {
-        return $this->userBelongsToDepartment();
+        return $this->canCreateBeneficiary();
     }
 
     /**
@@ -90,13 +91,5 @@ class StoreIndividualRequest extends FormRequest
                 ? $this->input('identifications')
                 : [],
         ];
-    }
-
-    protected function userBelongsToDepartment(): bool
-    {
-        $department = $this->route('department');
-
-        return $department instanceof Department
-            && $this->user()?->department_id === $department->id;
     }
 }

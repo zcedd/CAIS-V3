@@ -36,6 +36,7 @@ class BeneficiaryIdentification extends Pivot
     {
         return LogOptions::defaults()
             ->logFillable()
+            ->logExcept(['number'])
             ->useLogName('Beneficiary Identification')
             ->setDescriptionForEvent(fn (string $eventName) => "This Beneficiary Identification model has been {$eventName}")
             ->dontSubmitEmptyLogs();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\EnsuresAssistanceBelongsToProgram;
 use App\Http\Requests\User\Concerns\ValidatesAssistanceEligibility;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -15,6 +16,7 @@ use Illuminate\Validation\Validator;
 
 class TransferRequest extends FormRequest
 {
+    use EnsuresAssistanceBelongsToProgram;
     use ValidatesAssistanceEligibility;
 
     /**
@@ -22,6 +24,8 @@ class TransferRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        $this->ensureAssistanceBelongsToProgram();
+
         return Gate::allows('update', $this->assistance);
     }
 

@@ -119,7 +119,7 @@ class DashboardService
             ->leftJoinSub($this->firstVerifiedAtSubquery(), 'first_verified', 'first_verified.assistance_id', '=', 'assistances.id')
             ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered_requests")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN NOT ({$deliveredSql}) AND {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} = 'Denied' THEN assistances.id END) as denied_requests")
             ->selectRaw('COUNT(DISTINCT assistances.beneficiary_id) as unique_beneficiaries')
             ->selectRaw("AVG(CASE WHEN assistances.date_delivered IS NOT NULL AND assistances.date_requested IS NOT NULL THEN {$this->dateDiffExpression('assistances.date_delivered', 'assistances.date_requested')} END) as avg_days_to_deliver")
@@ -201,7 +201,7 @@ class DashboardService
         $stats = (clone $this->filteredAssistanceQuery($department, $filters))
             ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered_requests")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN NOT ({$deliveredSql}) AND {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
             ->toBase()
             ->first();
 

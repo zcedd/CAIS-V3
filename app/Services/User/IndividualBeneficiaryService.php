@@ -37,38 +37,38 @@ class IndividualBeneficiaryService
      */
     public function create(array $validated): Individual
     {
-        return DB::transaction(function () use ($validated): Individual {
-            $caisNumber = $this->beneficiaryMorphService->createUniqueCaisNumber('PRO');
+        return $this->beneficiaryMorphService->withReservedCaisNumber('PRO', function (string $caisNumber) use ($validated): Individual {
+            return DB::transaction(function () use ($validated, $caisNumber): Individual {
+                $individual = Individual::query()->create([
+                    'cais_number' => $caisNumber,
+                    'first_name' => $validated['first_name'],
+                    'middle_name' => $validated['middle_name'] ?? null,
+                    'last_name' => $validated['last_name'],
+                    'suffix' => $validated['suffix'] ?? null,
+                    'birthday' => $validated['birthday'] ?? null,
+                    'sex' => $validated['sex'],
+                    'other_address' => $validated['other_address'] ?? null,
+                    'civil_status_id' => $validated['civil_status_id'] ?? null,
+                    'mobile_number' => $validated['mobile_number'] ?? null,
+                    'indigenous' => $validated['indigenous'] ?? false,
+                    'ethnicity' => $validated['ethnicity'] ?? null,
+                    'pwd' => $validated['pwd'] ?? false,
+                    'is_4ps_beneficiary' => $validated['is_4ps_beneficiary'] ?? false,
+                    'is_solo_parent' => $validated['is_solo_parent'] ?? false,
+                    'spouse' => $validated['spouse'] ?? null,
+                    'address_barangay_id' => $validated['address_barangay_id'] ?? null,
+                ]);
 
-            $individual = Individual::query()->create([
-                'cais_number' => $caisNumber,
-                'first_name' => $validated['first_name'],
-                'middle_name' => $validated['middle_name'] ?? null,
-                'last_name' => $validated['last_name'],
-                'suffix' => $validated['suffix'] ?? null,
-                'birthday' => $validated['birthday'] ?? null,
-                'sex' => $validated['sex'],
-                'other_address' => $validated['other_address'] ?? null,
-                'civil_status_id' => $validated['civil_status_id'] ?? null,
-                'mobile_number' => $validated['mobile_number'] ?? null,
-                'indigenous' => $validated['indigenous'] ?? false,
-                'ethnicity' => $validated['ethnicity'] ?? null,
-                'pwd' => $validated['pwd'] ?? false,
-                'is_4ps_beneficiary' => $validated['is_4ps_beneficiary'] ?? false,
-                'is_solo_parent' => $validated['is_solo_parent'] ?? false,
-                'spouse' => $validated['spouse'] ?? null,
-                'address_barangay_id' => $validated['address_barangay_id'] ?? null,
-            ]);
+                $this->syncIdentifications($individual, $validated['identifications'] ?? []);
 
-            $this->syncIdentifications($individual, $validated['identifications'] ?? []);
+                $this->beneficiaryMorphService->syncMorphRecord(
+                    $individual,
+                    $caisNumber,
+                    $individual->fullName(),
+                );
 
-            $this->beneficiaryMorphService->syncMorphRecord(
-                $individual,
-                $caisNumber,
-                $individual->fullName(),
-            );
-
-            return $individual->refresh();
+                return $individual->refresh();
+            });
         });
     }
 

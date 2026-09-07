@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { BeneficiaryEditDrawer } from '@/pages/user/beneficiaries/beneficiary-edit-drawer';
+import { BeneficiaryEditDrawer } from '@/components/user/beneficiaries/beneficiary-edit-drawer';
 import {
     BeneficiaryShowTableToolbar,
     createBeneficiaryAssistanceColumns,

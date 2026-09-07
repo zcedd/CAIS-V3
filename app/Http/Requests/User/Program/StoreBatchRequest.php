@@ -19,8 +19,12 @@ class StoreBatchRequest extends FormRequest
     public function authorize(): bool
     {
         $program = $this->route('program');
+        $department = $this->route('department');
 
-        return $program instanceof Program && Gate::allows('update', $program);
+        return $program instanceof Program
+            && $department instanceof Department
+            && $program->department_id === $department->id
+            && Gate::allows('update', $program);
     }
 
     /**
@@ -28,8 +32,8 @@ class StoreBatchRequest extends FormRequest
      */
     public function rules(): array
     {
-        $department = $this->route('department');
-        $departmentId = $department instanceof Department ? $department->id : null;
+        $program = $this->route('program');
+        $departmentId = $program instanceof Program ? $program->department_id : null;
 
         return [
             'batch_name' => ['required', 'string', 'max:255'],

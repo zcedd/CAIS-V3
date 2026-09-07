@@ -24,7 +24,13 @@ class UpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return Gate::allows('update', $this->program);
+        $program = $this->route('program');
+        $department = $this->route('department');
+
+        return $program instanceof Program
+            && $department instanceof Department
+            && $program->department_id === $department->id
+            && Gate::allows('update', $program);
     }
 
     /**
@@ -52,14 +58,14 @@ class UpdateRequest extends FormRequest
             'fund_ids.*' => [
                 'integer',
                 Rule::exists('funds', 'id')->where(
-                    fn ($query) => $query->where('department_id', $departmentId),
+                    fn ($query) => $query->where('department_id', $program instanceof Program ? $program->department_id : $departmentId),
                 ),
             ],
             'item_ids' => ['required', 'array', 'min:1'],
             'item_ids.*' => [
                 'integer',
                 Rule::exists('items', 'id')->where(
-                    fn ($query) => $query->where('department_id', $departmentId),
+                    fn ($query) => $query->where('department_id', $program instanceof Program ? $program->department_id : $departmentId),
                 ),
             ],
             ...$this->programFieldDefinitionRules(),

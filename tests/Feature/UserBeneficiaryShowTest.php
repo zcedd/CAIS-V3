@@ -101,6 +101,7 @@ test('beneficiary profile exposes an assistance summary as a deferred prop', fun
         'mode_of_request_id' => $mode->id,
         'date_requested' => now()->toDateString(),
         'date_delivered' => now()->toDateString(),
+        'was_delivered' => true,
         'user_id' => $user->id,
     ]);
 
@@ -110,11 +111,7 @@ test('beneficiary profile exposes an assistance summary as a deferred prop', fun
                 'department' => $department->slug,
                 'beneficiary' => $beneficiary->id,
             ]),
-            [
-                'X-Inertia' => 'true',
-                'X-Inertia-Partial-Component' => 'user/beneficiaries/show',
-                'X-Inertia-Partial-Data' => 'assistance_summary',
-            ],
+            inertiaPartialHeaders('user/beneficiaries/show', 'assistance_summary'),
         )
         ->assertOk()
         ->assertJsonPath('props.assistance_summary.total', 2)
@@ -131,12 +128,14 @@ test('organization beneficiary profile lists members', function () {
 
     $president = Individual::factory()->create([
         'first_name' => 'Ana',
+        'middle_name' => null,
         'last_name' => 'Reyes',
         'sex' => 'Female',
     ]);
 
     $member = Individual::factory()->create([
         'first_name' => 'Pedro',
+        'middle_name' => null,
         'last_name' => 'Garcia',
         'sex' => 'Male',
     ]);

@@ -70,6 +70,11 @@ class Program extends Model
         return $this->hasMany(Assistance::class);
     }
 
+    public function assistances(): HasMany
+    {
+        return $this->assistance();
+    }
+
     public function pendingAssistance(): HasMany
     {
         return $this->hasMany(Assistance::class)->pending();

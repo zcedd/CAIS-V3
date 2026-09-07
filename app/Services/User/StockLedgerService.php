@@ -13,7 +13,6 @@ use App\Models\StockLot;
 use App\Models\StockLotBalance;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Notifications\LowStockNotification;
 use App\Support\ItemKind;
 use App\Support\StockMovementType;
 use Illuminate\Support\Carbon;
@@ -22,6 +21,10 @@ use Illuminate\Validation\ValidationException;
 
 class StockLedgerService
 {
+    public function __construct(
+        private LowStockNotificationService $lowStockNotificationService,
+    ) {}
+
     /**
      * @param  array{
      *     quantity: int,
@@ -83,7 +86,7 @@ class StockLedgerService
             $lotBalance->increment('on_hand', $quantity);
             $this->adjustItemBalance($item, onHandDelta: $quantity, allocatedDelta: 0);
 
-            DB::afterCommit(fn () => $this->notifyLowStockIfNeeded($item->fresh()));
+            DB::afterCommit(fn () => $this->lowStockNotificationService->notifyIfNeeded($item->fresh()));
 
             return $lot->fresh() ?? $lot;
         });
@@ -150,7 +153,7 @@ class StockLedgerService
                 'reason' => $payload['reason'],
             ]);
 
-            DB::afterCommit(fn () => $this->notifyLowStockIfNeeded($item->fresh()));
+            DB::afterCommit(fn () => $this->lowStockNotificationService->notifyIfNeeded($item->fresh()));
         });
     }
 
@@ -185,9 +188,15 @@ class StockLedgerService
         }
 
         DB::transaction(function () use ($assistanceItem, $program, $user, $item, $quantity): void {
+            $assistanceItem = AssistanceItem::query()
+                ->whereKey($assistanceItem->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $alreadyIssued = StockMovement::query()
                 ->where('assistance_item_id', $assistanceItem->id)
                 ->where('type', StockMovementType::Issue)
+                ->lockForUpdate()
                 ->exists();
 
             if ($alreadyIssued) {
@@ -241,7 +250,7 @@ class StockLedgerService
 
             unset($itemBalance);
 
-            DB::afterCommit(fn () => $this->notifyLowStockIfNeeded($item->fresh()));
+            DB::afterCommit(fn () => $this->lowStockNotificationService->notifyIfNeeded($item->fresh()));
         });
     }
 
@@ -260,6 +269,7 @@ class StockLedgerService
             $issues = StockMovement::query()
                 ->whereIn('assistance_item_id', $itemIds)
                 ->where('type', StockMovementType::Issue)
+                ->lockForUpdate()
                 ->orderBy('id')
                 ->get();
 
@@ -417,6 +427,7 @@ class StockLedgerService
         $alreadyRestored = StockMovement::query()
             ->where('reverses_movement_id', $issue->id)
             ->where('type', StockMovementType::Restore)
+            ->lockForUpdate()
             ->exists();
 
         if ($alreadyRestored) {
@@ -458,7 +469,7 @@ class StockLedgerService
             'reason' => 'Restored after deny or delete',
         ]);
 
-        DB::afterCommit(fn () => $this->notifyLowStockIfNeeded($item->fresh()));
+        DB::afterCommit(fn () => $this->lowStockNotificationService->notifyIfNeeded($item->fresh()));
     }
 
     /**
@@ -604,78 +615,5 @@ class StockLedgerService
             ...$attributes,
             'occurred_at' => $attributes['occurred_at'] ?? now(),
         ]);
-    }
-
-    public function notifyLowStockIfNeeded(?Item $item): void
-    {
-        if (! $item instanceof Item) {
-            return;
-        }
-
-        $threshold = $item->low_stock_threshold;
-
-        if ($threshold === null || ! $item->tracksInventory()) {
-            return;
-        }
-
-        $balance = ItemStockBalance::query()
-            ->where('department_id', $item->department_id)
-            ->where('item_id', $item->id)
-            ->first();
-
-        if (! $balance instanceof ItemStockBalance) {
-            return;
-        }
-
-        $isLow = $balance->on_hand <= $threshold;
-
-        if (! $isLow && $balance->low_stock_notified) {
-            $balance->update(['low_stock_notified' => false]);
-
-            return;
-        }
-
-        if (! $isLow || $balance->low_stock_notified) {
-            return;
-        }
-
-        $item->loadMissing('department:id,name,slug');
-
-        $users = User::query()
-            ->where('department_id', $item->department_id)
-            ->get();
-
-        foreach ($users as $user) {
-            $user->notify(new LowStockNotification($item, $balance->on_hand, $threshold));
-        }
-
-        $balance->update(['low_stock_notified' => true]);
-    }
-
-    public function notifyAllLowStock(): int
-    {
-        $sent = 0;
-
-        ItemStockBalance::query()
-            ->with(['item:id,name,kind,department_id,low_stock_threshold', 'item.department:id,name,slug'])
-            ->where('low_stock_notified', false)
-            ->chunkById(100, function ($balances) use (&$sent): void {
-                foreach ($balances as $balance) {
-                    $item = $balance->item;
-
-                    if (! $item instanceof Item || ! $item->tracksInventory() || $item->low_stock_threshold === null) {
-                        continue;
-                    }
-
-                    if ($balance->on_hand > $item->low_stock_threshold) {
-                        continue;
-                    }
-
-                    $this->notifyLowStockIfNeeded($item);
-                    $sent++;
-                }
-            });
-
-        return $sent;
     }
 }

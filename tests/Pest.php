@@ -22,7 +22,7 @@ use Tests\TestCase;
 */
 
 pest()->extend(TestCase::class)
-    // ->use(RefreshDatabase::class)
+    ->use(RefreshDatabase::class)
     ->in('Feature');
 
 /*
@@ -51,9 +51,35 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/**
+ * @param  list<string>|string  $only
+ * @return array<string, string>
+ */
+function inertiaPartialHeaders(string $component, array|string $only): array
 {
-    // ..
+    $headers = [
+        'X-Inertia' => 'true',
+        'X-Inertia-Partial-Component' => $component,
+        'X-Inertia-Partial-Data' => is_array($only) ? implode(',', $only) : $only,
+    ];
+
+    if (config('app.asset_url')) {
+        $headers['X-Inertia-Version'] = hash('xxh128', (string) config('app.asset_url'));
+
+        return $headers;
+    }
+
+    foreach (['build/manifest.json', 'mix-manifest.json'] as $relative) {
+        $manifest = public_path($relative);
+
+        if (is_file($manifest)) {
+            $headers['X-Inertia-Version'] = hash_file('xxh128', $manifest);
+
+            return $headers;
+        }
+    }
+
+    return $headers;
 }
 
 function createBeneficiaryDepartmentUser(): array
@@ -64,6 +90,7 @@ function createBeneficiaryDepartmentUser(): array
         'firstName' => 'Test',
         'lastName' => 'User',
         'email' => 'test-'.uniqid().'@example.com',
+        'email_verified_at' => now(),
         'password' => bcrypt('password'),
         'department_id' => $department->id,
         'created_at' => now(),
@@ -77,10 +104,17 @@ function createBeneficiaryDepartmentUser(): array
 
 function createAddressBarangay(): int
 {
+    $provinceId = DB::table('address_provinces')->insertGetId([
+        'name' => 'Test Province-'.uniqid(),
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
     $cityId = DB::table('address_cities')->insertGetId([
         'name' => 'Test City',
         'zipcode' => '1000',
         'excel_name' => 'Test City',
+        'address_province_id' => $provinceId,
         'created_at' => now(),
         'updated_at' => now(),
     ]);
@@ -91,6 +125,23 @@ function createAddressBarangay(): int
         'created_at' => now(),
         'updated_at' => now(),
     ]);
+}
+
+/**
+ * @return array{address_province_id: int, address_city_id: int, address_barangay_id: int}
+ */
+function addressCascadePayload(int $barangayId): array
+{
+    $city = DB::table('address_barangays')
+        ->join('address_cities', 'address_cities.id', '=', 'address_barangays.address_city_id')
+        ->where('address_barangays.id', $barangayId)
+        ->first(['address_barangays.address_city_id', 'address_cities.address_province_id']);
+
+    return [
+        'address_province_id' => (int) $city->address_province_id,
+        'address_city_id' => (int) $city->address_city_id,
+        'address_barangay_id' => $barangayId,
+    ];
 }
 
 function seedCivilStatusAndIdentification(): void

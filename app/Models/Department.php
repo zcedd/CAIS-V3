@@ -88,7 +88,12 @@ class Department extends Model
     {
         return $this->hasMany(Fund::class);
     }
-  
+
+    public function programs(): HasMany
+    {
+        return $this->hasMany(Program::class);
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(Item::class);

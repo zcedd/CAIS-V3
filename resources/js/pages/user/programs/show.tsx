@@ -77,7 +77,7 @@ const ProgramAssistanceTableSection = lazy(() =>
 );
 
 const ProgramEditDrawer = lazy(() =>
-    import('@/pages/user/programs/program-edit-drawer').then((module) => ({
+    import('@/components/user/programs/program-edit-drawer').then((module) => ({
         default: module.ProgramEditDrawer,
     })),
 );

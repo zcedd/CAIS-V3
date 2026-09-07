@@ -34,14 +34,11 @@ class LowStockNotification extends Notification
             ? route('user.items.index', ['department' => $departmentSlug])
             : url('/');
 
-        $itemName = e($this->item->name);
-
         $message = sprintf(
-            '<p>Stock of <strong>%s</strong> is at <strong>%d</strong>, at or below the threshold of <strong>%d</strong>.</p><p><a href="%s">Review item inventory</a></p>',
-            $itemName,
+            'Stock of %s is at %d, at or below the threshold of %d.',
+            $this->item->name,
             $this->onHand,
             $this->threshold,
-            e($url),
         );
 
         return [

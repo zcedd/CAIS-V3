@@ -18,8 +18,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
-import { AssistanceEditDrawer } from '@/pages/user/programs/assistance-edit-drawer';
-import { AssistanceStatusDrawer } from '@/pages/user/programs/assistance-status-drawer';
+import { AssistanceEditDrawer } from '@/components/user/programs/assistance-edit-drawer';
+import { AssistanceStatusDrawer } from '@/components/user/programs/assistance-status-drawer';
 import { AssistanceTransferDrawer } from '@/pages/user/programs/assistance-transfer-drawer';
 import type {
     AssistanceModeOption,

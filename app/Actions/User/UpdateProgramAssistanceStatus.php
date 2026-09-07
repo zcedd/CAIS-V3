@@ -54,6 +54,12 @@ class UpdateProgramAssistanceStatus
         $assistance->loadMissing('program');
 
         return DB::transaction(function () use ($assistance, $validated, $recordedAt, $subStatus, $user): Assistance {
+            $assistance = Assistance::query()
+                ->whereKey($assistance->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+            $assistance->loadMissing('program');
+
             AssistanceRequestSubStatus::query()->create([
                 'assistance_id' => $assistance->id,
                 'request_sub_status_id' => $validated['request_sub_status_id'],
@@ -101,6 +107,7 @@ class UpdateProgramAssistanceStatus
         $assistanceItem = AssistanceItem::query()
             ->where('assistance_id', $assistance->id)
             ->whereKey($deliveredItem['assistance_item_id'])
+            ->lockForUpdate()
             ->firstOrFail();
 
         $releasedQuantity = (int) $deliveredItem['quantity'];

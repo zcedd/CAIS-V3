@@ -1,7 +1,6 @@
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import {
     Drawer,
     DrawerClose,
@@ -14,11 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
+import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
 import {
     ProgramKpiCards,
     ProgramKpiCardsSkeleton,
@@ -41,11 +36,8 @@ import type { ProgramFieldDefinition } from '@/types/program-field';
 import { Form, Head, Link, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
     Building2,
-    CalendarDays,
-    ChevronDownIcon,
     Pencil,
     Plus,
-    RotateCcw,
     UserRound,
     Users,
 } from 'lucide-react';
@@ -53,7 +45,7 @@ import { lazy, Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 const ProgramEditDrawer = lazy(() =>
-    import('@/pages/user/programs/program-edit-drawer').then((module) => ({
+    import('@/components/user/programs/program-edit-drawer').then((module) => ({
         default: module.ProgramEditDrawer,
     })),
 );
@@ -113,79 +105,6 @@ function formatDateForSubmit(date: Date | undefined): string | undefined {
     const day = String(date.getDate()).padStart(2, '0');
 
     return `${year}-${month}-${day}`;
-}
-
-type ProgramDatePickerProps = {
-    id: string;
-    label: string;
-    selected: Date | undefined;
-    onSelect: (date: Date | undefined) => void;
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    error?: string;
-};
-
-function ProgramDatePicker({
-    id,
-    label,
-    selected,
-    onSelect,
-    open,
-    onOpenChange,
-    error,
-}: ProgramDatePickerProps) {
-    return (
-        <div className="space-y-2">
-            <Label htmlFor={id}>{label}</Label>
-            <Popover open={open} onOpenChange={onOpenChange}>
-                <PopoverTrigger asChild>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        id={id}
-                        className="w-full justify-between font-normal"
-                    >
-                        {selected ? selected.toLocaleDateString() : 'Select date'}
-                        <ChevronDownIcon className="size-4 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto overflow-hidden p-0" align="start">
-                    <div className="flex gap-2 px-2 pt-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onSelect(new Date())}
-                            className="flex items-center gap-2 bg-transparent"
-                        >
-                            <CalendarDays className="size-4" />
-                            Today
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onSelect(undefined)}
-                            className="flex items-center gap-2 bg-transparent"
-                        >
-                            <RotateCcw className="size-4" />
-                            Reset
-                        </Button>
-                    </div>
-                    <Calendar
-                        mode="single"
-                        selected={selected}
-                        captionLayout="dropdown"
-                        onSelect={(date) => {
-                            onSelect(date);
-                            onOpenChange(false);
-                        }}
-                    />
-                </PopoverContent>
-            </Popover>
-            <InputError message={error} />
-        </div>
-    );
 }
 
 export default function UserProgramScheme({

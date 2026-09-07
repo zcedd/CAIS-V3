@@ -6,7 +6,7 @@ use App\Models\Beneficiary;
 use App\Models\Individual;
 use App\Models\Organization;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class BeneficiaryMorphService
 {
@@ -32,20 +32,36 @@ class BeneficiaryMorphService
 
     public function createUniqueCaisNumber(string $prefix): string
     {
+        return $this->withReservedCaisNumber($prefix, static fn (string $caisNumber): string => $caisNumber);
+    }
+
+    /**
+     * @template TReturn
+     *
+     * @param  callable(string): TReturn  $callback
+     * @return TReturn
+     */
+    public function withReservedCaisNumber(string $prefix, callable $callback): mixed
+    {
         $year = now()->format('Y');
         $normalizedPrefix = strtoupper($prefix);
 
-        return DB::transaction(function () use ($normalizedPrefix, $year): string {
-            $latestSequence = $this->resolveLatestCaisSequence($normalizedPrefix, $year);
-            $nextSequence = $latestSequence + 1;
-
-            do {
-                $caisNumber = sprintf('%s-%s-%04d', $normalizedPrefix, $year, $nextSequence);
-                $nextSequence++;
-            } while ($this->caisNumberExists($caisNumber));
-
-            return $caisNumber;
+        return Cache::lock("cais:{$normalizedPrefix}:{$year}", 10)->block(10, function () use ($callback, $normalizedPrefix, $year): mixed {
+            return $callback($this->nextAvailableCaisNumber($normalizedPrefix, $year));
         });
+    }
+
+    private function nextAvailableCaisNumber(string $normalizedPrefix, string $year): string
+    {
+        $latestSequence = $this->resolveLatestCaisSequence($normalizedPrefix, $year);
+        $nextSequence = $latestSequence + 1;
+
+        do {
+            $caisNumber = sprintf('%s-%s-%04d', $normalizedPrefix, $year, $nextSequence);
+            $nextSequence++;
+        } while ($this->caisNumberExists($caisNumber));
+
+        return $caisNumber;
     }
 
     private function resolveLatestCaisSequence(string $prefix, string $year): int

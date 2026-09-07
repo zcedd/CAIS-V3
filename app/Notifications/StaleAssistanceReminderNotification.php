@@ -76,15 +76,14 @@ class StaleAssistanceReminderNotification extends Notification
             : 'several';
 
         $message = sprintf(
-            '<p>Assistance <strong>#%d</strong> for <strong>%s</strong> (%s) under <strong>%s</strong> is still open and has not been updated for at least 7 days.</p><p>Current status: <strong>%s</strong>. Last updated on <strong>%s</strong> (%s days ago).</p><p><a href="%s">View request profile</a></p>',
+            'Assistance #%d for %s (%s) under %s is still open and has not been updated for at least 7 days. Current status: %s. Last updated on %s (%s days ago). View request profile.',
             $assistance->id,
-            e($beneficiaryName),
-            e($caisNumber),
-            e($programName),
-            e($statusLabel),
-            e($lastUpdatedLabel),
+            $beneficiaryName,
+            $caisNumber,
+            $programName,
+            $statusLabel,
+            $lastUpdatedLabel,
             $daysText,
-            e($url),
         );
 
         return [

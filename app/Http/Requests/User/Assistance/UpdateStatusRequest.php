@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\EnsuresAssistanceBelongsToProgram;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Item;
@@ -18,11 +19,15 @@ use Illuminate\Validation\Validator;
 
 class UpdateStatusRequest extends FormRequest
 {
+    use EnsuresAssistanceBelongsToProgram;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
+        $this->ensureAssistanceBelongsToProgram();
+
         return Gate::allows('update', $this->assistance);
     }
 

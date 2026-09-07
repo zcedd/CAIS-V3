@@ -240,8 +240,6 @@ class AssistanceController extends Controller
         Assistance $assistance,
         UpdateProgramAssistanceStatus $updateProgramAssistanceStatus,
     ): RedirectResponse {
-        $user = $request->user();
-
         $updateProgramAssistanceStatus($assistance, $request->validated());
 
         return redirect()
