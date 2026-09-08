@@ -15,6 +15,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
 import { show as publicApplyShow } from '@/routes/public/apply';
@@ -23,6 +30,7 @@ import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/type
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
+import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
 import { Form } from '@inertiajs/react';
 import { Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -70,6 +78,7 @@ type ProgramEditRelations = {
     fields: ProgramFieldDefinition[];
     document_requirements?: ProgramDocumentRequirementInput[];
     eligibility?: ProgramEligibilityPayload;
+    workflow_id?: number | null;
 };
 
 function formatDateForSubmit(date: Date | undefined): string | undefined {
@@ -128,6 +137,7 @@ type ProgramEditDrawerProps = {
     funds?: SelectOption[];
     items?: SelectOption[];
     documentTypes?: DocumentTypeOption[];
+    workflowOptions?: WorkflowOption[];
     formKey: number;
     onClose: () => void;
     lockOrganization?: boolean;
@@ -142,6 +152,7 @@ export function ProgramEditDrawer({
     funds = [],
     items = [],
     documentTypes = [],
+    workflowOptions = [],
     formKey,
     onClose,
     lockOrganization = false,
@@ -169,6 +180,9 @@ export function ProgramEditDrawer({
     const [eligibility, setEligibility] = useState<ProgramEligibilityFormValue>(
         () => eligibilityFormFromPayload(programEdit?.eligibility),
     );
+    const [workflowId, setWorkflowId] = useState(
+        programEdit?.workflow_id ? String(programEdit.workflow_id) : 'default',
+    );
 
     useEffect(() => {
         setStartAt(parseProgramDateInput(program.start_at_input));
@@ -185,6 +199,9 @@ export function ProgramEditDrawer({
         setFields(programEdit.fields ?? []);
         setDocumentRequirements(programEdit.document_requirements ?? []);
         setEligibility(eligibilityFormFromPayload(programEdit.eligibility));
+        setWorkflowId(
+            programEdit.workflow_id ? String(programEdit.workflow_id) : 'default',
+        );
     }, [programEdit]);
 
     const fundOptions = funds.map((fund) => ({
@@ -256,6 +273,8 @@ export function ProgramEditDrawer({
                                   eligibility,
                                   selectedItemIds,
                               )),
+                        workflow_id:
+                            workflowId === 'default' ? null : Number(workflowId),
                     })}
                     onSuccess={() => {
                         onClose();
@@ -400,6 +419,40 @@ export function ProgramEditDrawer({
                                 idPrefix="edit-program-eligibility"
                             />
                             )}
+
+                            {workflowOptions.length > 0 ? (
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-program-workflow">
+                                        Workflow
+                                    </Label>
+                                    <Select
+                                        value={workflowId}
+                                        onValueChange={setWorkflowId}
+                                    >
+                                        <SelectTrigger id="edit-program-workflow">
+                                            <SelectValue placeholder="Department default" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="default">
+                                                Use department default
+                                            </SelectItem>
+                                            {workflowOptions.map((workflow) => (
+                                                <SelectItem
+                                                    key={workflow.id}
+                                                    value={String(workflow.id)}
+                                                >
+                                                    {workflow.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <p className="text-sm text-muted-foreground">
+                                        Leave as the department default unless this
+                                        program needs a different pipeline.
+                                    </p>
+                                    <InputError message={errors.workflow_id} />
+                                </div>
+                            ) : null}
 
                             {isScheme ? null : (
                             <div className="flex items-start gap-3">

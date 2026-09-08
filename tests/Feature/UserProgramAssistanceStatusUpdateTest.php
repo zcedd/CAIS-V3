@@ -11,9 +11,9 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
 use App\Support\AssistanceItemOrigin;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -22,26 +22,10 @@ uses(RefreshDatabase::class);
  */
 function seedProgramAssistanceStatusCatalog(): array
 {
-    $draftStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Draft']);
-    $verificationStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Verification']);
-    $deliveredStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Delivered']);
-
     return [
-        'in_progress' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $draftStatusId,
-            'name' => 'In Progress',
-            'description' => null,
-        ]),
-        'verified' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $verificationStatusId,
-            'name' => 'Verified',
-            'description' => null,
-        ]),
-        'delivered' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $deliveredStatusId,
-            'name' => 'Successfully Delivered',
-            'description' => null,
-        ]),
+        'in_progress' => catalogReasonId(RequestSubStatusCode::AwaitingReview),
+        'verified' => catalogReasonId(RequestSubStatusCode::Verified),
+        'delivered' => catalogReasonId(RequestSubStatusCode::Delivered),
     ];
 }
 
@@ -79,6 +63,8 @@ test('authenticated users can update assistance status for their department prog
         'date_requested' => '2026-05-01',
         'remark' => null,
         'user_id' => $user->id,
+        'assigned_to_id' => $user->id,
+        'assigned_at' => now(),
     ]);
 
     AssistanceRequestSubStatus::query()->create([
@@ -156,6 +142,8 @@ test('updating assistance status preserves the recorded at time', function () {
         'date_requested' => '2026-05-01',
         'remark' => null,
         'user_id' => $user->id,
+        'assigned_to_id' => $user->id,
+        'assigned_at' => now(),
     ]);
 
     AssistanceRequestSubStatus::query()->create([
@@ -244,6 +232,8 @@ test('updating to delivered status requires and marks the selected assistance it
         'date_requested' => '2026-05-01',
         'remark' => null,
         'user_id' => $user->id,
+        'assigned_to_id' => $user->id,
+        'assigned_at' => now(),
     ]);
 
     $riceAssistanceItem = AssistanceItem::create([
@@ -359,6 +349,8 @@ test('delivered status update requires delivered items', function () {
         'date_requested' => '2026-05-01',
         'remark' => null,
         'user_id' => $user->id,
+        'assigned_to_id' => $user->id,
+        'assigned_at' => now(),
     ]);
 
     $response = $this->actingAs($user)->from(route('user.programs.show', [

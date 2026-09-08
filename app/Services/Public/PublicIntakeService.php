@@ -15,8 +15,10 @@ use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Services\User\IndividualBeneficiaryService;
 use App\Services\User\ProgramFieldService;
+use App\Services\Workflow\RequestStatusCatalog;
 use App\Support\AssistanceItemOrigin;
 use App\Support\IdentityNormalizer;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -152,12 +154,13 @@ class PublicIntakeService
                 $validated['field_values'] ?? [],
             );
 
-            $subStatusName = $intent === self::IntentSave ? 'Saved For Later' : 'Awaiting Review';
-            $parentName = $intent === self::IntentSave ? 'Draft' : 'Submitted';
+            $subStatusId = $intent === self::IntentSave
+                ? app(RequestStatusCatalog::class)->reasonId(RequestSubStatusCode::SavedForLater)
+                : app(RequestStatusCatalog::class)->reasonId(RequestSubStatusCode::AwaitingReview);
 
             AssistanceRequestSubStatus::query()->create([
                 'assistance_id' => $assistance->id,
-                'request_sub_status_id' => $this->subStatusId($subStatusName, $parentName),
+                'request_sub_status_id' => $subStatusId,
                 'remark' => null,
                 'recorded_at' => now(),
             ]);

@@ -5,6 +5,7 @@ namespace App\Http\Requests\User\Assistance;
 use App\Models\Assistance;
 use App\Models\Program;
 use App\Models\RequestSubStatus;
+use App\Support\RequestStatusCode;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -120,7 +121,9 @@ class BulkUpdateStatusRequest extends FormRequest
 
         return RequestSubStatus::query()
             ->whereKey($subStatusId)
-            ->whereHas('requestStatus', fn ($query) => $query->where('name', 'Delivered'))
+            ->whereHas('requestStatus', fn ($query) => $query
+                ->where('code', RequestStatusCode::Delivered->value)
+                ->orWhere('name', 'Delivered'))
             ->exists();
     }
 }

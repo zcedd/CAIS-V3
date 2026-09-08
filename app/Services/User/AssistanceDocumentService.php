@@ -9,6 +9,8 @@ use App\Models\Program;
 use App\Models\ProgramDocumentRequirement;
 use App\Models\RequestSubStatus;
 use App\Support\DocumentRequirementMilestone;
+use App\Support\RequestStatusCode;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -177,13 +179,13 @@ class AssistanceDocumentService
 
     public function milestoneForSubStatus(RequestSubStatus $subStatus): ?string
     {
-        $subStatus->loadMissing('requestStatus:id,name');
+        $subStatus->loadMissing('requestStatus');
 
-        if ($subStatus->name === 'Verified') {
+        if (RequestSubStatusCode::Verified->matches($subStatus)) {
             return DocumentRequirementMilestone::Verified;
         }
 
-        if ($subStatus->requestStatus?->name === 'Delivered') {
+        if (RequestStatusCode::Delivered->matches($subStatus->requestStatus)) {
             return DocumentRequirementMilestone::Delivered;
         }
 

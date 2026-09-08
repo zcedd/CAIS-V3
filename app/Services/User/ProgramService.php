@@ -25,6 +25,7 @@ class ProgramService
         private ProgramDocumentRequirementService $programDocumentRequirementService,
         private StockLedgerService $stockLedgerService,
         private CreateProgramBatch $createProgramBatch,
+        private WorkflowService $workflowService,
     ) {}
 
     /**
@@ -109,6 +110,7 @@ class ProgramService
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
             'kind' => $kind,
+            'workflow_id' => $validated['workflow_id'] ?? null,
         ]);
 
         if ($kind !== ProgramKind::Scheme) {
@@ -164,6 +166,7 @@ class ProgramService
             'is_organization' => $validated['is_organization'] ?? false,
             'is_closed' => $validated['is_closed'] ?? false,
             'public_intake' => $validated['public_intake'] ?? false,
+            'workflow_id' => $validated['workflow_id'] ?? null,
         ]);
 
         $program->fund()->sync($validated['fund_ids']);
@@ -240,6 +243,14 @@ class ProgramService
     }
 
     /**
+     * @return list<array{id: int, name: string, is_default: bool}>
+     */
+    public function workflowOptions(Department $department): array
+    {
+        return $this->workflowService->optionsForDepartment($department);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function showOverviewPayload(Program $program): array
@@ -262,6 +273,7 @@ class ProgramService
                 'kind',
                 'batch_number',
                 'batch_name',
+                'workflow_id',
             ]),
             'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
             'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
@@ -307,6 +319,7 @@ class ProgramService
             'fields' => $this->programFieldService->fieldsPayload($program),
             'document_requirements' => $this->programDocumentRequirementService->requirementsPayload($program),
             'eligibility' => $this->eligibilityPayload($program),
+            'workflow_id' => $program->workflow_id,
         ];
     }
 
@@ -529,6 +542,7 @@ class ProgramService
             'descriptions' => $validated['descriptions'],
             'start_at' => $validated['start_at'],
             'end_at' => $validated['end_at'] ?? null,
+            'workflow_id' => $validated['workflow_id'] ?? $program->workflow_id,
         ];
 
         if (! $program->batches()->exists()) {
@@ -580,6 +594,7 @@ class ProgramService
             'end_at' => $validated['end_at'] ?? null,
             'is_closed' => $validated['is_closed'] ?? false,
             'public_intake' => $validated['public_intake'] ?? false,
+            'workflow_id' => $validated['workflow_id'] ?? $program->workflow_id,
         ]);
 
         $program->fund()->sync($validated['fund_ids'] ?? []);

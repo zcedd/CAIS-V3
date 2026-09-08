@@ -106,7 +106,9 @@ export function AssistanceBulkStatusDrawer({
     const bulkStatusOptions = useMemo(
         () =>
             requestSubStatusOptions.filter(
-                (option) => option.request_status !== 'Delivered',
+                (option) =>
+                    option.request_status_code !== 'delivered' &&
+                    option.request_status !== 'Delivered',
             ),
         [requestSubStatusOptions],
     );

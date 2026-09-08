@@ -301,7 +301,11 @@ class BeneficiaryService
         $delivered = (clone $base)->where('was_delivered', true)->count();
         $denied = (clone $base)
             ->whereHas('currentRequestSubStatus.requestStatus', static function ($query): void {
-                $query->where('name', 'Denied');
+                $query->where(function ($inner): void {
+                    $inner
+                        ->where('code', 'denied')
+                        ->orWhere('name', 'Denied');
+                });
             })
             ->count();
         $lastRequested = (clone $base)->max('date_requested');

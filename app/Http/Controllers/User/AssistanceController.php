@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Actions\User\AssignAssistance;
 use App\Actions\User\BulkTransferProgramAssistance;
 use App\Actions\User\BulkUpdateProgramAssistanceStatus;
 use App\Actions\User\TransferProgramAssistance;
@@ -9,6 +10,7 @@ use App\Actions\User\UpdateProgramAssistance;
 use App\Actions\User\UpdateProgramAssistanceStatus;
 use App\Exports\User\ProgramAssistancesExport;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\Assistance\AssignRequest;
 use App\Http\Requests\User\Assistance\BulkTransferRequest;
 use App\Http\Requests\User\Assistance\BulkUpdateStatusRequest;
 use App\Http\Requests\User\Assistance\DestroyRequest;
@@ -247,6 +249,39 @@ class AssistanceController extends Controller
             ->with('success', 'Assistance status updated successfully.');
     }
 
+    public function assign(
+        AssignRequest $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+        AssignAssistance $assignAssistance,
+    ): RedirectResponse {
+        $assignAssistance(
+            $assistance,
+            $request->user(),
+            $request->assignee(),
+            $request->validated('remark'),
+        );
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assistance assignment updated.');
+    }
+
+    public function claim(
+        AssignRequest $request,
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+        AssignAssistance $assignAssistance,
+    ): RedirectResponse {
+        $assignAssistance($assistance, $request->user(), $request->user(), 'Claimed from queue');
+
+        return redirect()
+            ->back()
+            ->with('success', 'Assistance claimed.');
+    }
+
     /**
      * Export filtered assistance records for the selected program.
      */
@@ -292,6 +327,9 @@ class AssistanceController extends Controller
             'beneficiary:id,name,cais_number,beneficiable_type,beneficiable_id',
             'modeOfRequest:id,name',
             'user:id,firstName,lastName',
+            'assignedTo:id,firstName,lastName',
+            'assignments.assignedTo:id,firstName,lastName',
+            'assignments.assignedBy:id,firstName,lastName',
             'program:id,name,department_id',
             'program.department:id,name,slug',
             'assistanceItem',
@@ -348,10 +386,17 @@ class AssistanceController extends Controller
                 'encoder_name' => $assistance->user_id === null
                     ? 'Public intake'
                     : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: '—'),
+                'assigned_to_id' => $assistance->assigned_to_id,
+                'assignee_name' => $assistance->assignedTo
+                    ? trim($assistance->assignedTo->firstName.' '.$assistance->assignedTo->lastName)
+                    : null,
+                'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
+                'sla_state' => $assistance->slaState(),
                 'date_requested' => $formatDate($assistance->date_requested),
                 'date_verified' => $formatDate(
                     $statusHistory
-                        ->first(static fn ($subStatus): bool => $subStatus->name === 'Verified')
+                        ->first(static fn ($subStatus): bool => $subStatus->name === 'Verified'
+                            || $subStatus->code?->value === 'verified')
                         ?->pivot
                         ?->recorded_at,
                 ),
@@ -376,7 +421,24 @@ class AssistanceController extends Controller
                     ])
                     ->values()
                     ->all(),
+                'assignments' => $assistance->assignments
+                    ->sortBy('created_at')
+                    ->values()
+                    ->map(static fn ($assignment): array => [
+                        'id' => $assignment->id,
+                        'assigned_to_name' => $assignment->assignedTo
+                            ? trim($assignment->assignedTo->firstName.' '.$assignment->assignedTo->lastName)
+                            : 'Unassigned',
+                        'assigned_by_name' => $assignment->assignedBy
+                            ? trim($assignment->assignedBy->firstName.' '.$assignment->assignedBy->lastName)
+                            : '—',
+                        'remark' => $assignment->remark,
+                        'recorded_at' => $assignment->created_at?->toDateTimeString(),
+                    ])
+                    ->all(),
             ],
+            'request_sub_status_options' => $this->assistanceService->requestSubStatusesForSelect($program),
+            'staff_options' => $this->assistanceService->departmentStaffForSelect($program),
             'documents' => $this->assistanceDocumentService->profilePayload($assistance),
             'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
         ]);

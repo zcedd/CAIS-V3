@@ -78,6 +78,13 @@ class StoreRequest extends FormRequest
             ...$this->programEligibilityRules($this->input('item_ids', [])),
             ...$this->programFieldDefinitionRules(),
             ...$this->programDocumentRequirementRules(),
+            'workflow_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('workflows', 'id')->where(
+                    fn ($query) => $query->where('department_id', $departmentId),
+                ),
+            ],
         ];
     }
 

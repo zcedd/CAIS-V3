@@ -4,6 +4,7 @@ namespace App\Actions\User;
 
 use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
+use App\Support\RequestStatusCode;
 use Illuminate\Support\Carbon;
 
 class SyncAssistanceCurrentStatus
@@ -47,7 +48,11 @@ class SyncAssistanceCurrentStatus
                 '=',
                 'request_sub_statuses.request_status_id',
             )
-            ->where('request_statuses.name', 'Delivered')
+            ->where(function ($query): void {
+                $query
+                    ->where('request_statuses.code', RequestStatusCode::Delivered->value)
+                    ->orWhere('request_statuses.name', 'Delivered');
+            })
             ->orderBy('assistance_request_sub_status.recorded_at')
             ->orderBy('assistance_request_sub_status.id')
             ->value('assistance_request_sub_status.recorded_at');
@@ -65,7 +70,11 @@ class SyncAssistanceCurrentStatus
                 ->whereNull('assistance_request_sub_status.deleted_at')
                 ->join('request_sub_statuses', 'request_sub_statuses.id', '=', 'assistance_request_sub_status.request_sub_status_id')
                 ->join('request_statuses', 'request_statuses.id', '=', 'request_sub_statuses.request_status_id')
-                ->where('request_statuses.name', 'Delivered')
+                ->where(function ($query): void {
+                    $query
+                        ->where('request_statuses.code', RequestStatusCode::Delivered->value)
+                        ->orWhere('request_statuses.name', 'Delivered');
+                })
                 ->exists();
         }
 

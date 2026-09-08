@@ -6,8 +6,8 @@ use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
-use App\Models\RequestSubStatus;
 use App\Models\User;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -23,10 +23,10 @@ function createBulkStatusAssistance(
         'cais_number' => $caisNumber,
         'name' => $name,
         'beneficiable_type' => 'App\\Models\\Individual',
-        'beneficiable_id' => 1,
+        'beneficiable_id' => crc32($caisNumber),
     ]);
 
-    $mode = ModeOfRequest::create(['name' => 'Walk In']);
+    $mode = ModeOfRequest::query()->firstOrCreate(['name' => 'Walk In']);
 
     return Assistance::create([
         'program_id' => $program->id,
@@ -35,6 +35,8 @@ function createBulkStatusAssistance(
         'date_requested' => '2026-05-01',
         'remark' => null,
         'user_id' => $user->id,
+        'assigned_to_id' => $user->id,
+        'assigned_at' => now(),
     ]);
 }
 
@@ -58,13 +60,8 @@ test('authenticated users can bulk update assistance status for their department
     $firstAssistance = createBulkStatusAssistance($program, $user, 'CAIS-001', 'Juan Dela Cruz');
     $secondAssistance = createBulkStatusAssistance($program, $user, 'CAIS-002', 'Maria Santos');
 
-    $inProgressSubStatusId = RequestSubStatus::query()
-        ->where('name', 'In Progress')
-        ->value('id');
-
-    $verifiedSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Verified')
-        ->value('id');
+    $inProgressSubStatusId = catalogReasonId(RequestSubStatusCode::AwaitingReview);
+    $verifiedSubStatusId = catalogReasonId(RequestSubStatusCode::Verified);
 
     expect($inProgressSubStatusId)->not->toBeNull()
         ->and($verifiedSubStatusId)->not->toBeNull();
@@ -78,23 +75,27 @@ test('authenticated users can bulk update assistance status for their department
         ]);
     }
 
-    $response = $this->actingAs($user)->patch(
-        route('user.programs.assistances.status.bulk-update', [
-            'department' => $department->slug,
-            'program' => $program->id,
-        ]),
-        [
-            'assistance_ids' => [$firstAssistance->id, $secondAssistance->id],
-            'request_sub_status_id' => $verifiedSubStatusId,
-            'recorded_at' => '2026-05-10',
-            'remark' => 'Bulk verified after review',
-        ],
-    );
-
-    $response->assertRedirect(route('user.programs.show', [
+    $programShowUrl = route('user.programs.show', [
         'department' => $department->slug,
         'program' => $program->id,
-    ]));
+    ]);
+
+    $response = $this->actingAs($user)
+        ->from($programShowUrl)
+        ->patch(
+            route('user.programs.assistances.status.bulk-update', [
+                'department' => $department->slug,
+                'program' => $program->id,
+            ]),
+            [
+                'assistance_ids' => [$firstAssistance->id, $secondAssistance->id],
+                'request_sub_status_id' => $verifiedSubStatusId,
+                'recorded_at' => '2026-05-10',
+                'remark' => 'Bulk verified after review',
+            ],
+        );
+
+    $response->assertRedirect($programShowUrl);
 
     foreach ([$firstAssistance, $secondAssistance] as $assistance) {
         $latestSubStatus = AssistanceRequestSubStatus::query()
@@ -129,13 +130,8 @@ test('bulk status update preserves the recorded at time', function () {
     $firstAssistance = createBulkStatusAssistance($program, $user, 'CAIS-003', 'Ana Reyes');
     $secondAssistance = createBulkStatusAssistance($program, $user, 'CAIS-004', 'Pedro Cruz');
 
-    $inProgressSubStatusId = RequestSubStatus::query()
-        ->where('name', 'In Progress')
-        ->value('id');
-
-    $verifiedSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Verified')
-        ->value('id');
+    $inProgressSubStatusId = catalogReasonId(RequestSubStatusCode::AwaitingReview);
+    $verifiedSubStatusId = catalogReasonId(RequestSubStatusCode::Verified);
 
     foreach ([$firstAssistance, $secondAssistance] as $assistance) {
         AssistanceRequestSubStatus::query()->create([
@@ -190,9 +186,7 @@ test('bulk status update rejects delivered sub-status', function () {
 
     $assistance = createBulkStatusAssistance($program, $user, 'CAIS-001', 'Juan Dela Cruz');
 
-    $deliveredSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Successfully Delivered')
-        ->value('id');
+    $deliveredSubStatusId = catalogReasonId(RequestSubStatusCode::Delivered);
 
     $response = $this->actingAs($user)->from(route('user.programs.show', [
         'department' => $department->slug,
@@ -236,9 +230,7 @@ test('users cannot bulk update assistance records from another department progra
 
     $assistance = createBulkStatusAssistance($program, $user, 'CAIS-001', 'Juan Dela Cruz');
 
-    $verifiedSubStatusId = RequestSubStatus::query()
-        ->where('name', 'Verified')
-        ->value('id');
+    $verifiedSubStatusId = catalogReasonId(RequestSubStatusCode::Verified);
 
     $response = $this->actingAs($user)->patch(
         route('user.programs.assistances.status.bulk-update', [

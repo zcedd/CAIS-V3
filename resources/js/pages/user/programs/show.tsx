@@ -10,6 +10,8 @@ import type {
     AssistanceSelectOption,
     AssistanceTableFilters,
     AssistanceTransferProgramOption,
+    DepartmentStaffOption,
+    WorkflowOption,
     ModeFilterOption,
     StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
@@ -120,6 +122,7 @@ type ProgramEditRelations = {
     item_ids: number[];
     fields: ProgramFieldDefinition[];
     document_requirements?: ProgramDocumentRequirementInput[];
+    workflow_id?: number | null;
 };
 
 const MS_PER_DAY = 86_400_000;
@@ -225,7 +228,9 @@ export default function UserProgramShow({
     program_fields,
     request_sub_status_options,
     transfer_program_options,
+    staff_options,
     document_types = [],
+    workflow_options = [],
 }: {
     program: ProgramDetail;
     summary?: ProgramSummary;
@@ -251,8 +256,10 @@ export default function UserProgramShow({
     program_items?: AssistanceProgramItemOption[];
     program_fields?: ProgramFieldOption[];
     request_sub_status_options?: AssistanceRequestSubStatusOption[];
+    staff_options?: DepartmentStaffOption[];
     transfer_program_options?: AssistanceTransferProgramOption[];
     document_types?: DocumentTypeOption[];
+    workflow_options?: WorkflowOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
@@ -750,6 +757,7 @@ export default function UserProgramShow({
                                     program_items,
                                     program_fields,
                                     request_sub_status_options,
+                                    staff_options,
                                     transfer_program_options,
                                 };
 
@@ -796,6 +804,9 @@ export default function UserProgramShow({
                                             transferProgramOptions={
                                                 tableProps.transfer_program_options
                                             }
+                                            staffOptions={
+                                                tableProps.staff_options
+                                            }
                                             canTransferAssistance={
                                                 canTransferAssistance
                                             }
@@ -821,6 +832,7 @@ export default function UserProgramShow({
                         funds={funds}
                         items={items}
                         documentTypes={document_types}
+                        workflowOptions={workflow_options}
                         formKey={editFormKey}
                         onClose={closeEditDrawer}
                     />

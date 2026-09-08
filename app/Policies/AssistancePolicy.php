@@ -22,9 +22,7 @@ class AssistancePolicy
      */
     public function view(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -41,9 +39,7 @@ class AssistancePolicy
      */
     public function update(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -51,9 +47,7 @@ class AssistancePolicy
      */
     public function delete(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -61,9 +55,7 @@ class AssistancePolicy
      */
     public function restore(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -71,7 +63,28 @@ class AssistancePolicy
      */
     public function forceDelete(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
+        return $this->update($user, $assistance);
+    }
+
+    /**
+     * Determine whether the user can assign the assistance.
+     */
+    public function assign(User $user, Assistance $assistance): bool
+    {
+        return $this->update($user, $assistance);
+    }
+
+    /**
+     * Determine whether the user can claim the assistance.
+     */
+    public function claim(User $user, Assistance $assistance): bool
+    {
+        return $this->update($user, $assistance);
+    }
+
+    private function belongsToUserDepartment(User $user, Assistance $assistance): bool
+    {
+        $assistance->loadMissing('program');
 
         return $user->department_id === $assistance->program?->department_id;
     }

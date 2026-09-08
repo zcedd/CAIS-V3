@@ -1,6 +1,7 @@
 'use client';
 
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
+import { SlaBadge } from '@/components/user/sla-badge';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-row-actions';
@@ -9,6 +10,7 @@ import type {
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
     AssistanceTransferProgramOption,
+    DepartmentStaffOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import type { AssistanceItemOrigin } from '@/types/assistance-item';
@@ -61,6 +63,10 @@ export type UserProgramAssistanceRow = {
     items: UserProgramAssistanceItem[];
     mode_of_request: string;
     encoder_name?: string | null;
+    assigned_to_id?: number | null;
+    assignee_name?: string | null;
+    sla_due_at?: string | null;
+    sla_state?: string | null;
     date_requested: string | null;
     date_delivered: string | null;
     request_status: string | null;
@@ -119,6 +125,7 @@ export type UserProgramAssistanceTableContext = {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
+    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onAssistanceUpdated?: () => void;
 };
@@ -133,6 +140,7 @@ export function createUserProgramAssistanceColumns({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
+    staffOptions = [],
     canTransferAssistance,
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
@@ -368,6 +376,28 @@ export function createUserProgramAssistanceColumns({
             ),
         },
         {
+            accessorKey: 'assignee_name',
+            meta: { title: 'Assignee' },
+            enableSorting: false,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Assignee" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {row.original.assignee_name ?? 'Unassigned'}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'sla_state',
+            meta: { title: 'SLA' },
+            enableSorting: false,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="SLA" />
+            ),
+            cell: ({ row }) => <SlaBadge state={row.original.sla_state} />,
+        },
+        {
             accessorKey: 'date_requested',
             meta: { title: 'Requested' },
             header: ({ column }) => (
@@ -431,6 +461,7 @@ export function createUserProgramAssistanceColumns({
                     programFields={programFields}
                     requestSubStatusOptions={requestSubStatusOptions}
                     transferProgramOptions={transferProgramOptions}
+                    staffOptions={staffOptions}
                     canTransferAssistance={canTransferAssistance}
                     onAssistanceUpdated={onAssistanceUpdated}
                 />
@@ -443,6 +474,8 @@ export const userProgramAssistanceInitialColumnVisibility = {
     request_sub_status_recorded_at: true,
     mode_of_request: true,
     encoder_name: true,
+    assignee_name: true,
+    sla_state: true,
     date_requested: false,
     date_delivered: false,
     remark: true,

@@ -10,8 +10,8 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
 use App\Support\AssistanceItemOrigin;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
 
@@ -33,19 +33,8 @@ uses(RefreshDatabase::class);
  */
 function seedAssistanceAwaitingRelease(int $requestedRiceQuantity = 2): array
 {
-    $verificationStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Verification']);
-    $deliveredStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Delivered']);
-
-    $verifiedSubStatusId = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $verificationStatusId,
-        'name' => 'Verified',
-        'description' => null,
-    ]);
-    $deliveredSubStatusId = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $deliveredStatusId,
-        'name' => 'Successfully Delivered',
-        'description' => null,
-    ]);
+    $verifiedSubStatusId = catalogReasonId(RequestSubStatusCode::Verified);
+    $deliveredSubStatusId = catalogReasonId(RequestSubStatusCode::Delivered);
 
     $department = Department::create(['name' => 'Department A']);
     $user = User::factory()->create(['department_id' => $department->id]);

@@ -14,6 +14,7 @@ class StaleAssistanceReminderNotification extends Notification
     public function __construct(
         private Assistance $assistance,
         private string $monthKey,
+        private ?string $dayKey = null,
     ) {}
 
     /**
@@ -94,6 +95,7 @@ class StaleAssistanceReminderNotification extends Notification
             'assistance_id' => $assistance->id,
             'program_id' => $assistance->program_id,
             'month_key' => $this->monthKey,
+            'day_key' => $this->dayKey ?? now()->toDateString(),
         ];
     }
 }

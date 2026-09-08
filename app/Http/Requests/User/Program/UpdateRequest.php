@@ -73,6 +73,13 @@ class UpdateRequest extends FormRequest
             ],
             ...$this->programFieldDefinitionRules(),
             ...$this->programDocumentRequirementRules(),
+            'workflow_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('workflows', 'id')->where(
+                    fn ($query) => $query->where('department_id', $program instanceof Program ? $program->department_id : $departmentId),
+                ),
+            ],
         ];
 
         if (! $isBatch) {

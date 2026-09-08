@@ -11,6 +11,7 @@ use App\Models\Individual;
 use App\Models\Item;
 use App\Models\Organization;
 use App\Models\Program;
+use App\Support\RequestStatusCode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Cache;
@@ -18,8 +19,6 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
-    private const TERMINAL_STATUSES = ['Delivered', 'Denied', 'Closed'];
-
     private const PROGRAMS_TABLE_LIMIT = 10;
 
     public function __construct(
@@ -110,8 +109,8 @@ class DashboardService
     public function summary(Department $department, array $filters): array
     {
         $deliveredSql = $this->isDeliveredSql();
-        $statusExpression = $this->resolvedStatusExpression();
-        $terminalList = implode("','", self::TERMINAL_STATUSES);
+        $statusCodeExpression = $this->resolvedStatusCodeExpression();
+        $terminalList = implode("','", RequestStatusCode::terminalValues());
 
         $firstVerifiedAt = $this->dateDiffExpression('first_verified.verified_at', 'assistances.date_requested');
 
@@ -119,8 +118,8 @@ class DashboardService
             ->leftJoinSub($this->firstVerifiedAtSubquery(), 'first_verified', 'first_verified.assistance_id', '=', 'assistances.id')
             ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered_requests")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN NOT ({$deliveredSql}) AND {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} = 'Denied' THEN assistances.id END) as denied_requests")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN NOT ({$deliveredSql}) AND {$statusCodeExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusCodeExpression} = '".RequestStatusCode::Denied->value."' THEN assistances.id END) as denied_requests")
             ->selectRaw('COUNT(DISTINCT assistances.beneficiary_id) as unique_beneficiaries')
             ->selectRaw("AVG(CASE WHEN assistances.date_delivered IS NOT NULL AND assistances.date_requested IS NOT NULL THEN {$this->dateDiffExpression('assistances.date_delivered', 'assistances.date_requested')} END) as avg_days_to_deliver")
             ->selectRaw("AVG(CASE WHEN first_verified.verified_at IS NOT NULL AND assistances.date_requested IS NOT NULL THEN {$firstVerifiedAt} END) as avg_days_to_verify")
@@ -194,14 +193,14 @@ class DashboardService
         }
 
         $filters = ['program' => [$program->id]];
-        $statusExpression = $this->resolvedStatusExpression();
+        $statusCodeExpression = $this->resolvedStatusCodeExpression();
         $deliveredSql = $this->isDeliveredSql();
-        $terminalList = implode("','", self::TERMINAL_STATUSES);
+        $terminalList = implode("','", RequestStatusCode::terminalValues());
 
         $stats = (clone $this->filteredAssistanceQuery($department, $filters))
             ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered_requests")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN NOT ({$deliveredSql}) AND {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN NOT ({$deliveredSql}) AND {$statusCodeExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress_requests")
             ->toBase()
             ->first();
 
@@ -333,9 +332,9 @@ class DashboardService
      */
     public function programsTable(Department $department, array $filters): array
     {
-        $statusExpression = $this->resolvedStatusExpression();
+        $statusCodeExpression = $this->resolvedStatusCodeExpression();
         $deliveredSql = $this->isDeliveredSql();
-        $terminalList = implode("','", self::TERMINAL_STATUSES);
+        $terminalList = implode("','", RequestStatusCode::terminalValues());
 
         $programQuery = Program::query()
             ->where('department_id', $department->id)
@@ -367,8 +366,8 @@ class DashboardService
             ->select('programs.id')
             ->selectRaw('COUNT(DISTINCT assistances.id) as total_requests')
             ->selectRaw("COUNT(DISTINCT CASE WHEN {$deliveredSql} THEN assistances.id END) as delivered")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress")
-            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusExpression} = 'Denied' THEN assistances.id END) as denied")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusCodeExpression} NOT IN ('{$terminalList}') THEN assistances.id END) as in_progress")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN {$statusCodeExpression} = '".RequestStatusCode::Denied->value."' THEN assistances.id END) as denied")
             ->groupBy('programs.id')
             ->toBase()
             ->get()
@@ -692,8 +691,8 @@ class DashboardService
      */
     public function insights(Department $department, array $filters): array
     {
-        $statusExpression = $this->resolvedStatusExpression();
-        $terminalList = implode("','", self::TERMINAL_STATUSES);
+        $statusCodeExpression = $this->resolvedStatusCodeExpression();
+        $terminalList = implode("','", RequestStatusCode::terminalValues());
 
         $agingExpression = "CASE
             WHEN assistances.date_requested IS NULL THEN 'No request date'
@@ -704,7 +703,7 @@ class DashboardService
         END";
 
         $backlogAging = (clone $this->filteredAssistanceQuery($department, $filters))
-            ->whereRaw("{$statusExpression} NOT IN ('{$terminalList}')")
+            ->whereRaw("{$statusCodeExpression} NOT IN ('{$terminalList}')")
             ->selectRaw("{$agingExpression} as label")
             ->selectRaw('COUNT(DISTINCT assistances.id) as count')
             ->groupByRaw($agingExpression)
@@ -887,6 +886,11 @@ class DashboardService
         return "COALESCE(rs.name, 'Unrequested')";
     }
 
+    private function resolvedStatusCodeExpression(): string
+    {
+        return "COALESCE(rs.code, '')";
+    }
+
     private function dateDiffExpression(string $endColumn, string $startColumn): string
     {
         if (DB::getDriverName() === 'sqlite') {
@@ -910,7 +914,11 @@ class DashboardService
         return DB::table('assistance_request_sub_status as arss')
             ->join('request_sub_statuses as rss', 'rss.id', '=', 'arss.request_sub_status_id')
             ->whereNull('arss.deleted_at')
-            ->where('rss.name', 'Verified')
+            ->where(function ($query): void {
+                $query
+                    ->where('rss.code', 'verified')
+                    ->orWhere('rss.name', 'Verified');
+            })
             ->groupBy('arss.assistance_id')
             ->select('arss.assistance_id')
             ->selectRaw('MIN(arss.recorded_at) as verified_at');

@@ -380,7 +380,8 @@ test('public submit is blocked by hard and soft eligibility findings', function 
         ->first();
 
     $mode = ModeOfRequest::query()->where('name', 'Walk In')->first();
-    $inProgress = RequestSubStatus::query()->where('name', 'In Progress')->first();
+    $inProgress = RequestSubStatus::query()->where('code', 'awaiting_review')->first()
+        ?? RequestSubStatus::query()->where('name', 'Awaiting Review')->first();
 
     $open = Assistance::query()->create([
         'program_id' => $program->id,
@@ -424,7 +425,8 @@ test('staff can still encode with an eligibility override', function () {
     ]);
     $beneficiary = Beneficiary::query()->where('beneficiable_id', $individual->id)->first();
     $mode = ModeOfRequest::query()->where('name', 'Walk In')->first();
-    $inProgress = RequestSubStatus::query()->where('name', 'In Progress')->first();
+    $inProgress = RequestSubStatus::query()->where('code', 'awaiting_review')->first()
+        ?? RequestSubStatus::query()->where('name', 'Awaiting Review')->first();
 
     $open = Assistance::query()->create([
         'program_id' => $program->id,

@@ -6,14 +6,13 @@ use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
 use App\Notifications\StaleAssistanceReminderNotification;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Support\Facades\DB;
-
-uses(RefreshDatabase::class);
 
 test('it creates database notifications for stale open assistances', function () {
     $department = Department::create(['name' => 'Social Welfare']);
-    $user = User::factory()->create(['department_id' => $department->id]);
+    $encoder = User::factory()->create(['department_id' => $department->id]);
+    $assignee = User::factory()->create(['department_id' => $department->id]);
 
     $program = Program::create([
         'name' => 'Aid Program',
@@ -32,13 +31,17 @@ test('it creates database notifications for stale open assistances', function ()
         'beneficiable_id' => 1,
     ]);
 
+    $openSubStatusId = catalogReasonId(RequestSubStatusCode::AwaitingReview);
+    $closedSubStatusId = catalogReasonId(RequestSubStatusCode::Closed);
+
     $staleOpenAssistance = Assistance::query()->create([
         'program_id' => $program->id,
         'mode_of_request_id' => null,
         'beneficiary_id' => $beneficiary->id,
         'date_requested' => now()->subYears(8)->toDateString(),
         'date_delivered' => null,
-        'user_id' => $user->id,
+        'user_id' => $encoder->id,
+        'assigned_to_id' => $assignee->id,
         'updated_at' => now()->subDays(8),
     ]);
 
@@ -48,7 +51,7 @@ test('it creates database notifications for stale open assistances', function ()
         'beneficiary_id' => null,
         'date_requested' => now()->subYears(8)->toDateString(),
         'date_delivered' => now()->subYears(8)->toDateString(),
-        'user_id' => $user->id,
+        'user_id' => $encoder->id,
         'updated_at' => now()->subDays(8),
     ]);
 
@@ -58,22 +61,9 @@ test('it creates database notifications for stale open assistances', function ()
         'beneficiary_id' => null,
         'date_requested' => now()->subYears(3)->toDateString(),
         'date_delivered' => null,
-        'user_id' => $user->id,
+        'user_id' => $encoder->id,
+        'assigned_to_id' => $assignee->id,
         'updated_at' => now()->subDays(3),
-    ]);
-
-    $inProgressStatusId = DB::table('request_statuses')->insertGetId(['name' => 'In Progress']);
-    $closedStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Closed']);
-
-    $openSubStatusId = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $inProgressStatusId,
-        'name' => 'Action Underway',
-        'description' => null,
-    ]);
-    $closedSubStatusId = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $closedStatusId,
-        'name' => 'Closed after Resolution',
-        'description' => null,
     ]);
 
     DB::table('assistance_request_sub_status')->insert([
@@ -106,10 +96,10 @@ test('it creates database notifications for stale open assistances', function ()
         ],
     ]);
 
-    // DB inserts bypass model events; mirror the denormalized columns SyncAssistanceCurrentStatus maintains.
     DB::table('assistances')->where('id', $staleOpenAssistance->id)->update([
         'current_request_sub_status_id' => $openSubStatusId,
         'current_status_recorded_at' => now()->subDays(8),
+        'assigned_to_id' => $assignee->id,
         'was_delivered' => false,
     ]);
     DB::table('assistances')->where('id', $staleClosedAssistance->id)->update([
@@ -127,7 +117,7 @@ test('it creates database notifications for stale open assistances', function ()
         ->expectsOutput('Dispatched 1 stale assistance notification(s).')
         ->assertSuccessful();
 
-    $notification = $user->notifications()->first();
+    $notification = $assignee->notifications()->first();
 
     expect($notification)->not->toBeNull();
     expect($notification->type)->toBe(StaleAssistanceReminderNotification::class);
@@ -141,12 +131,13 @@ test('it creates database notifications for stale open assistances', function ()
     expect($notification->data['message'])->toContain('Juan Dela Cruz');
     expect($notification->data['message'])->toContain('CAIS-001');
     expect($notification->data['message'])->toContain('Aid Program');
-    expect($notification->data['message'])->toContain('In Progress — Action Underway');
+    expect($notification->data['message'])->toContain('Submitted — Awaiting Review');
     expect($notification->data['message'])->toContain('View request profile');
+    expect($encoder->notifications()->count())->toBe(0);
 
     $this->artisan('assistances:notify-stale')
         ->expectsOutput('Dispatched 0 stale assistance notification(s).')
         ->assertSuccessful();
 
-    expect($user->notifications()->count())->toBe(1);
+    expect($assignee->notifications()->count())->toBe(1);
 });

@@ -95,7 +95,19 @@ export type AssistanceRequestSubStatusOption = {
     id: number;
     name: string;
     request_status: string | null;
+    request_status_code?: string | null;
     label: string;
+};
+
+export type DepartmentStaffOption = {
+    id: number;
+    name: string;
+};
+
+export type WorkflowOption = {
+    id: number;
+    name: string;
+    is_default: boolean;
 };
 
 export type AssistanceTransferProgramOption = {

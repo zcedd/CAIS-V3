@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Support\RequestStatusCode;
+use App\Support\RequestSubStatusCode;
+use App\Support\SlaState;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -26,6 +29,10 @@ class Assistance extends Model
         'date_requested',
         'date_delivered',
         'user_id',
+        'assigned_to_id',
+        'assigned_at',
+        'sla_due_at',
+        'sla_paused_at',
         'remark',
         'eligibility_override_reason',
         'created_at',
@@ -39,6 +46,9 @@ class Assistance extends Model
     {
         return [
             'current_status_recorded_at' => 'datetime',
+            'assigned_at' => 'datetime',
+            'sla_due_at' => 'datetime',
+            'sla_paused_at' => 'datetime',
             'was_delivered' => 'boolean',
         ];
     }
@@ -66,6 +76,16 @@ class Assistance extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_id');
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(AssistanceAssignment::class)->orderByDesc('id');
     }
 
     public function item()
@@ -162,7 +182,11 @@ class Assistance extends Model
                 $builder
                     ->whereNull('current_request_sub_status_id')
                     ->orWhereDoesntHave('currentRequestSubStatus.requestStatus', function (EloquentBuilder $statusQuery): void {
-                        $statusQuery->whereIn('name', ['Delivered', 'Denied', 'Closed', 'Verification']);
+                        $statusQuery->where(function (EloquentBuilder $inner): void {
+                            $inner
+                                ->whereIn('code', RequestStatusCode::terminalValues())
+                                ->orWhereIn('name', ['Delivered', 'Denied', 'Closed', 'Verification']);
+                        });
                     });
             })
             ->whereNotNull('date_requested');
@@ -172,7 +196,11 @@ class Assistance extends Model
     {
         $query->where('was_delivered', false)
             ->whereHas('currentRequestSubStatus', function (EloquentBuilder $subStatusQuery): void {
-                $subStatusQuery->where('name', 'Verified');
+                $subStatusQuery->where(function (EloquentBuilder $inner): void {
+                    $inner
+                        ->where('code', RequestSubStatusCode::Verified->value)
+                        ->orWhere('name', 'Verified');
+                });
             });
     }
 
@@ -184,7 +212,11 @@ class Assistance extends Model
     public function scopeDenied($query)
     {
         $query->whereHas('currentRequestSubStatus.requestStatus', function (EloquentBuilder $statusQuery): void {
-            $statusQuery->where('name', 'Denied');
+            $statusQuery->where(function (EloquentBuilder $inner): void {
+                $inner
+                    ->where('code', RequestStatusCode::Denied->value)
+                    ->orWhere('name', 'Denied');
+            });
         });
     }
 
@@ -192,8 +224,76 @@ class Assistance extends Model
     {
         $query->where('was_delivered', false)
             ->whereDoesntHave('currentRequestSubStatus.requestStatus', function (EloquentBuilder $statusQuery): void {
-                $statusQuery->whereIn('name', ['Delivered', 'Denied', 'Closed']);
+                $statusQuery->where(function (EloquentBuilder $inner): void {
+                    $inner
+                        ->whereIn('code', RequestStatusCode::terminalValues())
+                        ->orWhereIn('name', ['Delivered', 'Denied', 'Closed']);
+                });
             });
+    }
+
+    /**
+     * @param  EloquentBuilder<Assistance>  $query
+     * @return EloquentBuilder<Assistance>
+     */
+    public function scopeOpen(EloquentBuilder $query): EloquentBuilder
+    {
+        return $query->whereDoesntHave('currentRequestSubStatus.requestStatus', function (EloquentBuilder $statusQuery): void {
+            $statusQuery->where(function (EloquentBuilder $inner): void {
+                $inner
+                    ->whereIn('code', RequestStatusCode::terminalValues())
+                    ->orWhereIn('name', ['Delivered', 'Denied', 'Closed']);
+            });
+        });
+    }
+
+    /**
+     * @param  EloquentBuilder<Assistance>  $query
+     * @return EloquentBuilder<Assistance>
+     */
+    public function scopeAssignedToUser(EloquentBuilder $query, User $user): EloquentBuilder
+    {
+        return $query->where('assigned_to_id', $user->id);
+    }
+
+    /**
+     * @param  EloquentBuilder<Assistance>  $query
+     * @return EloquentBuilder<Assistance>
+     */
+    public function scopeUnassigned(EloquentBuilder $query): EloquentBuilder
+    {
+        return $query->whereNull('assigned_to_id');
+    }
+
+    public function slaState(): string
+    {
+        if ($this->sla_paused_at !== null) {
+            return SlaState::Paused;
+        }
+
+        if ($this->sla_due_at === null) {
+            return SlaState::None;
+        }
+
+        $dueAt = $this->sla_due_at;
+        $now = now();
+
+        if ($dueAt->lessThan($now)) {
+            return SlaState::Overdue;
+        }
+
+        $startedAt = $this->current_status_recorded_at ?? $this->assigned_at ?? $this->created_at;
+
+        if ($startedAt !== null) {
+            $totalSeconds = $startedAt->diffInSeconds($dueAt, false);
+            $remainingSeconds = $now->diffInSeconds($dueAt, false);
+
+            if ($totalSeconds > 0 && $remainingSeconds >= 0 && ($remainingSeconds / $totalSeconds) <= 0.25) {
+                return SlaState::DueSoon;
+            }
+        }
+
+        return SlaState::OnTime;
     }
 
     /**

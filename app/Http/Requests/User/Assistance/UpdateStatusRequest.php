@@ -10,6 +10,7 @@ use App\Models\Program;
 use App\Models\RequestSubStatus;
 use App\Services\User\StockLedgerService;
 use App\Support\AssistanceItemOrigin;
+use App\Support\RequestStatusCode;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -84,6 +85,7 @@ class UpdateStatusRequest extends FormRequest
                 'integer',
                 Rule::exists('request_sub_statuses', 'id'),
             ],
+            'assigned_to_id' => ['nullable', 'integer', Rule::exists('users', 'id')],
             'recorded_at' => ['required', 'date'],
             'remark' => ['nullable', 'string'],
             'delivered_items' => [Rule::prohibitedIf($notDelivered), 'array'],
@@ -348,7 +350,9 @@ class UpdateStatusRequest extends FormRequest
 
         return RequestSubStatus::query()
             ->whereKey($subStatusId)
-            ->whereHas('requestStatus', fn ($query) => $query->where('name', 'Delivered'))
+            ->whereHas('requestStatus', fn ($query) => $query
+                ->where('code', RequestStatusCode::Delivered->value)
+                ->orWhere('name', 'Delivered'))
             ->exists();
     }
 }

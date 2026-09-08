@@ -16,6 +16,7 @@ export type AssistanceStatusTimelineEntry = {
     parent_status: string | null;
     remark: string | null;
     recorded_at: string;
+    event_type?: 'status' | 'assignment';
 };
 
 function formatTimelineTimestamp(iso: string): { date: string; time: string } {
@@ -125,7 +126,14 @@ export function AssistanceStatusTimeline({
                                         <p className="font-medium leading-snug">
                                             {entry.name}
                                         </p>
-                                        {entry.parent_status ? (
+                                        {entry.event_type === 'assignment' ? (
+                                            <Badge
+                                                variant="outline"
+                                                className="w-fit font-normal"
+                                            >
+                                                Assignment
+                                            </Badge>
+                                        ) : entry.parent_status ? (
                                             <Badge
                                                 variant={
                                                     isLatest

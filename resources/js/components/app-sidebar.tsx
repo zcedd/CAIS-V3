@@ -4,6 +4,8 @@ import {
     BookOpen,
     FolderGit2,
     FolderKanban,
+    GitBranch,
+    Inbox,
     Landmark,
     LayoutGrid,
     Package,
@@ -29,6 +31,8 @@ import { index as departmentItemsIndex } from '@/routes/user/items';
 import { index as departmentNotificationsIndex } from '@/routes/user/notifications';
 import { index as departmentProgramsIndex } from '@/routes/user/programs';
 import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiaries';
+import { index as departmentQueueIndex } from '@/routes/user/queue';
+import { index as departmentWorkflowsIndex } from '@/routes/user/workflows';
 import type { NavItem } from '@/types';
 import type { User } from '@/types/auth';
 
@@ -75,6 +79,16 @@ export function AppSidebar() {
                 title: 'Programs',
                 href: departmentProgramsIndex(slug),
                 icon: FolderKanban,
+            });
+            items.push({
+                title: 'Queue',
+                href: departmentQueueIndex(slug),
+                icon: Inbox,
+            });
+            items.push({
+                title: 'Workflows',
+                href: departmentWorkflowsIndex(slug),
+                icon: GitBranch,
             });
             items.push({
                 title: 'Beneficiaries',

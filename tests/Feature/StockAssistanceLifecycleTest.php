@@ -13,9 +13,9 @@ use App\Models\ProgramItemStock;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Support\AssistanceItemOrigin;
+use App\Support\RequestSubStatusCode;
 use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -34,25 +34,9 @@ uses(RefreshDatabase::class);
  */
 function seedDeliverableAssistance(): array
 {
-    $deliveredStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Delivered']);
-    $deniedStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Denied']);
-    $closedStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Closed']);
-
-    $delivered = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $deliveredStatusId,
-        'name' => 'Successfully Delivered',
-        'description' => null,
-    ]);
-    $denied = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $deniedStatusId,
-        'name' => 'Eligibility Denied',
-        'description' => null,
-    ]);
-    $closed = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $closedStatusId,
-        'name' => 'Closed after Resolution',
-        'description' => null,
-    ]);
+    $delivered = catalogReasonId(RequestSubStatusCode::Delivered);
+    $denied = catalogReasonId(RequestSubStatusCode::Denied);
+    $closed = catalogReasonId(RequestSubStatusCode::Closed);
 
     $department = Department::create(['name' => 'Department A']);
     $user = User::factory()->create(['department_id' => $department->id]);
