@@ -31,6 +31,7 @@ class WorkflowStepFactory extends Factory
             'default_request_sub_status_id' => $catalog->reasonId(RequestSubStatusCode::AwaitingReview),
             'sla_hours' => 48,
             'requires_assignee' => false,
+            'assigned_to_id' => null,
             'permission' => null,
             'allows_skip_to_deliver' => false,
         ];

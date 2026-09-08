@@ -71,7 +71,15 @@ class AssistancePolicy
      */
     public function assign(User $user, Assistance $assistance): bool
     {
-        return $this->update($user, $assistance);
+        if (! $this->belongsToUserDepartment($user, $assistance)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $assistance->currentWorkflowStep()?->assigned_to_id === null;
     }
 
     /**
@@ -79,7 +87,44 @@ class AssistancePolicy
      */
     public function claim(User $user, Assistance $assistance): bool
     {
-        return $this->update($user, $assistance);
+        if (! $this->belongsToUserDepartment($user, $assistance)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $step = $assistance->currentWorkflowStep();
+
+        if ($step?->assigned_to_id === null) {
+            return true;
+        }
+
+        return (int) $step->assigned_to_id === (int) $user->id;
+    }
+
+    /**
+     * Determine whether the user can advance the assistance status.
+     */
+    public function advance(User $user, Assistance $assistance): bool
+    {
+        if (! $this->belongsToUserDepartment($user, $assistance)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $step = $assistance->currentWorkflowStep();
+
+        if ($step?->assigned_to_id === null) {
+            return true;
+        }
+
+        return (int) $assistance->assigned_to_id === (int) $user->id
+            || (int) $step->assigned_to_id === (int) $user->id;
     }
 
     private function belongsToUserDepartment(User $user, Assistance $assistance): bool

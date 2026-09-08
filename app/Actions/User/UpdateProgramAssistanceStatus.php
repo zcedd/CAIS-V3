@@ -24,6 +24,7 @@ class UpdateProgramAssistanceStatus
         private AssertAssistanceWorkflowTransition $assertAssistanceWorkflowTransition,
         private RecalculateAssistanceSla $recalculateAssistanceSla,
         private RecordAssistanceAssignment $recordAssistanceAssignment,
+        private ApplyWorkflowStepAssignee $applyWorkflowStepAssignee,
     ) {}
 
     /**
@@ -71,7 +72,7 @@ class UpdateProgramAssistanceStatus
                 ->firstOrFail();
             $assistance->loadMissing('program');
 
-            if ($user instanceof User && array_key_exists('assigned_to_id', $validated)) {
+            if ($user instanceof User && array_key_exists('assigned_to_id', $validated) && $step?->assigned_to_id === null) {
                 $assignee = isset($validated['assigned_to_id'])
                     ? User::query()->find($validated['assigned_to_id'])
                     : null;
@@ -83,7 +84,11 @@ class UpdateProgramAssistanceStatus
                 );
             }
 
-            if ($step?->requires_assignee && $assistance->assigned_to_id === null) {
+            if (
+                $step?->requires_assignee
+                && $assistance->assigned_to_id === null
+                && $step->assigned_to_id === null
+            ) {
                 throw ValidationException::withMessages([
                     'assigned_to_id' => 'This step requires an assignee.',
                 ]);
@@ -95,6 +100,10 @@ class UpdateProgramAssistanceStatus
                 'remark' => $validated['remark'] ?? null,
                 'recorded_at' => $recordedAt,
             ]);
+
+            if ($user instanceof User && $step !== null) {
+                ($this->applyWorkflowStepAssignee)($assistance, $step, $user);
+            }
 
             $releasedItems = [];
 

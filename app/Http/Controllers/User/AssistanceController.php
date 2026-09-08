@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Assistance\AssignRequest;
 use App\Http\Requests\User\Assistance\BulkTransferRequest;
 use App\Http\Requests\User\Assistance\BulkUpdateStatusRequest;
+use App\Http\Requests\User\Assistance\ClaimRequest;
 use App\Http\Requests\User\Assistance\DestroyRequest;
 use App\Http\Requests\User\Assistance\EditRequest;
 use App\Http\Requests\User\Assistance\EligibilityPreviewRequest;
@@ -269,7 +270,7 @@ class AssistanceController extends Controller
     }
 
     public function claim(
-        AssignRequest $request,
+        ClaimRequest $request,
         Department $department,
         Program $program,
         Assistance $assistance,
@@ -330,7 +331,10 @@ class AssistanceController extends Controller
             'assignedTo:id,firstName,lastName',
             'assignments.assignedTo:id,firstName,lastName',
             'assignments.assignedBy:id,firstName,lastName',
-            'program:id,name,department_id',
+            'currentRequestSubStatus:id,request_status_id,name',
+            'program:id,name,department_id,workflow_id,parent_id',
+            'program.workflow.steps',
+            'program.parent.workflow.steps',
             'program.department:id,name,slug',
             'assistanceItem',
             'assistanceItem.item:id,name,kind,item_unit_measurement_id',
@@ -390,6 +394,9 @@ class AssistanceController extends Controller
                 'assignee_name' => $assistance->assignedTo
                     ? trim($assistance->assignedTo->firstName.' '.$assistance->assignedTo->lastName)
                     : null,
+                'can_advance' => $request->user()?->can('advance', $assistance) ?? false,
+                'can_assign' => $request->user()?->can('assign', $assistance) ?? false,
+                'step_has_owner' => $assistance->currentWorkflowStep()?->assigned_to_id !== null,
                 'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
                 'sla_state' => $assistance->slaState(),
                 'date_requested' => $formatDate($assistance->date_requested),

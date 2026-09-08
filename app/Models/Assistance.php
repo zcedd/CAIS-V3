@@ -88,6 +88,29 @@ class Assistance extends Model
         return $this->hasMany(AssistanceAssignment::class)->orderByDesc('id');
     }
 
+    public function currentWorkflowStep(): ?WorkflowStep
+    {
+        $this->loadMissing([
+            'program.workflow.steps',
+            'program.parent.workflow.steps',
+            'currentRequestSubStatus',
+        ]);
+
+        $program = $this->program;
+
+        if (! $program instanceof Program) {
+            return null;
+        }
+
+        $statusId = (int) ($this->currentRequestSubStatus?->request_status_id ?? 0);
+
+        if ($statusId === 0) {
+            return null;
+        }
+
+        return $program->resolvedWorkflow()->stepForStatus($statusId);
+    }
+
     public function item()
     {
         return $this->belongsToMany(Item::class)->withPivot('is_received', 'specification')->withSoftDeletes()->withTimestamps()->using(AssistanceItem::class);

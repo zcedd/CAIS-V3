@@ -69,7 +69,7 @@ class BulkUpdateStatusRequest extends FormRequest
                 }
 
                 foreach ($this->assistances() as $assistance) {
-                    if (! Gate::allows('update', $assistance)) {
+                    if (! Gate::allows('advance', $assistance)) {
                         $validator->errors()->add(
                             'assistance_ids',
                             'You are not authorized to update one or more selected assistance records.',

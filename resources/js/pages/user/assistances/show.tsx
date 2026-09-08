@@ -88,6 +88,9 @@ type AssistanceProfile = {
     assignee_name?: string | null;
     sla_due_at?: string | null;
     sla_state?: string | null;
+    can_advance?: boolean;
+    can_assign?: boolean;
+    step_has_owner?: boolean;
     date_requested: string | null;
     date_verified: string | null;
     date_delivered: string | null;
@@ -934,7 +937,14 @@ export default function UserAssistanceShow({
                             title="Assistance tracking"
                             description="Status changes and assignment history, oldest to newest"
                         />
-                        {staff_options.length > 0 ? (
+                        {assistance.can_advance === false ? (
+                            <p className="text-sm text-muted-foreground">
+                                Only the assignee for this stage can update the
+                                status.
+                            </p>
+                        ) : null}
+                        {staff_options.length > 0 &&
+                        assistance.can_assign !== false ? (
                             <Form
                                 {...assignAssistance.form.patch({
                                     department: department.slug,

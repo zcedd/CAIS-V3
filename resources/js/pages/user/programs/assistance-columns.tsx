@@ -65,6 +65,8 @@ export type UserProgramAssistanceRow = {
     encoder_name?: string | null;
     assigned_to_id?: number | null;
     assignee_name?: string | null;
+    can_advance?: boolean;
+    step_has_owner?: boolean;
     sla_due_at?: string | null;
     sla_state?: string | null;
     date_requested: string | null;

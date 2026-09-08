@@ -2,6 +2,7 @@
 
 namespace App\Services\Public;
 
+use App\Actions\User\ApplyWorkflowStepAssignee;
 use App\Actions\User\EvaluateAssistanceEligibility;
 use App\Actions\User\FindPossibleDuplicateBeneficiaries;
 use App\Models\Assistance;
@@ -13,6 +14,7 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
+use App\Models\User;
 use App\Services\User\IndividualBeneficiaryService;
 use App\Services\User\ProgramFieldService;
 use App\Services\Workflow\RequestStatusCatalog;
@@ -164,6 +166,18 @@ class PublicIntakeService
                 'remark' => null,
                 'recorded_at' => now(),
             ]);
+
+            if ($intent === self::IntentSubmit) {
+                $workflow = $program->resolvedWorkflow();
+                $entryStep = $workflow->stepForStatus((int) $workflow->public_entry_request_status_id);
+                $owner = $entryStep?->assigned_to_id !== null
+                    ? User::query()->find($entryStep->assigned_to_id)
+                    : null;
+
+                if ($entryStep !== null && $owner instanceof User) {
+                    app(ApplyWorkflowStepAssignee::class)($assistance, $entryStep, $owner, false);
+                }
+            }
 
             $beneficiary->refresh();
 

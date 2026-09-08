@@ -20,6 +20,7 @@ class WorkflowStep extends Model
         'default_request_sub_status_id',
         'sla_hours',
         'requires_assignee',
+        'assigned_to_id',
         'permission',
         'allows_skip_to_deliver',
     ];
@@ -50,6 +51,11 @@ class WorkflowStep extends Model
     public function defaultSubStatus(): BelongsTo
     {
         return $this->belongsTo(RequestSubStatus::class, 'default_request_sub_status_id');
+    }
+
+    public function assignedTo(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'assigned_to_id');
     }
 
     public function transitions(): HasMany

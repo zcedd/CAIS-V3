@@ -26,6 +26,7 @@ class WorkflowController extends Controller
             'workflows' => $this->workflowService->listForDepartment($department),
             'statuses' => $this->workflowService->activeStatuses(),
             'reasons' => $this->workflowService->activeReasons(),
+            'staff_options' => $this->workflowService->departmentStaffForSelect($department),
             'can_create' => $request->user()?->can('create', [Workflow::class, $department]) ?? false,
         ]);
     }

@@ -235,6 +235,8 @@ export function AssistanceDataTableRowActions({
                 staffOptions={staffOptions}
                 assignedToId={record.assigned_to_id ?? null}
                 slaState={record.sla_state}
+                canAdvance={record.can_advance !== false}
+                stepHasOwner={Boolean(record.step_has_owner)}
                 onUpdated={onAssistanceUpdated}
             />
 

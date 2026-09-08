@@ -4,6 +4,7 @@ namespace App\Services\User;
 
 use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
+use App\Actions\User\ApplyWorkflowStepAssignee;
 use App\Actions\User\EvaluateAssistanceEligibility;
 use App\Actions\User\GuardAssistanceEligibility;
 use App\Actions\User\JoinAssistanceTableRelations;
@@ -27,6 +28,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -118,13 +120,21 @@ class AssistanceService
                 ]);
             }
 
-            app(RecordAssistanceAssignment::class)(
-                $assistance,
-                $user,
-                $user,
-                null,
-                false,
-            );
+            $workflow = $program->resolvedWorkflow();
+            $entryStep = $workflow->stepForStatus((int) $workflow->staff_entry_request_status_id);
+
+            if ($entryStep?->assigned_to_id !== null) {
+                app(ApplyWorkflowStepAssignee::class)($assistance, $entryStep, $user);
+            } else {
+                app(RecordAssistanceAssignment::class)(
+                    $assistance,
+                    $user,
+                    $user,
+                    null,
+                    false,
+                );
+            }
+
             app(RecalculateAssistanceSla::class)($assistance->refresh());
 
             foreach ($validated['item_details'] as $itemDetail) {
@@ -216,11 +226,12 @@ class AssistanceService
         );
 
         $programFieldService = $this->programFieldService;
+        $viewer = Auth::user();
 
         return $assistancesQuery
             ->paginate($perPage)
             ->withQueryString()
-            ->through(static function (Assistance $assistance) use ($programFieldService): array {
+            ->through(function (Assistance $assistance) use ($programFieldService, $viewer): array {
                 $formatDate = static function ($value): ?string {
                     if ($value === null) {
                         return null;
@@ -283,6 +294,8 @@ class AssistanceService
                     'assignee_name' => $assistance->assigned_to_id === null
                         ? null
                         : (trim(($assistance->assignedTo?->firstName ?? '').' '.($assistance->assignedTo?->lastName ?? '')) ?: null),
+                    'can_advance' => $viewer instanceof User && $viewer->can('advance', $assistance),
+                    'step_has_owner' => $assistance->currentWorkflowStep()?->assigned_to_id !== null,
                     'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
                     'sla_paused_at' => $assistance->sla_paused_at?->toIso8601String(),
                     'sla_state' => $assistance->slaState(),
@@ -348,6 +361,7 @@ class AssistanceService
             'assistances.id',
             'assistances.beneficiary_id',
             'assistances.user_id',
+            'assistances.program_id',
             'assistances.assigned_to_id',
             'assistances.assigned_at',
             'assistances.sla_due_at',
@@ -356,6 +370,7 @@ class AssistanceService
             'assistances.date_requested',
             'assistances.date_delivered',
             'assistances.remark',
+            'assistances.current_request_sub_status_id',
             'beneficiaries.cais_number as beneficiary_cais_number',
             'beneficiaries.name as beneficiary_name',
             'mode_of_requests.name as mode_of_request_name',
@@ -366,6 +381,10 @@ class AssistanceService
         ])->with([
             'user:id,firstName,lastName',
             'assignedTo:id,firstName,lastName',
+            'currentRequestSubStatus:id,request_status_id,name',
+            'program:id,department_id,workflow_id,parent_id',
+            'program.workflow.steps',
+            'program.parent.workflow.steps',
             'assistanceItem',
             'assistanceItem.item:id,name,kind,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',

@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Program;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
+use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
@@ -66,6 +67,7 @@ class WorkflowService
                 'default_request_sub_status_id' => $step->default_request_sub_status_id,
                 'sla_hours' => $step->sla_hours,
                 'requires_assignee' => (bool) $step->requires_assignee,
+                'assigned_to_id' => $step->assigned_to_id !== null ? (int) $step->assigned_to_id : null,
                 'permission' => $step->permission,
                 'allows_skip_to_deliver' => (bool) $step->allows_skip_to_deliver,
                 'transition_status_ids' => $step->allowedTargetStatusIds(),
@@ -234,7 +236,7 @@ class WorkflowService
     }
 
     /**
-     * @param  list<array{request_status_id: int, sort_order?: int, default_request_sub_status_id?: int|null, sla_hours?: int|null, requires_assignee?: bool, allows_skip_to_deliver?: bool, transition_status_ids?: list<int>}>  $steps
+     * @param  list<array{request_status_id: int, sort_order?: int, default_request_sub_status_id?: int|null, sla_hours?: int|null, requires_assignee?: bool, assigned_to_id?: int|null, allows_skip_to_deliver?: bool, transition_status_ids?: list<int>}>  $steps
      */
     private function syncSteps(Workflow $workflow, array $steps): void
     {
@@ -250,7 +252,8 @@ class WorkflowService
                     'sort_order' => $stepPayload['sort_order'] ?? (($index + 1) * 10),
                     'default_request_sub_status_id' => $stepPayload['default_request_sub_status_id'] ?? null,
                     'sla_hours' => $stepPayload['sla_hours'] ?? null,
-                    'requires_assignee' => (bool) ($stepPayload['requires_assignee'] ?? false),
+                    'assigned_to_id' => $this->nullableInt($stepPayload['assigned_to_id'] ?? null),
+                    'requires_assignee' => $this->nullableInt($stepPayload['assigned_to_id'] ?? null) !== null,
                     'permission' => $stepPayload['permission'] ?? null,
                     'allows_skip_to_deliver' => (bool) ($stepPayload['allows_skip_to_deliver'] ?? false),
                 ],
@@ -316,5 +319,33 @@ class WorkflowService
                 'steps' => 'Cannot remove a stage that open assistance requests currently sit on.',
             ]);
         }
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    public function departmentStaffForSelect(Department $department): array
+    {
+        return User::query()
+            ->where('department_id', $department->id)
+            ->orderBy('lastName')
+            ->orderBy('firstName')
+            ->get(['id', 'firstName', 'lastName'])
+            ->map(static fn (User $user): array => [
+                'id' => $user->id,
+                'name' => trim($user->firstName.' '.$user->lastName),
+            ])
+            ->all();
+    }
+
+    private function nullableInt(mixed $value): ?int
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $id = (int) $value;
+
+        return $id > 0 ? $id : null;
     }
 }

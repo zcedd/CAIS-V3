@@ -38,11 +38,13 @@ class AssistanceQueueService
             ->open()
             ->with([
                 'beneficiary:id,name,cais_number',
-                'program:id,name,department_id',
+                'program:id,name,department_id,workflow_id,parent_id',
                 'currentRequestSubStatus:id,name,request_status_id,code',
                 'currentRequestSubStatus.requestStatus:id,name,code',
                 'assignedTo:id,firstName,lastName',
                 'user:id,firstName,lastName',
+                'program.workflow.steps',
+                'program.parent.workflow.steps',
             ]);
 
         if ($tab === 'mine') {
@@ -91,13 +93,13 @@ class AssistanceQueueService
             );
         }
 
-        return $paginator->through(fn (Assistance $assistance): array => $this->serialize($assistance));
+        return $paginator->through(fn (Assistance $assistance): array => $this->serialize($assistance, $user));
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function serialize(Assistance $assistance): array
+    public function serialize(Assistance $assistance, ?User $viewer = null): array
     {
         $assignee = $assistance->assignedTo;
 
@@ -122,6 +124,9 @@ class AssistanceQueueService
             'current_status_recorded_at' => $assistance->current_status_recorded_at instanceof \DateTimeInterface
                 ? Carbon::parse($assistance->current_status_recorded_at)->toIso8601String()
                 : null,
+            'can_advance' => $viewer instanceof User && $viewer->can('advance', $assistance),
+            'can_claim' => $viewer instanceof User && $viewer->can('claim', $assistance),
+            'step_has_owner' => $assistance->currentWorkflowStep()?->assigned_to_id !== null,
         ];
     }
 

@@ -207,6 +207,8 @@ type AssistanceStatusDrawerProps = {
     staffOptions?: DepartmentStaffOption[];
     assignedToId?: number | null;
     slaState?: string | null;
+    canAdvance?: boolean;
+    stepHasOwner?: boolean;
     onUpdated?: () => void;
 };
 
@@ -226,6 +228,8 @@ export function AssistanceStatusDrawer({
     staffOptions = [],
     assignedToId = null,
     slaState = null,
+    canAdvance = true,
+    stepHasOwner = false,
     onUpdated,
 }: AssistanceStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -481,10 +485,11 @@ export function AssistanceStatusDrawer({
                         ...data,
                         request_sub_status_id: Number(selectedSubStatusId),
                         recorded_at: formatDateTimeForSubmit(recordedAt),
-                        assigned_to_id:
-                            selectedAssigneeId === 'unassigned'
-                                ? null
-                                : Number(selectedAssigneeId),
+                        assigned_to_id: stepHasOwner
+                            ? undefined
+                            : selectedAssigneeId === 'unassigned'
+                              ? null
+                              : Number(selectedAssigneeId),
                         delivered_items: isDeliveredStatus
                             ? selectedDeliveredItemIds
                                   .filter(
@@ -573,7 +578,14 @@ export function AssistanceStatusDrawer({
                                 </p>
                             ) : null}
 
-                            {staffOptions.length > 0 ? (
+                            {!canAdvance ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Only the assignee for this stage can update
+                                    the status.
+                                </p>
+                            ) : null}
+
+                            {staffOptions.length > 0 && !stepHasOwner ? (
                                 <div className="space-y-2">
                                     <Label htmlFor="assistance-assignee">
                                         Assignee
@@ -1422,6 +1434,7 @@ export function AssistanceStatusDrawer({
                                     type="submit"
                                     disabled={
                                         processing ||
+                                        !canAdvance ||
                                         !selectedSubStatusId ||
                                         !recordedAt ||
                                         (isDeliveredStatus &&

@@ -34,7 +34,13 @@ class StoreRequest extends FormRequest
             'steps.*.sort_order' => ['nullable', 'integer', 'min:0'],
             'steps.*.default_request_sub_status_id' => ['nullable', 'integer', 'exists:request_sub_statuses,id'],
             'steps.*.sla_hours' => ['nullable', 'integer', 'min:1', 'max:8760'],
-            'steps.*.requires_assignee' => ['nullable', 'boolean'],
+            'steps.*.assigned_to_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(
+                    fn ($query) => $query->where('department_id', $this->route('department')?->id),
+                ),
+            ],
             'steps.*.allows_skip_to_deliver' => ['nullable', 'boolean'],
             'steps.*.transition_status_ids' => ['nullable', 'array'],
             'steps.*.transition_status_ids.*' => ['integer', 'exists:request_statuses,id'],

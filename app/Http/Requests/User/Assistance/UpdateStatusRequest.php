@@ -29,7 +29,7 @@ class UpdateStatusRequest extends FormRequest
     {
         $this->ensureAssistanceBelongsToProgram();
 
-        return Gate::allows('update', $this->assistance);
+        return Gate::allows('advance', $this->assistance);
     }
 
     /**

@@ -71,6 +71,8 @@ export type QueueAssistanceRow = {
     sla_due_at: string | null;
     sla_state: string | null;
     sla_label: string | null;
+    can_claim?: boolean;
+    step_has_owner?: boolean;
 };
 
 type PaginatedQueue = {
@@ -267,7 +269,9 @@ function createQueueColumns(
             id: 'actions',
             enableHiding: false,
             cell: ({ row }) =>
-                tab === 'team' && row.original.assigned_to_id === null ? (
+                tab === 'team' &&
+                row.original.assigned_to_id === null &&
+                row.original.can_claim !== false ? (
                     <Button
                         type="button"
                         size="sm"

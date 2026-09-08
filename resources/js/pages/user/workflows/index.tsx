@@ -51,6 +51,7 @@ type WorkflowStepPayload = {
     default_request_sub_status_id: number | null;
     sla_hours: number | null;
     requires_assignee: boolean;
+    assigned_to_id: number | null;
     allows_skip_to_deliver: boolean;
     transition_status_ids: number[];
 };
@@ -69,7 +70,7 @@ type DraftStep = {
     request_status_id: string;
     default_request_sub_status_id: string;
     sla_hours: string;
-    requires_assignee: boolean;
+    assigned_to_id: string;
     allows_skip_to_deliver: boolean;
 };
 
@@ -82,7 +83,9 @@ function stepsFromWorkflow(workflow: WorkflowPayload): DraftStep[] {
                 ? String(step.default_request_sub_status_id)
                 : '',
             sla_hours: step.sla_hours ? String(step.sla_hours) : '',
-            requires_assignee: step.requires_assignee,
+            assigned_to_id: step.assigned_to_id
+                ? String(step.assigned_to_id)
+                : 'none',
             allows_skip_to_deliver: step.allows_skip_to_deliver,
         }));
 }
@@ -92,12 +95,14 @@ export default function UserWorkflowsIndex({
     workflows,
     statuses,
     reasons,
+    staff_options = [],
     can_create = false,
 }: {
     department: DepartmentSummary;
     workflows: WorkflowPayload[];
     statuses: WorkflowStatus[];
     reasons: WorkflowReason[];
+    staff_options?: { id: number; name: string }[];
     can_create?: boolean;
 }) {
     const [selectedId, setSelectedId] = useState<number | null>(
@@ -355,8 +360,14 @@ export default function UserWorkflowsIndex({
                                                 step.sla_hours === ''
                                                     ? null
                                                     : Number(step.sla_hours),
-                                            requires_assignee:
-                                                step.requires_assignee,
+                                            assigned_to_id:
+                                                step.assigned_to_id ===
+                                                    'none' ||
+                                                step.assigned_to_id === ''
+                                                    ? null
+                                                    : Number(
+                                                          step.assigned_to_id,
+                                                      ),
                                             allows_skip_to_deliver:
                                                 step.allows_skip_to_deliver,
                                             transition_status_ids: [],
@@ -452,8 +463,8 @@ export default function UserWorkflowsIndex({
                                                                                 '',
                                                                             sla_hours:
                                                                                 '',
-                                                                            requires_assignee:
-                                                                                false,
+                                                                            assigned_to_id:
+                                                                                'none',
                                                                             allows_skip_to_deliver:
                                                                                 false,
                                                                         },
@@ -622,30 +633,58 @@ export default function UserWorkflowsIndex({
                                                                 </div>
                                                             </div>
                                                             <div className="flex flex-wrap gap-4 text-sm">
-                                                                <label className="flex items-center gap-2">
-                                                                    <Input
-                                                                        type="checkbox"
-                                                                        className="size-4"
-                                                                        checked={
-                                                                            step.requires_assignee
+                                                                <div className="min-w-56 space-y-2">
+                                                                    <Label>
+                                                                        Assign
+                                                                        to
+                                                                    </Label>
+                                                                    <Select
+                                                                        value={
+                                                                            step.assigned_to_id
                                                                         }
-                                                                        onChange={(
-                                                                            event,
+                                                                        onValueChange={(
+                                                                            value,
                                                                         ) =>
                                                                             updateStep(
                                                                                 index,
                                                                                 {
-                                                                                    requires_assignee:
-                                                                                        event
-                                                                                            .target
-                                                                                            .checked,
+                                                                                    assigned_to_id:
+                                                                                        value,
                                                                                 },
                                                                             )
                                                                         }
-                                                                    />
-                                                                    Requires
-                                                                    assignee
-                                                                </label>
+                                                                    >
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="None — team queue" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="none">
+                                                                                None
+                                                                                —
+                                                                                team
+                                                                                queue
+                                                                            </SelectItem>
+                                                                            {staff_options.map(
+                                                                                (
+                                                                                    staff,
+                                                                                ) => (
+                                                                                    <SelectItem
+                                                                                        key={
+                                                                                            staff.id
+                                                                                        }
+                                                                                        value={String(
+                                                                                            staff.id,
+                                                                                        )}
+                                                                                    >
+                                                                                        {
+                                                                                            staff.name
+                                                                                        }
+                                                                                    </SelectItem>
+                                                                                ),
+                                                                            )}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
                                                                 <label className="flex items-center gap-2">
                                                                     <Input
                                                                         type="checkbox"

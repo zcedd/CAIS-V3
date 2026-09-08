@@ -15,6 +15,8 @@ use App\Models\ProgramEligibilityRule;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
+use App\Services\Workflow\EnsureDepartmentWorkflow;
+use App\Support\RequestStatusCode;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**
@@ -277,11 +279,37 @@ test('public submit creates a beneficiary and awaiting review assistance', funct
         ->and($individual->cais_number)->toStartWith('PRO-')
         ->and($assistance)->not->toBeNull()
         ->and($assistance->user_id)->toBeNull()
+        ->and($assistance->assigned_to_id)->toBeNull()
         ->and($assistance->program_id)->toBe($program->id)
         ->and($assistance->currentRequestSubStatus?->name)->toBe('Awaiting Review');
 
     expect(AssistanceItem::query()->where('assistance_id', $assistance->id)->value('quantity'))->toBe(2);
     expect(ModeOfRequest::query()->find($assistance->mode_of_request_id)?->name)->toBe('Online');
+});
+
+test('public submit with a submitted step owner assigns that owner', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item, 'barangayId' => $barangayId] = createPublicIntakeContext();
+    $maria = User::factory()->create(['department_id' => $department->id]);
+
+    $workflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+    $workflow->steps()
+        ->where('request_status_id', catalogParentId(RequestStatusCode::Submitted))
+        ->update([
+            'assigned_to_id' => $maria->id,
+            'requires_assignee' => true,
+        ]);
+
+    $this->post(route('public.apply.store', $program), [
+        ...publicIntakeIdentityPayload($barangayId),
+        'intent' => 'submit',
+        'consent' => true,
+        'create_new' => true,
+        'item_details' => [
+            ['item_id' => $item->id, 'quantity' => 1],
+        ],
+    ])->assertRedirect(route('public.apply.confirmation', $program));
+
+    expect(Assistance::query()->value('assigned_to_id'))->toBe($maria->id);
 });
 
 test('public submit can confirm a high score duplicate instead of creating a new profile', function () {

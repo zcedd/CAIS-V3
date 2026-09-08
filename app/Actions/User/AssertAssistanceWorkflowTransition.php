@@ -56,6 +56,12 @@ class AssertAssistanceWorkflowTransition
             ? $this->stepForStatus($workflow, $currentStatusId, $currentStatus)
             : null;
 
+        if ($currentStep !== null && ! $this->userMayAdvance($user, $assistance, $currentStep)) {
+            throw ValidationException::withMessages([
+                'request_sub_status_id' => 'Only the assignee for this stage can update the status.',
+            ]);
+        }
+
         if ($currentStep === null) {
             return $targetStep;
         }
@@ -119,6 +125,20 @@ class AssertAssistanceWorkflowTransition
         }
 
         return array_values(array_unique($targets));
+    }
+
+    private function userMayAdvance(User $user, Assistance $assistance, WorkflowStep $currentStep): bool
+    {
+        if ($currentStep->assigned_to_id === null) {
+            return true;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return (int) $assistance->assigned_to_id === (int) $user->id
+            || (int) $currentStep->assigned_to_id === (int) $user->id;
     }
 
     private function stepForStatus(Workflow $workflow, int $requestStatusId, ?RequestStatus $status): ?WorkflowStep
