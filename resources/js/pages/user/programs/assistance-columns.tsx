@@ -60,6 +60,7 @@ export type UserProgramAssistanceRow = {
     beneficiary_name: string;
     items: UserProgramAssistanceItem[];
     mode_of_request: string;
+    encoder_name?: string | null;
     date_requested: string | null;
     date_delivered: string | null;
     request_status: string | null;
@@ -355,6 +356,18 @@ export function createUserProgramAssistanceColumns({
             ),
         },
         {
+            accessorKey: 'encoder_name',
+            meta: { title: 'Encoded by' },
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Encoded by" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {(row.getValue('encoder_name') as string | null) ?? '—'}
+                </span>
+            ),
+        },
+        {
             accessorKey: 'date_requested',
             meta: { title: 'Requested' },
             header: ({ column }) => (
@@ -429,6 +442,7 @@ export function createUserProgramAssistanceColumns({
 export const userProgramAssistanceInitialColumnVisibility = {
     request_sub_status_recorded_at: true,
     mode_of_request: true,
+    encoder_name: true,
     date_requested: false,
     date_delivered: false,
     remark: true,

@@ -4,12 +4,15 @@ namespace App\Providers;
 
 use App\Models\AssistanceDocument;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Events\ConnectionEstablished;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -30,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureRateLimiting();
     }
 
     /**
@@ -78,5 +82,16 @@ class AppServiceProvider extends ServiceProvider
                     ->uncompromised()
                 : null,
         );
+    }
+
+    protected function configureRateLimiting(): void
+    {
+        RateLimiter::for('public-intake', function (Request $request) {
+            return Limit::perMinute(30)->by((string) $request->ip());
+        });
+
+        RateLimiter::for('public-intake-write', function (Request $request) {
+            return Limit::perMinute(10)->by((string) $request->ip());
+        });
     }
 }

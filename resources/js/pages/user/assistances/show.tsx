@@ -73,6 +73,7 @@ type AssistanceProfile = {
     status: string;
     current_sub_status: string | null;
     mode_of_request: string;
+    encoder_name?: string | null;
     date_requested: string | null;
     date_verified: string | null;
     date_delivered: string | null;
@@ -475,6 +476,11 @@ export default function UserAssistanceShow({
                             <Badge variant="outline">
                                 {assistance.mode_of_request}
                             </Badge>
+                            {assistance.encoder_name ? (
+                                <Badge variant="outline">
+                                    {assistance.encoder_name}
+                                </Badge>
+                            ) : null}
                             {assistance.beneficiary_type ? (
                                 <Badge variant="outline">
                                     {isOrganization ? (

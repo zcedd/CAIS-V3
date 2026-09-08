@@ -158,10 +158,12 @@ export default function UserProgramsIndex({
         ProgramDocumentRequirementInput[]
     >([]);
     const [isOrganization, setIsOrganization] = useState(false);
+    const [publicIntake, setPublicIntake] = useState(false);
     const [programKind, setProgramKind] = useState<'standalone' | 'scheme'>(
         'standalone',
     );
     const [createFirstBatch, setCreateFirstBatch] = useState(false);
+    const [firstBatchPublicIntake, setFirstBatchPublicIntake] = useState(false);
     const [firstBatchName, setFirstBatchName] = useState('');
     const [firstBatchStartAt, setFirstBatchStartAt] = useState<
         Date | undefined
@@ -195,8 +197,10 @@ export default function UserProgramsIndex({
         setFields([]);
         setDocumentRequirements([]);
         setIsOrganization(false);
+        setPublicIntake(false);
         setProgramKind('standalone');
         setCreateFirstBatch(false);
+        setFirstBatchPublicIntake(false);
         setFirstBatchName('');
         setFirstBatchStartAt(undefined);
         setFirstBatchEndAt(undefined);
@@ -481,6 +485,11 @@ export default function UserProgramsIndex({
                                         sort_order: index,
                                     })),
                                 is_organization: isOrganization,
+                                public_intake:
+                                    programKind === 'standalone' &&
+                                    !isOrganization
+                                        ? publicIntake
+                                        : false,
                                 ...(programKind === 'scheme' &&
                                 createFirstBatch
                                     ? {
@@ -494,6 +503,9 @@ export default function UserProgramsIndex({
                                                   firstBatchEndAt,
                                               ),
                                               fund_ids: selectedFundIds,
+                                              public_intake:
+                                                  !isOrganization &&
+                                                  firstBatchPublicIntake,
                                           },
                                       }
                                     : {}),
@@ -757,6 +769,46 @@ export default function UserProgramsIndex({
                                                             }
                                                         />
                                                     </div>
+                                                    {!isOrganization ? (
+                                                        <div className="flex items-start gap-3">
+                                                            <Input
+                                                                id="program-first-batch-public-intake"
+                                                                type="checkbox"
+                                                                checked={
+                                                                    firstBatchPublicIntake
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    setFirstBatchPublicIntake(
+                                                                        event
+                                                                            .target
+                                                                            .checked,
+                                                                    )
+                                                                }
+                                                                className="mt-1 size-4 shrink-0 rounded border-input"
+                                                            />
+                                                            <div className="grid gap-1">
+                                                                <Label
+                                                                    htmlFor="program-first-batch-public-intake"
+                                                                    className="font-normal"
+                                                                >
+                                                                    Enable
+                                                                    public
+                                                                    intake
+                                                                </Label>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Let
+                                                                    residents
+                                                                    apply to
+                                                                    this batch
+                                                                    from the
+                                                                    public
+                                                                    form.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             ) : null}
                                             <InputError
@@ -816,11 +868,17 @@ export default function UserProgramsIndex({
                                             name="is_organization"
                                             value="1"
                                             checked={isOrganization}
-                                            onChange={(event) =>
+                                            onChange={(event) => {
                                                 setIsOrganization(
                                                     event.target.checked,
-                                                )
-                                            }
+                                                );
+                                                if (event.target.checked) {
+                                                    setPublicIntake(false);
+                                                    setFirstBatchPublicIntake(
+                                                        false,
+                                                    );
+                                                }
+                                            }}
                                             className="mt-1 size-4 shrink-0 rounded border-input"
                                         />
                                         <div className="grid gap-1">
@@ -837,6 +895,41 @@ export default function UserProgramsIndex({
                                             </p>
                                         </div>
                                     </div>
+
+                                    {programKind === 'standalone' &&
+                                    !isOrganization ? (
+                                        <div className="flex items-start gap-3">
+                                            <Input
+                                                id="program-public-intake"
+                                                type="checkbox"
+                                                checked={publicIntake}
+                                                onChange={(event) =>
+                                                    setPublicIntake(
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                                className="mt-1 size-4 shrink-0 rounded border-input"
+                                            />
+                                            <div className="grid gap-1">
+                                                <Label
+                                                    htmlFor="program-public-intake"
+                                                    className="font-normal"
+                                                >
+                                                    Enable public intake
+                                                </Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Let residents apply from a
+                                                    public or kiosk form. Staff
+                                                    still verify inside CAIS.
+                                                </p>
+                                                <InputError
+                                                    message={
+                                                        errors.public_intake
+                                                    }
+                                                />
+                                            </div>
+                                        </div>
+                                    ) : null}
 
                                     <DrawerFooter
                                         className="px-0"

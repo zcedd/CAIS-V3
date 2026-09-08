@@ -5,6 +5,7 @@ namespace App\Http\Requests\User\Program;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
+use App\Http\Requests\User\Concerns\ValidatesPublicIntake;
 use App\Models\Department;
 use App\Models\Program;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -18,6 +19,7 @@ class UpdateRequest extends FormRequest
     use ValidatesProgramDocumentRequirements;
     use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
+    use ValidatesPublicIntake;
 
     /**
      * Determine if the user is authorized to make this request.
@@ -54,6 +56,7 @@ class UpdateRequest extends FormRequest
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => $isBatch ? ['prohibited'] : ['nullable', 'boolean'],
             'is_closed' => $isScheme ? ['prohibited'] : ['nullable', 'boolean'],
+            ...$this->publicIntakeRules($isScheme),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
             'fund_ids.*' => [
                 'integer',
@@ -86,6 +89,7 @@ class UpdateRequest extends FormRequest
     {
         $this->afterProgramFieldDefinitions($validator);
         $this->afterProgramDocumentRequirements($validator);
+        $this->afterPublicIntakeValidation($validator);
 
         $program = $this->route('program');
 
@@ -152,6 +156,7 @@ class UpdateRequest extends FormRequest
             'end_at' => 'end date',
             'is_organization' => 'organization program',
             'is_closed' => 'closed program',
+            ...$this->publicIntakeAttributes(),
             'fund_ids' => 'funds',
             'item_ids' => 'items',
             ...$this->programEligibilityAttributes(),

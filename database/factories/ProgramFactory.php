@@ -30,6 +30,7 @@ class ProgramFactory extends Factory
                 ?? Department::create(['name' => fake()->company()])->id,
             'is_closed' => false,
             'is_organization' => false,
+            'public_intake' => false,
             'kind' => ProgramKind::Standalone,
             'parent_id' => null,
             'batch_number' => null,
@@ -92,6 +93,15 @@ class ProgramFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'is_organization' => true,
+        ]);
+    }
+
+    public function publicIntake(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'public_intake' => true,
+            'is_organization' => false,
+            'is_closed' => false,
         ]);
     }
 

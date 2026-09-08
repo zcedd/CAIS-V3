@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use DB;
+use Illuminate\Database\Seeder;
 
 class ModeOfRequestSeeder extends Seeder
 {
@@ -21,6 +20,7 @@ class ModeOfRequestSeeder extends Seeder
             ['name' => 'Call'],
             ['name' => 'Email'],
             ['name' => 'Walk In'],
+            ['name' => 'Online'],
         ];
 
         DB::table('mode_of_requests')->insert($mode);

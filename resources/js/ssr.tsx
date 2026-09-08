@@ -5,6 +5,7 @@ import ReactDOMServer from 'react-dom/server';
 import { AppProviders } from '@/app-providers';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
+import GuestLayout from '@/layouts/guest-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
@@ -20,6 +21,8 @@ createServer((page) =>
                     return null;
                 case name.startsWith('auth/'):
                     return AuthLayout;
+                case name.startsWith('public/'):
+                    return GuestLayout;
                 case name.startsWith('settings/'):
                     return [AppLayout, SettingsLayout];
                 default:

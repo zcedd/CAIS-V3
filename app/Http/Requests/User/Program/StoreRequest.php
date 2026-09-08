@@ -5,6 +5,7 @@ namespace App\Http\Requests\User\Program;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
+use App\Http\Requests\User\Concerns\ValidatesPublicIntake;
 use App\Models\Department;
 use App\Models\Program;
 use App\Support\ProgramKind;
@@ -19,6 +20,7 @@ class StoreRequest extends FormRequest
     use ValidatesProgramDocumentRequirements;
     use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
+    use ValidatesPublicIntake;
 
     /**
      * Determine if the user is authorized to make this request.
@@ -46,6 +48,7 @@ class StoreRequest extends FormRequest
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => ['nullable', 'boolean'],
             'kind' => ['nullable', 'string', Rule::in(ProgramKind::creatableValues())],
+            ...$this->publicIntakeRules($isScheme),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
             'fund_ids.*' => [
                 'integer',
@@ -71,6 +74,7 @@ class StoreRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
+            ...$this->firstBatchPublicIntakeRules(),
             ...$this->programEligibilityRules($this->input('item_ids', [])),
             ...$this->programFieldDefinitionRules(),
             ...$this->programDocumentRequirementRules(),
@@ -82,6 +86,7 @@ class StoreRequest extends FormRequest
         $this->afterProgramFieldDefinitions($validator);
         $this->afterProgramEligibilityRules($validator);
         $this->afterProgramDocumentRequirements($validator);
+        $this->afterPublicIntakeValidation($validator);
 
         $validator->after(function (Validator $validator): void {
             if ($this->filled('first_batch') && $this->input('kind') !== ProgramKind::Scheme) {
@@ -104,6 +109,7 @@ class StoreRequest extends FormRequest
             'start_at' => 'start date',
             'end_at' => 'end date',
             'is_organization' => 'organization program',
+            'public_intake' => 'public intake',
             'kind' => 'program type',
             'fund_ids' => 'funds',
             'item_ids' => 'items',
@@ -112,6 +118,7 @@ class StoreRequest extends FormRequest
             'first_batch.start_at' => 'batch start date',
             'first_batch.end_at' => 'batch end date',
             'first_batch.fund_ids' => 'batch funds',
+            ...$this->publicIntakeAttributes(),
             ...$this->programEligibilityAttributes(),
             ...$this->programFieldDefinitionAttributes(),
             ...$this->programDocumentRequirementAttributes(),

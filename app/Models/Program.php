@@ -25,6 +25,7 @@ class Program extends Model
         'department_id',
         'is_closed',
         'is_organization',
+        'public_intake',
         'kind',
         'parent_id',
         'batch_number',
@@ -40,6 +41,7 @@ class Program extends Model
         'kind' => ProgramKind::Standalone,
         'is_closed' => false,
         'is_organization' => false,
+        'public_intake' => false,
     ];
 
     protected $casts = [
@@ -47,6 +49,7 @@ class Program extends Model
         'end_at' => 'datetime:M d, Y',
         'is_closed' => 'boolean',
         'is_organization' => 'boolean',
+        'public_intake' => 'boolean',
         'batch_number' => 'integer',
     ];
 
@@ -187,6 +190,26 @@ class Program extends Model
     public function isEncodable(): bool
     {
         return ProgramKind::isEncodable($this->kind) && ! $this->is_closed;
+    }
+
+    public function acceptsPublicIntake(): bool
+    {
+        return (bool) $this->public_intake
+            && $this->isEncodable()
+            && ! $this->is_organization;
+    }
+
+    /**
+     * @param  Builder<Program>  $query
+     * @return Builder<Program>
+     */
+    public function scopeAcceptingPublicIntake(Builder $query): Builder
+    {
+        return $query
+            ->where('public_intake', true)
+            ->where('is_organization', false)
+            ->where('is_closed', false)
+            ->whereIn('kind', ProgramKind::encodableValues());
     }
 
     public function isEffectivelyClosed(): bool

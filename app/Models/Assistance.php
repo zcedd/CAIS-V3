@@ -63,6 +63,11 @@ class Assistance extends Model
         return $this->belongsTo(ModeOfRequest::class);
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function item()
     {
         return $this->belongsToMany(Item::class)->withPivot('is_received', 'specification')->withSoftDeletes()->withTimestamps()->using(AssistanceItem::class);

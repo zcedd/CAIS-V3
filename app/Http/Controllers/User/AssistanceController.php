@@ -291,6 +291,7 @@ class AssistanceController extends Controller
         $assistance->load([
             'beneficiary:id,name,cais_number,beneficiable_type,beneficiable_id',
             'modeOfRequest:id,name',
+            'user:id,firstName,lastName',
             'program:id,name,department_id',
             'program.department:id,name,slug',
             'assistanceItem',
@@ -344,6 +345,9 @@ class AssistanceController extends Controller
                 'status' => $status,
                 'current_sub_status' => $latestSubStatus?->name,
                 'mode_of_request' => $assistance->modeOfRequest?->name ?? '—',
+                'encoder_name' => $assistance->user_id === null
+                    ? 'Public intake'
+                    : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: '—'),
                 'date_requested' => $formatDate($assistance->date_requested),
                 'date_verified' => $formatDate(
                     $statusHistory

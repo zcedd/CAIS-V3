@@ -21,7 +21,8 @@ class CreateProgramBatch
      *     batch_name: string,
      *     start_at: mixed,
      *     end_at?: mixed,
-     *     fund_ids: list<int>
+     *     fund_ids: list<int>,
+     *     public_intake?: bool
      * }  $validated
      */
     public function __invoke(Program $scheme, array $validated): Program
@@ -43,6 +44,9 @@ class CreateProgramBatch
             'department_id' => $scheme->department_id,
             'is_closed' => false,
             'is_organization' => $scheme->is_organization,
+            'public_intake' => $scheme->is_organization
+                ? false
+                : (bool) ($validated['public_intake'] ?? false),
             'kind' => ProgramKind::Batch,
             'parent_id' => $scheme->id,
             'batch_number' => $nextNumber,
