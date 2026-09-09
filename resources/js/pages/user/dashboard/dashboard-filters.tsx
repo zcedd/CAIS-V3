@@ -37,13 +37,14 @@ import {
     buildDashboardQuery,
     DASHBOARD_PARTIAL_PROPS,
     getDefaultDashboardFilters,
-    hasActiveDashboardFilters
-    
-    
-    
-    
+    hasActiveDashboardFilters,
 } from '@/types/dashboard';
-import type {DashboardFilterOption, DashboardFilterOptions, DashboardFilters, DepartmentSummary} from '@/types/dashboard';
+import type {
+    DashboardFilterOption,
+    DashboardFilterOptions,
+    DashboardFilters,
+    DepartmentSummary,
+} from '@/types/dashboard';
 
 type DashboardFiltersProps = {
     department: DepartmentSummary;
@@ -78,10 +79,7 @@ const DEMOGRAPHIC_FIELDS: FilterFieldConfig[] = [
     { key: 'indigenous', label: 'Indigenous', optionsKey: 'indigenous' },
 ];
 
-function optionLabel(
-    options: DashboardFilterOption[],
-    value: string,
-): string {
+function optionLabel(options: DashboardFilterOption[], value: string): string {
     return options.find((option) => option.value === value)?.label ?? value;
 }
 
@@ -126,9 +124,11 @@ function FilterSelect({
                         <ChevronDown className="size-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[240px] p-0" align="start">
+                <PopoverContent className="w-60 p-0" align="start">
                     <Command>
-                        <CommandInput placeholder={`Search ${label.toLowerCase()}…`} />
+                        <CommandInput
+                            placeholder={`Search ${label.toLowerCase()}…`}
+                        />
                         <CommandList>
                             <CommandEmpty>No results found.</CommandEmpty>
                             <CommandGroup>

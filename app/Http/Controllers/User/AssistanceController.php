@@ -32,6 +32,7 @@ use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\AssistanceService;
 use App\Services\User\StockLedgerService;
+use App\Support\EmptyCell;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Carbon;
@@ -354,8 +355,8 @@ class AssistanceController extends Controller
             return Carbon::parse($value)->toDateString();
         };
 
-        $beneficiaryName = $assistance->beneficiary?->name ?? '—';
-        $caisNumber = $assistance->beneficiary?->cais_number ?? '—';
+        $beneficiaryName = $assistance->beneficiary?->name ?? EmptyCell::VALUE;
+        $caisNumber = $assistance->beneficiary?->cais_number ?? EmptyCell::VALUE;
 
         $statusHistory = $assistance->requestSubStatus
             ->sortBy(static fn ($subStatus) => $subStatus->pivot->recorded_at)
@@ -386,10 +387,10 @@ class AssistanceController extends Controller
                     : null,
                 'status' => $status,
                 'current_sub_status' => $latestSubStatus?->name,
-                'mode_of_request' => $assistance->modeOfRequest?->name ?? '—',
+                'mode_of_request' => $assistance->modeOfRequest?->name ?? EmptyCell::VALUE,
                 'encoder_name' => $assistance->user_id === null
                     ? 'Public intake'
-                    : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: '—'),
+                    : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: EmptyCell::VALUE),
                 'assigned_to_id' => $assistance->assigned_to_id,
                 'assignee_name' => $assistance->assignedTo
                     ? trim($assistance->assignedTo->firstName.' '.$assistance->assignedTo->lastName)
@@ -438,7 +439,7 @@ class AssistanceController extends Controller
                             : 'Unassigned',
                         'assigned_by_name' => $assignment->assignedBy
                             ? trim($assignment->assignedBy->firstName.' '.$assignment->assignedBy->lastName)
-                            : '—',
+                            : EmptyCell::VALUE,
                         'remark' => $assignment->remark,
                         'recorded_at' => $assignment->created_at?->toDateTimeString(),
                     ])

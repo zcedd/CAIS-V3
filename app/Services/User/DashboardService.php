@@ -11,6 +11,7 @@ use App\Models\Individual;
 use App\Models\Item;
 use App\Models\Organization;
 use App\Models\Program;
+use App\Support\EmptyCell;
 use App\Support\RequestStatusCode;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -267,7 +268,7 @@ class DashboardService
             ->get()
             ->map(static fn ($row): array => [
                 'item' => (string) $row->item,
-                'unit' => (string) ($row->unit ?? '—'),
+                'unit' => (string) ($row->unit ?? EmptyCell::VALUE),
                 'count' => (int) $row->count,
                 'quantity' => (int) $row->quantity,
             ])

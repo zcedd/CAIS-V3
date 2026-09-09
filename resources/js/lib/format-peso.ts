@@ -1,3 +1,5 @@
+import { EMPTY_CELL } from '@/lib/empty-cell';
+
 const pesoFormatter = new Intl.NumberFormat('en-PH', {
     style: 'currency',
     currency: 'PHP',
@@ -9,7 +11,7 @@ export function formatPeso(
     amount: string | number | null | undefined,
 ): string {
     if (amount === null || amount === undefined || amount === '') {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const numericAmount =

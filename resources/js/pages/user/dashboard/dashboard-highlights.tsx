@@ -13,6 +13,7 @@ import {
     DashboardStatCardSkeleton,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DashboardSummary } from '@/types/dashboard';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 type DashboardHighlightsProps = {
     summary: DashboardSummary;
@@ -109,14 +110,14 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
                 value={
                     summary.avg_days_to_deliver !== null
                         ? summary.avg_days_to_deliver.toFixed(1)
-                        : '—'
+                        : EMPTY_CELL
                 }
                 description={
                     <>
                         Verify avg:{' '}
                         {summary.avg_days_to_verify !== null
                             ? `${summary.avg_days_to_verify.toFixed(1)}d`
-                            : '—'}
+                            : EMPTY_CELL}
                     </>
                 }
                 icon={Clock3}

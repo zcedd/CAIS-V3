@@ -6,6 +6,7 @@ import type { BeneficiaryListRow } from '@/types/beneficiary';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
 import { Building2, MapPin, Phone, UserRound } from 'lucide-react';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 export type BeneficiaryTableContext = {
     departmentSlug: string;
@@ -13,13 +14,13 @@ export type BeneficiaryTableContext = {
 
 function formatDate(value: string | null): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const parsed = new Date(value);
 
     if (Number.isNaN(parsed.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
@@ -96,7 +97,7 @@ export function createBeneficiaryColumns({
                         {row.original.contact}
                     </span>
                 ) : (
-                    <span className="text-muted-foreground/60">—</span>
+                    <span className="text-muted-foreground/60">{EMPTY_CELL}</span>
                 ),
         },
         {

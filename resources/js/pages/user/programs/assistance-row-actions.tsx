@@ -18,6 +18,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { AssistanceEditDrawer } from '@/components/user/programs/assistance-edit-drawer';
 import { AssistanceStatusDrawer } from '@/components/user/programs/assistance-status-drawer';
 import { AssistanceTransferDrawer } from '@/pages/user/programs/assistance-transfer-drawer';
@@ -106,9 +107,9 @@ export function AssistanceDataTableRowActions({
     };
 
     const deleteTargetLabel =
-        record.beneficiary_name !== '—'
+        record.beneficiary_name !== EMPTY_CELL
             ? record.beneficiary_name
-            : record.cais_number !== '—'
+            : record.cais_number !== EMPTY_CELL
               ? record.cais_number
               : 'this assistance';
 
@@ -167,7 +168,7 @@ export function AssistanceDataTableRowActions({
                         </DropdownMenuItem>
                     ) : null}
                     <DropdownMenuSeparator />
-                    {record.cais_number !== '—' ? (
+                    {record.cais_number !== EMPTY_CELL ? (
                         <DropdownMenuItem
                             onClick={() => {
                                 void navigator.clipboard.writeText(
@@ -179,7 +180,7 @@ export function AssistanceDataTableRowActions({
                             Copy CAIS number
                         </DropdownMenuItem>
                     ) : null}
-                    {record.beneficiary_name !== '—' ? (
+                    {record.beneficiary_name !== EMPTY_CELL ? (
                         <DropdownMenuItem
                             onClick={() => {
                                 void navigator.clipboard.writeText(

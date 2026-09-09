@@ -22,6 +22,7 @@ use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Services\Workflow\RequestStatusCatalog;
 use App\Support\AssistanceItemOrigin;
+use App\Support\EmptyCell;
 use App\Support\RequestSubStatusCode;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -267,13 +268,13 @@ class AssistanceService
                 return [
                     'id' => $assistance->id,
                     'beneficiary_id' => $assistance->beneficiary_id,
-                    'cais_number' => $assistance->beneficiary_cais_number ?? '—',
-                    'beneficiary_name' => $assistance->beneficiary_name ?? '—',
+                    'cais_number' => $assistance->beneficiary_cais_number ?? EmptyCell::VALUE,
+                    'beneficiary_name' => $assistance->beneficiary_name ?? EmptyCell::VALUE,
                     'items' => $assistance->assistanceItem
                         ->map(static fn (AssistanceItem $assistanceItem): array => [
                             'id' => $assistanceItem->id,
                             'item_id' => $assistanceItem->item_id,
-                            'name' => $assistanceItem->item?->name ?? '—',
+                            'name' => $assistanceItem->item?->name ?? EmptyCell::VALUE,
                             'kind' => $assistanceItem->item?->kind,
                             'quantity' => $assistanceItem->quantity,
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,
@@ -286,10 +287,10 @@ class AssistanceService
                         ])
                         ->values()
                         ->all(),
-                    'mode_of_request' => $assistance->mode_of_request_name ?? '—',
+                    'mode_of_request' => $assistance->mode_of_request_name ?? EmptyCell::VALUE,
                     'encoder_name' => $assistance->user_id === null
                         ? 'Public intake'
-                        : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: '—'),
+                        : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: EmptyCell::VALUE),
                     'assigned_to_id' => $assistance->assigned_to_id,
                     'assignee_name' => $assistance->assigned_to_id === null
                         ? null
@@ -586,7 +587,7 @@ class AssistanceService
                     return [
                         'id' => $assistance->id,
                         'program_id' => $assistance->program_id,
-                        'program_name' => $assistance->program?->name ?? '—',
+                        'program_name' => $assistance->program?->name ?? EmptyCell::VALUE,
                         'status' => $status,
                         'date_requested' => $assistance->date_requested !== null
                             ? Carbon::parse($assistance->date_requested)->toDateString()
@@ -596,7 +597,7 @@ class AssistanceService
                             : null,
                         'items' => $assistance->assistanceItem
                             ->map(static fn (AssistanceItem $item): array => [
-                                'name' => $item->item?->name ?? '—',
+                                'name' => $item->item?->name ?? EmptyCell::VALUE,
                                 'quantity' => (int) $item->quantity,
                                 'is_received' => (bool) $item->is_received,
                             ])

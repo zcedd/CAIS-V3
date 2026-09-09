@@ -44,7 +44,7 @@ export function UnspscReleasedChart({
             <DashboardChartFrame height={chartHeight} className={className}>
                 <ChartContainer
                     config={chartConfig}
-                    className="!aspect-auto h-full w-full"
+                    className="aspect-auto! h-full w-full"
                     initialDimension={{ width: 640, height: chartHeight }}
                 >
                     <BarChart

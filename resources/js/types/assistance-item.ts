@@ -1,4 +1,5 @@
 import { formatPeso } from '@/lib/format-peso';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import type { ItemKind } from '@/types/item';
 
 export type AssistanceItemOrigin = 'requested' | 'additional' | 'substitute';
@@ -64,7 +65,7 @@ export function formatItemQuantity(
     }
 
     if (quantity === null) {
-        return unit ?? '—';
+        return unit ?? EMPTY_CELL;
     }
 
     return unit ? `${quantity} ${unit}` : String(quantity);

@@ -14,6 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { AssistanceDocumentsSection } from '@/pages/user/assistances/assistance-documents';
 import {
     AssistanceStatusTimeline,
@@ -121,13 +122,13 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
 
 function formatDate(value: string | null | undefined): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const parsed = new Date(value);
 
     if (Number.isNaN(parsed.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
@@ -170,7 +171,7 @@ function DetailItem({
                 {label}
             </dt>
             <dd className="mt-1 text-sm font-medium tabular-nums">
-                {value && value !== '' ? value : '—'}
+                {value && value !== '' ? value : EMPTY_CELL}
             </dd>
         </div>
     );
@@ -264,7 +265,7 @@ function createRequestedItemColumns(): ColumnDef<AssistanceRequestedItem>[] {
                 <span className="text-muted-foreground">
                     {row.original.specification?.trim()
                         ? row.original.specification
-                        : '—'}
+                        : EMPTY_CELL}
                 </span>
             ),
         },
@@ -327,7 +328,7 @@ function createReleasedItemColumns(): ColumnDef<AssistanceReleasedItem>[] {
                 <span className="text-muted-foreground">
                     {row.original.fulfillment_reason?.trim()
                         ? row.original.fulfillment_reason
-                        : '—'}
+                        : EMPTY_CELL}
                 </span>
             ),
         },
@@ -339,7 +340,7 @@ function createReleasedItemColumns(): ColumnDef<AssistanceReleasedItem>[] {
                 <span className="text-muted-foreground">
                     {row.original.specification?.trim()
                         ? row.original.specification
-                        : '—'}
+                        : EMPTY_CELL}
                 </span>
             ),
         },
@@ -464,7 +465,7 @@ export default function UserAssistanceShow({
     ]);
 
     const heading =
-        assistance.cais_number !== '—'
+        assistance.cais_number !== EMPTY_CELL
             ? assistance.cais_number
             : `Assistance #${assistance.id}`;
 

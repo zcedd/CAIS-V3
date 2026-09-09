@@ -19,6 +19,7 @@ import type { ItemKind } from '@/types/item';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 export type UserProgramAssistanceItem = {
     id: number;
@@ -82,13 +83,13 @@ export type UserProgramAssistanceRow = {
 
 function formatRequestSubStatusRecordedAt(value: string | null): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const recorded = new Date(value);
 
     if (Number.isNaN(recorded.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return recorded.toLocaleString(undefined, {
@@ -151,7 +152,7 @@ export function createUserProgramAssistanceColumns({
             .filter((field) => field.show_in_table)
             .map((field) => ({
                 id: `field_${field.key}`,
-                accessorFn: (row) => row.field_values?.[field.key] ?? '—',
+                accessorFn: (row) => row.field_values?.[field.key] ?? EMPTY_CELL,
                 enableSorting: false,
                 meta: {
                     title: field.label,
@@ -168,7 +169,7 @@ export function createUserProgramAssistanceColumns({
 
                     return (
                         <span className="max-w-[min(16rem,40vw)] whitespace-normal text-muted-foreground">
-                            {value?.trim() ? value : '—'}
+                            {value?.trim() ? value : EMPTY_CELL}
                         </span>
                     );
                 },
@@ -264,7 +265,11 @@ export function createUserProgramAssistanceColumns({
                 const items = row.original.items;
 
                 if (items.length === 0) {
-                    return <span className="text-muted-foreground">—</span>;
+                    return (
+                        <span className="text-muted-foreground">
+                            {EMPTY_CELL}
+                        </span>
+                    );
                 }
 
                 const first = items[0];
@@ -373,7 +378,7 @@ export function createUserProgramAssistanceColumns({
             ),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {(row.getValue('encoder_name') as string | null) ?? '—'}
+                    {(row.getValue('encoder_name') as string | null) ?? EMPTY_CELL}
                 </span>
             ),
         },
@@ -410,7 +415,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
+                        {value ?? EMPTY_CELL}
                     </span>
                 );
             },
@@ -426,7 +431,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
+                        {value ?? EMPTY_CELL}
                     </span>
                 );
             },
@@ -442,7 +447,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="max-w-[min(24rem,50vw)] whitespace-normal text-muted-foreground">
-                        {value?.trim() ? value : '—'}
+                        {value?.trim() ? value : EMPTY_CELL}
                     </span>
                 );
             },

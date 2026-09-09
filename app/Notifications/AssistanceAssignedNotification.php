@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Assistance;
 use App\Models\User;
+use App\Support\EmptyCell;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -45,7 +46,7 @@ class AssistanceAssignedNotification extends Notification
         ]);
 
         $beneficiaryName = $assistance->beneficiary?->name ?? 'Unknown beneficiary';
-        $caisNumber = $assistance->beneficiary?->cais_number ?? '—';
+        $caisNumber = $assistance->beneficiary?->cais_number ?? EmptyCell::VALUE;
         $programName = $assistance->program?->name ?? 'Unknown program';
         $actorName = trim($this->assignedBy->firstName.' '.$this->assignedBy->lastName);
 

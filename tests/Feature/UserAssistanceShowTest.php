@@ -8,6 +8,7 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
 use App\Support\AssistanceItemOrigin;
+use App\Support\EmptyCell;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -96,8 +97,8 @@ test('authenticated users can view an assistance profile in their department', f
             ->where('assistance.id', $assistance->id)
             ->where('assistance.status', 'Unrequested')
             ->where('assistance.current_sub_status', null)
-            ->where('assistance.cais_number', '—')
-            ->where('assistance.beneficiary_name', '—')
+            ->where('assistance.cais_number', EmptyCell::VALUE)
+            ->where('assistance.beneficiary_name', EmptyCell::VALUE)
             ->where('assistance.beneficiary_type', null)
             ->where('assistance.remark', 'Needs follow-up')
             ->where('assistance.requested_items.0.name', 'Rice')

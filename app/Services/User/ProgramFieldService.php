@@ -6,6 +6,7 @@ use App\Models\Assistance;
 use App\Models\AssistanceFieldValue;
 use App\Models\Program;
 use App\Models\ProgramField;
+use App\Support\EmptyCell;
 use App\Support\ProgramFieldType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -181,7 +182,7 @@ class ProgramFieldService
     public function formatDisplayValue(ProgramField $field, ?string $value): string
     {
         if ($value === null || $value === '') {
-            return '—';
+            return EmptyCell::VALUE;
         }
 
         return match ($field->type) {

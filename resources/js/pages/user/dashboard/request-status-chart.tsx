@@ -3,10 +3,9 @@ import { Cell, Pie, PieChart } from 'recharts';
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent
-    
+    ChartTooltipContent,
 } from '@/components/ui/chart';
-import type {ChartConfig} from '@/components/ui/chart';
+import type { ChartConfig } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
 import { DashboardChartFrame } from '@/pages/user/dashboard/dashboard-chart-frame';
 import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
@@ -53,7 +52,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
             data-tour="dashboard-requests-status-chart"
         >
             {chartData.length === 0 ? (
-                <p className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
+                <p className="flex h-55 items-center justify-center text-sm text-muted-foreground">
                     No request data with these filters.
                 </p>
             ) : (
@@ -61,7 +60,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
                     <DashboardChartFrame height={220}>
                         <ChartContainer
                             config={chartConfig}
-                            className="!aspect-auto mx-auto h-full w-full"
+                            className="mx-auto aspect-auto! h-full w-full"
                             initialDimension={{ width: 320, height: 220 }}
                         >
                             <PieChart
@@ -114,7 +113,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
                                             {entry.status}
                                         </span>
                                     </div>
-                                    <div className="shrink-0 text-right tabular-nums text-muted-foreground">
+                                    <div className="shrink-0 text-right text-muted-foreground tabular-nums">
                                         <span className="font-medium text-foreground">
                                             {entry.count.toLocaleString()}
                                         </span>

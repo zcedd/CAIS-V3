@@ -3,6 +3,7 @@
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { Badge } from '@/components/ui/badge';
 import { formatPeso } from '@/lib/format-peso';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { FundRowActions } from '@/pages/user/funds/fund-row-actions';
 import type { FundRow } from '@/types/fund';
 import { ColumnDef } from '@tanstack/react-table';
@@ -36,7 +37,7 @@ export function createFundColumns({
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Year" />
             ),
-            cell: ({ row }) => row.original.year ?? '—',
+            cell: ({ row }) => row.original.year ?? EMPTY_CELL,
         },
         {
             accessorKey: 'is_active',

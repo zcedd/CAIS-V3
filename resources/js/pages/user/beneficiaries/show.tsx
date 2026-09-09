@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { BeneficiaryEditDrawer } from '@/components/user/beneficiaries/beneficiary-edit-drawer';
 import {
     BeneficiaryShowTableToolbar,
@@ -687,7 +688,7 @@ export default function UserBeneficiaryShow({
                                                                 {program
                                                                     .department
                                                                     ?.name ??
-                                                                    '—'}
+                                                                    EMPTY_CELL}
                                                             </p>
                                                         </div>
                                                         <Badge

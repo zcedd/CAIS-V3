@@ -7,6 +7,7 @@ import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
 import { SlaBadge } from '@/components/user/sla-badge';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -225,10 +226,10 @@ function createQueueColumns(
             cell: ({ row }) => (
                 <div className="flex flex-col gap-0.5">
                     <span className="font-medium">
-                        {row.original.request_status ?? '—'}
+                        {row.original.request_status ?? EMPTY_CELL}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                        {row.original.request_sub_status ?? '—'}
+                        {row.original.request_sub_status ?? EMPTY_CELL}
                     </span>
                 </div>
             ),
@@ -261,7 +262,7 @@ function createQueueColumns(
             ),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {row.original.encoder_name ?? '—'}
+                    {row.original.encoder_name ?? EMPTY_CELL}
                 </span>
             ),
         },

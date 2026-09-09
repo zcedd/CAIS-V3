@@ -2,10 +2,9 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from 'recharts';
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent
-    
+    ChartTooltipContent,
 } from '@/components/ui/chart';
-import type {ChartConfig} from '@/components/ui/chart';
+import type { ChartConfig } from '@/components/ui/chart';
 import { DashboardChartFrame } from '@/pages/user/dashboard/dashboard-chart-frame';
 import type { DeliveredItemsChartPoint } from '@/types/dashboard';
 
@@ -38,14 +37,14 @@ export function DeliveredItemsChart({
 
     const chart =
         chartData.length === 0 ? (
-            <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
+            <p className="flex h-45 items-center justify-center text-sm text-muted-foreground">
                 No delivered items with these filters.
             </p>
         ) : (
             <DashboardChartFrame height={chartHeight} className={className}>
                 <ChartContainer
                     config={chartConfig}
-                    className="!aspect-auto h-full w-full"
+                    className="aspect-auto! h-full w-full"
                     initialDimension={{ width: 640, height: chartHeight }}
                 >
                     <BarChart
@@ -82,7 +81,5 @@ export function DeliveredItemsChart({
             </DashboardChartFrame>
         );
 
-    return (
-        <div data-tour="dashboard-items-delivered-charts">{chart}</div>
-    );
+    return <div data-tour="dashboard-items-delivered-charts">{chart}</div>;
 }

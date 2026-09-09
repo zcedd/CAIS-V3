@@ -5,11 +5,11 @@ const SLA_LABELS: Record<string, string> = {
     due_soon: 'Due soon',
     overdue: 'Overdue',
     paused: 'Paused',
-    none: '—',
+    none: 'No SLA',
 };
 
 export function slaLabel(state?: string | null): string {
-    return SLA_LABELS[state ?? 'none'] ?? '—';
+    return SLA_LABELS[state ?? 'none'] ?? 'No SLA';
 }
 
 export function SlaBadge({

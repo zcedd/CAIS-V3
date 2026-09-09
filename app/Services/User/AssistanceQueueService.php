@@ -5,6 +5,7 @@ namespace App\Services\User;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\User;
+use App\Support\EmptyCell;
 use App\Support\SlaState;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -106,9 +107,9 @@ class AssistanceQueueService
         return [
             'id' => $assistance->id,
             'program_id' => $assistance->program_id,
-            'program_name' => $assistance->program?->name ?? '—',
-            'cais_number' => $assistance->beneficiary?->cais_number ?? '—',
-            'beneficiary_name' => $assistance->beneficiary?->name ?? '—',
+            'program_name' => $assistance->program?->name ?? EmptyCell::VALUE,
+            'cais_number' => $assistance->beneficiary?->cais_number ?? EmptyCell::VALUE,
+            'beneficiary_name' => $assistance->beneficiary?->name ?? EmptyCell::VALUE,
             'request_status' => $assistance->currentRequestSubStatus?->requestStatus?->name,
             'request_sub_status' => $assistance->currentRequestSubStatus?->name,
             'assigned_to_id' => $assistance->assigned_to_id,
