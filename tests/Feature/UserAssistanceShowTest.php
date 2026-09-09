@@ -3,6 +3,7 @@
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Department;
+use App\Models\Individual;
 use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
@@ -189,4 +190,52 @@ test('authenticated users cannot view assistance that does not belong to the pro
             'assistance' => $assistance->id,
         ]))
         ->assertNotFound();
+});
+
+test('assistance profile includes a beneficiary link payload', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $individual = Individual::factory()->create([
+        'first_name' => 'Juan',
+        'middle_name' => null,
+        'last_name' => 'Cruz',
+        'cais_number' => 'IND-SHOW-0001',
+    ]);
+
+    $beneficiary = $individual->beneficiaryRecord;
+
+    $assistance = Assistance::create([
+        'program_id' => $program->id,
+        'date_requested' => '2024-03-01',
+        'user_id' => $user->id,
+        'beneficiary_id' => $beneficiary->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.assistances.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+            'assistance' => $assistance->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('user/assistances/show')
+            ->where('assistance.beneficiary_id', $beneficiary->id)
+            ->where('assistance.beneficiary_name', 'Juan Cruz')
+            ->where('assistance.beneficiary_type', 'Individual')
+            ->where('assistance.cais_number', 'IND-SHOW-0001'));
 });

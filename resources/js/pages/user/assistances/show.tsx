@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { slaLabel } from '@/components/user/sla-badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import {
     Select,
     SelectContent,
@@ -25,6 +26,7 @@ import {
     receipt as assistanceReceipt,
     show as assistanceShow,
 } from '@/routes/user/assistances';
+import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import { assign as assignAssistance } from '@/routes/user/programs/assistances';
 import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
 import {
