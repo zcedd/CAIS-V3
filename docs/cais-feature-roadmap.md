@@ -170,11 +170,11 @@ Standalone programs (no parent) can remain for one-off aid so existing records d
 
 ### 6. Wire roles to the UI
 
-Spatie roles (`admin`, `head`, `user`, `supervisor`) exist, but policies only check same department.
+Spatie roles (`super-admin`, `head`, resource packs, `supervisor`) exist. Policies already check Spatie permissions plus same department. Supervisor still cannot work across departments because URLs and policies only honor `users.department_id`.
 
-- Encode vs verify vs deliver vs deny
-- Delete / transfer / bulk update as head-only
-- Read-only supervisor across departments
+- Encode vs verify vs deliver vs deny by permission
+- Delete / transfer / bulk update as head-only (or matching resource role)
+- Read-only supervisor across assigned departments — implementation spec: [supervisor-cross-department-overview.md](supervisor-cross-department-overview.md)
 - Admin: users, departments, lookup tables
 
 ### 7. Assignment and queue
@@ -246,11 +246,11 @@ Add an Audit tab on assistance, beneficiary, program, and fund.
 
 ### 15. User and department admin
 
-There is no in-app user management. Users belong to one department.
+There is no in-app user management. Users belong to one home department. Supervisors will use the existing `department_user` pivot for extra departments (see [supervisor-cross-department-overview.md](supervisor-cross-department-overview.md)); assignment UI still belongs here.
 
 - Invite / deactivate users
-- Assign department + role
-- Optional multi-department membership
+- Assign home department + role
+- Assign supervised departments (pivot) for users with `department.supervise`
 - Lookup maintenance: barangays, modes of request, statuses, units
 
 ### 16. Data privacy
@@ -298,7 +298,7 @@ The system stores birthday, mobile, PWD, 4Ps, ethnicity, and IDs.
 ## Suggested build order
 
 **Now (fraud + accountability)**
-Duplicate warnings → document attachments → printable acknowledgment → permission-based roles → audit log UI
+Duplicate warnings → document attachments → printable acknowledgment → permission-based roles (including supervisor cross-department overview) → audit log UI
 
 **Next (money and stock)**
 Item inventory → requested vs delivered extras (additional/substitute) → UNSPSC classification on items → fund utilization → management/COA reports
