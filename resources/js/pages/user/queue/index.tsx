@@ -569,8 +569,8 @@ export default function UserQueueIndex({
                             Queue
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Work assigned to you, or unassigned requests waiting
-                            for the team.
+                            Requests assigned to you, plus unassigned work
+                            waiting for the team.
                         </p>
                     </div>
                 </div>

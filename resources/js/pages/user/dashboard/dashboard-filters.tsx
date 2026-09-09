@@ -301,7 +301,7 @@ export function DashboardFiltersBar({
                             </div>
                             <p className="truncate text-xs text-muted-foreground">
                                 {panelOpen
-                                    ? 'Refine the dashboard metrics below'
+                                    ? 'Change what the numbers cover'
                                     : activeChips.length > 0
                                       ? activeChips
                                             .slice(0, 3)

@@ -28,7 +28,7 @@ export default function Profile({
                 <Heading
                     variant="small"
                     title="Profile information"
-                    description="Update your name and email address"
+                    description="Your name and email address."
                 />
 
                 <Form

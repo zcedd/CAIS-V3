@@ -89,7 +89,7 @@ export function RequestsTrendChart({ data }: RequestsTrendChartProps) {
             <CardContent>
                 {chartData.length === 0 ? (
                     <p className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-                        No request timeline for the selected filters.
+                        No request timeline with these filters.
                     </p>
                 ) : (
                     <DashboardChartFrame height={240}>

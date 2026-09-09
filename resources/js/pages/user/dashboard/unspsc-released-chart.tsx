@@ -38,7 +38,7 @@ export function UnspscReleasedChart({
     const chart =
         chartData.length === 0 ? (
             <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
-                No classified released items for the selected filters.
+                No classified released items with these filters.
             </p>
         ) : (
             <DashboardChartFrame height={chartHeight} className={className}>

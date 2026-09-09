@@ -190,9 +190,8 @@ export default function UserWorkflowsIndex({
                         Workflows
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Choose the stages a request can move through. Programs
-                        use the department default unless they pick another
-                        workflow.
+                        The stages a request can move through. Programs use the
+                        department default unless they pick another workflow.
                     </p>
                 </div>
 
@@ -655,7 +654,7 @@ export default function UserWorkflowsIndex({
                                                                         }
                                                                     >
                                                                         <SelectTrigger>
-                                                                            <SelectValue placeholder="None — team queue" />
+                                                                            <SelectValue placeholder="None (team queue)" />
                                                                         </SelectTrigger>
                                                                         <SelectContent>
                                                                             <SelectItem value="none">

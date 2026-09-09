@@ -66,7 +66,7 @@ export default function UserNotificationsIndex({
 
     return (
         <>
-            <Head title={`Notifications — ${department.name}`} />
+            <Head title={`Notifications: ${department.name}`} />
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -74,7 +74,7 @@ export default function UserNotificationsIndex({
                             Notifications
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Database notifications for {department.name}.
+                            Updates for {department.name}.
                         </p>
                     </div>
                     <NotificationMarkAllReadButton

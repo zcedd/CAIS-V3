@@ -610,7 +610,7 @@ export function AssistanceDataTableToolbar({
                     <DrawerHeader>
                         <DrawerTitle>Add assistance</DrawerTitle>
                         <DrawerDescription>
-                            Create a new assistance record for {programName}.
+                            Add an assistance record for {programName}.
                         </DrawerDescription>
                     </DrawerHeader>
                     {canCreate ? (

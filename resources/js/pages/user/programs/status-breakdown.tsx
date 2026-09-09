@@ -46,8 +46,8 @@ export function ProgramStatusBreakdown({
                     </h2>
                     <p className="text-xs text-muted-foreground">
                         How this program&apos;s {total.toLocaleString()}{' '}
-                        {total === 1 ? 'request is' : 'requests are'}{' '}
-                        distributed across statuses
+                        {total === 1 ? 'request is' : 'requests are'} grouped
+                        by status
                     </p>
                 </div>
 

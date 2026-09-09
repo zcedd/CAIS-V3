@@ -275,7 +275,7 @@ export function AssistanceDataTableRowActions({
                             <span className="font-medium text-foreground">
                                 {deleteTargetLabel}
                             </span>
-                            . This action cannot be undone.
+                            . This cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

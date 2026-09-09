@@ -48,13 +48,13 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
     return (
         <DashboardSectionCard
             title="Requests by status"
-            description="Distribution of assistance requests by current status"
+            description="Assistance requests grouped by status"
             icon={PieChartIcon}
             data-tour="dashboard-requests-status-chart"
         >
             {chartData.length === 0 ? (
                 <p className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">
-                    No request data for the selected filters.
+                    No request data with these filters.
                 </p>
             ) : (
                 <div className="grid gap-4 lg:grid-cols-2 lg:items-start">

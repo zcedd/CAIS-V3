@@ -59,7 +59,8 @@ export default function PublicApplyConfirmation({
                 </div>
                 {kiosk ? (
                     <p className="text-sm text-muted-foreground">
-                        This screen will return to the program list shortly.
+                        This screen goes back to the program list in a few
+                        seconds.
                     </p>
                 ) : null}
             </div>

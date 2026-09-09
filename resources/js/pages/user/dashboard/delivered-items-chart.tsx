@@ -39,7 +39,7 @@ export function DeliveredItemsChart({
     const chart =
         chartData.length === 0 ? (
             <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
-                No delivered items for the selected filters.
+                No delivered items with these filters.
             </p>
         ) : (
             <DashboardChartFrame height={chartHeight} className={className}>

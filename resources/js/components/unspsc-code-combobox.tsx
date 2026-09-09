@@ -54,7 +54,7 @@ export function UnspscCodeCombobox({
     const [open, setOpen] = useState(false);
     const [inputValue, setInputValue] = useState(
         initialOption
-            ? `${initialOption.code} — ${initialOption.title}`
+            ? `${initialOption.code}: ${initialOption.title}`
             : '',
     );
     const [selectedOption, setSelectedOption] =
@@ -108,7 +108,7 @@ export function UnspscCodeCombobox({
     useEffect(() => {
         if (initialOption) {
             setSelectedOption(initialOption);
-            setInputValue(`${initialOption.code} — ${initialOption.title}`);
+            setInputValue(`${initialOption.code}: ${initialOption.title}`);
         }
     }, [initialOption]);
 
@@ -126,7 +126,7 @@ export function UnspscCodeCombobox({
 
     const handleSelect = (option: UnspscCodeOption) => {
         setSelectedOption(option);
-        setInputValue(`${option.code} — ${option.title}`);
+        setInputValue(`${option.code}: ${option.title}`);
         onChange?.(option.id, option);
         setOpen(false);
     };
@@ -163,7 +163,7 @@ export function UnspscCodeCombobox({
                                 if (
                                     selectedOption !== null &&
                                     next !==
-                                        `${selectedOption.code} — ${selectedOption.title}`
+                                        `${selectedOption.code}: ${selectedOption.title}`
                                 ) {
                                     setSelectedOption(null);
                                     onChange?.(null, null);
@@ -214,7 +214,7 @@ export function UnspscCodeCombobox({
                                         >
                                             <div className="min-w-0">
                                                 <p className="truncate font-medium">
-                                                    {option.code} — {option.title}
+                                                    {option.code}: {option.title}
                                                 </p>
                                                 <p className="truncate text-xs text-muted-foreground">
                                                     {option.path}

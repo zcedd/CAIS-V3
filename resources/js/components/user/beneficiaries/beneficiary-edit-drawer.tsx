@@ -240,7 +240,7 @@ export function BeneficiaryEditDrawer({
                                   organization_id: null,
                                   cais_number: president.cais_number,
                                   name: president.name,
-                                  label: `${president.cais_number} — ${president.name}`,
+                                  label: `${president.cais_number}: ${president.name}`,
                               }
                             : null,
                     );
@@ -253,7 +253,7 @@ export function BeneficiaryEditDrawer({
                                 organization_id: null,
                                 cais_number: member.cais_number,
                                 name: member.name,
-                                label: `${member.cais_number} — ${member.name}`,
+                                label: `${member.cais_number}: ${member.name}`,
                             },
                         })),
                     );
@@ -451,7 +451,7 @@ export function BeneficiaryEditDrawer({
                 <DrawerHeader>
                     <DrawerTitle>Edit beneficiary</DrawerTitle>
                     <DrawerDescription>
-                        Update beneficiary details and save your changes.
+                        Change the beneficiary details, then save.
                     </DrawerDescription>
                 </DrawerHeader>
 

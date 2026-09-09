@@ -30,5 +30,5 @@ export function formatProgramPeriod(
         return start;
     }
 
-    return `${start} – ${formatProgramDate(endAt)}`;
+    return `${start} to ${formatProgramDate(endAt)}`;
 }

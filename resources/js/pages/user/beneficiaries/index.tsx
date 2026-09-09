@@ -303,7 +303,7 @@ export default function UserBeneficiariesIndex({
                             Beneficiaries
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Manage individual and organization beneficiaries.
+                            People and organizations in your registry.
                         </p>
                     </div>
                     <Button asChild data-tour="beneficiaries-create">

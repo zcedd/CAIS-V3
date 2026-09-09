@@ -37,7 +37,7 @@ function BreakdownList({
         >
             {data.length === 0 ? (
                 <p className="py-6 text-center text-sm text-muted-foreground">
-                    No data for the selected filters.
+                    No data with these filters.
                 </p>
             ) : (
                 <ul className="space-y-3">
@@ -79,7 +79,7 @@ export function BeneficiaryBreakdown({ data }: BeneficiaryBreakdownProps) {
     return (
         <BreakdownList
             title="Requests by beneficiary type"
-            description="Individual vs organization assistance requests"
+            description="Requests from individuals and organizations"
             data={points}
             icon={Users}
         />

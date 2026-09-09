@@ -223,7 +223,7 @@ export function ProgramEditDrawer({
                 <DrawerHeader>
                     <DrawerTitle>Edit program</DrawerTitle>
                     <DrawerDescription>
-                        Update program details for {department.name}.
+                        Change the details for {department.name}.
                     </DrawerDescription>
                 </DrawerHeader>
                 <Form
@@ -282,7 +282,7 @@ export function ProgramEditDrawer({
                     }}
                     onError={() => {
                         toast.error(
-                            'Could not update the program. Please check the form for errors.',
+                            'Could not save the program. Check the form for errors.',
                         );
                     }}
                     className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
@@ -404,7 +404,7 @@ export function ProgramEditDrawer({
 
                             {isBatch ? (
                                 <p className="text-sm text-muted-foreground">
-                                    Eligibility rules are managed on the parent
+                                    Eligibility rules live on the parent
                                     program
                                     {program.parent ? ` (${program.parent.name})` : ''}.
                                 </p>

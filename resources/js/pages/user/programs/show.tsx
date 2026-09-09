@@ -550,8 +550,7 @@ export default function UserProgramShow({
                                     Overview
                                 </h2>
                                 <p className="text-xs text-muted-foreground">
-                                    Program details, schedule, funding, and
-                                    covered items
+                                    Dates, funding, and covered items
                                 </p>
                             </div>
                         </div>
@@ -602,7 +601,7 @@ export default function UserProgramShow({
                                             {formatProgramDate(
                                                 program.start_at_input,
                                             )}{' '}
-                                            — no end date set
+                                            (no end date set)
                                         </p>
                                     ) : null}
                                 </div>
@@ -738,8 +737,7 @@ export default function UserProgramShow({
                                 Assistance
                             </h2>
                             <p className="text-xs text-muted-foreground">
-                                Filter, sort, and manage assistance records for
-                                this program.
+                                Assistance records for this program.
                             </p>
                         </div>
 

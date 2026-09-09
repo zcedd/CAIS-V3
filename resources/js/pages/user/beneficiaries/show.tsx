@@ -345,8 +345,8 @@ export default function UserBeneficiaryShow({
     const membershipEntityLabel = isOrganization ? 'Name' : 'Organization';
     const membershipTitle = isOrganization ? 'Members' : 'Organizations';
     const membershipDescription = isOrganization
-        ? 'Individuals registered under this organization'
-        : 'Organizations this individual belongs to';
+        ? 'People listed under this organization'
+        : 'Organizations this person belongs to';
     const membershipEmpty = isOrganization
         ? 'No members listed.'
         : 'Not a member of any organization.';
@@ -455,8 +455,8 @@ export default function UserBeneficiaryShow({
                             title="Overview"
                             description={
                                 isOrganization
-                                    ? 'Organization contact, membership, and linked programs'
-                                    : 'Demographic details, contact, attributes, and linked programs'
+                                    ? 'Contact, members, and linked programs'
+                                    : 'Demographics, contact, attributes, and linked programs'
                             }
                         />
 

@@ -492,7 +492,7 @@ export default function UserAssistanceShow({
                     entry.remark?.trim() ? entry.remark : null,
                 ]
                     .filter(Boolean)
-                    .join(' — '),
+                    .join(': '),
                 recorded_at: entry.recorded_at as string,
                 event_type: 'assignment' as const,
             }));
@@ -598,7 +598,7 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Overview"
-                            description="Request details, beneficiary, key dates, and items summary"
+                            description="Who requested this, when, and a short items summary"
                         />
 
                         <div className="grid gap-6 lg:grid-cols-3">
@@ -935,7 +935,7 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Assistance tracking"
-                            description="Status changes and assignment history, oldest to newest"
+                            description="Status changes and assignments, oldest first"
                         />
                         {assistance.can_advance === false ? (
                             <p className="text-sm text-muted-foreground">
@@ -1035,7 +1035,7 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Items requested"
-                            description="What the beneficiary applied for, and how much of it is still owed"
+                            description="What they applied for, and how much is still owed"
                         />
                         <VarianceSummary variance={variance} />
                         <DataTable
@@ -1056,7 +1056,7 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Items released"
-                            description="What was actually handed over, including additional and substitute items"
+                            description="What was handed over, including extra and substitute items"
                         />
                         <DataTable
                             columns={releasedItemColumns}

@@ -318,7 +318,7 @@ export default function UserProgramsIndex({
                         <p className="text-sm text-muted-foreground">
                             {department
                                 ? 'Programs assigned to your department.'
-                                : 'You are not linked to a department yet, so no programs are shown.'}
+                                : 'Your account is not linked to a department, so there is nothing to show.'}
                         </p>
                     </div>
                 </div>

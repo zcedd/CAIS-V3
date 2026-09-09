@@ -141,7 +141,7 @@ export function DeliverySnapshot({
     return (
         <DashboardSectionCard
             title="Delivery snapshot"
-            description="Completion and load metrics for the selected filters"
+            description="How much of the filtered work is done"
             icon={Package}
             data-tour="dashboard-delivery-snapshot"
             contentClassName="space-y-6"
@@ -205,7 +205,7 @@ export function DeliverySnapshot({
                     description={
                         summary.delivered_requests > 0
                             ? 'Average items per delivered request'
-                            : 'No deliveries in scope'
+                            : 'No deliveries in this filter'
                     }
                 />
             </div>

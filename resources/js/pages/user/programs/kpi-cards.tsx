@@ -35,7 +35,7 @@ const kpis: {
     {
         key: 'in_progress_requests',
         label: 'In progress',
-        description: 'Requests not yet terminal',
+        description: 'Not delivered or denied yet',
         icon: Loader,
     },
     {

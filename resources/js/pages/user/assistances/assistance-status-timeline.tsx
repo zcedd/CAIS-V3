@@ -73,8 +73,7 @@ export function AssistanceStatusTimeline({
                     No status updates yet
                 </p>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                    Sub-status changes for this assistance will appear here as
-                    they are recorded.
+                    Sub-status changes for this assistance show up here.
                 </p>
             </div>
         );

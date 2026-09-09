@@ -60,8 +60,8 @@ export default function TwoFactorRecoveryCodes({
                     2FA recovery codes
                 </CardTitle>
                 <CardDescription>
-                    Recovery codes let you regain access if you lose your 2FA
-                    device. Store them in a secure password manager.
+                    If you lose your authenticator, these codes get you back in.
+                    Save them somewhere private.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -145,13 +145,11 @@ export default function TwoFactorRecoveryCodes({
 
                                 <div className="text-xs text-muted-foreground select-none">
                                     <p id="regenerate-warning">
-                                        Each recovery code can be used once to
-                                        access your account and will be removed
-                                        after use. If you need more, click{' '}
+                                        Each code works once. Click{' '}
                                         <span className="font-bold">
                                             Regenerate codes
                                         </span>{' '}
-                                        above.
+                                        if you need a new set.
                                     </p>
                                 </div>
                             </>

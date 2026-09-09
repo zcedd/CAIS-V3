@@ -56,7 +56,7 @@ export default function UserNotificationShow({
 
     return (
         <>
-            <Head title={`${notification.title} — ${department.name}`} />
+            <Head title={`${notification.title}: ${department.name}`} />
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-2">
@@ -91,7 +91,7 @@ export default function UserNotificationShow({
                     <CardHeader>
                         <CardTitle>Message</CardTitle>
                         <CardDescription>
-                            Full notification content
+                            The full message
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4 text-sm">

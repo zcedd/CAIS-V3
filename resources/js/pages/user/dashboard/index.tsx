@@ -142,8 +142,8 @@ function OverviewHero({
                 <div className="min-w-0 space-y-1">
                     <CardTitle>Assistance overview</CardTitle>
                     <CardDescription>
-                        Key request metrics and top delivered items for the
-                        selected filters
+                        Request counts and the items handed over most often,
+                        using the filters above.
                     </CardDescription>
                 </div>
                 <LayoutDashboard className="size-5 shrink-0 text-muted-foreground" />
@@ -220,14 +220,14 @@ export default function UserDashboardIndex({
 
     return (
         <>
-            <Head title={`Dashboard — ${department.name}`} />
+            <Head title={`Dashboard: ${department.name}`} />
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Dashboard
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Overview of requests, deliveries, and programs for{' '}
+                        Requests, deliveries, and programs for{' '}
                         {department.name}
                     </p>
                 </div>
@@ -359,8 +359,8 @@ export default function UserDashboardIndex({
                                     </CardTitle>
                                     <CardDescription>
                                         Quantity released, classified for
-                                        PhilGEPS, COA, and donor alignment.
-                                        Spend reporting waits on item cost.
+                                        PhilGEPS, COA, and donors. Spend
+                                        reporting waits on item cost.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>

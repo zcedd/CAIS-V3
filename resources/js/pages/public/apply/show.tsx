@@ -161,7 +161,7 @@ export default function PublicApplyShow({
             });
 
             if (!response.ok) {
-                setMatchError('Could not check for existing records. Please try again.');
+                setMatchError('Could not check for existing records. Try again.');
 
                 return;
             }
@@ -407,8 +407,8 @@ export default function PublicApplyShow({
                     <div className="space-y-4">
                         <h2 className="text-lg font-medium">Is this you?</h2>
                         <p className="text-sm text-muted-foreground">
-                            We found an existing record that matches the details
-                            you entered. Confirm it, or create a new profile.
+                            A record already matches what you entered. Confirm
+                            it, or create a new profile.
                         </p>
                         <ul className="space-y-3">
                             {matches.map((match) => (

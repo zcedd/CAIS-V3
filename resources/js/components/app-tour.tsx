@@ -48,7 +48,7 @@ const CREATE_DRAWER_TOURS = {
     programs: {
         trigger: '[data-tour="programs-create"]',
         form: '[data-tour="programs-create-form"]',
-        intro: 'This form creates a program for your department.',
+        intro: 'Fill this in to add a program.',
         fields: [
             {
                 target: '[data-tour="programs-create-name"]',
@@ -73,23 +73,23 @@ const CREATE_DRAWER_TOURS = {
             {
                 target: '[data-tour="programs-create-fields"]',
                 content:
-                    'Add optional custom fields for assistance records.',
+                    'Add extra fields if assistance records need them.',
             },
             {
                 target: '[data-tour="programs-create-organization"]',
                 content:
-                    'Enable this when the program is for organizations.',
+                    'Turn this on when the program is for organizations.',
             },
             {
                 target: '[data-tour="programs-create-submit"]',
-                content: 'Save the program when the form is complete.',
+                content: 'Save when you are done.',
             },
         ],
     },
     items: {
         trigger: '[data-tour="items-create"]',
         form: '[data-tour="items-create-form"]',
-        intro: 'This form creates an item for your department.',
+        intro: 'Fill this in to add an item.',
         fields: [
             {
                 target: '[data-tour="items-create-name"]',
@@ -101,14 +101,14 @@ const CREATE_DRAWER_TOURS = {
             },
             {
                 target: '[data-tour="items-create-submit"]',
-                content: 'Save the item when the form is complete.',
+                content: 'Save when you are done.',
             },
         ],
     },
     funds: {
         trigger: '[data-tour="funds-create"]',
         form: '[data-tour="funds-create-form"]',
-        intro: 'This form creates a fund for your department.',
+        intro: 'Fill this in to add a fund.',
         fields: [
             {
                 target: '[data-tour="funds-create-name"]',
@@ -125,11 +125,11 @@ const CREATE_DRAWER_TOURS = {
             {
                 target: '[data-tour="funds-create-active"]',
                 content:
-                    'Leave this on to make the fund available right away.',
+                    'Keep this on if the fund should be usable now.',
             },
             {
                 target: '[data-tour="funds-create-submit"]',
-                content: 'Save the fund when the form is complete.',
+                content: 'Save when you are done.',
             },
         ],
     },
@@ -321,23 +321,23 @@ function createDrawerTourSteps(drawer: CreateDrawerTour): Step[] {
 const SHARED_STEPS: Step[] = [
     {
         target: '[data-tour="sidebar"]',
-        content: 'Use the sidebar to move between core system modules.',
+        content: 'The sidebar is how you get around.',
         placement: 'right',
     },
     {
         target: '[data-tour="sidebar-nav"]',
-        content: 'These links open your department pages.',
+        content: 'These links are your department pages.',
         placement: 'right',
     },
     {
         target: '[data-tour="page-header"]',
         content:
-            'Use the sidebar toggle and your account menu from this header.',
+            'The header has the sidebar toggle and your account menu.',
         placement: 'bottom',
     },
     {
         target: '[data-tour="breadcrumb-links"]',
-        content: 'Use breadcrumb links to navigate back to parent pages.',
+        content: 'Breadcrumbs take you back up the page trail.',
         placement: 'bottom',
     },
 ];
@@ -346,40 +346,40 @@ const PAGE_STEPS: Record<string, Step[]> = {
     dashboard: [
         {
             target: '[data-tour="dashboard-filters"]',
-            content: 'Use filters to narrow dashboard insights quickly.',
+            content: 'These filters change what the numbers cover.',
         },
         {
             target: '[data-tour="dashboard-kpis"]',
-            content: 'View KPIs by program and status.',
+            content: 'These cards show request and delivery counts.',
         },
         {
             target: '[data-tour="dashboard-requests-status-chart"]',
-            content: 'Explore charts and metrics to understand your data.',
+            content: 'This chart breaks requests down by status.',
         },
         {
             target: '[data-tour="dashboard-items-delivered-charts"]',
-            content: 'View items delivered to beneficiaries by program.',
+            content: 'Items handed over, grouped by program.',
         },
         {
             target: '[data-tour="dashboard-programs-summary"]',
-            content: 'View programs summary by type and status.',
+            content: 'A short list of programs and how they are doing.',
         },
     ],
     programs: [
         {
             target: '[data-tour="programs-filters"]',
-            content: 'Search and filter programs by type and status.',
+            content: 'Search or filter the program list.',
         },
         {
             target: '[data-tour="programs-create"]',
-            content: 'Create a new program for your department.',
+            content: 'Start a new program here.',
             before: () =>
                 closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.programs),
         },
         ...createDrawerTourSteps(CREATE_DRAWER_TOURS.programs),
         {
             target: '[data-tour="programs-list"]',
-            content: 'View programs list by type and status.',
+            content: 'Your programs show up in this list.',
             before: () =>
                 closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.programs),
         },
@@ -387,28 +387,28 @@ const PAGE_STEPS: Record<string, Step[]> = {
     'programs/show': [
         {
             target: '[data-tour="program-header"]',
-            content: 'View program title with status and beneficiary type.',
+            content: 'The program name, status, and who it serves.',
         },
         {
             target: '[data-tour="program-edit"]',
-            content: 'Edit program details when changes are needed.',
+            content: 'Open this to change program details.',
         },
         {
             target: '[data-tour="program-kpis"]',
             content:
-                'View program KPIs by requests, beneficiaries, and items delivered.',
+                'Request, beneficiary, and delivery counts for this program.',
         },
         {
             target: '[data-tour="program-requests-status-chart"]',
-            content: 'View requests status chart by status.',
+            content: 'Requests grouped by status.',
         },
         {
             target: '[data-tour="program-overview"]',
-            content: 'Review program details, type, status, and period here.',
+            content: 'Dates, type, and other program facts sit here.',
         },
         {
             target: '[data-tour="program-assistance"]',
-            content: 'Manage assistance records for this program.',
+            content: 'Assistance records for this program are below.',
             before: () =>
                 waitForDeferredAssistanceTourTarget(
                     '[data-tour="program-assistance-toolbar"]',
@@ -417,7 +417,7 @@ const PAGE_STEPS: Record<string, Step[]> = {
         },
         {
             target: '[data-tour="program-assistance-toolbar"]',
-            content: 'Filter assistance, export data, or add new records.',
+            content: 'Filter, export, or add a record.',
             targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
             before: () =>
                 waitForDeferredAssistanceTourTarget(
@@ -432,12 +432,12 @@ const PAGE_STEPS: Record<string, Step[]> = {
         },
         {
             target: '[data-tour="program-assistance-create"]',
-            content: 'Create a new assistance record for this program.',
+            content: 'Add an assistance record for this program.',
             targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
         },
         {
             target: '[data-tour="program-assistance-table"]',
-            content: 'View assistance records.',
+            content: 'The table of assistance records.',
             targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
         },
     ],
@@ -445,53 +445,53 @@ const PAGE_STEPS: Record<string, Step[]> = {
         {
             target: '[data-tour="beneficiaries-kpis"]',
             content:
-                'View beneficiaries KPIs by total, individual, and organization beneficiaries.',
+                'How many people and organizations are in the registry.',
         },
         {
             target: '[data-tour="beneficiaries-create"]',
-            content: 'Add a new beneficiary from here.',
+            content: 'Add someone or an organization here.',
         },
         {
             target: '[data-tour="beneficiaries-filters"]',
-            content: 'Find beneficiaries with search and type filters.',
+            content: 'Search or filter the registry.',
         },
         {
             target: '[data-tour="beneficiaries-table"]',
-            content: 'View beneficiaries table by type.',
+            content: 'The registry list.',
             placement: 'top',
         },
     ],
     items: [
         {
             target: '[data-tour="items-filters"]',
-            content: 'Find items with search filters.',
+            content: 'Search the item list.',
         },
         {
             target: '[data-tour="items-create"]',
-            content: 'Create a new item for your department.',
+            content: 'Add an item here.',
             before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.items),
         },
         ...createDrawerTourSteps(CREATE_DRAWER_TOURS.items),
         {
             target: '[data-tour="items-table"]',
-            content: 'Manage item inventory and update item details here.',
+            content: 'Stock and item details live in this table.',
             before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.items),
         },
     ],
     funds: [
         {
             target: '[data-tour="funds-filters"]',
-            content: 'Use filters to locate funds by name or status.',
+            content: 'Search or filter funds.',
         },
         {
             target: '[data-tour="funds-create"]',
-            content: 'Create a fund record for your department.',
+            content: 'Add a fund here.',
             before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.funds),
         },
         ...createDrawerTourSteps(CREATE_DRAWER_TOURS.funds),
         {
             target: '[data-tour="funds-table"]',
-            content: 'Manage funds and update fund details here.',
+            content: 'The funds list.',
             before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.funds),
         },
     ],

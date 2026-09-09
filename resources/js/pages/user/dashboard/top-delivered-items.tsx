@@ -16,13 +16,13 @@ export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
     return (
         <DashboardSectionCard
             title="Top delivered items"
-            description="Ranked by total quantity received in the selected scope"
+            description="Sorted by quantity received, using the filters above"
             icon={Package}
             data-tour="dashboard-top-delivered-items"
         >
             {data.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
-                    No delivered items for the selected filters.
+                    No delivered items with these filters.
                 </p>
             ) : (
                 <ul className="space-y-4">

@@ -42,7 +42,7 @@ export function FundEditDrawer({
                 <DrawerHeader>
                     <DrawerTitle>Edit fund</DrawerTitle>
                     <DrawerDescription>
-                        Update details for {fund.name}.
+                        Change the details for {fund.name}.
                     </DrawerDescription>
                 </DrawerHeader>
                 <Form

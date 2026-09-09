@@ -61,7 +61,7 @@ export default function Security({
                 <Heading
                     variant="small"
                     title="Update password"
-                    description="Ensure your account is using a long, random password to stay secure"
+                    description="Choose a password that is long and hard to guess."
                 />
 
                 <Form
@@ -158,14 +158,13 @@ export default function Security({
                     <Heading
                         variant="small"
                         title="Two-factor authentication"
-                        description="Manage your two-factor authentication settings"
+                        description="Add a second step when you log in."
                     />
                     {twoFactorEnabled ? (
                         <div className="flex flex-col items-start justify-start space-y-4">
                             <p className="text-sm text-muted-foreground">
-                                You will be prompted for a secure, random pin
-                                during login, which you can retrieve from the
-                                TOTP-supported application on your phone.
+                                When you log in, enter a code from the
+                                authenticator app on your phone.
                             </p>
 
                             <div className="relative inline">
@@ -191,10 +190,8 @@ export default function Security({
                     ) : (
                         <div className="flex flex-col items-start justify-start space-y-4">
                             <p className="text-sm text-muted-foreground">
-                                When you enable two-factor authentication, you
-                                will be prompted for a secure pin during login.
-                                This pin can be retrieved from a TOTP-supported
-                                application on your phone.
+                                After you turn this on, login asks for a code
+                                from the authenticator app on your phone.
                             </p>
 
                             <div>

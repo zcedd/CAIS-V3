@@ -1001,10 +1001,10 @@ export function AssistanceStatusDrawer({
                                                                 <SelectContent>
                                                                     <SelectItem value="additional">
                                                                         Additional
-                                                                        — given
+                                                                        (given
                                                                         on top
                                                                         of the
-                                                                        request
+                                                                        request)
                                                                     </SelectItem>
                                                                     <SelectItem
                                                                         value="substitute"
@@ -1014,11 +1014,11 @@ export function AssistanceStatusDrawer({
                                                                         }
                                                                     >
                                                                         Substitute
-                                                                        — given
+                                                                        (given
                                                                         in place
                                                                         of a
                                                                         requested
-                                                                        item
+                                                                        item)
                                                                     </SelectItem>
                                                                 </SelectContent>
                                                             </Select>
