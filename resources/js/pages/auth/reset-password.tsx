@@ -1,4 +1,4 @@
-import { Form, Head } from '@inertiajs/react';
+import { Form, Head, setLayoutProps } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,29 @@ type Props = {
     token: string;
     email: string;
     passwordRules: string;
+    isInvite?: boolean;
 };
 
-export default function ResetPassword({ token, email, passwordRules }: Props) {
+export default function ResetPassword({
+    token,
+    email,
+    passwordRules,
+    isInvite = false,
+}: Props) {
+    const title = isInvite ? 'Set password' : 'Reset password';
+    const description = isInvite
+        ? 'Choose a password for your account.'
+        : 'Enter your new password.';
+    const submitLabel = isInvite ? 'Set password' : 'Reset password';
+
+    setLayoutProps({
+        title,
+        description,
+    });
+
     return (
         <>
-            <Head title="Reset password" />
+            <Head title={title} />
 
             <Form
                 {...update.form()}
@@ -81,7 +98,7 @@ export default function ResetPassword({ token, email, passwordRules }: Props) {
                             data-test="reset-password-button"
                         >
                             {processing && <Spinner />}
-                            Reset password
+                            {submitLabel}
                         </Button>
                     </div>
                 )}

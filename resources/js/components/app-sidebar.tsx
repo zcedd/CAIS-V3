@@ -1,14 +1,13 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     Bell,
-    BookOpen,
-    FolderGit2,
     FolderKanban,
     GitBranch,
     Inbox,
     Landmark,
     LayoutGrid,
     Package,
+    Shield,
     Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -25,6 +24,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { index as adminUsersIndex } from '@/routes/admin/users';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
@@ -39,6 +39,7 @@ import type { User } from '@/types/auth';
 type SidebarPageProps = {
     auth: {
         user: User | null;
+        is_super_admin?: boolean;
     };
     unreadNotificationsCount: number;
 };
@@ -74,6 +75,14 @@ export function AppSidebar() {
             },
         ];
 
+        if (props.auth.is_super_admin) {
+            items.push({
+                title: 'Admin',
+                href: adminUsersIndex(),
+                icon: Shield,
+            });
+        }
+
         if (slug) {
             items.push({
                 title: 'Programs',
@@ -108,7 +117,7 @@ export function AppSidebar() {
         }
 
         return items;
-    }, [props.auth.user]);
+    }, [props.auth.user, props.auth.is_super_admin]);
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">

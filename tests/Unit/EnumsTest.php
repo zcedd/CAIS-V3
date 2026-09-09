@@ -6,6 +6,7 @@ use App\Enums\DocumentTypeSlug;
 use App\Enums\ItemKind;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
+use App\Enums\RoleName;
 use App\Enums\SlaState;
 use App\Enums\StockMovementType;
 use App\Enums\UnspscCodeLevel;
@@ -49,4 +50,10 @@ test('sla states and assistance origins keep closed catalogs', function () {
         ->and(DocumentTypeSlug::ValidId->value)->toBe('valid_id')
         ->and(ProgramFieldType::Select->value)->toBe('select')
         ->and(UnspscCodeLevel::ItemClass->value)->toBe('class');
+});
+
+test('role names expose labels for administration', function () {
+    expect(RoleName::SuperAdmin->label())->toBe('Super admin')
+        ->and(RoleName::Workflow->label())->toBe('Workflow')
+        ->and(RoleName::values())->toContain(RoleName::Head->value);
 });
