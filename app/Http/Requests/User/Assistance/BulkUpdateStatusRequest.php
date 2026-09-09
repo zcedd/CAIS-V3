@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\Program;
 use App\Models\RequestSubStatus;
-use App\Support\RequestStatusCode;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;

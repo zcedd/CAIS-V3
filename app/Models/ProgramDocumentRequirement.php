@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\DocumentRequirementMilestone;
 use Database\Factories\ProgramDocumentRequirementFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -37,6 +38,7 @@ class ProgramDocumentRequirement extends Model
             'document_type_id' => 'integer',
             'is_required' => 'boolean',
             'sort_order' => 'integer',
+            'required_before' => DocumentRequirementMilestone::class,
         ];
     }
 

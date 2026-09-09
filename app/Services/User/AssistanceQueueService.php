@@ -6,7 +6,6 @@ use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\User;
 use App\Support\EmptyCell;
-use App\Support\SlaState;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 
@@ -121,7 +120,7 @@ class AssistanceQueueService
                 : trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')),
             'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
             'sla_state' => $assistance->slaState(),
-            'sla_label' => SlaState::label($assistance->slaState()),
+            'sla_label' => $assistance->slaState()->label(),
             'current_status_recorded_at' => $assistance->current_status_recorded_at instanceof \DateTimeInterface
                 ? Carbon::parse($assistance->current_status_recorded_at)->toIso8601String()
                 : null,

@@ -2,12 +2,12 @@
 
 namespace App\Policies;
 
+use App\Enums\PermissionName;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
 use App\Policies\Concerns\ChecksDepartmentPermission;
-use App\Support\PermissionName;
 
 class AssistancePolicy
 {

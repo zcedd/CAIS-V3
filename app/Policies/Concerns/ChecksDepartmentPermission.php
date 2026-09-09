@@ -2,8 +2,8 @@
 
 namespace App\Policies\Concerns;
 
+use App\Enums\PermissionName;
 use App\Models\User;
-use App\Support\PermissionName;
 
 trait ChecksDepartmentPermission
 {

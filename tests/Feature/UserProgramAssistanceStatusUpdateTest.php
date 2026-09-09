@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\AssistanceItemOrigin;
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -10,8 +12,6 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\AssistanceItemOrigin;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -239,7 +239,7 @@ test('updating to delivered status requires and marks the selected assistance it
     $riceAssistanceItem = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $riceItem->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 2,
         'requested_quantity' => 2,
         'specification' => 'Premium',
@@ -249,7 +249,7 @@ test('updating to delivered status requires and marks the selected assistance it
     $milkAssistanceItem = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $milkItem->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 5,
         'requested_quantity' => 5,
         'specification' => null,

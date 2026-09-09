@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support;
+namespace App\Enums;
 
 enum PermissionName: string
 {
@@ -50,10 +50,7 @@ enum PermissionName: string
      */
     public static function values(): array
     {
-        return array_map(
-            static fn (self $permission): string => $permission->value,
-            self::cases(),
-        );
+        return array_column(self::cases(), 'value');
     }
 
     /**

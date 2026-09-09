@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\AssistanceItemOrigin;
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -10,8 +12,6 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\AssistanceItemOrigin;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -193,7 +193,7 @@ test('updating an assistance rewrites only what is still owed and keeps released
     $pendingRice = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $riceItem->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 1,
         'requested_quantity' => 1,
         'is_received' => false,
@@ -202,7 +202,7 @@ test('updating an assistance rewrites only what is still owed and keeps released
     $releasedRice = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $riceItem->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 1,
         'requested_quantity' => 1,
         'is_received' => true,
@@ -211,7 +211,7 @@ test('updating an assistance rewrites only what is still owed and keeps released
     $additionalOil = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $oilItem->id,
-        'origin' => AssistanceItemOrigin::Additional,
+        'origin' => AssistanceItemOrigin::Additional->value,
         'quantity' => 1,
         'requested_quantity' => 0,
         'fulfillment_reason' => 'leftover pack',

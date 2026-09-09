@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\ItemKind;
+use App\Enums\ItemKind;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,7 +33,7 @@ class Item extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'kind' => ItemKind::Goods,
+        'kind' => ItemKind::Goods->value,
     ];
 
     /**
@@ -44,12 +44,13 @@ class Item extends Model
         return [
             'is_perishable' => 'boolean',
             'low_stock_threshold' => 'integer',
+            'kind' => ItemKind::class,
         ];
     }
 
     public function tracksInventory(): bool
     {
-        return ItemKind::tracksInventory($this->kind);
+        return ($this->kind ?? ItemKind::Goods)->tracksInventory();
     }
 
     public function getActivitylogOptions(): LogOptions

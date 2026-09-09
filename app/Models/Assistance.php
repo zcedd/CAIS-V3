@@ -2,9 +2,9 @@
 
 namespace App\Models;
 
-use App\Support\RequestStatusCode;
-use App\Support\RequestSubStatusCode;
-use App\Support\SlaState;
+use App\Enums\RequestStatusCode;
+use App\Enums\RequestSubStatusCode;
+use App\Enums\SlaState;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -288,7 +288,7 @@ class Assistance extends Model
         return $query->whereNull('assigned_to_id');
     }
 
-    public function slaState(): string
+    public function slaState(): SlaState
     {
         if ($this->sla_paused_at !== null) {
             return SlaState::Paused;

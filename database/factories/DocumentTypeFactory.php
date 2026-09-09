@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\DocumentTypeSlug;
 use App\Models\DocumentType;
-use App\Support\DocumentTypeSlug;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -26,7 +26,7 @@ class DocumentTypeFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'name' => 'Valid ID',
-            'slug' => DocumentTypeSlug::ValidId,
+            'slug' => DocumentTypeSlug::ValidId->value,
         ]);
     }
 }

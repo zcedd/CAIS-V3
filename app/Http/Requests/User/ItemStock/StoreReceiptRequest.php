@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\User\ItemStock;
 
+use App\Enums\StockMovementType;
 use App\Models\Item;
-use App\Support\StockMovementType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -25,7 +25,7 @@ class StoreReceiptRequest extends FormRequest
     {
         return [
             'quantity' => ['required', 'integer', 'min:1'],
-            'type' => ['required', 'string', Rule::in(StockMovementType::receiptValues())],
+            'type' => ['required', Rule::enum(StockMovementType::class)->only(StockMovementType::receipts())],
             'batch_number' => ['nullable', 'string', 'max:255'],
             'expires_at' => ['nullable', 'date'],
             'received_at' => ['nullable', 'date'],

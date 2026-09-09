@@ -1,6 +1,6 @@
 <?php
 
-use App\Support\AssistanceItemOrigin;
+use App\Enums\AssistanceItemOrigin;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::table('assistance_item', function (Blueprint $table): void {
             $table->string('origin', 20)
-                ->default(AssistanceItemOrigin::Requested)
+                ->default(AssistanceItemOrigin::Requested->value)
                 ->after('item_id');
             $table->unsignedInteger('requested_quantity')
                 ->default(0)

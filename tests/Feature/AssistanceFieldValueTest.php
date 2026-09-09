@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProgramFieldType;
 use App\Models\Assistance;
 use App\Models\AssistanceFieldValue;
 use App\Models\Beneficiary;
@@ -10,7 +11,6 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\ProgramField;
 use App\Models\User;
-use App\Support\ProgramFieldType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -48,14 +48,14 @@ function createAssistanceFieldFixtures(Department $department, Program $program)
     $requiredField = ProgramField::factory()->forProgram($program)->required()->showInTable()->create([
         'label' => 'Household Size',
         'key' => 'household_size',
-        'type' => ProgramFieldType::Number,
+        'type' => ProgramFieldType::Number->value,
         'sort_order' => 0,
     ]);
 
     $optionalField = ProgramField::factory()->forProgram($program)->create([
         'label' => 'Notes',
         'key' => 'notes',
-        'type' => ProgramFieldType::Text,
+        'type' => ProgramFieldType::Text->value,
         'sort_order' => 1,
     ]);
 

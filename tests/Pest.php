@@ -1,15 +1,15 @@
 <?php
 
+use App\Enums\RequestStatusCode;
+use App\Enums\RequestSubStatusCode;
+use App\Enums\RoleName;
+use App\Enums\StockMovementType;
 use App\Models\Department;
 use App\Models\Item;
 use App\Models\Program;
 use App\Models\User;
 use App\Services\User\StockLedgerService;
 use App\Services\Workflow\RequestStatusCatalog;
-use App\Support\RequestStatusCode;
-use App\Support\RequestSubStatusCode;
-use App\Support\RoleName;
-use App\Support\StockMovementType;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -180,7 +180,7 @@ function seedProgramStock(Program $program, Item $item, int $quantity, ?User $us
 
     $ledger->receive($item, $user, [
         'quantity' => $quantity,
-        'type' => StockMovementType::OpeningBalance,
+        'type' => StockMovementType::OpeningBalance->value,
     ]);
 
     $ledger->allocate($item, $user, [

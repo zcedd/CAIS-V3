@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\WorkflowTemplate;
+use App\Enums\WorkflowTemplate;
 use Database\Factories\WorkflowFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

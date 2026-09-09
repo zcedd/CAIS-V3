@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -16,7 +17,6 @@ use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
-use App\Support\RequestStatusCode;
 use Inertia\Testing\AssertableInertia as Assert;
 
 /**

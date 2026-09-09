@@ -1,11 +1,11 @@
 <?php
 
+use App\Enums\ItemKind;
+use App\Enums\UnspscCodeLevel;
 use App\Models\Department;
 use App\Models\ItemUnitMeasurement;
 use App\Models\UnspscCode;
 use App\Models\User;
-use App\Support\ItemKind;
-use App\Support\UnspscCodeLevel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -30,7 +30,7 @@ test('unspsc search can include the full code set', function () {
     UnspscCode::factory()->create([
         'code' => '88888888',
         'title' => 'Full set only',
-        'level' => UnspscCodeLevel::Commodity,
+        'level' => UnspscCodeLevel::Commodity->value,
         'is_curated' => false,
     ]);
 
@@ -53,7 +53,7 @@ test('items can be created with an optional unspsc classification', function () 
     $this->actingAs($user)
         ->post(route('user.items.store', ['department' => $department->slug]), [
             'name' => 'Rice 25kg',
-            'kind' => ItemKind::Goods,
+            'kind' => ItemKind::Goods->value,
             'item_unit_measurement_id' => $unit->id,
             'unspsc_code_id' => $code->id,
             'is_perishable' => 1,

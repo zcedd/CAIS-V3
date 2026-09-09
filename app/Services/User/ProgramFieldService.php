@@ -2,12 +2,12 @@
 
 namespace App\Services\User;
 
+use App\Enums\ProgramFieldType;
 use App\Models\Assistance;
 use App\Models\AssistanceFieldValue;
 use App\Models\Program;
 use App\Models\ProgramField;
 use App\Support\EmptyCell;
-use App\Support\ProgramFieldType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -35,7 +35,7 @@ class ProgramFieldService
             $payload = [
                 'label' => $fieldData['label'],
                 'type' => $fieldData['type'],
-                'options' => $fieldData['type'] === ProgramFieldType::Select
+                'options' => ProgramFieldType::tryFrom((string) $fieldData['type']) === ProgramFieldType::Select
                     ? array_values($fieldData['options'] ?? [])
                     : null,
                 'is_required' => (bool) ($fieldData['is_required'] ?? false),

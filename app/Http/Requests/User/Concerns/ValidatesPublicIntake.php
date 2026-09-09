@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\User\Concerns;
 
+use App\Enums\ProgramKind;
 use App\Models\Program;
-use App\Support\ProgramKind;
 use Illuminate\Validation\Validator;
 
 trait ValidatesPublicIntake
@@ -47,7 +47,7 @@ trait ValidatesPublicIntake
             $program = $this->route('program');
             $kind = $program instanceof Program
                 ? $program->kind
-                : $this->input('kind', ProgramKind::Standalone);
+                : (ProgramKind::tryFrom((string) $this->input('kind', ProgramKind::Standalone->value)) ?? ProgramKind::Standalone);
             $isOrganization = $program instanceof Program
                 ? (bool) $program->is_organization
                 : (bool) $this->boolean('is_organization');

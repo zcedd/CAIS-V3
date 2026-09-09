@@ -2,11 +2,11 @@
 
 namespace App\Policies;
 
+use App\Enums\PermissionName;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\User;
 use App\Policies\Concerns\ChecksDepartmentPermission;
-use App\Support\PermissionName;
 
 class BeneficiaryPolicy
 {

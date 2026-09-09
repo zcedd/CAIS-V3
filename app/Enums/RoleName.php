@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support;
+namespace App\Enums;
 
 enum RoleName: string
 {
@@ -34,9 +34,6 @@ enum RoleName: string
      */
     public static function resourceRoleValues(): array
     {
-        return array_map(
-            static fn (self $role): string => $role->value,
-            self::resourceRoles(),
-        );
+        return array_column(self::resourceRoles(), 'value');
     }
 }

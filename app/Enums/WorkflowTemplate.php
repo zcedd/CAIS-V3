@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support;
+namespace App\Enums;
 
 enum WorkflowTemplate: string
 {
@@ -13,10 +13,7 @@ enum WorkflowTemplate: string
      */
     public static function values(): array
     {
-        return array_map(
-            static fn (self $template): string => $template->value,
-            self::cases(),
-        );
+        return array_column(self::cases(), 'value');
     }
 
     public function label(): string

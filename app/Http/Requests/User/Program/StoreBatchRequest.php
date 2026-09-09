@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Enums\ProgramKind;
 use App\Http\Requests\User\Concerns\ValidatesPublicIntake;
 use App\Models\Department;
 use App\Models\Program;
-use App\Support\ProgramKind;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;

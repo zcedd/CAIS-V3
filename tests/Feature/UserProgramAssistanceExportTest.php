@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\RoleName;
 use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
 use App\Models\Beneficiary;
@@ -9,7 +10,6 @@ use App\Models\Program;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
-use App\Support\RoleName;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

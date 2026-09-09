@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProgramKind;
 use App\Models\Department;
 use App\Models\Program;
-use App\Support\ProgramKind;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -31,7 +31,7 @@ class ProgramFactory extends Factory
             'is_closed' => false,
             'is_organization' => false,
             'public_intake' => false,
-            'kind' => ProgramKind::Standalone,
+            'kind' => ProgramKind::Standalone->value,
             'parent_id' => null,
             'batch_number' => null,
             'batch_name' => null,
@@ -41,7 +41,7 @@ class ProgramFactory extends Factory
     public function standalone(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'kind' => ProgramKind::Standalone,
+            'kind' => ProgramKind::Standalone->value,
             'parent_id' => null,
             'batch_number' => null,
             'batch_name' => null,
@@ -51,7 +51,7 @@ class ProgramFactory extends Factory
     public function scheme(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'kind' => ProgramKind::Scheme,
+            'kind' => ProgramKind::Scheme->value,
             'parent_id' => null,
             'batch_number' => null,
             'batch_name' => null,
@@ -70,7 +70,7 @@ class ProgramFactory extends Factory
             $batchName = 'Batch '.$nextNumber;
 
             return [
-                'kind' => ProgramKind::Batch,
+                'kind' => ProgramKind::Batch->value,
                 'parent_id' => $parent->id,
                 'department_id' => $parent->department_id,
                 'is_organization' => $parent->is_organization,

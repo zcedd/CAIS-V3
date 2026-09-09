@@ -2,8 +2,8 @@
 
 namespace App\Services\User;
 
+use App\Enums\UnspscCodeLevel;
 use App\Models\UnspscCode;
-use App\Support\UnspscCodeLevel;
 
 class UnspscCodeService
 {

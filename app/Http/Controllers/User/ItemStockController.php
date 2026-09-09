@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\StockMovementType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\ItemStock\ShowRequest;
 use App\Http\Requests\User\ItemStock\StoreAdjustmentRequest;
@@ -11,7 +12,6 @@ use App\Models\Department;
 use App\Models\Item;
 use App\Services\User\ItemService;
 use App\Services\User\StockLedgerService;
-use App\Support\StockMovementType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 
@@ -65,8 +65,9 @@ class ItemStockController extends Controller
         abort_unless($item->department_id === $department->id, 404);
 
         $validated = $request->validated();
+        $type = StockMovementType::from((string) $validated['type']);
 
-        if ($validated['type'] === StockMovementType::Deallocate) {
+        if ($type === StockMovementType::Deallocate) {
             $this->stockLedgerService->deallocate($item, $request->user(), $validated);
             $message = 'Stock deallocated.';
         } else {

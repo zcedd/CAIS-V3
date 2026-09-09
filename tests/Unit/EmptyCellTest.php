@@ -1,7 +1,7 @@
 <?php
 
+use App\Enums\ItemKind;
 use App\Support\EmptyCell;
-use App\Support\ItemKind;
 
 test('missing values use n/a as the empty cell filler', function () {
     expect(EmptyCell::VALUE)->toBe('N/A');

@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\DocumentRequirementMilestone;
+use App\Enums\DocumentTypeSlug;
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -9,9 +12,6 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\DocumentRequirementMilestone;
-use App\Support\DocumentTypeSlug;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -58,7 +58,7 @@ function createDocumentChecklistContext(): array
     $program->documentRequirements()->create([
         'document_type_id' => $documentType->id,
         'is_required' => true,
-        'required_before' => DocumentRequirementMilestone::Verified,
+        'required_before' => DocumentRequirementMilestone::Verified->value,
         'sort_order' => 0,
     ]);
 
@@ -157,7 +157,7 @@ test('delivered status requires verified documents as well as delivery documents
     $program->documentRequirements()->create([
         'document_type_id' => $deliveryType->id,
         'is_required' => true,
-        'required_before' => DocumentRequirementMilestone::Delivered,
+        'required_before' => DocumentRequirementMilestone::Delivered->value,
         'sort_order' => 1,
     ]);
 

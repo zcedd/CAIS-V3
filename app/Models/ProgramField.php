@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProgramFieldType;
 use Database\Factories\ProgramFieldFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -37,6 +38,7 @@ class ProgramField extends Model
             'is_required' => 'boolean',
             'show_in_table' => 'boolean',
             'sort_order' => 'integer',
+            'type' => ProgramFieldType::class,
         ];
     }
 

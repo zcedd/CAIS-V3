@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests\User\ItemStock;
 
+use App\Enums\StockMovementType;
 use App\Models\Item;
-use App\Support\StockMovementType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -34,8 +34,10 @@ class StoreAdjustmentRequest extends FormRequest
             ],
             'type' => [
                 'required',
-                'string',
-                Rule::in([StockMovementType::AdjustmentIn, StockMovementType::AdjustmentOut]),
+                Rule::enum(StockMovementType::class)->only([
+                    StockMovementType::AdjustmentIn,
+                    StockMovementType::AdjustmentOut,
+                ]),
             ],
             'quantity' => ['required', 'integer', 'min:1'],
             'reason' => ['required', 'string', 'max:255'],

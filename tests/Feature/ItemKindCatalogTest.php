@@ -1,5 +1,9 @@
 <?php
 
+use App\Enums\ItemKind;
+use App\Enums\RequestSubStatusCode;
+use App\Enums\StockMovementType;
+use App\Enums\WorkflowTemplate;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Beneficiary;
@@ -14,10 +18,6 @@ use App\Models\User;
 use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\ProgramService;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
-use App\Support\ItemKind;
-use App\Support\RequestSubStatusCode;
-use App\Support\StockMovementType;
-use App\Support\WorkflowTemplate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -60,7 +60,7 @@ test('authenticated users can create cash and service catalog items', function (
     $this->actingAs($context['user'])
         ->post(route('user.items.store', ['department' => $context['department']->slug]), [
             'name' => 'Burial assistance',
-            'kind' => ItemKind::Cash,
+            'kind' => ItemKind::Cash->value,
             'item_unit_measurement_id' => $context['php']->id,
             'is_perishable' => 1,
             'low_stock_threshold' => 10,
@@ -71,7 +71,7 @@ test('authenticated users can create cash and service catalog items', function (
     $this->actingAs($context['user'])
         ->post(route('user.items.store', ['department' => $context['department']->slug]), [
             'name' => 'Medical consultation',
-            'kind' => ItemKind::Service,
+            'kind' => ItemKind::Service->value,
             'item_unit_measurement_id' => $context['session']->id,
             'is_perishable' => 1,
             'low_stock_threshold' => 5,
@@ -81,13 +81,13 @@ test('authenticated users can create cash and service catalog items', function (
 
     $this->assertDatabaseHas('items', [
         'name' => 'Burial assistance',
-        'kind' => ItemKind::Cash,
+        'kind' => ItemKind::Cash->value,
         'is_perishable' => 0,
         'low_stock_threshold' => null,
     ]);
     $this->assertDatabaseHas('items', [
         'name' => 'Medical consultation',
-        'kind' => ItemKind::Service,
+        'kind' => ItemKind::Service->value,
         'is_perishable' => 0,
         'low_stock_threshold' => null,
     ]);
@@ -97,8 +97,8 @@ test('authenticated users can create cash and service catalog items', function (
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('user/items/index')
-            ->where('items.data.0.kind', ItemKind::Cash)
-            ->where('items.data.1.kind', ItemKind::Service));
+            ->where('items.data.0.kind', ItemKind::Cash->value)
+            ->where('items.data.1.kind', ItemKind::Service->value));
 });
 
 test('cash items must use the php unit of measurement', function () {
@@ -107,7 +107,7 @@ test('cash items must use the php unit of measurement', function () {
     $this->actingAs($context['user'])
         ->post(route('user.items.store', ['department' => $context['department']->slug]), [
             'name' => 'Burial assistance',
-            'kind' => ItemKind::Cash,
+            'kind' => ItemKind::Cash->value,
             'item_unit_measurement_id' => $context['session']->id,
         ])
         ->assertSessionHasErrors('item_unit_measurement_id');
@@ -127,7 +127,7 @@ test('stock cannot be received or allocated for cash items', function () {
             'item' => $item->id,
         ]), [
             'quantity' => 5000,
-            'type' => StockMovementType::OpeningBalance,
+            'type' => StockMovementType::OpeningBalance->value,
         ])
         ->assertRedirect()
         ->assertSessionHasErrors('item');
@@ -139,7 +139,7 @@ test('stock cannot be received or allocated for cash items', function () {
             'item' => $item->id,
         ]), [
             'program_id' => $context['program']->id,
-            'type' => StockMovementType::Allocate,
+            'type' => StockMovementType::Allocate->value,
             'quantity' => 5000,
         ])
         ->assertRedirect()
@@ -164,7 +164,7 @@ test('goods with on-hand stock cannot change to cash', function () {
             'item' => $item->id,
         ]), [
             'name' => 'Rice',
-            'kind' => ItemKind::Cash,
+            'kind' => ItemKind::Cash->value,
             'item_unit_measurement_id' => $context['php']->id,
         ])
         ->assertSessionHasErrors('kind');
@@ -185,7 +185,7 @@ test('goods without stock can change to cash', function () {
             'item' => $item->id,
         ]), [
             'name' => 'Emergency aid',
-            'kind' => ItemKind::Cash,
+            'kind' => ItemKind::Cash->value,
             'item_unit_measurement_id' => $context['php']->id,
         ])
         ->assertRedirect()
@@ -334,7 +334,7 @@ test('backfill marks php unit items as cash', function () {
     ]);
     $cashId = DB::table('items')->insertGetId([
         'name' => 'Cash aid',
-        'kind' => ItemKind::Goods,
+        'kind' => ItemKind::Goods->value,
         'department_id' => $departmentId,
         'item_unit_measurement_id' => $phpId,
         'created_at' => now(),
@@ -342,7 +342,7 @@ test('backfill marks php unit items as cash', function () {
     ]);
     $riceId = DB::table('items')->insertGetId([
         'name' => 'Rice',
-        'kind' => ItemKind::Goods,
+        'kind' => ItemKind::Goods->value,
         'department_id' => $departmentId,
         'item_unit_measurement_id' => $kgId,
         'created_at' => now(),
@@ -351,6 +351,6 @@ test('backfill marks php unit items as cash', function () {
 
     Artisan::call('migrate', ['--path' => BACKFILL_CASH_KIND_MIGRATION]);
 
-    expect(DB::table('items')->where('id', $cashId)->value('kind'))->toBe(ItemKind::Cash)
-        ->and(DB::table('items')->where('id', $riceId)->value('kind'))->toBe(ItemKind::Goods);
+    expect(DB::table('items')->where('id', $cashId)->value('kind'))->toBe(ItemKind::Cash->value)
+        ->and(DB::table('items')->where('id', $riceId)->value('kind'))->toBe(ItemKind::Goods->value);
 });

@@ -1,13 +1,13 @@
 <?php
 
+use App\Enums\RoleName;
+use App\Enums\WorkflowTemplate;
 use App\Models\Assistance;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\RoleName;
-use App\Support\WorkflowTemplate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);

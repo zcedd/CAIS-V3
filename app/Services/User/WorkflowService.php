@@ -2,6 +2,8 @@
 
 namespace App\Services\User;
 
+use App\Enums\RequestStatusCode;
+use App\Enums\WorkflowTemplate;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\RequestStatus;
@@ -11,8 +13,6 @@ use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Services\Workflow\RequestStatusCatalog;
-use App\Support\RequestStatusCode;
-use App\Support\WorkflowTemplate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 

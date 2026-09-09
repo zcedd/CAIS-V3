@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\AssistanceItemOrigin;
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Beneficiary;
@@ -9,8 +11,6 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\AssistanceItemOrigin;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Inertia\Testing\AssertableInertia;
@@ -91,7 +91,7 @@ function seedAssistanceAwaitingRelease(int $requestedRiceQuantity = 2): array
     $requestedRice = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $riceItem->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => $requestedRiceQuantity,
         'requested_quantity' => $requestedRiceQuantity,
         'is_received' => false,
@@ -146,7 +146,7 @@ test('an additional item is released on its own line without touching the reques
         ],
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Additional,
+                'origin' => AssistanceItemOrigin::Additional->value,
                 'item_id' => $context['oil_item']->id,
                 'quantity' => 1,
                 'fulfillment_reason' => 'leftover pack',
@@ -180,7 +180,7 @@ test('a substitute retires the requested line it replaces instead of deleting it
         'recorded_at' => '2026-05-15',
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Substitute,
+                'origin' => AssistanceItemOrigin::Substitute->value,
                 'item_id' => $context['noodles_item']->id,
                 'quantity' => 4,
                 'fulfillment_reason' => 'rice stock ran out',
@@ -221,7 +221,7 @@ test('substituting a requested line wins when that line was also selected for fu
         ],
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Substitute,
+                'origin' => AssistanceItemOrigin::Substitute->value,
                 'item_id' => $context['noodles_item']->id,
                 'quantity' => 4,
                 'fulfillment_reason' => 'rice stock ran out',
@@ -276,7 +276,7 @@ test('an unrequested release requires a reason', function () {
         'recorded_at' => '2026-05-15',
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Additional,
+                'origin' => AssistanceItemOrigin::Additional->value,
                 'item_id' => $context['oil_item']->id,
                 'quantity' => 1,
             ],
@@ -292,7 +292,7 @@ test('a substitute requires the requested line it replaces', function () {
         'recorded_at' => '2026-05-15',
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Substitute,
+                'origin' => AssistanceItemOrigin::Substitute->value,
                 'item_id' => $context['noodles_item']->id,
                 'quantity' => 4,
                 'fulfillment_reason' => 'rice stock ran out',
@@ -316,7 +316,7 @@ test('an item outside the program catalog cannot be released', function () {
         'recorded_at' => '2026-05-15',
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Additional,
+                'origin' => AssistanceItemOrigin::Additional->value,
                 'item_id' => $foreignItem->id,
                 'quantity' => 1,
                 'fulfillment_reason' => 'on-site assessment',
@@ -333,7 +333,7 @@ test('unrequested items cannot be attached to a status other than delivered', fu
         'recorded_at' => '2026-05-15',
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Additional,
+                'origin' => AssistanceItemOrigin::Additional->value,
                 'item_id' => $context['oil_item']->id,
                 'quantity' => 1,
                 'fulfillment_reason' => 'leftover pack',
@@ -350,7 +350,7 @@ test('a substituted requested line can no longer be released', function () {
         'recorded_at' => '2026-05-15',
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Substitute,
+                'origin' => AssistanceItemOrigin::Substitute->value,
                 'item_id' => $context['noodles_item']->id,
                 'quantity' => 4,
                 'fulfillment_reason' => 'rice stock ran out',
@@ -385,7 +385,7 @@ test('the assistance profile groups requested against released items', function 
         ],
         'extra_items' => [
             [
-                'origin' => AssistanceItemOrigin::Additional,
+                'origin' => AssistanceItemOrigin::Additional->value,
                 'item_id' => $context['oil_item']->id,
                 'quantity' => 3,
                 'fulfillment_reason' => 'leftover pack',

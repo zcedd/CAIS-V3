@@ -1,12 +1,12 @@
 <?php
 
+use App\Enums\StockMovementType;
 use App\Models\Department;
 use App\Models\Item;
 use App\Models\ItemStockBalance;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -37,7 +37,7 @@ test('authenticated users can receive and allocate item stock', function () {
             'item' => $item->id,
         ]), [
             'quantity' => 20,
-            'type' => StockMovementType::OpeningBalance,
+            'type' => StockMovementType::OpeningBalance->value,
         ])
         ->assertRedirect()
         ->assertSessionHas('success');
@@ -48,7 +48,7 @@ test('authenticated users can receive and allocate item stock', function () {
             'item' => $item->id,
         ]), [
             'program_id' => $program->id,
-            'type' => StockMovementType::Allocate,
+            'type' => StockMovementType::Allocate->value,
             'quantity' => 8,
         ])
         ->assertRedirect()
@@ -83,6 +83,6 @@ test('guests cannot receive stock', function () {
         'item' => $item->id,
     ]), [
         'quantity' => 5,
-        'type' => StockMovementType::Receipt,
+        'type' => StockMovementType::Receipt->value,
     ])->assertRedirect(route('login'));
 });

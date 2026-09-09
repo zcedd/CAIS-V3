@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
 use App\Models\Beneficiary;
@@ -7,7 +8,6 @@ use App\Models\Department;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 

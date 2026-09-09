@@ -87,7 +87,7 @@ class ProgramDocumentRequirementService
                 'id' => $requirement->id,
                 'document_type_id' => $requirement->document_type_id,
                 'is_required' => $requirement->is_required,
-                'required_before' => $requirement->required_before,
+                'required_before' => $requirement->required_before?->value,
                 'sort_order' => $requirement->sort_order,
             ])
             ->values()

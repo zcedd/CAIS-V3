@@ -1,12 +1,12 @@
 <?php
 
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
 use App\Notifications\StaleAssistanceReminderNotification;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Support\Facades\DB;
 
 test('it creates database notifications for stale open assistances', function () {

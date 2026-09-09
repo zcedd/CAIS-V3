@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Enums\RequestStatusCode;
+use App\Enums\RequestSubStatusCode;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Services\Workflow\RequestStatusCatalog;
-use App\Support\RequestStatusCode;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**

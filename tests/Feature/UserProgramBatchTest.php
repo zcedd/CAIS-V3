@@ -1,6 +1,10 @@
 <?php
 
 use App\Actions\User\EvaluateAssistanceEligibility;
+use App\Enums\DocumentRequirementMilestone;
+use App\Enums\ProgramFieldType;
+use App\Enums\ProgramKind;
+use App\Enums\StockMovementType;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -17,10 +21,6 @@ use App\Models\ProgramField;
 use App\Models\ProgramItemCap;
 use App\Models\User;
 use App\Services\User\DashboardService;
-use App\Support\DocumentRequirementMilestone;
-use App\Support\ProgramFieldType;
-use App\Support\ProgramKind;
-use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -61,7 +61,7 @@ test('staff can create a parent program without funds', function () {
             'descriptions' => 'School year aid',
             'start_at' => '2026-01-01',
             'end_at' => '2026-12-31',
-            'kind' => ProgramKind::Scheme,
+            'kind' => ProgramKind::Scheme->value,
             'item_ids' => [$item->id],
         ])
         ->assertRedirect(route('user.programs.show', [
@@ -85,12 +85,12 @@ test('creating a parent program can include the first batch', function () {
             'name' => 'Educational Assistance 2026',
             'descriptions' => 'School year aid',
             'start_at' => '2026-01-01',
-            'kind' => ProgramKind::Scheme,
+            'kind' => ProgramKind::Scheme->value,
             'item_ids' => [$item->id],
             'fields' => [
                 [
                     'label' => 'School',
-                    'type' => ProgramFieldType::Text,
+                    'type' => ProgramFieldType::Text->value,
                     'is_required' => true,
                     'show_in_table' => false,
                 ],
@@ -129,14 +129,14 @@ test('adding a batch copies items fields and documents from the parent', functio
 
     ProgramField::factory()->forProgram($scheme)->create([
         'label' => 'Barangay note',
-        'type' => ProgramFieldType::Text,
+        'type' => ProgramFieldType::Text->value,
     ]);
 
     $documentType = DocumentType::factory()->create();
     $scheme->documentRequirements()->create([
         'document_type_id' => $documentType->id,
         'is_required' => true,
-        'required_before' => DocumentRequirementMilestone::Verified,
+        'required_before' => DocumentRequirementMilestone::Verified->value,
         'sort_order' => 0,
     ]);
 
@@ -180,7 +180,7 @@ test('the programs index lists parents only', function () {
             ->has('programs.data', 2)
             ->where('programs.data.0.name', $standalone->name)
             ->where('programs.data.1.name', $scheme->name)
-            ->where('programs.data.1.kind', ProgramKind::Scheme)
+            ->where('programs.data.1.kind', ProgramKind::Scheme->value)
             ->where('programs.data.1.batches_count', 1));
 });
 
@@ -216,7 +216,7 @@ test('the parent program show page lists batches and does not include the assist
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('user/programs/scheme')
-            ->where('program.kind', ProgramKind::Scheme)
+            ->where('program.kind', ProgramKind::Scheme->value)
             ->has('batches', 1)
             ->missing('assistances'));
 });
@@ -549,7 +549,7 @@ test('stock cannot be allocated to a parent program', function () {
             'item' => $item->id,
         ]), [
             'quantity' => 10,
-            'type' => StockMovementType::OpeningBalance,
+            'type' => StockMovementType::OpeningBalance->value,
         ])
         ->assertRedirect();
 
@@ -559,7 +559,7 @@ test('stock cannot be allocated to a parent program', function () {
             'item' => $item->id,
         ]), [
             'program_id' => $scheme->id,
-            'type' => StockMovementType::Allocate,
+            'type' => StockMovementType::Allocate->value,
             'quantity' => 2,
         ])
         ->assertSessionHasErrors('program_id');

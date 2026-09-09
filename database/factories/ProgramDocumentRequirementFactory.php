@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Enums\DocumentRequirementMilestone;
 use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Program;
 use App\Models\ProgramDocumentRequirement;
-use App\Support\DocumentRequirementMilestone;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -33,7 +33,7 @@ class ProgramDocumentRequirementFactory extends Factory
             'document_type_id' => DocumentType::query()->value('id')
                 ?? DocumentType::factory()->create()->id,
             'is_required' => true,
-            'required_before' => DocumentRequirementMilestone::Verified,
+            'required_before' => DocumentRequirementMilestone::Verified->value,
             'sort_order' => 0,
         ];
     }
@@ -55,7 +55,7 @@ class ProgramDocumentRequirementFactory extends Factory
     public function beforeDelivered(): static
     {
         return $this->state(fn (array $attributes): array => [
-            'required_before' => DocumentRequirementMilestone::Delivered,
+            'required_before' => DocumentRequirementMilestone::Delivered->value,
         ]);
     }
 }

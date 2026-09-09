@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AssistanceItemOrigin;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Beneficiary;
@@ -8,7 +9,6 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\AssistanceItemOrigin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -49,7 +49,7 @@ test('authenticated users can view a printable acknowledgment receipt', function
     AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 2,
         'requested_quantity' => 2,
         'specification' => '25 kg',
@@ -65,7 +65,7 @@ test('authenticated users can view a printable acknowledgment receipt', function
     AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $oilItem->id,
-        'origin' => AssistanceItemOrigin::Additional,
+        'origin' => AssistanceItemOrigin::Additional->value,
         'quantity' => 1,
         'requested_quantity' => 0,
         'fulfillment_reason' => 'leftover pack',
@@ -86,9 +86,9 @@ test('authenticated users can view a printable acknowledgment receipt', function
             ->where('receipt.released_items.0.name', 'Rice')
             ->where('receipt.released_items.0.kind', 'goods')
             ->where('receipt.released_items.0.quantity', 2)
-            ->where('receipt.released_items.0.origin', AssistanceItemOrigin::Requested)
+            ->where('receipt.released_items.0.origin', AssistanceItemOrigin::Requested->value)
             ->where('receipt.released_items.1.name', 'Cooking oil')
-            ->where('receipt.released_items.1.origin', AssistanceItemOrigin::Additional)
+            ->where('receipt.released_items.1.origin', AssistanceItemOrigin::Additional->value)
             ->where('receipt.released_items.1.fulfillment_reason', 'leftover pack')
             ->where('receipt.requested_items', fn (Collection $items): bool => $items->count() === 1)
             ->where('receipt.requested_items.0.requested_quantity', 2)

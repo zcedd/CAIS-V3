@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Support\PermissionName;
-use App\Support\RoleName;
+use App\Enums\PermissionName;
+use App\Enums\RoleName;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;

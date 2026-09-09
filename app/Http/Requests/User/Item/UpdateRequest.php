@@ -2,10 +2,10 @@
 
 namespace App\Http\Requests\User\Item;
 
+use App\Enums\ItemKind;
 use App\Http\Requests\User\Concerns\ValidatesItemKind;
 use App\Models\Department;
 use App\Models\Item;
-use App\Support\ItemKind;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -33,7 +33,7 @@ class UpdateRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'kind' => ['required', 'string', Rule::in(ItemKind::values())],
+            'kind' => ['required', Rule::enum(ItemKind::class)],
             'item_unit_measurement_id' => [
                 'required',
                 'integer',

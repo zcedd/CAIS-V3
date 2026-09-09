@@ -2,10 +2,10 @@
 
 namespace App\Services\Workflow;
 
+use App\Enums\RequestStatusCode;
+use App\Enums\RequestSubStatusCode;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
-use App\Support\RequestStatusCode;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Support\Facades\DB;
 
 class RequestStatusCatalog

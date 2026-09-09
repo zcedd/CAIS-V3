@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\StockMovementType;
 use App\Models\Department;
 use App\Models\Item;
 use App\Models\ItemStockBalance;
@@ -7,7 +8,6 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\User;
 use App\Notifications\LowStockNotification;
 use App\Services\User\StockLedgerService;
-use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 
@@ -29,7 +29,7 @@ test('low stock notification fires once until stock recovers', function () {
 
     $ledger->receive($item, $user, [
         'quantity' => 5,
-        'type' => StockMovementType::OpeningBalance,
+        'type' => StockMovementType::OpeningBalance->value,
     ]);
 
     Notification::assertSentTo($user, LowStockNotification::class);
@@ -40,7 +40,7 @@ test('low stock notification fires once until stock recovers', function () {
     $lot = $item->stockLots()->first();
     $ledger->adjust($item, $user, [
         'stock_lot_id' => $lot->id,
-        'type' => StockMovementType::AdjustmentOut,
+        'type' => StockMovementType::AdjustmentOut->value,
         'quantity' => 1,
         'reason' => 'spoilage',
     ]);
@@ -49,7 +49,7 @@ test('low stock notification fires once until stock recovers', function () {
 
     $ledger->adjust($item, $user, [
         'stock_lot_id' => $lot->id,
-        'type' => StockMovementType::AdjustmentIn,
+        'type' => StockMovementType::AdjustmentIn->value,
         'quantity' => 10,
         'reason' => 'replenish',
     ]);
@@ -60,7 +60,7 @@ test('low stock notification fires once until stock recovers', function () {
 
     $ledger->adjust($item, $user, [
         'stock_lot_id' => $lot->id,
-        'type' => StockMovementType::AdjustmentOut,
+        'type' => StockMovementType::AdjustmentOut->value,
         'quantity' => 10,
         'reason' => 'issue from warehouse',
     ]);
