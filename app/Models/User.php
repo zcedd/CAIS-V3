@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\PermissionName;
 use App\Enums\RoleName;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -71,5 +72,16 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->hasRole(RoleName::SuperAdmin);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function grantedPermissionNames(): array
+    {
+        return array_values(array_filter(
+            PermissionName::values(),
+            fn (string $permission): bool => $this->can($permission),
+        ));
     }
 }

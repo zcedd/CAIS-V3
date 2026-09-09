@@ -45,6 +45,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $user?->loadMissing('department:id,name,slug'),
                 'is_super_admin' => $user instanceof User && $user->isSuperAdmin(),
+                'permissions' => $user instanceof User ? $user->grantedPermissionNames() : [],
             ],
             'unreadNotificationsCount' => $user
                 ? app(NotificationService::class)->unreadCountForUser($user)

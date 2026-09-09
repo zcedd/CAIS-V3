@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\PermissionName;
 use App\Enums\RoleName;
 use App\Enums\WorkflowTemplate;
 use App\Models\Assistance;
@@ -9,6 +10,7 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
@@ -213,4 +215,44 @@ test('super admin can act in another department without resource roles', functio
             'program' => $program->id,
         ]))
         ->assertSuccessful();
+});
+
+test('dashboard shares only granted permissions for sidebar navigation', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $user = grantResourceRoles(
+        User::factory()->create(['department_id' => $department->id]),
+        RoleName::Assistance->value,
+    );
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', $department->slug))
+        ->assertOk()
+        ->assertInertia(function (Assert $page) {
+            $permissions = $page->toArray()['props']['auth']['permissions'];
+
+            expect($permissions)
+                ->toContain(PermissionName::AssistanceViewAny->value)
+                ->not->toContain(PermissionName::ProgramViewAny->value)
+                ->not->toContain(PermissionName::BeneficiaryViewAny->value)
+                ->not->toContain(PermissionName::ItemViewAny->value)
+                ->not->toContain(PermissionName::FundViewAny->value)
+                ->not->toContain(PermissionName::WorkflowViewAny->value);
+        });
+});
+
+test('super admin shares every permission for sidebar navigation', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $user = assignSuperAdminRole(User::factory()->create([
+        'department_id' => $department->id,
+    ]));
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', $department->slug))
+        ->assertOk()
+        ->assertInertia(function (Assert $page) {
+            expect($page->toArray()['props']['auth']['permissions'])
+                ->toEqual(PermissionName::values())
+                ->and($page->toArray()['props']['auth']['is_super_admin'])
+                ->toBeTrue();
+        });
 });
