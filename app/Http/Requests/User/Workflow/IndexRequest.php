@@ -3,7 +3,9 @@
 namespace App\Http\Requests\User\Workflow;
 
 use App\Models\Department;
+use App\Models\Workflow;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class IndexRequest extends FormRequest
 {
@@ -12,7 +14,7 @@ class IndexRequest extends FormRequest
         $department = $this->route('department');
 
         return $department instanceof Department
-            && $this->user()?->department_id === $department->id;
+            && Gate::allows('viewAny', [Workflow::class, $department]);
     }
 
     /**

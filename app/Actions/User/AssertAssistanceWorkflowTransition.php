@@ -133,7 +133,7 @@ class AssertAssistanceWorkflowTransition
             return true;
         }
 
-        if ($user->isAdmin()) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 

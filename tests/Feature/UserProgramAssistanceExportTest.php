@@ -9,43 +9,17 @@ use App\Models\Program;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
+use App\Support\RoleName;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
-function assignDownloadAssistancePermission(User $user): void
-{
-    $permissionId = DB::table('permissions')->insertGetId([
-        'name' => 'Download Assistance',
-        'guard_name' => 'web',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    $roleId = DB::table('roles')->insertGetId([
-        'name' => 'head',
-        'guard_name' => 'web',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
-
-    DB::table('role_has_permissions')->insert([
-        'permission_id' => $permissionId,
-        'role_id' => $roleId,
-    ]);
-
-    DB::table('model_has_roles')->insert([
-        'role_id' => $roleId,
-        'model_type' => 'App\\Models\\User',
-        'model_id' => $user->id,
-    ]);
-}
-
 test('user with download assistance permission can export filtered assistances as csv', function () {
     $department = Department::create(['name' => 'Department A']);
-    $user = User::factory()->create(['department_id' => $department->id]);
-    assignDownloadAssistancePermission($user);
+    $user = grantResourceRoles(
+        User::factory()->create(['department_id' => $department->id]),
+        RoleName::Program->value,
+    );
 
     $program = Program::create([
         'name' => 'Alpha Program',
@@ -128,14 +102,10 @@ test('user with download assistance permission can export filtered assistances a
 
 test('user without download assistance permission cannot export assistances', function () {
     $department = Department::create(['name' => 'Department A']);
-    $user = User::factory()->create(['department_id' => $department->id]);
-
-    DB::table('permissions')->insert([
-        'name' => 'Download Assistance',
-        'guard_name' => 'web',
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]);
+    $user = grantResourceRoles(
+        User::factory()->create(['department_id' => $department->id]),
+        RoleName::Assistance->value,
+    );
 
     $program = Program::create([
         'name' => 'Alpha Program',
@@ -152,5 +122,5 @@ test('user without download assistance permission cannot export assistances', fu
             'department' => $department->slug,
             'program' => $program->id,
         ]))
-        ->assertOk();
+        ->assertForbidden();
 });

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\RoleName;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -66,8 +67,8 @@ class User extends Authenticatable
         return $this->hasMany(Assistance::class, 'assigned_to_id');
     }
 
-    public function isAdmin(): bool
+    public function isSuperAdmin(): bool
     {
-        return $this->hasAnyRole(['admin', 'Admin']);
+        return $this->hasRole(RoleName::SuperAdmin);
     }
 }

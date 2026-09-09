@@ -5,15 +5,23 @@ namespace App\Policies;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
+use App\Policies\Concerns\ChecksDepartmentPermission;
+use App\Support\PermissionName;
 
 class ProgramPolicy
 {
+    use ChecksDepartmentPermission;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user, Department $department): bool
     {
-        return $user->department_id === $department->id;
+        return $this->allows(
+            $user,
+            PermissionName::ProgramViewAny,
+            $user->department_id === $department->id,
+        );
     }
 
     /**
@@ -21,7 +29,11 @@ class ProgramPolicy
      */
     public function view(User $user, Program $program): bool
     {
-        return $user->department_id === $program->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::ProgramView,
+            $user->department_id === $program->department_id,
+        );
     }
 
     /**
@@ -29,7 +41,11 @@ class ProgramPolicy
      */
     public function create(User $user, Department $department): bool
     {
-        return $user->department_id === $department->id;
+        return $this->allows(
+            $user,
+            PermissionName::ProgramCreate,
+            $user->department_id === $department->id,
+        );
     }
 
     /**
@@ -37,7 +53,11 @@ class ProgramPolicy
      */
     public function update(User $user, Program $program): bool
     {
-        return $user->department_id === $program->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::ProgramUpdate,
+            $user->department_id === $program->department_id,
+        );
     }
 
     /**
@@ -45,7 +65,11 @@ class ProgramPolicy
      */
     public function delete(User $user, Program $program): bool
     {
-        return $user->department_id === $program->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::ProgramDelete,
+            $user->department_id === $program->department_id,
+        );
     }
 
     /**
@@ -53,7 +77,7 @@ class ProgramPolicy
      */
     public function restore(User $user, Program $program): bool
     {
-        return $user->department_id === $program->department_id;
+        return $this->update($user, $program);
     }
 
     /**
@@ -61,7 +85,7 @@ class ProgramPolicy
      */
     public function forceDelete(User $user, Program $program): bool
     {
-        return $user->department_id === $program->department_id;
+        return $this->delete($user, $program);
     }
 
     /**
@@ -69,6 +93,10 @@ class ProgramPolicy
      */
     public function downloadAssistance(User $user, Program $program): bool
     {
-        return $user->department_id === $program->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::ProgramDownloadAssistance,
+            $user->department_id === $program->department_id,
+        );
     }
 }

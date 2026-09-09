@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\RoleName;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -23,6 +24,6 @@ class UserSeeder extends Seeder
             'email' => 'zcedbuduan@gmail.com',
             'password' => Hash::make('zcedzced'),
         ]);
-        $user->assignRole('admin');
+        $user->assignRole(RoleName::SuperAdmin);
     }
 }

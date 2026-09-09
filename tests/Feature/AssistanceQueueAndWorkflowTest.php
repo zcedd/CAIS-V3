@@ -18,6 +18,7 @@ use App\Services\User\AssistanceService;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Support\RequestStatusCode;
 use App\Support\RequestSubStatusCode;
+use App\Support\RoleName;
 use App\Support\WorkflowTemplate;
 use Illuminate\Support\Facades\Notification;
 
@@ -408,12 +409,12 @@ test('department workflows page lists the default pipeline', function () {
             ->component('user/workflows/index')
             ->has('workflows', 1)
             ->where('workflows.0.is_default', true)
-            ->where('can_create', false));
+            ->where('can_create', true));
 });
 
-test('admin can create a workflow from a template', function () {
+test('super admin can create a workflow from a template', function () {
     ['department' => $department, 'encoder' => $user] = createQueueAssistanceContext();
-    assignAdminRole($user);
+    assignSuperAdminRole($user);
 
     $this->actingAs($user)
         ->get(route('user.workflows.index', $department->slug))
@@ -438,8 +439,16 @@ test('admin can create a workflow from a template', function () {
         ->exists())->toBeTrue();
 });
 
-test('staff without the admin role cannot create a workflow', function () {
+test('staff without the workflow role cannot create a workflow', function () {
     ['department' => $department, 'encoder' => $user] = createQueueAssistanceContext();
+    grantResourceRoles(
+        $user,
+        RoleName::Assistance->value,
+        RoleName::Program->value,
+        RoleName::Beneficiary->value,
+        RoleName::Item->value,
+        RoleName::Fund->value,
+    );
 
     $this->actingAs($user)
         ->post(route('user.workflows.store', $department->slug), [
@@ -487,7 +496,7 @@ test('staff encode on an owned submitted step assigns the owner instead of the e
 test('juan cannot advance maria review request but maria and admin can', function () {
     ['department' => $department, 'encoder' => $juan, 'assignee' => $maria, 'program' => $program, 'beneficiary' => $beneficiary, 'mode' => $mode] = createQueueAssistanceContext();
     $admin = User::factory()->create(['department_id' => $department->id]);
-    assignAdminRole($admin);
+    assignSuperAdminRole($admin);
 
     assignWorkflowStageOwner($program, RequestStatusCode::Review, $maria);
 
@@ -604,7 +613,7 @@ test('moving to an owned approved step auto-assigns and notifies juan', function
 test('claim is forbidden on a step-owned request except for the owner or admin', function () {
     ['department' => $department, 'encoder' => $juan, 'assignee' => $maria, 'program' => $program, 'beneficiary' => $beneficiary, 'mode' => $mode] = createQueueAssistanceContext();
     $admin = User::factory()->create(['department_id' => $department->id]);
-    assignAdminRole($admin);
+    assignSuperAdminRole($admin);
 
     assignWorkflowStageOwner($program, RequestStatusCode::Submitted, $maria);
 
