@@ -17,7 +17,7 @@ class TransferProgramAssistance
     ) {}
 
     /**
-     * @param  array{target_program_id: int, eligibility_override_reason?: string|null}  $validated
+     * @param  array{target_program_id: int, reason: string, eligibility_override_reason?: string|null}  $validated
      */
     public function __invoke(Assistance $assistance, Program $targetProgram, array $validated): Assistance
     {
@@ -26,12 +26,14 @@ class TransferProgramAssistance
                 ->lockForUpdate()
                 ->findOrFail($assistance->beneficiary_id);
 
-            $assistance->loadMissing('assistanceItem');
+            $assistance->loadMissing(['assistanceItem', 'program:id,name']);
 
             $overrideReason = isset($validated['eligibility_override_reason'])
                 ? trim((string) $validated['eligibility_override_reason'])
                 : null;
             $overrideReason = $overrideReason === '' ? null : $overrideReason;
+            $reason = trim((string) ($validated['reason'] ?? ''));
+            $sourceName = $assistance->program?->name ?? 'the current program';
 
             $this->guardAssistanceEligibility->assert(
                 $targetProgram,
@@ -52,18 +54,25 @@ class TransferProgramAssistance
                 'eligibility_override_reason' => $overrideReason ?? $assistance->eligibility_override_reason,
             ]);
 
-            if ($overrideReason !== null) {
-                $currentSubStatusId = $assistance->current_request_sub_status_id
-                    ?? RequestSubStatus::query()->where('name', 'In Progress')->value('id');
+            $currentSubStatusId = $assistance->current_request_sub_status_id
+                ?? RequestSubStatus::query()->where('name', 'In Progress')->value('id');
 
-                if ($currentSubStatusId !== null) {
-                    AssistanceRequestSubStatus::query()->create([
-                        'assistance_id' => $assistance->id,
-                        'request_sub_status_id' => $currentSubStatusId,
-                        'remark' => 'Eligibility override on transfer: '.$overrideReason,
-                        'recorded_at' => Carbon::now(),
-                    ]);
-                }
+            if ($currentSubStatusId !== null && $reason !== '') {
+                AssistanceRequestSubStatus::query()->create([
+                    'assistance_id' => $assistance->id,
+                    'request_sub_status_id' => $currentSubStatusId,
+                    'remark' => "Transferred from {$sourceName} to {$targetProgram->name}: {$reason}",
+                    'recorded_at' => Carbon::now(),
+                ]);
+            }
+
+            if ($overrideReason !== null && $currentSubStatusId !== null) {
+                AssistanceRequestSubStatus::query()->create([
+                    'assistance_id' => $assistance->id,
+                    'request_sub_status_id' => $currentSubStatusId,
+                    'remark' => 'Eligibility override on transfer: '.$overrideReason,
+                    'recorded_at' => Carbon::now(),
+                ]);
             }
 
             return $assistance->refresh();

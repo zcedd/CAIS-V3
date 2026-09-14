@@ -157,7 +157,7 @@ test('users can load additional beneficiaries via pagination', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->has('beneficiaries.data', 1)
             ->where('beneficiaries.current_page', 2)
-            ->where('beneficiaries.data.0.name', 'Beneficiary 16'));
+            ->where('beneficiaries.data.0.name', 'Beneficiary 9'));
 });
 
 test('beneficiaries index uses the default page size when none is given', function () {

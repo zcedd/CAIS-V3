@@ -309,7 +309,7 @@ test('users cannot create assistance for another department program', function (
                 ],
             ],
         ])
-        ->assertForbidden();
+        ->assertNotFound();
 
     expect(Assistance::query()->count())->toBe(0);
 });

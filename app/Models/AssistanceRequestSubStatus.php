@@ -13,6 +13,8 @@ class AssistanceRequestSubStatus extends Pivot
 
     protected $table = 'assistance_request_sub_status';
 
+    public $incrementing = true;
+
     protected static function booted(): void
     {
         $syncCurrentStatus = static function (self $pivot): void {

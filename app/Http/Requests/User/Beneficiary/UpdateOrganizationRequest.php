@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\User\Beneficiary;
 
+use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use App\Http\Requests\User\Concerns\ValidatesDuplicateBeneficiaries;
 use App\Models\Beneficiary;
-use App\Models\Department;
 use App\Models\Organization;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -12,6 +12,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateOrganizationRequest extends FormRequest
 {
+    use AuthorizesDepartmentBeneficiary;
     use ValidatesDuplicateBeneficiaries;
 
     public function authorize(): bool
@@ -26,7 +27,7 @@ class UpdateOrganizationRequest extends FormRequest
             return false;
         }
 
-        return $this->userBelongsToDepartment();
+        return $this->canUpdateBeneficiary();
     }
 
     /**
@@ -64,13 +65,5 @@ class UpdateOrganizationRequest extends FormRequest
                 ? $beneficiary->id
                 : null,
         ];
-    }
-
-    protected function userBelongsToDepartment(): bool
-    {
-        $department = $this->route('department');
-
-        return $department instanceof Department
-            && $this->user()?->department_id === $department->id;
     }
 }

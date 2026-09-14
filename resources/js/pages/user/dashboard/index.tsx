@@ -55,6 +55,7 @@ import type {
     RequestStatusChartPoint,
     RequestsTrendPoint,
     TopBarangayPoint,
+    UnspscReleasedChartPoint,
 } from '@/types/dashboard';
 
 const RequestStatusChart = lazy(() =>
@@ -66,6 +67,12 @@ const RequestStatusChart = lazy(() =>
 const DeliveredItemsChart = lazy(() =>
     import('@/pages/user/dashboard/delivered-items-chart').then((module) => ({
         default: module.DeliveredItemsChart,
+    })),
+);
+
+const UnspscReleasedChart = lazy(() =>
+    import('@/pages/user/dashboard/unspsc-released-chart').then((module) => ({
+        default: module.UnspscReleasedChart,
     })),
 );
 
@@ -110,6 +117,7 @@ type DashboardPageProps = {
     summary?: DashboardSummary;
     requestStatusChart?: RequestStatusChartPoint[];
     deliveredItemsChart?: DeliveredItemsChartPoint[];
+    unspscReleasedChart?: UnspscReleasedChartPoint[];
     beneficiaryTypeChart?: BeneficiaryTypeChartPoint[];
     demographics?: DashboardDemographics;
     requestsTrend?: RequestsTrendPoint[];
@@ -184,6 +192,7 @@ export default function UserDashboardIndex({
     summary,
     requestStatusChart,
     deliveredItemsChart,
+    unspscReleasedChart,
     beneficiaryTypeChart,
     demographics,
     requestsTrend,
@@ -337,6 +346,32 @@ export default function UserDashboardIndex({
                                 </WhenVisible>
                             </div>
                         </div>
+
+                        <WhenVisible
+                            data={[...DASHBOARD_CHART_DEFER_PROPS]}
+                            buffer={200}
+                            fallback={<ChartSkeleton />}
+                        >
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>
+                                        Released by UNSPSC segment
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Quantity released, classified for
+                                        PhilGEPS, COA, and donor alignment.
+                                        Spend reporting waits on item cost.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Suspense fallback={<ChartSkeleton />}>
+                                        <UnspscReleasedChart
+                                            data={unspscReleasedChart ?? []}
+                                        />
+                                    </Suspense>
+                                </CardContent>
+                            </Card>
+                        </WhenVisible>
                     </TabsContent>
 
                     <TabsContent value="insights" className="space-y-4">

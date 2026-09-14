@@ -101,6 +101,7 @@ test('authenticated users can view an assistance profile in their department', f
             ->where('assistance.beneficiary_type', null)
             ->where('assistance.remark', 'Needs follow-up')
             ->where('assistance.requested_items.0.name', 'Rice')
+            ->where('assistance.requested_items.0.kind', 'goods')
             ->where('assistance.requested_items.0.unit', 'kg')
             ->where('assistance.requested_items.0.requested_quantity', 2)
             ->where('assistance.requested_items.0.released_quantity', 0)

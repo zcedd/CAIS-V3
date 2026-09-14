@@ -29,7 +29,7 @@ class IndexRequest extends FormRequest
             'page' => ['nullable', 'integer', 'min:1'],
             'per_page' => ['nullable', 'integer', Rule::in([10, 15, 20, 25, 30, 40, 50])],
             'search' => ['nullable', 'string', 'max:255'],
-            'sort' => ['nullable', 'string', Rule::in(['name', 'unit'])],
+            'sort' => ['nullable', 'string', Rule::in(['name', 'unit', 'on_hand', 'available'])],
             'direction' => ['nullable', 'string', Rule::in(['asc', 'desc'])],
         ];
     }

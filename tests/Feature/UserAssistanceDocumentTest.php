@@ -208,7 +208,7 @@ test('users cannot upload documents for another department', function () {
             'document_type_id' => $documentType->id,
             'file' => UploadedFile::fake()->image('id.jpg'),
         ])
-        ->assertForbidden();
+        ->assertNotFound();
 });
 
 test('document uploads reject disallowed file types', function () {

@@ -2,6 +2,7 @@
 
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Models\AssistanceRequestSubStatus;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Individual;
@@ -28,11 +29,7 @@ function getProgramShowPartial(User $user, string $departmentSlug, int $programI
             'department' => $departmentSlug,
             'program' => $programId,
         ], $query)),
-        [
-            'X-Inertia' => 'true',
-            'X-Inertia-Partial-Component' => 'user/programs/show',
-            'X-Inertia-Partial-Data' => implode(',', $props),
-        ],
+        inertiaPartialHeaders('user/programs/show', $props),
     );
 }
 
@@ -171,6 +168,7 @@ test('program show page summary reflects assistances for the program only', func
         'mode_of_request_id' => null,
         'date_requested' => now()->toDateString(),
         'date_delivered' => now()->toDateString(),
+        'was_delivered' => true,
         'user_id' => $user->id,
     ]);
 
@@ -272,7 +270,7 @@ test('program show page includes assistances for the program', function () {
         ->assertJsonCount(1, 'props.assistances.data')
         ->assertJsonPath('props.assistances.data.0.cais_number', 'CAIS-001')
         ->assertJsonPath('props.assistances.data.0.beneficiary_name', 'Juan Dela Cruz')
-        ->assertJsonPath('props.assistances.data.0.status', 'Pending')
+        ->assertJsonPath('props.assistances.data.0.status', 'Unrequested')
         ->assertJsonPath('props.assistances.data.0.remark', 'Follow up next week')
         ->assertJsonPath('props.assistances.data.0.items.0.name', 'Rice')
         ->assertJsonPath('props.assistances.data.0.items.0.quantity', 2)
@@ -389,25 +387,15 @@ test('program show page uses latest request sub status for assistance status', f
         'description' => null,
     ]);
 
-    DB::table('assistance_request_sub_status')->insert([
-        [
-            'assistance_id' => $assistance->id,
-            'request_sub_status_id' => $olderSubStatusId,
-            'remark' => null,
-            'recorded_at' => '2024-01-02 10:00:00',
-            'created_at' => now(),
-            'updated_at' => now(),
-            'deleted_at' => null,
-        ],
-        [
-            'assistance_id' => $assistance->id,
-            'request_sub_status_id' => $latestSubStatusId,
-            'remark' => null,
-            'recorded_at' => '2024-02-02 10:00:00',
-            'created_at' => now(),
-            'updated_at' => now(),
-            'deleted_at' => null,
-        ],
+    AssistanceRequestSubStatus::query()->forceCreate([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => $olderSubStatusId,
+        'recorded_at' => '2024-01-02 10:00:00',
+    ]);
+    AssistanceRequestSubStatus::query()->forceCreate([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => $latestSubStatusId,
+        'recorded_at' => '2024-02-02 10:00:00',
     ]);
 
     $response = getProgramShowPartial($user, $department->slug, $program->id, ['assistances'])
@@ -461,25 +449,15 @@ test('program show page uses highest id when multiple sub statuses share the sam
         'description' => null,
     ]);
 
-    DB::table('assistance_request_sub_status')->insert([
-        [
-            'assistance_id' => $assistance->id,
-            'request_sub_status_id' => $olderSubStatusId,
-            'remark' => null,
-            'recorded_at' => '2024-02-02 10:00:00',
-            'created_at' => now(),
-            'updated_at' => now(),
-            'deleted_at' => null,
-        ],
-        [
-            'assistance_id' => $assistance->id,
-            'request_sub_status_id' => $latestSubStatusId,
-            'remark' => null,
-            'recorded_at' => '2024-02-02 10:00:00',
-            'created_at' => now(),
-            'updated_at' => now(),
-            'deleted_at' => null,
-        ],
+    AssistanceRequestSubStatus::query()->forceCreate([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => $olderSubStatusId,
+        'recorded_at' => '2024-02-02 10:00:00',
+    ]);
+    AssistanceRequestSubStatus::query()->forceCreate([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => $latestSubStatusId,
+        'recorded_at' => '2024-02-02 10:00:00',
     ]);
 
     getProgramShowPartial($user, $department->slug, $program->id, ['assistances'])
@@ -539,25 +517,15 @@ test('program show page filters assistances by request status on the server', fu
         'remark' => 'verified record',
     ]);
 
-    DB::table('assistance_request_sub_status')->insert([
-        [
-            'assistance_id' => $submittedAssistance->id,
-            'request_sub_status_id' => $submittedSubStatusId,
-            'remark' => null,
-            'recorded_at' => '2024-01-02 10:00:00',
-            'created_at' => now(),
-            'updated_at' => now(),
-            'deleted_at' => null,
-        ],
-        [
-            'assistance_id' => $verifiedAssistance->id,
-            'request_sub_status_id' => $verifiedSubStatusId,
-            'remark' => null,
-            'recorded_at' => '2024-02-02 10:00:00',
-            'created_at' => now(),
-            'updated_at' => now(),
-            'deleted_at' => null,
-        ],
+    AssistanceRequestSubStatus::query()->forceCreate([
+        'assistance_id' => $submittedAssistance->id,
+        'request_sub_status_id' => $submittedSubStatusId,
+        'recorded_at' => '2024-01-02 10:00:00',
+    ]);
+    AssistanceRequestSubStatus::query()->forceCreate([
+        'assistance_id' => $verifiedAssistance->id,
+        'request_sub_status_id' => $verifiedSubStatusId,
+        'recorded_at' => '2024-02-02 10:00:00',
     ]);
 
     getProgramShowPartial($user, $department->slug, $program->id, ['status', 'status_options', 'assistances'], [
@@ -620,11 +588,28 @@ test('program show page includes status breakdown, funding sources, and covered 
         'user_id' => $user->id,
     ]);
 
-    Assistance::create([
+    $deliveredAssistance = Assistance::create([
         'program_id' => $program->id,
         'date_requested' => now()->toDateString(),
         'date_delivered' => now()->toDateString(),
+        'was_delivered' => true,
         'user_id' => $user->id,
+    ]);
+
+    $deliveredStatusId = DB::table('request_statuses')->insertGetId([
+        'name' => 'Delivered',
+    ]);
+
+    $deliveredSubStatusId = DB::table('request_sub_statuses')->insertGetId([
+        'name' => 'Released',
+        'request_status_id' => $deliveredStatusId,
+        'description' => null,
+    ]);
+
+    AssistanceRequestSubStatus::query()->forceCreate([
+        'assistance_id' => $deliveredAssistance->id,
+        'request_sub_status_id' => $deliveredSubStatusId,
+        'recorded_at' => now(),
     ]);
 
     getProgramShowPartial($user, $department->slug, $program->id, [
@@ -635,7 +620,7 @@ test('program show page includes status breakdown, funding sources, and covered 
         ->assertOk()
         ->assertJsonPath('component', 'user/programs/show')
         ->assertJsonCount(2, 'props.status_breakdown')
-        ->assertJsonPath('props.status_breakdown.0.status', 'Pending')
+        ->assertJsonPath('props.status_breakdown.0.status', 'Unrequested')
         ->assertJsonPath('props.status_breakdown.0.count', 2)
         ->assertJsonPath('props.status_breakdown.1.status', 'Delivered')
         ->assertJsonPath('props.status_breakdown.1.count', 1)
@@ -671,5 +656,5 @@ test('authenticated users cannot view a program from another department using th
             'department' => $departmentA->slug,
             'program' => $programInB->id,
         ]))
-        ->assertForbidden();
+        ->assertNotFound();
 });

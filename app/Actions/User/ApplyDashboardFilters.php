@@ -4,6 +4,8 @@ namespace App\Actions\User;
 
 use App\Models\Individual;
 use App\Models\Organization;
+use App\Models\Program;
+use App\Support\ProgramKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
@@ -51,7 +53,7 @@ class ApplyDashboardFilters
         }
 
         if ($programs !== []) {
-            $query->whereIn('programs.id', $programs);
+            $query->whereIn('programs.id', $this->expandProgramFilterIds($programs));
         }
 
         if ($beneficiaryTypes !== []) {
@@ -210,6 +212,43 @@ class ApplyDashboardFilters
         $ranges[] = [$start, $previous];
 
         return $ranges;
+    }
+
+    /**
+     * @param  list<int|string>  $programIds
+     * @return list<int>
+     */
+    private function expandProgramFilterIds(array $programIds): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $programIds)));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $selected = Program::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'kind']);
+
+        $schemeIds = $selected
+            ->filter(static fn (Program $program): bool => $program->kind === ProgramKind::Scheme)
+            ->pluck('id')
+            ->all();
+
+        $directIds = $selected
+            ->reject(static fn (Program $program): bool => $program->kind === ProgramKind::Scheme)
+            ->pluck('id')
+            ->all();
+
+        $batchIds = $schemeIds === []
+            ? []
+            : Program::query()
+                ->whereIn('parent_id', $schemeIds)
+                ->where('kind', ProgramKind::Batch)
+                ->pluck('id')
+                ->all();
+
+        return array_values(array_unique(array_map('intval', [...$directIds, ...$batchIds])));
     }
 
     /**

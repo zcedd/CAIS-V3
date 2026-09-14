@@ -18,6 +18,7 @@ class AssistanceItemFulfillmentService
      *     requested: list<array{
      *         item_id: int,
      *         name: string,
+     *         kind: string|null,
      *         unit: string|null,
      *         specification: string|null,
      *         requested_quantity: int,
@@ -29,6 +30,7 @@ class AssistanceItemFulfillmentService
      *         id: int,
      *         item_id: int,
      *         name: string,
+     *         kind: string|null,
      *         unit: string|null,
      *         quantity: int,
      *         specification: string|null,
@@ -88,6 +90,7 @@ class AssistanceItemFulfillmentService
                 return [
                     'item_id' => (int) $first->item_id,
                     'name' => $first->item?->name ?? '—',
+                    'kind' => $first->item?->kind,
                     'unit' => $first->item?->unitMeasurement?->name,
                     'specification' => $specification === '' ? null : $specification,
                     'requested_quantity' => $requestedQuantity,
@@ -116,6 +119,7 @@ class AssistanceItemFulfillmentService
                 'id' => (int) $item->id,
                 'item_id' => (int) $item->item_id,
                 'name' => $item->item?->name ?? '—',
+                'kind' => $item->item?->kind,
                 'unit' => $item->item?->unitMeasurement?->name,
                 'quantity' => (int) $item->quantity,
                 'specification' => $item->specification,

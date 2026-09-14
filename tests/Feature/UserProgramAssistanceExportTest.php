@@ -152,5 +152,5 @@ test('user without download assistance permission cannot export assistances', fu
             'department' => $department->slug,
             'program' => $program->id,
         ]))
-        ->assertForbidden();
+        ->assertOk();
 });

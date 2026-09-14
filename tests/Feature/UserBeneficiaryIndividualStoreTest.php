@@ -20,7 +20,7 @@ test('authenticated users can create individual beneficiaries with morph row', f
         'last_name' => 'Cruz',
         'sex' => 'Male',
         'birthday' => '1990-01-01',
-        'address_barangay_id' => $barangayId,
+        ...addressCascadePayload($barangayId),
         'identifications' => [
             [
                 'identification_id' => 1,

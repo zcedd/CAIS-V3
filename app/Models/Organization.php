@@ -47,6 +47,7 @@ class Organization extends Model
     {
         return LogOptions::defaults()
             ->logFillable()
+            ->logExcept(['mobile_number'])
             ->useLogName('Organization')
             ->setDescriptionForEvent(fn (string $eventName) => "This Organization model has been {$eventName}")
             ->dontSubmitEmptyLogs();

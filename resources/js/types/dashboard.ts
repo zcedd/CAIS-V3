@@ -55,6 +55,12 @@ export type DeliveredItemsChartPoint = {
     quantity: number;
 };
 
+export type UnspscReleasedChartPoint = {
+    segment: string;
+    code: string;
+    quantity: number;
+};
+
 export type BeneficiaryTypeChartPoint = {
     type: string;
     label: string;
@@ -98,6 +104,19 @@ export type DashboardProgramRow = {
     name: string;
     type: 'individual' | 'organization';
     status: 'open' | 'closed';
+    kind?: string;
+    total_requests: number;
+    delivered: number;
+    in_progress: number;
+    denied: number;
+    delivery_rate: number;
+    batches?: DashboardProgramBatchRow[];
+};
+
+export type DashboardProgramBatchRow = {
+    id: number;
+    name: string;
+    status: 'open' | 'closed';
     total_requests: number;
     delivered: number;
     in_progress: number;
@@ -115,6 +134,7 @@ export const DASHBOARD_PARTIAL_PROPS = [
     'summary',
     'requestStatusChart',
     'deliveredItemsChart',
+    'unspscReleasedChart',
     'beneficiaryTypeChart',
     'demographics',
     'requestsTrend',
@@ -128,6 +148,7 @@ export const DASHBOARD_PARTIAL_PROPS = [
 export const DASHBOARD_CHART_DEFER_PROPS = [
     'requestStatusChart',
     'deliveredItemsChart',
+    'unspscReleasedChart',
     'beneficiaryTypeChart',
     'requestsTrend',
 ] as const;

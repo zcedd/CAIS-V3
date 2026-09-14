@@ -172,6 +172,7 @@ function createRequestedItemColumns(): ColumnDef<AssistanceRequestedItem>[] {
                 formatItemQuantity(
                     row.original.requested_quantity,
                     row.original.unit,
+                    row.original.kind,
                 ),
         },
         {
@@ -185,6 +186,7 @@ function createRequestedItemColumns(): ColumnDef<AssistanceRequestedItem>[] {
                 formatItemQuantity(
                     row.original.released_quantity,
                     row.original.unit,
+                    row.original.kind,
                 ),
         },
         {
@@ -192,7 +194,7 @@ function createRequestedItemColumns(): ColumnDef<AssistanceRequestedItem>[] {
             meta: { title: 'Outstanding' },
             header: 'Outstanding',
             cell: ({ row }) => {
-                const { pending_quantity, substituted_quantity, unit } =
+                const { pending_quantity, substituted_quantity, unit, kind } =
                     row.original;
 
                 if (pending_quantity > 0) {
@@ -201,7 +203,8 @@ function createRequestedItemColumns(): ColumnDef<AssistanceRequestedItem>[] {
                             variant="outline"
                             className={STATUS_BADGE_CLASSES.Pending}
                         >
-                            {formatItemQuantity(pending_quantity, unit)} owed
+                            {formatItemQuantity(pending_quantity, unit, kind)}{' '}
+                            owed
                         </Badge>
                     );
                 }
@@ -261,7 +264,11 @@ function createReleasedItemColumns(): ColumnDef<AssistanceReleasedItem>[] {
             },
             header: 'Amount',
             cell: ({ row }) =>
-                formatItemQuantity(row.original.quantity, row.original.unit),
+                formatItemQuantity(
+                    row.original.quantity,
+                    row.original.unit,
+                    row.original.kind,
+                ),
         },
         {
             accessorKey: 'origin',

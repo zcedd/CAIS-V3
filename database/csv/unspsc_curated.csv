@@ -1,0 +1,112 @@
+code,title,level,parent_code,is_curated,version
+50000000,Food Beverage and Tobacco Products,segment,,1,curated-2026
+50220000,Cereal and pulse products,family,50000000,1,curated-2026
+50221100,Cereals,class,50220000,1,curated-2026
+50221101,Rice,commodity,50221100,1,curated-2026
+50221102,Corn,commodity,50221100,1,curated-2026
+50221200,Pulses,class,50220000,1,curated-2026
+50221201,Beans,commodity,50221200,1,curated-2026
+50201700,Pasta and noodles,class,50220000,1,curated-2026
+50201701,Noodles,commodity,50201700,1,curated-2026
+50150000,Edible oils and fats,family,50000000,1,curated-2026
+50151500,Vegetable oils,class,50150000,1,curated-2026
+50151501,Cooking oil,commodity,50151500,1,curated-2026
+50180000,Canned or jarred foods,family,50000000,1,curated-2026
+50181900,Canned vegetables,class,50180000,1,curated-2026
+50181901,Canned sardines,commodity,50181900,1,curated-2026
+50181902,Canned goods,commodity,50181900,1,curated-2026
+50190000,Prepared and preserved foods,family,50000000,1,curated-2026
+50191500,Instant meals,class,50190000,1,curated-2026
+50191501,Instant noodles,commodity,50191500,1,curated-2026
+50130000,Dairy products and eggs,family,50000000,1,curated-2026
+50131700,Milk and butter milk,class,50130000,1,curated-2026
+50131701,Powdered milk,commodity,50131700,1,curated-2026
+50131702,Fresh milk,commodity,50131700,1,curated-2026
+50200000,Beverages,family,50000000,1,curated-2026
+50202300,Water,class,50200000,1,curated-2026
+50202301,Bottled water,commodity,50202300,1,curated-2026
+50202200,Coffee and tea,class,50200000,1,curated-2026
+50202201,Coffee,commodity,50202200,1,curated-2026
+50100000,Fruits and vegetables and nuts and seeds,family,50000000,1,curated-2026
+50111500,Vegetables,class,50100000,1,curated-2026
+50111501,Fresh vegetables,commodity,50111500,1,curated-2026
+50111600,Fruits,class,50100000,1,curated-2026
+50111601,Fresh fruit,commodity,50111600,1,curated-2026
+51000000,Drugs and Pharmaceutical Products,segment,,1,curated-2026
+51100000,Anti infective drugs,family,51000000,1,curated-2026
+51101500,Antibiotics,class,51100000,1,curated-2026
+51101501,Antibiotic medicines,commodity,51101500,1,curated-2026
+51140000,Analgesics and antipyretics,family,51000000,1,curated-2026
+51141500,Pain relief medicines,class,51140000,1,curated-2026
+51141501,Paracetamol,commodity,51141500,1,curated-2026
+51120000,Vitamins and nutrients,family,51000000,1,curated-2026
+51121500,Vitamin supplements,class,51120000,1,curated-2026
+51121501,Multivitamins,commodity,51121500,1,curated-2026
+42000000,Medical Equipment and Accessories and Supplies,segment,,1,curated-2026
+42130000,Medical apparel and textiles,family,42000000,1,curated-2026
+42131500,Patient care supplies,class,42130000,1,curated-2026
+42131501,Face masks,commodity,42131500,1,curated-2026
+42131502,Medical gloves,commodity,42131500,1,curated-2026
+42131600,First aid supplies,class,42130000,1,curated-2026
+42131601,First aid kit,commodity,42131600,1,curated-2026
+42140000,Patient care and treatment products,family,42000000,1,curated-2026
+42142500,Hygiene supplies,class,42140000,1,curated-2026
+42142501,Alcohol,commodity,42142500,1,curated-2026
+42142502,Sanitary pads,commodity,42142500,1,curated-2026
+42142503,Diapers,commodity,42142500,1,curated-2026
+44000000,Office Equipment and Accessories and Supplies,segment,,1,curated-2026
+44120000,Office supplies,family,44000000,1,curated-2026
+44121700,Writing instruments,class,44120000,1,curated-2026
+44121701,Ballpoint pens,commodity,44121700,1,curated-2026
+44122000,Folders and binders and related products,class,44120000,1,curated-2026
+44122001,Notebooks,commodity,44122000,1,curated-2026
+14000000,Paper Materials and Products,segment,,1,curated-2026
+14110000,Paper products,family,14000000,1,curated-2026
+14111500,Printing and writing paper,class,14110000,1,curated-2026
+14111501,Bond paper,commodity,14111500,1,curated-2026
+14111700,Paper tissues,class,14110000,1,curated-2026
+14111701,Tissue paper,commodity,14111700,1,curated-2026
+47000000,Cleaning Equipment and Supplies,segment,,1,curated-2026
+47130000,Cleaning and janitorial supplies,family,47000000,1,curated-2026
+47131800,Cleaning compounds,class,47130000,1,curated-2026
+47131801,Laundry soap,commodity,47131800,1,curated-2026
+47131802,Dishwashing liquid,commodity,47131800,1,curated-2026
+47131803,Detergent,commodity,47131800,1,curated-2026
+53000000,Apparel and Luggage and Personal Care Products,segment,,1,curated-2026
+53100000,Clothing,family,53000000,1,curated-2026
+53101600,Outerwear,class,53100000,1,curated-2026
+53101601,Blankets,commodity,53101600,1,curated-2026
+53102500,Shirts and blouses,class,53100000,1,curated-2026
+53102501,T-shirts,commodity,53102500,1,curated-2026
+53102700,Footwear,class,53100000,1,curated-2026
+53102701,Slippers,commodity,53102700,1,curated-2026
+53130000,Personal care products,family,53000000,1,curated-2026
+53131600,Bath and body,class,53130000,1,curated-2026
+53131601,Bath soap,commodity,53131600,1,curated-2026
+53131602,Toothpaste,commodity,53131600,1,curated-2026
+53131603,Toothbrush,commodity,53131600,1,curated-2026
+60000000,Musical Instruments and Educational Equipment and Supplies,segment,,1,curated-2026
+60100000,Teaching aids,family,60000000,1,curated-2026
+60101800,School supplies,class,60100000,1,curated-2026
+60101801,School bag,commodity,60101800,1,curated-2026
+60101802,School uniform,commodity,60101800,1,curated-2026
+60101803,Educational kit,commodity,60101800,1,curated-2026
+24100000,Material handling and storage,family,24000000,1,curated-2026
+24000000,Material Handling and Conditioning and Storage Machinery and their Accessories and Supplies,segment,,1,curated-2026
+24111500,Storage bags and sacks,class,24100000,1,curated-2026
+24111501,Relief pack,commodity,24111500,1,curated-2026
+24111502,Sacks,commodity,24111500,1,curated-2026
+39000000,Electrical Systems and Lighting and Components and Accessories and Supplies,segment,,1,curated-2026
+39100000,Lamps and lightbulbs and lamp components,family,39000000,1,curated-2026
+39101600,Lamps and lightbulbs,class,39100000,1,curated-2026
+39101601,Flashlight,commodity,39101600,1,curated-2026
+43000000,Information Technology Broadcasting and Telecommunications,segment,,1,curated-2026
+43210000,Computer Equipment and Accessories,family,43000000,1,curated-2026
+43211500,Computers,class,43210000,1,curated-2026
+43211501,Laptop computer,commodity,43211500,1,curated-2026
+56100000,Accommodation furniture,family,56000000,1,curated-2026
+56000000,Furniture and Furnishings,segment,,1,curated-2026
+56101500,Sleeping furniture,class,56100000,1,curated-2026
+56101501,Mattress,commodity,56101500,1,curated-2026
+56102100,Sleeping accessories,class,56100000,1,curated-2026
+56102101,Mosquito net,commodity,56102100,1,curated-2026

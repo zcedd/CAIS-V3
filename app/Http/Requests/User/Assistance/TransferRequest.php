@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\EnsuresAssistanceBelongsToProgram;
 use App\Http\Requests\User\Concerns\ValidatesAssistanceEligibility;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -15,6 +16,7 @@ use Illuminate\Validation\Validator;
 
 class TransferRequest extends FormRequest
 {
+    use EnsuresAssistanceBelongsToProgram;
     use ValidatesAssistanceEligibility;
 
     /**
@@ -22,6 +24,8 @@ class TransferRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        $this->ensureAssistanceBelongsToProgram();
+
         return Gate::allows('update', $this->assistance);
     }
 
@@ -40,13 +44,10 @@ class TransferRequest extends FormRequest
                 'required',
                 'integer',
                 Rule::exists('programs', 'id')->where(function (Builder $query) use ($program): void {
-                    $query
-                        ->where('department_id', $program->department_id)
-                        ->where('is_closed', false)
-                        ->where('is_organization', $program->is_organization)
-                        ->whereNot('id', $program->id);
+                    $query->whereIn('id', Program::query()->transferTargetsFor($program)->select('id'));
                 }),
             ],
+            'reason' => ['required', 'string', 'max:255'],
             ...$this->eligibilityOverrideRules(),
         ];
     }
@@ -118,6 +119,7 @@ class TransferRequest extends FormRequest
     {
         return [
             'target_program_id' => 'target program',
+            'reason' => 'reason',
             ...$this->eligibilityOverrideAttributes(),
         ];
     }

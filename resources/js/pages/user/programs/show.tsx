@@ -44,6 +44,7 @@ import type {
     ProgramCoveredItem,
     ProgramFund,
     ProgramStatusBreakdownPoint,
+    ProgramStockRow,
     ProgramSummary,
 } from '@/types/program';
 import type {
@@ -76,7 +77,7 @@ const ProgramAssistanceTableSection = lazy(() =>
 );
 
 const ProgramEditDrawer = lazy(() =>
-    import('@/pages/user/programs/program-edit-drawer').then((module) => ({
+    import('@/components/user/programs/program-edit-drawer').then((module) => ({
         default: module.ProgramEditDrawer,
     })),
 );
@@ -104,7 +105,10 @@ type ProgramDetail = {
     end_at_input: string | null;
     is_closed: boolean | null;
     is_organization: boolean | null;
+    kind?: string | null;
+    batch_name?: string | null;
     department_id: number;
+    parent?: { id: number; name: string } | null;
 };
 
 type ProgramEditRelations = {
@@ -198,6 +202,7 @@ export default function UserProgramShow({
     status_breakdown,
     program_funds,
     program_covered_items,
+    program_stock,
     department,
     program_edit,
     funds,
@@ -223,6 +228,7 @@ export default function UserProgramShow({
     status_breakdown?: ProgramStatusBreakdownPoint[];
     program_funds?: ProgramFund[];
     program_covered_items?: ProgramCoveredItem[];
+    program_stock?: ProgramStockRow[];
     department: DepartmentSummary | null;
     program_edit?: ProgramEditRelations;
     funds?: SelectOption[];
@@ -319,19 +325,32 @@ export default function UserProgramShow({
             program: program.id,
         });
 
-        setLayoutProps({
-            breadcrumbs: [
-                {
-                    title: 'Programs',
-                    href: programsHref,
-                },
-                {
-                    title: program.name,
-                    href: selfHref,
-                },
-            ] satisfies BreadcrumbItem[],
+        const breadcrumbs: BreadcrumbItem[] = [
+            {
+                title: 'Programs',
+                href: programsHref,
+            },
+        ];
+
+        if (program.parent) {
+            breadcrumbs.push({
+                title: program.parent.name,
+                href: departmentProgramShow.url({
+                    department: department.slug,
+                    program: program.parent.id,
+                }),
+            });
+        }
+
+        breadcrumbs.push({
+            title: program.batch_name ?? program.name,
+            href: selfHref,
         });
-    }, [department?.slug, program.id, program.name]);
+
+        setLayoutProps({
+            breadcrumbs,
+        });
+    }, [department?.slug, program.id, program.name, program.batch_name, program.parent]);
 
     const visitTable = useCallback(
         (
@@ -434,6 +453,11 @@ export default function UserProgramShow({
                                     ? 'Organization'
                                     : 'Individual'}
                             </Badge>
+                            {program.kind === 'batch' && program.batch_name ? (
+                                <Badge variant="outline">
+                                    {program.batch_name}
+                                </Badge>
+                            ) : null}
                             {department ? (
                                 <Badge variant="outline">
                                     <Building2 aria-hidden />
@@ -624,6 +648,50 @@ export default function UserProgramShow({
                                                 ),
                                             )}
                                         </div>
+                                    )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                        <Package className="size-3.5" />
+                                        Stock allocated
+                                    </p>
+                                    {program_stock === undefined ? (
+                                        <OverviewDetailSkeleton />
+                                    ) : program_stock.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground/60 italic">
+                                            No stock allocated to this program
+                                        </p>
+                                    ) : (
+                                        <ul className="space-y-1.5">
+                                            {program_stock.map((row) => (
+                                                <li
+                                                    key={row.item_id}
+                                                    className="flex items-center justify-between gap-2 text-sm"
+                                                >
+                                                    <span>
+                                                        {row.item_name}
+                                                        {row.unit ? (
+                                                            <span className="text-muted-foreground">
+                                                                {' '}
+                                                                · {row.unit}
+                                                            </span>
+                                                        ) : null}
+                                                        {row.is_low ? (
+                                                            <Badge
+                                                                variant="destructive"
+                                                                className="ml-2"
+                                                            >
+                                                                Low
+                                                            </Badge>
+                                                        ) : null}
+                                                    </span>
+                                                    <span className="tabular-nums text-muted-foreground">
+                                                        {row.remaining} remaining
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ul>
                                     )}
                                 </div>
                             </div>

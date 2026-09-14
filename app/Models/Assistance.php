@@ -43,11 +43,6 @@ class Assistance extends Model
         ];
     }
 
-    protected function makeAllSearchableUsing($query)
-    {
-        return $query->with('project', 'beneficiary');
-    }
-
     public function program()
     {
         return $this->belongsTo(Program::class);

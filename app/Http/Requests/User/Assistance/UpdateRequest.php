@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\EnsuresAssistanceBelongsToProgram;
 use App\Http\Requests\User\Concerns\ValidatesAssistanceEligibility;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Assistance;
@@ -14,6 +15,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateRequest extends FormRequest
 {
+    use EnsuresAssistanceBelongsToProgram;
     use ValidatesAssistanceEligibility;
     use ValidatesProgramFields;
 
@@ -22,6 +24,8 @@ class UpdateRequest extends FormRequest
      */
     public function authorize(): bool
     {
+        $this->ensureAssistanceBelongsToProgram();
+
         return Gate::allows('update', $this->assistance);
     }
 

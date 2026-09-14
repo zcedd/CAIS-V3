@@ -22,7 +22,9 @@ class AssistancePolicy
      */
     public function view(User $user, Assistance $assistance): bool
     {
-        return $user->department_id === $assistance->program->department_id;
+        $assistance->loadMissing('program:id,department_id');
+
+        return $user->department_id === $assistance->program?->department_id;
     }
 
     /**
@@ -31,7 +33,7 @@ class AssistancePolicy
     public function create(User $user, Program $program): bool
     {
         return $user->department_id === $program->department_id
-            && ! $program->is_closed;
+            && $program->isEncodable();
     }
 
     /**
@@ -39,7 +41,9 @@ class AssistancePolicy
      */
     public function update(User $user, Assistance $assistance): bool
     {
-        return $user->department_id === $assistance->program->department_id;
+        $assistance->loadMissing('program:id,department_id');
+
+        return $user->department_id === $assistance->program?->department_id;
     }
 
     /**
@@ -47,7 +51,9 @@ class AssistancePolicy
      */
     public function delete(User $user, Assistance $assistance): bool
     {
-        return $user->department_id === $assistance->program->department_id;
+        $assistance->loadMissing('program:id,department_id');
+
+        return $user->department_id === $assistance->program?->department_id;
     }
 
     /**
@@ -55,7 +61,9 @@ class AssistancePolicy
      */
     public function restore(User $user, Assistance $assistance): bool
     {
-        return $user->department_id === $assistance->program->department_id;
+        $assistance->loadMissing('program:id,department_id');
+
+        return $user->department_id === $assistance->program?->department_id;
     }
 
     /**
@@ -63,6 +71,8 @@ class AssistancePolicy
      */
     public function forceDelete(User $user, Assistance $assistance): bool
     {
-        return $user->department_id === $assistance->program->department_id;
+        $assistance->loadMissing('program:id,department_id');
+
+        return $user->department_id === $assistance->program?->department_id;
     }
 }

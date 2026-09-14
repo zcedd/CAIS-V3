@@ -124,7 +124,7 @@ class NotificationService
     public function title(array $data, string $type): string
     {
         if (is_string($data['title'] ?? null) && trim($data['title']) !== '') {
-            return $this->decodeHtml(trim($data['title']));
+            return $this->plainText(trim($data['title']));
         }
 
         $className = class_basename($type);
@@ -138,11 +138,11 @@ class NotificationService
     public function message(array $data): string
     {
         if (is_string($data['message'] ?? null) && trim($data['message']) !== '') {
-            return $this->decodeHtml(trim($data['message']));
+            return $this->plainText(trim($data['message']));
         }
 
         if (is_string($data['body'] ?? null) && trim($data['body']) !== '') {
-            return $this->decodeHtml(trim($data['body']));
+            return $this->plainText(trim($data['body']));
         }
 
         return '';
@@ -157,15 +157,23 @@ class NotificationService
             $value = $data[$key] ?? null;
 
             if (is_string($value) && trim($value) !== '') {
-                return trim($value);
+                $url = trim($value);
+
+                if (str_starts_with($url, '//')) {
+                    return null;
+                }
+
+                return $url;
             }
         }
 
         return null;
     }
 
-    private function decodeHtml(string $value): string
+    private function plainText(string $value): string
     {
-        return html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $decoded = html_entity_decode($value, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return trim(strip_tags($decoded));
     }
 }

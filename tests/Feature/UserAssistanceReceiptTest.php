@@ -84,6 +84,7 @@ test('authenticated users can view a printable acknowledgment receipt', function
             ->where('receipt.cais_number', 'CAIS-100')
             ->where('receipt.beneficiary_name', 'Juan Dela Cruz')
             ->where('receipt.released_items.0.name', 'Rice')
+            ->where('receipt.released_items.0.kind', 'goods')
             ->where('receipt.released_items.0.quantity', 2)
             ->where('receipt.released_items.0.origin', AssistanceItemOrigin::Requested)
             ->where('receipt.released_items.1.name', 'Cooking oil')

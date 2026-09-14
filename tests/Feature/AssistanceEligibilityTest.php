@@ -251,6 +251,7 @@ test('transfer into a program with an open request requires a reason', function 
             'assistance' => $source->id,
         ]), [
             'target_program_id' => $target->id,
+            'reason' => 'Moved between programs',
         ])
         ->assertSessionHasErrors('eligibility_override_reason');
 });

@@ -12,6 +12,7 @@ use App\Models\Program;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceService;
 use App\Services\User\ProgramService;
+use App\Services\User\StockLedgerService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +23,7 @@ class ProgramController extends Controller
         private ProgramService $programService,
         private AssistanceService $assistanceService,
         private AssistanceDocumentService $assistanceDocumentService,
+        private StockLedgerService $stockLedgerService,
     ) {}
 
     /**
@@ -64,7 +66,16 @@ class ProgramController extends Controller
      */
     public function store(StoreRequest $request, Department $department): RedirectResponse
     {
-        $this->programService->create($department, $request->validated());
+        $program = $this->programService->create($department, $request->validated());
+
+        if ($program->isScheme() && $program->batches()->doesntExist()) {
+            return redirect()
+                ->route('user.programs.show', [
+                    'department' => $department,
+                    'program' => $program,
+                ])
+                ->with('success', 'Program created successfully.');
+        }
 
         return redirect()
             ->back()
@@ -101,6 +112,35 @@ class ProgramController extends Controller
         $statuses = $request->statuses();
         $modes = $request->modes();
 
+        if ($program->isScheme()) {
+            return Inertia::render('user/programs/scheme', [
+                'program' => $this->programService->showOverviewPayload($program),
+                'summary' => Inertia::defer(
+                    fn () => $this->programService->summary($program),
+                    'kpis',
+                ),
+                'status_breakdown' => Inertia::defer(
+                    fn () => $this->programService->statusBreakdown($program),
+                    'kpis',
+                ),
+                'batches' => $this->programService->schemeBatchesPayload($program),
+                'department' => fn () => $department->only(['id', 'name', 'slug']),
+                'program_edit' => Inertia::defer(
+                    fn () => $this->programService->editRelationsPayload($program),
+                    'edit',
+                ),
+                'funds' => Inertia::defer(
+                    fn () => $this->programService->departmentFundsForSelect($department),
+                    'edit',
+                ),
+                'items' => Inertia::defer(
+                    fn () => $this->programService->departmentItemsForSelect($department),
+                    'edit',
+                ),
+                'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            ]);
+        }
+
         return Inertia::render('user/programs/show', [
             'program' => $this->programService->showOverviewPayload($program),
             'summary' => Inertia::defer(
@@ -117,6 +157,10 @@ class ProgramController extends Controller
             ),
             'program_covered_items' => Inertia::defer(
                 fn () => $this->programService->programItemsForSelect($program),
+                'kpis',
+            ),
+            'program_stock' => Inertia::defer(
+                fn () => $this->stockLedgerService->programStockTable($program),
                 'kpis',
             ),
             'department' => fn () => $department->only(['id', 'name', 'slug']),

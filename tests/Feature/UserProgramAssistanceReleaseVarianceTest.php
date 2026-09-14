@@ -80,6 +80,10 @@ function seedAssistanceAwaitingRelease(int $requestedRiceQuantity = 2): array
 
     $program->item()->attach([$riceItem->id, $oilItem->id, $noodlesItem->id]);
 
+    seedProgramStock($program, $riceItem, 50, $user);
+    seedProgramStock($program, $oilItem, 50, $user);
+    seedProgramStock($program, $noodlesItem, 50, $user);
+
     $beneficiary = Beneficiary::create([
         'cais_number' => 'CAIS-001',
         'name' => 'Juan Dela Cruz',

@@ -39,6 +39,12 @@ class AssistanceService
 
     public function ensureProgramIsOpen(Program $program, string $message): void
     {
+        if ($program->isScheme()) {
+            throw ValidationException::withMessages([
+                'program' => ['Assistances can only be encoded on a program batch or a one-off program.'],
+            ]);
+        }
+
         if ($program->is_closed) {
             throw ValidationException::withMessages([
                 'program' => [$message],
@@ -243,6 +249,7 @@ class AssistanceService
                             'id' => $assistanceItem->id,
                             'item_id' => $assistanceItem->item_id,
                             'name' => $assistanceItem->item?->name ?? '—',
+                            'kind' => $assistanceItem->item?->kind,
                             'quantity' => $assistanceItem->quantity,
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,
                             'specification' => $assistanceItem->specification,
@@ -329,7 +336,7 @@ class AssistanceService
             'assistances.current_status_recorded_at as request_sub_status_recorded_at',
         ])->with([
             'assistanceItem',
-            'assistanceItem.item:id,name,item_unit_measurement_id',
+            'assistanceItem.item:id,name,kind,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
             'fieldValues:id,assistance_id,program_field_id,value',
             'fieldValues.programField:id,key,type,label',
@@ -467,7 +474,7 @@ class AssistanceService
                 'currentRequestSubStatus:id,name,request_status_id',
                 'currentRequestSubStatus.requestStatus:id,name',
                 'assistanceItem:id,assistance_id,item_id,quantity,is_received',
-                'assistanceItem.item:id,name',
+                'assistanceItem.item:id,name,kind',
             ])
             ->orderByDesc('date_requested')
             ->orderByDesc('id')

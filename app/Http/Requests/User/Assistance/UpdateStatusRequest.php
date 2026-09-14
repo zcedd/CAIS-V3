@@ -2,10 +2,13 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Http\Requests\User\Concerns\EnsuresAssistanceBelongsToProgram;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Models\Item;
 use App\Models\Program;
 use App\Models\RequestSubStatus;
+use App\Services\User\StockLedgerService;
 use App\Support\AssistanceItemOrigin;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
@@ -16,11 +19,15 @@ use Illuminate\Validation\Validator;
 
 class UpdateStatusRequest extends FormRequest
 {
+    use EnsuresAssistanceBelongsToProgram;
+
     /**
      * Determine if the user is authorized to make this request.
      */
     public function authorize(): bool
     {
+        $this->ensureAssistanceBelongsToProgram();
+
         return Gate::allows('update', $this->assistance);
     }
 
@@ -191,6 +198,8 @@ class UpdateStatusRequest extends FormRequest
 
                     $substitutedIds[] = $targetId;
                 }
+
+                $this->assertProgramStock($validator, $deliveredItems, $extraItems);
             },
         ];
     }
@@ -216,6 +225,85 @@ class UpdateStatusRequest extends FormRequest
             'extra_items.*.fulfillment_reason' => 'reason',
             'extra_items.*.substituted_for_assistance_item_id' => 'substituted requested item',
         ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $deliveredItems
+     * @param  list<array<string, mixed>>  $extraItems
+     */
+    private function assertProgramStock(Validator $validator, array $deliveredItems, array $extraItems): void
+    {
+        if ($validator->errors()->isNotEmpty()) {
+            return;
+        }
+
+        /** @var Program $program */
+        $program = $this->route('program');
+        $neededByItemId = [];
+
+        $deliveredAssistanceItemIds = collect($deliveredItems)
+            ->map(static fn (array $row): int => (int) ($row['assistance_item_id'] ?? 0))
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
+            ->all();
+
+        $itemIdByAssistanceItemId = $deliveredAssistanceItemIds === []
+            ? []
+            : AssistanceItem::query()
+                ->whereIn('id', $deliveredAssistanceItemIds)
+                ->pluck('item_id', 'id')
+                ->map(static fn ($itemId): int => (int) $itemId)
+                ->all();
+
+        foreach ($deliveredItems as $deliveredItem) {
+            $assistanceItemId = (int) ($deliveredItem['assistance_item_id'] ?? 0);
+            $itemId = $itemIdByAssistanceItemId[$assistanceItemId] ?? 0;
+
+            if ($itemId === 0) {
+                continue;
+            }
+
+            $neededByItemId[$itemId] = ($neededByItemId[$itemId] ?? 0) + (int) ($deliveredItem['quantity'] ?? 0);
+        }
+
+        foreach ($extraItems as $extraItem) {
+            $itemId = (int) ($extraItem['item_id'] ?? 0);
+
+            if ($itemId === 0) {
+                continue;
+            }
+
+            $neededByItemId[$itemId] = ($neededByItemId[$itemId] ?? 0) + (int) ($extraItem['quantity'] ?? 0);
+        }
+
+        if ($neededByItemId === []) {
+            return;
+        }
+
+        $remainingByItemId = app(StockLedgerService::class)->remainingByItemId($program);
+        $catalogItems = Item::query()
+            ->whereIn('id', array_keys($neededByItemId))
+            ->get(['id', 'name', 'kind'])
+            ->keyBy('id');
+
+        foreach ($neededByItemId as $itemId => $needed) {
+            $item = $catalogItems->get($itemId);
+
+            if (! $item instanceof Item || ! $item->tracksInventory()) {
+                continue;
+            }
+
+            $remaining = $remainingByItemId[$itemId] ?? 0;
+
+            if ($needed <= $remaining) {
+                continue;
+            }
+
+            $validator->errors()->add(
+                'delivered_items',
+                "Not enough allocated stock of {$item->name} for this program. Remaining allocation is {$remaining}.",
+            );
+        }
     }
 
     /**

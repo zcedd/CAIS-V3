@@ -25,27 +25,27 @@ class OrganizationBeneficiaryService
      */
     public function create(array $validated): Organization
     {
-        return DB::transaction(function () use ($validated): Organization {
-            $caisNumber = $this->beneficiaryMorphService->createUniqueCaisNumber('ORG');
+        return $this->beneficiaryMorphService->withReservedCaisNumber('ORG', function (string $caisNumber) use ($validated): Organization {
+            return DB::transaction(function () use ($validated, $caisNumber): Organization {
+                $organization = Organization::query()->create([
+                    'cais_number' => $caisNumber,
+                    'name' => $validated['name'],
+                    'beneficiary_id' => $validated['beneficiary_id'],
+                    'address_barangay_id' => $validated['address_barangay_id'],
+                    'mobile_number' => $validated['mobile_number'] ?? null,
+                    'total_member' => $validated['total_member'] ?? count($validated['member_ids'] ?? []),
+                ]);
 
-            $organization = Organization::query()->create([
-                'cais_number' => $caisNumber,
-                'name' => $validated['name'],
-                'beneficiary_id' => $validated['beneficiary_id'],
-                'address_barangay_id' => $validated['address_barangay_id'],
-                'mobile_number' => $validated['mobile_number'] ?? null,
-                'total_member' => $validated['total_member'] ?? count($validated['member_ids'] ?? []),
-            ]);
+                $this->syncMembers($organization, $validated);
 
-            $this->syncMembers($organization, $validated);
+                $this->beneficiaryMorphService->syncMorphRecord(
+                    $organization,
+                    $caisNumber,
+                    $organization->name,
+                );
 
-            $this->beneficiaryMorphService->syncMorphRecord(
-                $organization,
-                $caisNumber,
-                $organization->name,
-            );
-
-            return $organization->refresh();
+                return $organization->refresh();
+            });
         });
     }
 
@@ -113,7 +113,7 @@ class OrganizationBeneficiaryService
                 'mobile_number' => $organization->mobile_number,
                 'total_member' => $organization->total_member,
                 'members' => $organization->beneficiary
-                    ->map(static fn(Individual $member): array => [
+                    ->map(static fn (Individual $member): array => [
                         'id' => $member->id,
                         'name' => $member->fullName(),
                         'cais_number' => $member->cais_number,
@@ -156,7 +156,7 @@ class OrganizationBeneficiaryService
                         $member->fullName(),
                     ];
                 })
-                ->map(fn(Individual $member): array => [
+                ->map(fn (Individual $member): array => [
                     'id' => $member->id,
                     'beneficiary_id' => $member->beneficiaryRecord?->id,
                     'name' => $member->fullName(),

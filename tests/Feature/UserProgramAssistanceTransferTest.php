@@ -109,6 +109,7 @@ test('authenticated users can transfer assistance to another open program in the
         ]),
         [
             'target_program_id' => $targetProgram->id,
+            'reason' => 'Moved between programs',
         ],
     );
 
@@ -172,6 +173,8 @@ test('authenticated users can bulk transfer assistance records to another open p
         [
             'assistance_ids' => [$firstAssistance->id, $secondAssistance->id],
             'target_program_id' => $targetProgram->id,
+            'reason' => 'Moved between programs',
+            'reason' => 'Moved between programs',
         ],
     );
 
@@ -234,6 +237,7 @@ test('assistance cannot be transferred when target program is missing required i
         ]),
         [
             'target_program_id' => $targetProgram->id,
+            'reason' => 'Moved between programs',
         ],
     );
 
@@ -297,6 +301,7 @@ test('assistance cannot be transferred from a closed program', function () {
         ]),
         [
             'target_program_id' => $targetProgram->id,
+            'reason' => 'Moved between programs',
         ],
     );
 

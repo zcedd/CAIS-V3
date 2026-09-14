@@ -44,6 +44,7 @@ import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import { store as storeProgramAssistance, eligibility as assistanceEligibility } from '@/routes/user/programs/assistances';
 import type { EligibilityPreview } from '@/types/eligibility';
+import { itemQuantityFieldLabel, type ItemKind } from '@/types/item';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Form, usePage } from '@inertiajs/react';
 import { Table, VisibilityState } from '@tanstack/react-table';
@@ -86,6 +87,8 @@ export type AssistanceProgramItemOption = {
     id: number;
     name: string;
     unit: string | null;
+    kind: ItemKind;
+    remaining?: number | null;
 };
 
 export type AssistanceRequestSubStatusOption = {
@@ -784,7 +787,9 @@ export function AssistanceDataTableToolbar({
                                                                     <Label
                                                                         htmlFor={`assistance-item-quantity-${selectedItemId}`}
                                                                     >
-                                                                        Quantity
+                                                                        {itemQuantityFieldLabel(
+                                                                            item.kind,
+                                                                        )}
                                                                     </Label>
                                                                     <Input
                                                                         id={`assistance-item-quantity-${selectedItemId}`}

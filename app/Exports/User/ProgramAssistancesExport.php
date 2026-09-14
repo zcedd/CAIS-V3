@@ -3,6 +3,8 @@
 namespace App\Exports\User;
 
 use App\Models\Assistance;
+use App\Support\ItemKind;
+use App\Support\SpreadsheetCell;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
@@ -48,16 +50,25 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
                 $name = $assistanceItem->item?->name ?? '—';
                 $quantity = $assistanceItem->quantity;
                 $unit = $assistanceItem->item?->unitMeasurement?->name;
+                $kind = $assistanceItem->item?->kind;
                 $specification = trim((string) $assistanceItem->specification);
 
                 $detail = $name;
 
-                if ($quantity !== null) {
-                    $detail .= " x{$quantity}";
-                }
+                if (ItemKind::isCash($kind)) {
+                    $detail .= ' '.ItemKind::formatQuantity(
+                        $quantity !== null ? (int) $quantity : null,
+                        $unit,
+                        $kind,
+                    );
+                } else {
+                    if ($quantity !== null) {
+                        $detail .= " x{$quantity}";
+                    }
 
-                if ($unit !== null) {
-                    $detail .= " {$unit}";
+                    if ($unit !== null) {
+                        $detail .= " {$unit}";
+                    }
                 }
 
                 if ($specification !== '') {
@@ -69,16 +80,16 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
             ->implode('; ');
 
         return [
-            $assistance->beneficiary_cais_number ?? '—',
-            $assistance->beneficiary_name ?? '—',
-            $items !== '' ? $items : '—',
-            $assistance->mode_of_request_name ?? '—',
-            $assistance->request_status_name ?? '—',
-            $assistance->request_sub_status_name ?? '—',
-            $this->formatDateTime($assistance->request_sub_status_recorded_at),
-            $this->formatDate($assistance->date_requested),
-            $this->formatDate($assistance->date_delivered),
-            $assistance->remark ?? '',
+            SpreadsheetCell::sanitize($assistance->beneficiary_cais_number ?? '—'),
+            SpreadsheetCell::sanitize($assistance->beneficiary_name ?? '—'),
+            SpreadsheetCell::sanitize($items !== '' ? $items : '—'),
+            SpreadsheetCell::sanitize($assistance->mode_of_request_name ?? '—'),
+            SpreadsheetCell::sanitize($assistance->request_status_name ?? '—'),
+            SpreadsheetCell::sanitize($assistance->request_sub_status_name ?? '—'),
+            SpreadsheetCell::sanitize($this->formatDateTime($assistance->request_sub_status_recorded_at)),
+            SpreadsheetCell::sanitize($this->formatDate($assistance->date_requested)),
+            SpreadsheetCell::sanitize($this->formatDate($assistance->date_delivered)),
+            SpreadsheetCell::sanitize($assistance->remark ?? ''),
         ];
     }
 

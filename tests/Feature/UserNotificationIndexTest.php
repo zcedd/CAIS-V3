@@ -15,6 +15,7 @@ function createDatabaseNotification(
     array $data,
     ?string $readAt = null,
     string $type = 'App\\Notifications\\TestNotification',
+    mixed $createdAt = null,
 ): void {
     DB::table('notifications')->insert([
         'id' => (string) Str::uuid(),
@@ -23,7 +24,7 @@ function createDatabaseNotification(
         'notifiable_id' => $user->id,
         'data' => json_encode($data, JSON_THROW_ON_ERROR),
         'read_at' => $readAt,
-        'created_at' => now(),
+        'created_at' => $createdAt ?? now(),
         'updated_at' => now(),
     ]);
 }
@@ -43,7 +44,7 @@ test('department users can view their notifications', function () {
         'title' => 'Personal update',
         'message' => 'First notification',
         'category' => 'personal',
-    ]);
+    ], createdAt: now()->subMinute());
     createDatabaseNotification($user, [
         'title' => 'System update',
         'message' => 'System notification',
@@ -61,13 +62,13 @@ test('department users can view their notifications', function () {
             ->where('notifications.data.1.title', 'Personal update'));
 });
 
-test('notification messages decode html entities', function () {
+test('notification messages are returned as plain text', function () {
     $department = Department::create(['name' => 'Social Welfare']);
     $user = User::factory()->create(['department_id' => $department->id]);
 
     createDatabaseNotification($user, [
         'title' => 'Assistance &amp; Support',
-        'message' => '<p>Request approved for &quot;Rice&quot; &amp; supplies.</p>',
+        'message' => '<p>Request approved for &quot;Rice&quot; &amp; supplies.</p><img src=x onerror=alert(1)>',
     ]);
 
     $this->actingAs($user)
@@ -75,7 +76,7 @@ test('notification messages decode html entities', function () {
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->where('notifications.data.0.title', 'Assistance & Support')
-            ->where('notifications.data.0.message', '<p>Request approved for "Rice" & supplies.</p>'));
+            ->where('notifications.data.0.message', 'Request approved for "Rice" & supplies.'));
 });
 
 test('shared unread notifications count reflects unread database notifications', function () {

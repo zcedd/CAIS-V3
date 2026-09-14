@@ -29,6 +29,7 @@ test('updating an individual refreshes the morph beneficiary name', function () 
         'first_name' => 'Maria',
         'last_name' => 'Santos',
         'sex' => 'Female',
+        ...addressCascadePayload(createAddressBarangay()),
     ])->assertRedirect();
 
     $beneficiary->refresh();

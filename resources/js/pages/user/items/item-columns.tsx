@@ -1,15 +1,28 @@
 'use client';
 
+import { Badge } from '@/components/ui/badge';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { ItemDataTableRowActions } from '@/pages/user/items/item-row-actions';
 import type { UnitMeasurementOption } from '@/pages/user/items/item-toolbar';
+import { ITEM_KIND_LABELS, tracksInventory, type ItemKind } from '@/types/item';
 import { ColumnDef } from '@tanstack/react-table';
 
 export type UserDepartmentItemRow = {
     id: number;
     name: string;
+    kind: ItemKind;
     item_unit_measurement_id: number | null;
     unit: string | null;
+    unspsc_code_id: number | null;
+    unspsc_code: string | null;
+    unspsc_title: string | null;
+    is_perishable: boolean;
+    low_stock_threshold: number | null;
+    on_hand: number;
+    allocated: number;
+    available: number;
+    nearest_expiry: string | null;
+    is_low_stock: boolean;
 };
 
 export type UserDepartmentItemTableContext = {
@@ -30,7 +43,15 @@ export function createUserDepartmentItemColumns({
                 <DataTableColumnHeader column={column} title="Name" />
             ),
             cell: ({ row }) => (
-                <span className="font-medium">{row.original.name}</span>
+                <div className="flex items-center gap-2">
+                    <span className="font-medium">{row.original.name}</span>
+                    <Badge variant="outline">
+                        {ITEM_KIND_LABELS[row.original.kind]}
+                    </Badge>
+                    {row.original.is_low_stock ? (
+                        <Badge variant="destructive">Low stock</Badge>
+                    ) : null}
+                </div>
             ),
         },
         {
@@ -40,6 +61,77 @@ export function createUserDepartmentItemColumns({
                 <DataTableColumnHeader column={column} title="Unit" />
             ),
             cell: ({ row }) => row.original.unit ?? '—',
+        },
+        {
+            id: 'on_hand',
+            accessorFn: (row) => row.on_hand,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="On hand" />
+            ),
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind) ? (
+                    <span className="tabular-nums">{row.original.on_hand}</span>
+                ) : (
+                    '—'
+                ),
+        },
+        {
+            id: 'allocated',
+            accessorFn: (row) => row.allocated,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Allocated" />
+            ),
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind) ? (
+                    <span className="tabular-nums">
+                        {row.original.allocated}
+                    </span>
+                ) : (
+                    '—'
+                ),
+        },
+        {
+            id: 'available',
+            accessorFn: (row) => row.available,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Available" />
+            ),
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind) ? (
+                    <span className="tabular-nums">
+                        {row.original.available}
+                    </span>
+                ) : (
+                    '—'
+                ),
+        },
+        {
+            id: 'unspsc',
+            accessorFn: (row) => row.unspsc_code ?? '',
+            enableSorting: false,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="UNSPSC" />
+            ),
+            cell: ({ row }) =>
+                row.original.unspsc_code ? (
+                    <span title={row.original.unspsc_title ?? undefined}>
+                        {row.original.unspsc_code}
+                    </span>
+                ) : (
+                    '—'
+                ),
+        },
+        {
+            id: 'nearest_expiry',
+            accessorFn: (row) => row.nearest_expiry ?? '',
+            enableSorting: false,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Nearest expiry" />
+            ),
+            cell: ({ row }) =>
+                tracksInventory(row.original.kind)
+                    ? (row.original.nearest_expiry ?? '—')
+                    : '—',
         },
         {
             id: 'actions',

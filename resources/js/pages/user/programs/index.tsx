@@ -6,7 +6,6 @@ import { ProgramEligibilityFields, eligibilityPayloadFromForm } from '@/componen
 import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { ServerPagination } from '@/components/server-pagination';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
 import {
     Drawer,
     DrawerClose,
@@ -19,12 +18,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/components/ui/popover';
 import { Textarea } from '@/components/ui/textarea';
+import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
 import {
     ProgramFolderCard,
     type ProgramListRow,
@@ -45,13 +40,7 @@ import {
 } from '@/lib/tour-create-drawer';
 import { cn } from '@/lib/utils';
 import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import {
-    CalendarDays,
-    ChevronDownIcon,
-    Plus,
-    RotateCcw,
-    X,
-} from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -134,84 +123,6 @@ function formatDateForSubmit(date: Date | undefined): string | undefined {
     return `${year}-${month}-${day}`;
 }
 
-type ProgramDatePickerProps = {
-    id: string;
-    label: string;
-    selected: Date | undefined;
-    onSelect: (date: Date | undefined) => void;
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    error?: string;
-};
-
-function ProgramDatePicker({
-    id,
-    label,
-    selected,
-    onSelect,
-    open,
-    onOpenChange,
-    error,
-}: ProgramDatePickerProps) {
-    return (
-        <div className="space-y-2">
-            <Label htmlFor={id}>{label}</Label>
-            <Popover open={open} onOpenChange={onOpenChange}>
-                <PopoverTrigger asChild>
-                    <Button
-                        type="button"
-                        variant="outline"
-                        id={id}
-                        className="w-full justify-between font-normal"
-                    >
-                        {selected
-                            ? selected.toLocaleDateString()
-                            : 'Select date'}
-                        <ChevronDownIcon className="size-4 opacity-50" />
-                    </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                    className="w-auto overflow-hidden p-0"
-                    align="start"
-                >
-                    <div className="flex gap-2 px-2 pt-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onSelect(new Date())}
-                            className="flex items-center gap-2 bg-transparent"
-                        >
-                            <CalendarDays className="size-4" />
-                            Today
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onSelect(undefined)}
-                            className="flex items-center gap-2 bg-transparent"
-                        >
-                            <RotateCcw className="size-4" />
-                            Reset
-                        </Button>
-                    </div>
-                    <Calendar
-                        mode="single"
-                        selected={selected}
-                        captionLayout="dropdown"
-                        onSelect={(date) => {
-                            onSelect(date);
-                            onOpenChange(false);
-                        }}
-                    />
-                </PopoverContent>
-            </Popover>
-            <InputError message={error} />
-        </div>
-    );
-}
-
 export default function UserProgramsIndex({
     programs,
     department,
@@ -247,6 +158,19 @@ export default function UserProgramsIndex({
         ProgramDocumentRequirementInput[]
     >([]);
     const [isOrganization, setIsOrganization] = useState(false);
+    const [programKind, setProgramKind] = useState<'standalone' | 'scheme'>(
+        'standalone',
+    );
+    const [createFirstBatch, setCreateFirstBatch] = useState(false);
+    const [firstBatchName, setFirstBatchName] = useState('');
+    const [firstBatchStartAt, setFirstBatchStartAt] = useState<
+        Date | undefined
+    >(undefined);
+    const [firstBatchEndAt, setFirstBatchEndAt] = useState<Date | undefined>(
+        undefined,
+    );
+    const [firstBatchStartAtOpen, setFirstBatchStartAtOpen] = useState(false);
+    const [firstBatchEndAtOpen, setFirstBatchEndAtOpen] = useState(false);
     const [eligibility, setEligibility] = useState<ProgramEligibilityFormValue>(
         emptyProgramEligibility(),
     );
@@ -271,6 +195,13 @@ export default function UserProgramsIndex({
         setFields([]);
         setDocumentRequirements([]);
         setIsOrganization(false);
+        setProgramKind('standalone');
+        setCreateFirstBatch(false);
+        setFirstBatchName('');
+        setFirstBatchStartAt(undefined);
+        setFirstBatchEndAt(undefined);
+        setFirstBatchStartAtOpen(false);
+        setFirstBatchEndAtOpen(false);
         setEligibility(emptyProgramEligibility());
     };
 
@@ -527,9 +458,13 @@ export default function UserProgramsIndex({
                             resetOnSuccess
                             transform={(data) => ({
                                 ...data,
+                                kind: programKind,
                                 start_at: formatDateForSubmit(startAt),
                                 end_at: formatDateForSubmit(endAt),
-                                fund_ids: selectedFundIds,
+                                fund_ids:
+                                    programKind === 'scheme'
+                                        ? []
+                                        : selectedFundIds,
                                 item_ids: selectedItemIds,
                                 fields: fields.map((field, index) => ({
                                     ...field,
@@ -546,6 +481,22 @@ export default function UserProgramsIndex({
                                         sort_order: index,
                                     })),
                                 is_organization: isOrganization,
+                                ...(programKind === 'scheme' &&
+                                createFirstBatch
+                                    ? {
+                                          first_batch: {
+                                              batch_name: firstBatchName,
+                                              start_at:
+                                                  formatDateForSubmit(
+                                                      firstBatchStartAt,
+                                                  ),
+                                              end_at: formatDateForSubmit(
+                                                  firstBatchEndAt,
+                                              ),
+                                              fund_ids: selectedFundIds,
+                                          },
+                                      }
+                                    : {}),
                                 ...eligibilityPayloadFromForm(
                                     eligibility,
                                     selectedItemIds,
@@ -593,6 +544,47 @@ export default function UserProgramsIndex({
                                         />
                                     </div>
 
+                                    <div className="space-y-2">
+                                        <Label>Program type</Label>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <Button
+                                                type="button"
+                                                variant={
+                                                    programKind ===
+                                                    'standalone'
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
+                                                onClick={() =>
+                                                    setProgramKind(
+                                                        'standalone',
+                                                    )
+                                                }
+                                            >
+                                                One-off program
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant={
+                                                    programKind === 'scheme'
+                                                        ? 'default'
+                                                        : 'outline'
+                                                }
+                                                onClick={() =>
+                                                    setProgramKind('scheme')
+                                                }
+                                            >
+                                                Program with batches
+                                            </Button>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            {programKind === 'scheme'
+                                                ? 'Use a parent program for repeating aid. Staff encode into batches, not the parent.'
+                                                : 'A single program staff encode into directly.'}
+                                        </p>
+                                        <InputError message={errors.kind} />
+                                    </div>
+
                                     <div
                                         className="flex flex-col gap-4"
                                         data-tour="programs-create-dates"
@@ -618,22 +610,160 @@ export default function UserProgramsIndex({
                                         />
                                     </div>
 
-                                    <div
-                                        className="space-y-2"
-                                        data-tour="programs-create-funds"
-                                    >
-                                        <Label htmlFor="program-funds">
-                                            Funds
-                                        </Label>
-                                        <MultiSelect
-                                            options={fundOptions}
-                                            selected={selectedFundIds}
-                                            onChange={setSelectedFundIds}
-                                            placeholder="Choose funds..."
-                                            className="w-full"
-                                        />
-                                        <InputError message={errors.fund_ids} />
-                                    </div>
+                                    {programKind === 'standalone' ? (
+                                        <div
+                                            className="space-y-2"
+                                            data-tour="programs-create-funds"
+                                        >
+                                            <Label htmlFor="program-funds">
+                                                Funds
+                                            </Label>
+                                            <MultiSelect
+                                                options={fundOptions}
+                                                selected={selectedFundIds}
+                                                onChange={setSelectedFundIds}
+                                                placeholder="Choose funds..."
+                                                className="w-full"
+                                            />
+                                            <InputError
+                                                message={errors.fund_ids}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4 rounded-xl border border-border p-4">
+                                            <div className="flex items-start gap-3">
+                                                <Input
+                                                    id="program-create-first-batch"
+                                                    type="checkbox"
+                                                    checked={createFirstBatch}
+                                                    onChange={(event) =>
+                                                        setCreateFirstBatch(
+                                                            event.target
+                                                                .checked,
+                                                        )
+                                                    }
+                                                    className="mt-1 size-4 shrink-0 rounded border-input"
+                                                />
+                                                <div className="grid gap-1">
+                                                    <Label
+                                                        htmlFor="program-create-first-batch"
+                                                        className="font-normal"
+                                                    >
+                                                        Create the first batch
+                                                        now
+                                                    </Label>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        Copy items, custom
+                                                        fields, and document
+                                                        requirements into the
+                                                        first run.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            {createFirstBatch ? (
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="program-first-batch-name">
+                                                            Batch name
+                                                        </Label>
+                                                        <Input
+                                                            id="program-first-batch-name"
+                                                            value={
+                                                                firstBatchName
+                                                            }
+                                                            onChange={(
+                                                                event,
+                                                            ) =>
+                                                                setFirstBatchName(
+                                                                    event
+                                                                        .target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            placeholder="Batch 1"
+                                                        />
+                                                        <InputError
+                                                            message={
+                                                                errors[
+                                                                    'first_batch.batch_name'
+                                                                ]
+                                                            }
+                                                        />
+                                                    </div>
+                                                    <ProgramDatePicker
+                                                        id="program-first-batch-start-at"
+                                                        label="Batch start date"
+                                                        selected={
+                                                            firstBatchStartAt
+                                                        }
+                                                        onSelect={
+                                                            setFirstBatchStartAt
+                                                        }
+                                                        open={
+                                                            firstBatchStartAtOpen
+                                                        }
+                                                        onOpenChange={
+                                                            setFirstBatchStartAtOpen
+                                                        }
+                                                        error={
+                                                            errors[
+                                                                'first_batch.start_at'
+                                                            ]
+                                                        }
+                                                    />
+                                                    <ProgramDatePicker
+                                                        id="program-first-batch-end-at"
+                                                        label="Batch end date"
+                                                        selected={
+                                                            firstBatchEndAt
+                                                        }
+                                                        onSelect={
+                                                            setFirstBatchEndAt
+                                                        }
+                                                        open={
+                                                            firstBatchEndAtOpen
+                                                        }
+                                                        onOpenChange={
+                                                            setFirstBatchEndAtOpen
+                                                        }
+                                                        error={
+                                                            errors[
+                                                                'first_batch.end_at'
+                                                            ]
+                                                        }
+                                                    />
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="program-first-batch-funds">
+                                                            Batch funds
+                                                        </Label>
+                                                        <MultiSelect
+                                                            options={
+                                                                fundOptions
+                                                            }
+                                                            selected={
+                                                                selectedFundIds
+                                                            }
+                                                            onChange={
+                                                                setSelectedFundIds
+                                                            }
+                                                            placeholder="Choose funds..."
+                                                            className="w-full"
+                                                        />
+                                                        <InputError
+                                                            message={
+                                                                errors[
+                                                                    'first_batch.fund_ids'
+                                                                ]
+                                                            }
+                                                        />
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                            <InputError
+                                                message={errors.first_batch}
+                                            />
+                                        </div>
+                                    )}
 
                                     <div
                                         className="space-y-2"

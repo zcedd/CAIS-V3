@@ -5,6 +5,7 @@ namespace Database\Factories;
 use App\Models\Department;
 use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
+use App\Support\ItemKind;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -23,10 +24,40 @@ class ItemFactory extends Factory
     {
         return [
             'name' => fake()->words(2, true),
+            'kind' => ItemKind::Goods,
             'department_id' => Department::query()->value('id') ?? Department::create(['name' => fake()->company()])->id,
             'item_unit_measurement_id' => ItemUnitMeasurement::query()->value('id')
                 ?? ItemUnitMeasurement::factory()->create()->id,
+            'unspsc_code_id' => null,
+            'is_perishable' => false,
+            'low_stock_threshold' => null,
         ];
+    }
+
+    public function cash(): static
+    {
+        return $this->state(function (): array {
+            $phpUnit = ItemUnitMeasurement::query()
+                ->whereRaw('lower(name) = ?', ['php'])
+                ->first()
+                ?? ItemUnitMeasurement::factory()->create(['name' => 'php']);
+
+            return [
+                'kind' => ItemKind::Cash,
+                'item_unit_measurement_id' => $phpUnit->id,
+                'is_perishable' => false,
+                'low_stock_threshold' => null,
+            ];
+        });
+    }
+
+    public function service(): static
+    {
+        return $this->state(fn (): array => [
+            'kind' => ItemKind::Service,
+            'is_perishable' => false,
+            'low_stock_threshold' => null,
+        ]);
     }
 
     public function forDepartment(Department $department): static

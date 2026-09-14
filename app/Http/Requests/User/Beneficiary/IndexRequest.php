@@ -2,15 +2,17 @@
 
 namespace App\Http\Requests\User\Beneficiary;
 
-use App\Models\Department;
+use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class IndexRequest extends FormRequest
 {
+    use AuthorizesDepartmentBeneficiary;
+
     public function authorize(): bool
     {
-        return $this->userBelongsToDepartment();
+        return $this->canViewAnyBeneficiaries();
     }
 
     /**
@@ -43,13 +45,5 @@ class IndexRequest extends FormRequest
     public function types(): array
     {
         return array_values($this->validated('type') ?? []);
-    }
-
-    protected function userBelongsToDepartment(): bool
-    {
-        $department = $this->route('department');
-
-        return $department instanceof Department
-            && $this->user()?->department_id === $department->id;
     }
 }

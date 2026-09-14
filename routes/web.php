@@ -8,8 +8,12 @@ use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
+use App\Http\Controllers\User\ItemStockController as UserItemStockController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
+use App\Http\Controllers\User\ProgramBatchController as UserProgramBatchController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
+use App\Http\Controllers\User\UnspscCodeController as UserUnspscCodeController;
+use App\Http\Middleware\EnsureUserBelongsToDepartment;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -19,7 +23,7 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
 
-    Route::prefix('{department}')->group(function () {
+    Route::prefix('{department}')->middleware(EnsureUserBelongsToDepartment::class)->group(function () {
         Route::get('dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard.index');
 
         Route::get('beneficiaries/search', [UserBeneficiaryController::class, 'search'])->name('user.beneficiaries.search');
@@ -33,31 +37,41 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('beneficiaries/organizations', [UserBeneficiaryController::class, 'storeOrganization'])->name('user.beneficiaries.organizations.store');
         Route::put('beneficiaries/organizations/{beneficiary}', [UserBeneficiaryController::class, 'updateOrganization'])->name('user.beneficiaries.organizations.update');
 
-        Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
-
-        Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');
-
-        Route::resource('funds', UserFundController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.funds');
         Route::get('notifications', [UserNotificationController::class, 'index'])->name('user.notifications.index');
         Route::patch('notifications/read-all', [UserNotificationController::class, 'markAllAsRead'])->name('user.notifications.read-all');
         Route::get('notifications/{notification}', [UserNotificationController::class, 'show'])->name('user.notifications.show');
         Route::patch('notifications/{notification}/read', [UserNotificationController::class, 'markAsRead'])->name('user.notifications.read');
 
-        Route::post('programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
-        Route::get('programs/{program}/assistances/eligibility', [UserAssistanceController::class, 'eligibility'])->name('user.programs.assistances.eligibility');
-        Route::patch('programs/{program}/assistances/bulk-status', [UserAssistanceController::class, 'bulkUpdateStatus'])->name('user.programs.assistances.status.bulk-update');
-        Route::patch('programs/{program}/assistances/bulk-transfer', [UserAssistanceController::class, 'bulkTransfer'])->name('user.programs.assistances.bulk-transfer');
-        Route::get('programs/{program}/assistances/export', [UserAssistanceController::class, 'export'])->name('user.programs.assistances.export');
-        Route::get('programs/{program}/assistances/{assistance}/edit', [UserAssistanceController::class, 'edit'])->name('user.programs.assistances.edit');
-        Route::put('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'update'])->name('user.programs.assistances.update');
-        Route::delete('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'destroy'])->name('user.programs.assistances.destroy');
-        Route::patch('programs/{program}/assistances/{assistance}/status', [UserAssistanceController::class, 'updateStatus'])->name('user.programs.assistances.status.update');
-        Route::patch('programs/{program}/assistances/{assistance}/transfer', [UserAssistanceController::class, 'transfer'])->name('user.programs.assistances.transfer');
-        Route::get('programs/{program}/assistances/{assistance}/receipt', [UserAssistanceReceiptController::class, 'show'])->name('user.assistances.receipt');
-        Route::post('programs/{program}/assistances/{assistance}/documents', [UserAssistanceDocumentController::class, 'store'])->name('user.assistances.documents.store');
-        Route::get('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'show'])->name('user.assistances.documents.show');
-        Route::delete('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'destroy'])->name('user.assistances.documents.destroy');
-        Route::get('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'show'])->name('user.assistances.show');
+        Route::get('unspsc-codes', [UserUnspscCodeController::class, 'search'])->name('user.unspsc-codes.search');
+
+        Route::scopeBindings()->group(function () {
+            Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
+            Route::post('programs/{program}/batches', [UserProgramBatchController::class, 'store'])->name('user.programs.batches.store');
+
+            Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');
+            Route::get('items/{item}/stock', [UserItemStockController::class, 'show'])->name('user.items.stock.show');
+            Route::post('items/{item}/receipts', [UserItemStockController::class, 'storeReceipt'])->name('user.items.stock.receipts.store');
+            Route::post('items/{item}/adjustments', [UserItemStockController::class, 'storeAdjustment'])->name('user.items.stock.adjustments.store');
+            Route::post('items/{item}/allocations', [UserItemStockController::class, 'storeAllocation'])->name('user.items.stock.allocations.store');
+
+            Route::resource('funds', UserFundController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.funds');
+
+            Route::post('programs/{program}/assistances', [UserAssistanceController::class, 'store'])->name('user.programs.assistances.store');
+            Route::get('programs/{program}/assistances/eligibility', [UserAssistanceController::class, 'eligibility'])->name('user.programs.assistances.eligibility');
+            Route::patch('programs/{program}/assistances/bulk-status', [UserAssistanceController::class, 'bulkUpdateStatus'])->name('user.programs.assistances.status.bulk-update');
+            Route::patch('programs/{program}/assistances/bulk-transfer', [UserAssistanceController::class, 'bulkTransfer'])->name('user.programs.assistances.bulk-transfer');
+            Route::get('programs/{program}/assistances/export', [UserAssistanceController::class, 'export'])->name('user.programs.assistances.export');
+            Route::get('programs/{program}/assistances/{assistance}/edit', [UserAssistanceController::class, 'edit'])->name('user.programs.assistances.edit');
+            Route::put('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'update'])->name('user.programs.assistances.update');
+            Route::delete('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'destroy'])->name('user.programs.assistances.destroy');
+            Route::patch('programs/{program}/assistances/{assistance}/status', [UserAssistanceController::class, 'updateStatus'])->name('user.programs.assistances.status.update');
+            Route::patch('programs/{program}/assistances/{assistance}/transfer', [UserAssistanceController::class, 'transfer'])->name('user.programs.assistances.transfer');
+            Route::get('programs/{program}/assistances/{assistance}/receipt', [UserAssistanceReceiptController::class, 'show'])->name('user.assistances.receipt');
+            Route::post('programs/{program}/assistances/{assistance}/documents', [UserAssistanceDocumentController::class, 'store'])->name('user.assistances.documents.store');
+            Route::get('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'show'])->name('user.assistances.documents.show');
+            Route::delete('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'destroy'])->name('user.assistances.documents.destroy');
+            Route::get('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'show'])->name('user.assistances.show');
+        });
     });
 });
 

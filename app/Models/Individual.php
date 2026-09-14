@@ -82,6 +82,7 @@ class Individual extends Model
     {
         return LogOptions::defaults()
             ->logFillable()
+            ->logExcept(['mobile_number', 'other_address', 'birthday'])
             ->useLogName('Beneficiary')
             ->setDescriptionForEvent(fn (string $eventName) => "This Beneficiary model has been {$eventName}")
             ->dontSubmitEmptyLogs();

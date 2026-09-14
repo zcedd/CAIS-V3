@@ -181,6 +181,8 @@ test('delivered status requires verified documents as well as delivery documents
         'department_id' => $department->id,
         'item_unit_measurement_id' => $unit->id,
     ]);
+    $program->item()->attach($item->id);
+    seedProgramStock($program, $item, 10, $user);
     $assistanceItem = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,

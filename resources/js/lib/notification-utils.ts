@@ -33,7 +33,7 @@ export function stripHtmlTags(value: string): string {
 }
 
 export function isInternalUrl(url: string): boolean {
-    return url.startsWith('/');
+    return url.startsWith('/') && !url.startsWith('//');
 }
 
 export function formatNotificationData(data: Record<string, unknown>): string {

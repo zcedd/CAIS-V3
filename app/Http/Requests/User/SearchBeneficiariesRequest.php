@@ -2,20 +2,16 @@
 
 namespace App\Http\Requests\User;
 
-use App\Models\Department;
+use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SearchBeneficiariesRequest extends FormRequest
 {
+    use AuthorizesDepartmentBeneficiary;
+
     public function authorize(): bool
     {
-        $department = $this->route('department');
-
-        if (! $department instanceof Department) {
-            return $this->user() !== null;
-        }
-
-        return $this->user()?->department_id === $department->id;
+        return $this->canViewAnyBeneficiaries();
     }
 
     /**

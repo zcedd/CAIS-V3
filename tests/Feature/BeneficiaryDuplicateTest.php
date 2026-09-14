@@ -59,7 +59,7 @@ test('creating an individual without acknowledging duplicates is rejected', func
             'last_name' => 'Dela Cruz',
             'sex' => 'Male',
             'birthday' => '1990-01-01',
-            'address_barangay_id' => $barangayId,
+            ...addressCascadePayload($barangayId),
         ])
         ->assertRedirect()
         ->assertSessionHasErrors('duplicates')
@@ -87,7 +87,7 @@ test('creating an individual succeeds when duplicates are acknowledged', functio
             'last_name' => 'Dela Cruz',
             'sex' => 'Male',
             'birthday' => '1990-01-01',
-            'address_barangay_id' => $barangayId,
+            ...addressCascadePayload($barangayId),
             'duplicate_acknowledged' => true,
         ])
         ->assertRedirect();

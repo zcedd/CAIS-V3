@@ -24,7 +24,7 @@ import { Head, router, setLayoutProps } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ITEMS_TABLE_PARTIAL_PROPS = ['items'] as const;
-const ITEMS_TABLE_SKELETON_COLUMNS = 3;
+const ITEMS_TABLE_SKELETON_COLUMNS = 7;
 
 type DepartmentSummary = {
     id: number;
@@ -193,7 +193,8 @@ export default function UserDepartmentItemsIndex({
                         Items
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage assistance items for {department.name}.
+                        Manage assistance items and warehouse stock for{' '}
+                        {department.name}.
                     </p>
                 </div>
 

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Support\ItemKind;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
@@ -16,7 +19,38 @@ class Item extends Model
     use LogsActivity;
     use SoftDeletes;
 
-    protected $fillable = ['name', 'department_id', 'item_unit_measurement_id'];
+    protected $fillable = [
+        'name',
+        'kind',
+        'department_id',
+        'item_unit_measurement_id',
+        'unspsc_code_id',
+        'is_perishable',
+        'low_stock_threshold',
+    ];
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'kind' => ItemKind::Goods,
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'is_perishable' => 'boolean',
+            'low_stock_threshold' => 'integer',
+        ];
+    }
+
+    public function tracksInventory(): bool
+    {
+        return ItemKind::tracksInventory($this->kind);
+    }
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -50,5 +84,30 @@ class Item extends Model
     public function unitMeasurement(): BelongsTo
     {
         return $this->belongsTo(ItemUnitMeasurement::class, 'item_unit_measurement_id');
+    }
+
+    public function unspscCode(): BelongsTo
+    {
+        return $this->belongsTo(UnspscCode::class);
+    }
+
+    public function stockBalance(): HasOne
+    {
+        return $this->hasOne(ItemStockBalance::class);
+    }
+
+    public function stockLots(): HasMany
+    {
+        return $this->hasMany(StockLot::class);
+    }
+
+    public function stockMovements(): HasMany
+    {
+        return $this->hasMany(StockMovement::class);
+    }
+
+    public function programStocks(): HasMany
+    {
+        return $this->hasMany(ProgramItemStock::class);
     }
 }
