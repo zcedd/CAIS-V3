@@ -5,10 +5,14 @@ namespace App\Actions\User;
 use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 
 class SyncAssistanceCurrentStatus
 {
+    private ?bool $requestStatusesHaveCodeColumn = null;
+
     /**
      * Recompute denormalized status columns on the assistance row from its
      * status history. History is the source of truth for current status;
@@ -48,10 +52,8 @@ class SyncAssistanceCurrentStatus
                 '=',
                 'request_sub_statuses.request_status_id',
             )
-            ->where(function ($query): void {
-                $query
-                    ->where('request_statuses.code', RequestStatusCode::Delivered->value)
-                    ->orWhere('request_statuses.name', 'Delivered');
+            ->where(function (Builder $query): void {
+                $this->constrainDeliveredStatus($query);
             })
             ->orderBy('assistance_request_sub_status.recorded_at')
             ->orderBy('assistance_request_sub_status.id')
@@ -70,10 +72,8 @@ class SyncAssistanceCurrentStatus
                 ->whereNull('assistance_request_sub_status.deleted_at')
                 ->join('request_sub_statuses', 'request_sub_statuses.id', '=', 'assistance_request_sub_status.request_sub_status_id')
                 ->join('request_statuses', 'request_statuses.id', '=', 'request_sub_statuses.request_status_id')
-                ->where(function ($query): void {
-                    $query
-                        ->where('request_statuses.code', RequestStatusCode::Delivered->value)
-                        ->orWhere('request_statuses.name', 'Delivered');
+                ->where(function (Builder $query): void {
+                    $this->constrainDeliveredStatus($query);
                 })
                 ->exists();
         }
@@ -82,5 +82,25 @@ class SyncAssistanceCurrentStatus
             && $assistance->assistanceItem()
                 ->where('is_received', true)
                 ->exists();
+    }
+
+    /**
+     * Match Delivered by name when request_statuses.code is not on the
+     * schema yet (this action backfills before that column is added).
+     *
+     * @param  Builder<AssistanceRequestSubStatus>  $query
+     */
+    private function constrainDeliveredStatus(Builder $query): void
+    {
+        $query->where('request_statuses.name', RequestStatusCode::Delivered->label());
+
+        if ($this->requestStatusesHaveCodeColumn()) {
+            $query->orWhere('request_statuses.code', RequestStatusCode::Delivered->value);
+        }
+    }
+
+    private function requestStatusesHaveCodeColumn(): bool
+    {
+        return $this->requestStatusesHaveCodeColumn ??= Schema::hasColumn('request_statuses', 'code');
     }
 }
