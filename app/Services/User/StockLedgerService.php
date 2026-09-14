@@ -2,6 +2,8 @@
 
 namespace App\Services\User;
 
+use App\Enums\ItemKind;
+use App\Enums\StockMovementType;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -13,8 +15,6 @@ use App\Models\StockLot;
 use App\Models\StockLotBalance;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Support\ItemKind;
-use App\Support\StockMovementType;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -38,7 +38,9 @@ class StockLedgerService
     public function receive(Item $item, User $user, array $payload): StockLot
     {
         $quantity = (int) $payload['quantity'];
-        $type = $payload['type'];
+        $type = $payload['type'] instanceof StockMovementType
+            ? $payload['type']
+            : StockMovementType::from((string) $payload['type']);
 
         if ($quantity < 1) {
             throw new InsufficientStockException('Quantity must be at least 1.');
@@ -46,7 +48,7 @@ class StockLedgerService
 
         $this->assertTracksInventory($item);
 
-        if (! in_array($type, StockMovementType::receiptValues(), true)) {
+        if (! in_array($type, StockMovementType::receipts(), true)) {
             throw ValidationException::withMessages([
                 'type' => ['Receipt type is invalid.'],
             ]);
@@ -103,7 +105,9 @@ class StockLedgerService
     public function adjust(Item $item, User $user, array $payload): void
     {
         $quantity = (int) $payload['quantity'];
-        $type = $payload['type'];
+        $type = $payload['type'] instanceof StockMovementType
+            ? $payload['type']
+            : StockMovementType::from((string) $payload['type']);
 
         if ($quantity < 1) {
             throw new InsufficientStockException('Quantity must be at least 1.');
@@ -360,7 +364,7 @@ class StockLedgerService
     /**
      * @param  array{program_id: int, quantity: int, reason?: string|null}  $payload
      */
-    private function shiftAllocation(Item $item, User $user, array $payload, string $type): void
+    private function shiftAllocation(Item $item, User $user, array $payload, StockMovementType $type): void
     {
         $quantity = (int) $payload['quantity'];
 

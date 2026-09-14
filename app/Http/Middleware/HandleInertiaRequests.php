@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use App\Services\User\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -43,6 +44,8 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user?->loadMissing('department:id,name,slug'),
+                'is_super_admin' => $user instanceof User && $user->isSuperAdmin(),
+                'permissions' => $user instanceof User ? $user->grantedPermissionNames() : [],
             ],
             'unreadNotificationsCount' => $user
                 ? app(NotificationService::class)->unreadCountForUser($user)

@@ -2,18 +2,26 @@
 
 namespace App\Policies;
 
+use App\Enums\PermissionName;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\Workflow;
+use App\Policies\Concerns\ChecksDepartmentPermission;
 
 class WorkflowPolicy
 {
+    use ChecksDepartmentPermission;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user, Department $department): bool
     {
-        return $this->belongsToDepartment($user, $department);
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowViewAny,
+            $this->belongsToDepartment($user, $department),
+        );
     }
 
     /**
@@ -21,7 +29,11 @@ class WorkflowPolicy
      */
     public function view(User $user, Workflow $workflow): bool
     {
-        return $user->department_id === $workflow->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowView,
+            $user->department_id === $workflow->department_id,
+        );
     }
 
     /**
@@ -29,8 +41,11 @@ class WorkflowPolicy
      */
     public function create(User $user, Department $department): bool
     {
-        return $this->belongsToDepartment($user, $department)
-            && $user->isAdmin();
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowCreate,
+            $this->belongsToDepartment($user, $department),
+        );
     }
 
     /**
@@ -38,7 +53,11 @@ class WorkflowPolicy
      */
     public function update(User $user, Workflow $workflow): bool
     {
-        return $this->view($user, $workflow);
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowUpdate,
+            $user->department_id === $workflow->department_id,
+        );
     }
 
     /**
@@ -46,12 +65,11 @@ class WorkflowPolicy
      */
     public function delete(User $user, Workflow $workflow): bool
     {
-        $workflow->loadMissing('department');
-
-        $department = $workflow->department;
-
-        return $department instanceof Department
-            && $this->create($user, $department);
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowDelete,
+            $user->department_id === $workflow->department_id,
+        );
     }
 
     /**

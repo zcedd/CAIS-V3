@@ -4,25 +4,24 @@ namespace App\Http\Requests\User\Beneficiary\Concerns;
 
 use App\Models\Beneficiary;
 use App\Models\Department;
+use Illuminate\Support\Facades\Gate;
 
 trait AuthorizesDepartmentBeneficiary
 {
-    protected function userBelongsToDepartment(): bool
+    protected function canViewAnyBeneficiaries(): bool
     {
         $department = $this->route('department');
 
         return $department instanceof Department
-            && $this->user()?->department_id === $department->id;
-    }
-
-    protected function canViewAnyBeneficiaries(): bool
-    {
-        return $this->userBelongsToDepartment();
+            && Gate::allows('viewAny', [Beneficiary::class, $department]);
     }
 
     protected function canCreateBeneficiary(): bool
     {
-        return $this->userBelongsToDepartment();
+        $department = $this->route('department');
+
+        return $department instanceof Department
+            && Gate::allows('create', [Beneficiary::class, $department]);
     }
 
     protected function canViewBeneficiary(): bool
@@ -30,7 +29,7 @@ trait AuthorizesDepartmentBeneficiary
         $beneficiary = $this->route('beneficiary');
 
         return $beneficiary instanceof Beneficiary
-            && $this->userBelongsToDepartment();
+            && Gate::allows('view', $beneficiary);
     }
 
     protected function canUpdateBeneficiary(): bool
@@ -38,6 +37,6 @@ trait AuthorizesDepartmentBeneficiary
         $beneficiary = $this->route('beneficiary');
 
         return $beneficiary instanceof Beneficiary
-            && $this->userBelongsToDepartment();
+            && Gate::allows('update', $beneficiary);
     }
 }

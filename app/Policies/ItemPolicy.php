@@ -2,18 +2,26 @@
 
 namespace App\Policies;
 
+use App\Enums\PermissionName;
 use App\Models\Department;
 use App\Models\Item;
 use App\Models\User;
+use App\Policies\Concerns\ChecksDepartmentPermission;
 
 class ItemPolicy
 {
+    use ChecksDepartmentPermission;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user, Department $department): bool
     {
-        return $user->department_id === $department->id;
+        return $this->allows(
+            $user,
+            PermissionName::ItemViewAny,
+            $user->department_id === $department->id,
+        );
     }
 
     /**
@@ -21,7 +29,11 @@ class ItemPolicy
      */
     public function view(User $user, Item $item): bool
     {
-        return $user->department_id === $item->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::ItemView,
+            $user->department_id === $item->department_id,
+        );
     }
 
     /**
@@ -29,7 +41,11 @@ class ItemPolicy
      */
     public function create(User $user, Department $department): bool
     {
-        return $user->department_id === $department->id;
+        return $this->allows(
+            $user,
+            PermissionName::ItemCreate,
+            $user->department_id === $department->id,
+        );
     }
 
     /**
@@ -37,7 +53,11 @@ class ItemPolicy
      */
     public function update(User $user, Item $item): bool
     {
-        return $user->department_id === $item->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::ItemUpdate,
+            $user->department_id === $item->department_id,
+        );
     }
 
     /**
@@ -45,7 +65,11 @@ class ItemPolicy
      */
     public function delete(User $user, Item $item): bool
     {
-        return $user->department_id === $item->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::ItemDelete,
+            $user->department_id === $item->department_id,
+        );
     }
 
     /**
@@ -53,7 +77,7 @@ class ItemPolicy
      */
     public function restore(User $user, Item $item): bool
     {
-        return $user->department_id === $item->department_id;
+        return $this->update($user, $item);
     }
 
     /**
@@ -61,6 +85,6 @@ class ItemPolicy
      */
     public function forceDelete(User $user, Item $item): bool
     {
-        return $user->department_id === $item->department_id;
+        return $this->delete($user, $item);
     }
 }

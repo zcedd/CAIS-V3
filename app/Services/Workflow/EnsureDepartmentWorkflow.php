@@ -2,13 +2,13 @@
 
 namespace App\Services\Workflow;
 
+use App\Enums\RequestStatusCode;
+use App\Enums\RequestSubStatusCode;
+use App\Enums\WorkflowTemplate;
 use App\Models\Department;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Models\WorkflowStepTransition;
-use App\Support\RequestStatusCode;
-use App\Support\RequestSubStatusCode;
-use App\Support\WorkflowTemplate;
 
 class EnsureDepartmentWorkflow
 {

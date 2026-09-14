@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ProgramKind;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
-use App\Support\ProgramKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -40,7 +40,7 @@ class Program extends Model
      * @var array<string, mixed>
      */
     protected $attributes = [
-        'kind' => ProgramKind::Standalone,
+        'kind' => ProgramKind::Standalone->value,
         'is_closed' => false,
         'is_organization' => false,
         'public_intake' => false,
@@ -53,6 +53,7 @@ class Program extends Model
         'is_organization' => 'boolean',
         'public_intake' => 'boolean',
         'batch_number' => 'integer',
+        'kind' => ProgramKind::class,
     ];
 
     public function department(): BelongsTo
@@ -184,7 +185,7 @@ class Program extends Model
      */
     public function scopeEncodable(Builder $query): Builder
     {
-        return $query->whereIn('kind', ProgramKind::encodableValues());
+        return $query->whereIn('kind', ProgramKind::encodable());
     }
 
     /**
@@ -210,22 +211,22 @@ class Program extends Model
 
     public function isScheme(): bool
     {
-        return ProgramKind::isScheme($this->kind);
+        return $this->kind === ProgramKind::Scheme;
     }
 
     public function isBatch(): bool
     {
-        return ProgramKind::isBatch($this->kind);
+        return $this->kind === ProgramKind::Batch;
     }
 
     public function isStandalone(): bool
     {
-        return ProgramKind::isStandalone($this->kind);
+        return $this->kind === ProgramKind::Standalone;
     }
 
     public function isEncodable(): bool
     {
-        return ProgramKind::isEncodable($this->kind) && ! $this->is_closed;
+        return ($this->kind ?? ProgramKind::Standalone)->isEncodable() && ! $this->is_closed;
     }
 
     public function acceptsPublicIntake(): bool
@@ -245,7 +246,7 @@ class Program extends Model
             ->where('public_intake', true)
             ->where('is_organization', false)
             ->where('is_closed', false)
-            ->whereIn('kind', ProgramKind::encodableValues());
+            ->whereIn('kind', ProgramKind::encodable());
     }
 
     public function isEffectivelyClosed(): bool

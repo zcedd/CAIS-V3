@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProgramFieldType;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\ProgramField;
-use App\Support\ProgramFieldType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -36,7 +36,7 @@ class ProgramFieldFactory extends Factory
             ])->id,
             'label' => Str::title($label),
             'key' => Str::slug($label, '_'),
-            'type' => ProgramFieldType::Text,
+            'type' => ProgramFieldType::Text->value,
             'options' => null,
             'is_required' => false,
             'show_in_table' => false,
@@ -68,7 +68,7 @@ class ProgramFieldFactory extends Factory
     public function select(array $options = ['Option A', 'Option B']): static
     {
         return $this->state(fn (array $attributes): array => [
-            'type' => ProgramFieldType::Select,
+            'type' => ProgramFieldType::Select->value,
             'options' => $options,
         ]);
     }

@@ -2,8 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\UnspscCodeLevel;
 use App\Models\UnspscCode;
-use App\Support\UnspscCodeLevel;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -23,7 +23,7 @@ class UnspscCodeFactory extends Factory
         return [
             'code' => $code,
             'title' => fake()->words(3, true),
-            'level' => UnspscCodeLevel::Commodity,
+            'level' => UnspscCodeLevel::Commodity->value,
             'parent_id' => null,
             'segment_code' => substr($code, 0, 2).'000000',
             'family_code' => substr($code, 0, 4).'0000',

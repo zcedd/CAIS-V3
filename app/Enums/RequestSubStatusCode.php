@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Support;
+namespace App\Enums;
 
 use App\Models\RequestSubStatus;
 
@@ -25,10 +25,7 @@ enum RequestSubStatusCode: string
      */
     public static function values(): array
     {
-        return array_map(
-            static fn (self $code): string => $code->value,
-            self::cases(),
-        );
+        return array_column(self::cases(), 'value');
     }
 
     public function label(): string

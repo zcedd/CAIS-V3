@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\User\ItemStock;
 
+use App\Enums\ProgramKind;
+use App\Enums\StockMovementType;
 use App\Models\Item;
-use App\Support\ProgramKind;
-use App\Support\StockMovementType;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -34,13 +34,15 @@ class StoreAllocationRequest extends FormRequest
                 Rule::exists('programs', 'id')->where(function ($query) use ($departmentId): void {
                     $query
                         ->where('department_id', $departmentId)
-                        ->whereIn('kind', ProgramKind::encodableValues());
+                        ->whereIn('kind', ProgramKind::encodable());
                 }),
             ],
             'type' => [
                 'required',
-                'string',
-                Rule::in([StockMovementType::Allocate, StockMovementType::Deallocate]),
+                Rule::enum(StockMovementType::class)->only([
+                    StockMovementType::Allocate,
+                    StockMovementType::Deallocate,
+                ]),
             ],
             'quantity' => ['required', 'integer', 'min:1'],
             'reason' => ['nullable', 'string', 'max:255'],

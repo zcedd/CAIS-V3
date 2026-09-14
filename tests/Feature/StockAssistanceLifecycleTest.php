@@ -1,5 +1,8 @@
 <?php
 
+use App\Enums\AssistanceItemOrigin;
+use App\Enums\RequestSubStatusCode;
+use App\Enums\StockMovementType;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Beneficiary;
@@ -12,9 +15,6 @@ use App\Models\Program;
 use App\Models\ProgramItemStock;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Support\AssistanceItemOrigin;
-use App\Support\RequestSubStatusCode;
-use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -72,7 +72,7 @@ function seedDeliverableAssistance(): array
     $assistanceItem = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 4,
         'requested_quantity' => 4,
         'is_received' => false,
@@ -139,7 +139,7 @@ test('delivery deducts requested additional and substitute quantities from progr
             ],
             'extra_items' => [
                 [
-                    'origin' => AssistanceItemOrigin::Additional,
+                    'origin' => AssistanceItemOrigin::Additional->value,
                     'item_id' => $oil->id,
                     'quantity' => 1,
                     'fulfillment_reason' => 'leftover pack',
@@ -173,7 +173,7 @@ test('delivery deducts substitute quantities from program stock', function () {
             'recorded_at' => now()->toDateTimeString(),
             'extra_items' => [
                 [
-                    'origin' => AssistanceItemOrigin::Substitute,
+                    'origin' => AssistanceItemOrigin::Substitute->value,
                     'item_id' => $oil->id,
                     'quantity' => 2,
                     'fulfillment_reason' => 'rice unavailable',
@@ -211,7 +211,7 @@ test('delivery is blocked when the program allocation is insufficient', function
             ],
             'extra_items' => [
                 [
-                    'origin' => AssistanceItemOrigin::Additional,
+                    'origin' => AssistanceItemOrigin::Additional->value,
                     'item_id' => $context['item']->id,
                     'quantity' => 20,
                     'fulfillment_reason' => 'extra sacks',

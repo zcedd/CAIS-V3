@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use App\Enums\UnspscCodeLevel;
 use App\Models\UnspscCode;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -74,7 +75,7 @@ class UnspscCodeImporter
     }
 
     /**
-     * @param  list<array{code: string, title: string, level: string, parent_code: string|null, is_curated: bool, version: string}>  $rows
+     * @param  list<array{code: string, title: string, level: UnspscCodeLevel, parent_code: string|null, is_curated: bool, version: string}>  $rows
      */
     public function upsertRows(array $rows): int
     {
@@ -164,12 +165,13 @@ class UnspscCodeImporter
         };
     }
 
-    private function normalizeLevel(string $level, string $code): string
+    private function normalizeLevel(string $level, string $code): UnspscCodeLevel
     {
         $level = strtolower(trim($level));
+        $fromValue = UnspscCodeLevel::tryFrom($level);
 
-        if (in_array($level, UnspscCodeLevel::values(), true)) {
-            return $level;
+        if ($fromValue instanceof UnspscCodeLevel) {
+            return $fromValue;
         }
 
         if (str_ends_with($code, '000000')) {

@@ -2,13 +2,13 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Enums\ProgramKind;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Http\Requests\User\Concerns\ValidatesPublicIntake;
 use App\Models\Department;
 use App\Models\Program;
-use App\Support\ProgramKind;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -39,7 +39,7 @@ class StoreRequest extends FormRequest
     {
         $department = $this->route('department');
         $departmentId = $department instanceof Department ? $department->id : null;
-        $isScheme = $this->input('kind', ProgramKind::Standalone) === ProgramKind::Scheme;
+        $isScheme = ProgramKind::tryFrom((string) $this->input('kind', ProgramKind::Standalone->value)) === ProgramKind::Scheme;
 
         return [
             'name' => ['required', 'string', 'max:255'],
@@ -47,7 +47,7 @@ class StoreRequest extends FormRequest
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => ['nullable', 'boolean'],
-            'kind' => ['nullable', 'string', Rule::in(ProgramKind::creatableValues())],
+            'kind' => ['nullable', Rule::enum(ProgramKind::class)->only(ProgramKind::creatable())],
             ...$this->publicIntakeRules($isScheme),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
             'fund_ids.*' => [
@@ -96,7 +96,7 @@ class StoreRequest extends FormRequest
         $this->afterPublicIntakeValidation($validator);
 
         $validator->after(function (Validator $validator): void {
-            if ($this->filled('first_batch') && $this->input('kind') !== ProgramKind::Scheme) {
+            if ($this->filled('first_batch') && ProgramKind::tryFrom((string) $this->input('kind')) !== ProgramKind::Scheme) {
                 $validator->errors()->add(
                     'first_batch',
                     'A first batch can only be created with a parent program.',

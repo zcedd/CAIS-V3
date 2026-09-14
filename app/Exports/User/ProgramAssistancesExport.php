@@ -2,9 +2,9 @@
 
 namespace App\Exports\User;
 
+use App\Enums\ItemKind;
 use App\Models\Assistance;
 use App\Support\EmptyCell;
-use App\Support\ItemKind;
 use App\Support\SpreadsheetCell;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -56,7 +56,7 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
 
                 $detail = $name;
 
-                if (ItemKind::isCash($kind)) {
+                if ($kind?->isCash() ?? false) {
                     $detail .= ' '.ItemKind::formatQuantity(
                         $quantity !== null ? (int) $quantity : null,
                         $unit,

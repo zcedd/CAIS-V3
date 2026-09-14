@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
+use App\Enums\ItemKind;
 use App\Models\Department;
 use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
-use App\Support\ItemKind;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -24,7 +24,7 @@ class ItemFactory extends Factory
     {
         return [
             'name' => fake()->words(2, true),
-            'kind' => ItemKind::Goods,
+            'kind' => ItemKind::Goods->value,
             'department_id' => Department::query()->value('id') ?? Department::create(['name' => fake()->company()])->id,
             'item_unit_measurement_id' => ItemUnitMeasurement::query()->value('id')
                 ?? ItemUnitMeasurement::factory()->create()->id,
@@ -43,7 +43,7 @@ class ItemFactory extends Factory
                 ?? ItemUnitMeasurement::factory()->create(['name' => 'php']);
 
             return [
-                'kind' => ItemKind::Cash,
+                'kind' => ItemKind::Cash->value,
                 'item_unit_measurement_id' => $phpUnit->id,
                 'is_perishable' => false,
                 'low_stock_threshold' => null,
@@ -54,7 +54,7 @@ class ItemFactory extends Factory
     public function service(): static
     {
         return $this->state(fn (): array => [
-            'kind' => ItemKind::Service,
+            'kind' => ItemKind::Service->value,
             'is_perishable' => false,
             'low_stock_threshold' => null,
         ]);

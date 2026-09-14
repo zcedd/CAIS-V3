@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\AssistanceItemOrigin;
+use App\Enums\StockMovementType;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -15,8 +17,6 @@ use App\Models\StockLot;
 use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\User\StockLedgerService;
-use App\Support\AssistanceItemOrigin;
-use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 
@@ -60,7 +60,7 @@ test('receiving stock increases on-hand and available quantity', function () {
 
     $ledger->receive($item, $user, [
         'quantity' => 10,
-        'type' => StockMovementType::OpeningBalance,
+        'type' => StockMovementType::OpeningBalance->value,
     ]);
 
     $balance = ItemStockBalance::query()->where('item_id', $item->id)->first();
@@ -77,7 +77,7 @@ test('allocating more than available stock fails', function () {
 
     $ledger->receive($item, $user, [
         'quantity' => 5,
-        'type' => StockMovementType::Receipt,
+        'type' => StockMovementType::Receipt->value,
     ]);
 
     expect(fn () => $ledger->allocate($item, $user, [
@@ -91,19 +91,19 @@ test('issue uses FEFO across lots and skips expired stock', function () {
 
     $ledger->receive($item, $user, [
         'quantity' => 4,
-        'type' => StockMovementType::Receipt,
+        'type' => StockMovementType::Receipt->value,
         'batch_number' => 'EXP',
         'expires_at' => now()->subDay()->toDateString(),
     ]);
     $ledger->receive($item, $user, [
         'quantity' => 3,
-        'type' => StockMovementType::Receipt,
+        'type' => StockMovementType::Receipt->value,
         'batch_number' => 'SOON',
         'expires_at' => now()->addDays(5)->toDateString(),
     ]);
     $ledger->receive($item, $user, [
         'quantity' => 5,
-        'type' => StockMovementType::Receipt,
+        'type' => StockMovementType::Receipt->value,
         'batch_number' => 'LATER',
         'expires_at' => now()->addDays(30)->toDateString(),
     ]);
@@ -128,7 +128,7 @@ test('issue uses FEFO across lots and skips expired stock', function () {
     $released = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 4,
         'requested_quantity' => 4,
         'is_received' => true,
@@ -152,7 +152,7 @@ test('perishable receipts require a batch and expiry date', function () {
 
     expect(fn () => $ledger->receive($item, $user, [
         'quantity' => 5,
-        'type' => StockMovementType::Receipt,
+        'type' => StockMovementType::Receipt->value,
     ]))->toThrow(ValidationException::class);
 });
 
@@ -177,7 +177,7 @@ test('issuing the same released line twice does not double-deduct', function () 
     $released = AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 3,
         'requested_quantity' => 3,
         'is_received' => true,
@@ -199,6 +199,6 @@ test('cash catalog items cannot receive warehouse stock', function () {
 
     expect(fn () => $ledger->receive($cash, $user, [
         'quantity' => 5000,
-        'type' => StockMovementType::OpeningBalance,
+        'type' => StockMovementType::OpeningBalance->value,
     ]))->toThrow(ValidationException::class);
 });

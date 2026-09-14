@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Enums\RequestStatusCode;
+use App\Enums\WorkflowTemplate;
 use App\Models\Department;
 use App\Models\Workflow;
 use App\Services\Workflow\RequestStatusCatalog;
-use App\Support\RequestStatusCode;
-use App\Support\WorkflowTemplate;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -30,7 +30,7 @@ class WorkflowFactory extends Factory
             'department_id' => Department::query()->value('id')
                 ?? Department::query()->create(['name' => fake()->company()])->id,
             'name' => 'Standard',
-            'template' => WorkflowTemplate::Standard,
+            'template' => WorkflowTemplate::Standard->value,
             'is_default' => false,
             'staff_entry_request_status_id' => $submittedId,
             'public_entry_request_status_id' => $submittedId,

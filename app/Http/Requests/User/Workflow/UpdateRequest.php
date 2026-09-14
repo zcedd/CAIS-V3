@@ -5,6 +5,7 @@ namespace App\Http\Requests\User\Workflow;
 use App\Models\Department;
 use App\Models\Workflow;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class UpdateRequest extends FormRequest
@@ -17,7 +18,7 @@ class UpdateRequest extends FormRequest
         return $department instanceof Department
             && $workflow instanceof Workflow
             && $workflow->department_id === $department->id
-            && $this->user()?->department_id === $department->id;
+            && Gate::allows('update', $workflow);
     }
 
     /**

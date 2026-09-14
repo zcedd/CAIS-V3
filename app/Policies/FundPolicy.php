@@ -2,18 +2,26 @@
 
 namespace App\Policies;
 
+use App\Enums\PermissionName;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\User;
+use App\Policies\Concerns\ChecksDepartmentPermission;
 
 class FundPolicy
 {
+    use ChecksDepartmentPermission;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user, Department $department): bool
     {
-        return $user->department_id === $department->id;
+        return $this->allows(
+            $user,
+            PermissionName::FundViewAny,
+            $user->department_id === $department->id,
+        );
     }
 
     /**
@@ -21,7 +29,11 @@ class FundPolicy
      */
     public function view(User $user, Fund $fund): bool
     {
-        return $user->department_id === $fund->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::FundView,
+            $user->department_id === $fund->department_id,
+        );
     }
 
     /**
@@ -29,7 +41,11 @@ class FundPolicy
      */
     public function create(User $user, Department $department): bool
     {
-        return $user->department_id === $department->id;
+        return $this->allows(
+            $user,
+            PermissionName::FundCreate,
+            $user->department_id === $department->id,
+        );
     }
 
     /**
@@ -37,7 +53,11 @@ class FundPolicy
      */
     public function update(User $user, Fund $fund): bool
     {
-        return $user->department_id === $fund->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::FundUpdate,
+            $user->department_id === $fund->department_id,
+        );
     }
 
     /**
@@ -45,7 +65,11 @@ class FundPolicy
      */
     public function delete(User $user, Fund $fund): bool
     {
-        return $user->department_id === $fund->department_id;
+        return $this->allows(
+            $user,
+            PermissionName::FundDelete,
+            $user->department_id === $fund->department_id,
+        );
     }
 
     /**
@@ -53,7 +77,7 @@ class FundPolicy
      */
     public function restore(User $user, Fund $fund): bool
     {
-        return $user->department_id === $fund->department_id;
+        return $this->update($user, $fund);
     }
 
     /**
@@ -61,6 +85,6 @@ class FundPolicy
      */
     public function forceDelete(User $user, Fund $fund): bool
     {
-        return $user->department_id === $fund->department_id;
+        return $this->delete($user, $fund);
     }
 }

@@ -2,9 +2,9 @@
 
 namespace App\Actions\User;
 
+use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
-use App\Support\RequestStatusCode;
 use Illuminate\Support\Carbon;
 
 class SyncAssistanceCurrentStatus

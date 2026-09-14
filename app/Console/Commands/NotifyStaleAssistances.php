@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\User;
 use App\Notifications\StaleAssistanceReminderNotification;
-use App\Support\RequestStatusCode;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Console\Command;

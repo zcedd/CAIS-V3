@@ -3,13 +3,13 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Enums\ProgramKind;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
 use App\Models\Program;
 use App\Models\ProgramEligibilityRule;
 use App\Models\ProgramItemCap;
-use App\Support\ProgramKind;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -96,7 +96,8 @@ class ProgramService
      */
     public function create(Department $department, array $validated): Program
     {
-        $kind = $validated['kind'] ?? ProgramKind::Standalone;
+        $kind = ProgramKind::tryFrom((string) ($validated['kind'] ?? ProgramKind::Standalone->value))
+            ?? ProgramKind::Standalone;
 
         $program = Program::query()->create([
             'name' => $validated['name'],

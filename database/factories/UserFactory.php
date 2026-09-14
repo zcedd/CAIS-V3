@@ -38,6 +38,21 @@ class UserFactory extends Factory
         ];
     }
 
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user): void {
+            if (! app()->runningUnitTests() || $user->department_id === null) {
+                return;
+            }
+
+            if (! function_exists('grantResourceRoles')) {
+                return;
+            }
+
+            grantResourceRoles($user);
+        });
+    }
+
     /**
      * Indicate that the model's email address should be unverified.
      */

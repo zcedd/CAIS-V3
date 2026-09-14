@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\AssistanceItemOrigin;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Department;
@@ -8,7 +9,6 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\AssistanceItemOrigin;
 use App\Support\EmptyCell;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -77,7 +77,7 @@ test('authenticated users can view an assistance profile in their department', f
     AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,
-        'origin' => AssistanceItemOrigin::Requested,
+        'origin' => AssistanceItemOrigin::Requested->value,
         'quantity' => 2,
         'requested_quantity' => 2,
         'specification' => '25 kg',

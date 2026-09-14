@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\User\Concerns;
 
+use App\Enums\ProgramFieldType;
 use App\Models\Program;
 use App\Models\ProgramField;
-use App\Support\ProgramFieldType;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -20,7 +20,7 @@ trait ValidatesProgramFields
             'fields' => ['nullable', 'array'],
             'fields.*.id' => ['nullable', 'integer'],
             'fields.*.label' => ['required', 'string', 'max:255'],
-            'fields.*.type' => ['required', 'string', Rule::in(ProgramFieldType::values())],
+            'fields.*.type' => ['required', Rule::enum(ProgramFieldType::class)],
             'fields.*.options' => ['nullable', 'array'],
             'fields.*.options.*' => ['required', 'string', 'max:255'],
             'fields.*.is_required' => ['nullable', 'boolean'],
@@ -60,7 +60,7 @@ trait ValidatesProgramFields
                     continue;
                 }
 
-                if (($field['type'] ?? null) !== ProgramFieldType::Select) {
+                if (ProgramFieldType::tryFrom((string) ($field['type'] ?? '')) !== ProgramFieldType::Select) {
                     continue;
                 }
 

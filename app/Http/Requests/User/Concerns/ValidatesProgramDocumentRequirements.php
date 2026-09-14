@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\User\Concerns;
 
-use App\Support\DocumentRequirementMilestone;
+use App\Enums\DocumentRequirementMilestone;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -24,8 +24,7 @@ trait ValidatesProgramDocumentRequirements
             'document_requirements.*.is_required' => ['nullable', 'boolean'],
             'document_requirements.*.required_before' => [
                 'required',
-                'string',
-                Rule::in(DocumentRequirementMilestone::values()),
+                Rule::enum(DocumentRequirementMilestone::class),
             ],
             'document_requirements.*.sort_order' => ['nullable', 'integer', 'min:0'],
         ];

@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\AssistanceDocument;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Connection;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -33,6 +35,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->configureAuthorization();
         $this->configureRateLimiting();
     }
 
@@ -82,6 +85,13 @@ class AppServiceProvider extends ServiceProvider
                     ->uncompromised()
                 : null,
         );
+    }
+
+    protected function configureAuthorization(): void
+    {
+        Gate::before(function ($user, string $ability): ?bool {
+            return $user instanceof User && $user->isSuperAdmin() ? true : null;
+        });
     }
 
     protected function configureRateLimiting(): void

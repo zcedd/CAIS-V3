@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Models\Assistance;
 use App\Models\Program;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class EligibilityPreviewRequest extends FormRequest
@@ -17,7 +19,7 @@ class EligibilityPreviewRequest extends FormRequest
             return false;
         }
 
-        return $this->user()?->department_id === $program->department_id;
+        return Gate::allows('create', [Assistance::class, $program]);
     }
 
     /**

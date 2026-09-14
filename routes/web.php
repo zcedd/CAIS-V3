@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
 use App\Http\Controllers\User\AssistanceDocumentController as UserAssistanceDocumentController;
@@ -26,6 +28,17 @@ require __DIR__.'/public.php';
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
+
+    Route::middleware('super-admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/', fn () => redirect()->route('admin.users.index'))->name('index');
+
+        Route::get('users', [AdminUserController::class, 'index'])->name('users.index');
+        Route::post('users', [AdminUserController::class, 'store'])->name('users.store');
+        Route::put('users/{user}', [AdminUserController::class, 'update'])->name('users.update');
+        Route::delete('users/{user}', [AdminUserController::class, 'destroy'])->name('users.destroy');
+
+        Route::get('workflows', [AdminWorkflowController::class, 'index'])->name('workflows.index');
+    });
 
     Route::prefix('{department}')->middleware(EnsureUserBelongsToDepartment::class)->group(function () {
         Route::get('dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard.index');

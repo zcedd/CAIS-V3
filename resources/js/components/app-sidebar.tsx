@@ -1,14 +1,13 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     Bell,
-    BookOpen,
-    FolderGit2,
     FolderKanban,
     GitBranch,
     Inbox,
     Landmark,
     LayoutGrid,
     Package,
+    Shield,
     Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -24,7 +23,10 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 import { dashboard } from '@/routes';
+import { index as adminUsersIndex } from '@/routes/admin/users';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
@@ -34,17 +36,16 @@ import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiari
 import { index as departmentQueueIndex } from '@/routes/user/queue';
 import { index as departmentWorkflowsIndex } from '@/routes/user/workflows';
 import type { NavItem } from '@/types';
-import type { User } from '@/types/auth';
+import type { Auth } from '@/types/auth';
 
 type SidebarPageProps = {
-    auth: {
-        user: User | null;
-    };
+    auth: Auth;
     unreadNotificationsCount: number;
 };
 
 export function AppSidebar() {
     const { props } = usePage<SidebarPageProps>();
+    const can = useCan();
 
     const footerNavItems = useMemo((): NavItem[] => {
         const slug = props.auth.user?.department?.slug;
@@ -74,41 +75,64 @@ export function AppSidebar() {
             },
         ];
 
-        if (slug) {
+        if (props.auth.is_super_admin) {
             items.push({
-                title: 'Programs',
-                href: departmentProgramsIndex(slug),
-                icon: FolderKanban,
-            });
-            items.push({
-                title: 'Queue',
-                href: departmentQueueIndex(slug),
-                icon: Inbox,
-            });
-            items.push({
-                title: 'Workflows',
-                href: departmentWorkflowsIndex(slug),
-                icon: GitBranch,
-            });
-            items.push({
-                title: 'Beneficiaries',
-                href: departmentBeneficiariesIndex(slug),
-                icon: Users,
-            });
-            items.push({
-                title: 'Items',
-                href: departmentItemsIndex(slug),
-                icon: Package,
-            });
-            items.push({
-                title: 'Funds',
-                href: departmentFundsIndex(slug),
-                icon: Landmark,
+                title: 'Admin',
+                href: adminUsersIndex(),
+                icon: Shield,
             });
         }
 
+        if (slug) {
+            const departmentItems: NavItem[] = [
+                {
+                    title: 'Programs',
+                    href: departmentProgramsIndex(slug),
+                    icon: FolderKanban,
+                    permission: Permission.ProgramViewAny,
+                },
+                {
+                    title: 'Queue',
+                    href: departmentQueueIndex(slug),
+                    icon: Inbox,
+                    permission: Permission.AssistanceViewAny,
+                },
+                {
+                    title: 'Workflows',
+                    href: departmentWorkflowsIndex(slug),
+                    icon: GitBranch,
+                    permission: Permission.WorkflowViewAny,
+                },
+                {
+                    title: 'Beneficiaries',
+                    href: departmentBeneficiariesIndex(slug),
+                    icon: Users,
+                    permission: Permission.BeneficiaryViewAny,
+                },
+                {
+                    title: 'Items',
+                    href: departmentItemsIndex(slug),
+                    icon: Package,
+                    permission: Permission.ItemViewAny,
+                },
+                {
+                    title: 'Funds',
+                    href: departmentFundsIndex(slug),
+                    icon: Landmark,
+                    permission: Permission.FundViewAny,
+                },
+            ];
+
+            items.push(
+                ...departmentItems.filter(
+                    (item) =>
+                        item.permission === undefined || can(item.permission),
+                ),
+            );
+        }
+
         return items;
-    }, [props.auth.user]);
+    }, [can, props.auth.is_super_admin, props.auth.user]);
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">

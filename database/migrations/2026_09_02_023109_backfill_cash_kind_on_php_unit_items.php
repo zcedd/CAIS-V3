@@ -1,6 +1,6 @@
 <?php
 
-use App\Support\ItemKind;
+use App\Enums\ItemKind;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 
@@ -17,7 +17,7 @@ return new class extends Migration
                     ->from('item_unit_measurements')
                     ->whereRaw('lower(name) = ?', ['php']);
             })
-            ->update(['kind' => ItemKind::Cash]);
+            ->update(['kind' => ItemKind::Cash->value]);
     }
 
     /**
@@ -26,12 +26,12 @@ return new class extends Migration
     public function down(): void
     {
         DB::table('items')
-            ->where('kind', ItemKind::Cash)
+            ->where('kind', ItemKind::Cash->value)
             ->whereIn('item_unit_measurement_id', function ($query): void {
                 $query->select('id')
                     ->from('item_unit_measurements')
                     ->whereRaw('lower(name) = ?', ['php']);
             })
-            ->update(['kind' => ItemKind::Goods]);
+            ->update(['kind' => ItemKind::Goods->value]);
     }
 };

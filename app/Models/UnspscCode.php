@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Support\UnspscCodeLevel;
+use App\Enums\UnspscCodeLevel;
 use Database\Factories\UnspscCodeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -33,6 +33,7 @@ class UnspscCode extends Model
     {
         return [
             'is_curated' => 'boolean',
+            'level' => UnspscCodeLevel::class,
         ];
     }
 

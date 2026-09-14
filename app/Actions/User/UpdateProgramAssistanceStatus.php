@@ -2,6 +2,8 @@
 
 namespace App\Actions\User;
 
+use App\Enums\AssistanceItemOrigin;
+use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -9,8 +11,6 @@ use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\StockLedgerService;
-use App\Support\AssistanceItemOrigin;
-use App\Support\RequestStatusCode;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -199,7 +199,7 @@ class UpdateProgramAssistanceStatus
     ): AssistanceItem {
         $substitutedForId = null;
 
-        if ($extraItem['origin'] === AssistanceItemOrigin::Substitute) {
+        if (AssistanceItemOrigin::tryFrom((string) $extraItem['origin']) === AssistanceItemOrigin::Substitute) {
             $substitutedItem = AssistanceItem::query()
                 ->where('assistance_id', $assistance->id)
                 ->whereKey($extraItem['substituted_for_assistance_item_id'])

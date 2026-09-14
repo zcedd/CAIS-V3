@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\User\Workflow;
 
+use App\Enums\WorkflowTemplate;
 use App\Models\Department;
 use App\Models\Workflow;
-use App\Support\WorkflowTemplate;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -26,7 +26,7 @@ class StoreRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'template' => ['nullable', 'string', Rule::in(WorkflowTemplate::values())],
+            'template' => ['nullable', Rule::enum(WorkflowTemplate::class)],
             'is_default' => ['nullable', 'boolean'],
             'staff_entry_request_status_id' => ['nullable', 'integer', 'exists:request_statuses,id'],
             'steps' => ['nullable', 'array'],

@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Enums\AssistanceItemOrigin;
+use App\Enums\RequestStatusCode;
 use App\Http\Requests\User\Concerns\EnsuresAssistanceBelongsToProgram;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -9,8 +11,6 @@ use App\Models\Item;
 use App\Models\Program;
 use App\Models\RequestSubStatus;
 use App\Services\User\StockLedgerService;
-use App\Support\AssistanceItemOrigin;
-use App\Support\RequestStatusCode;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -47,7 +47,7 @@ class UpdateStatusRequest extends FormRequest
 
         $substitutedIds = collect($extraItems)
             ->filter(static fn (mixed $row): bool => is_array($row)
-                && ($row['origin'] ?? null) === AssistanceItemOrigin::Substitute)
+                && AssistanceItemOrigin::tryFrom((string) ($row['origin'] ?? '')) === AssistanceItemOrigin::Substitute)
             ->map(static fn (array $row): int => (int) ($row['substituted_for_assistance_item_id'] ?? 0))
             ->filter(static fn (int $id): bool => $id > 0)
             ->unique()
@@ -100,8 +100,7 @@ class UpdateStatusRequest extends FormRequest
             'extra_items' => [Rule::prohibitedIf($notDelivered), 'array'],
             'extra_items.*.origin' => [
                 'required',
-                'string',
-                Rule::in(AssistanceItemOrigin::unrequestedValues()),
+                Rule::enum(AssistanceItemOrigin::class)->only(AssistanceItemOrigin::unrequested()),
             ],
             'extra_items.*.item_id' => ['required', 'integer', Rule::in($programItemIds)],
             'extra_items.*.quantity' => ['required', 'integer', 'min:1'],
@@ -110,8 +109,8 @@ class UpdateStatusRequest extends FormRequest
             'extra_items.*.substituted_for_assistance_item_id' => [
                 'nullable',
                 'integer',
-                'required_if:extra_items.*.origin,'.AssistanceItemOrigin::Substitute,
-                'prohibited_unless:extra_items.*.origin,'.AssistanceItemOrigin::Substitute,
+                'required_if:extra_items.*.origin,'.AssistanceItemOrigin::Substitute->value,
+                'prohibited_unless:extra_items.*.origin,'.AssistanceItemOrigin::Substitute->value,
                 $this->awaitingReleaseRule(),
             ],
         ];
@@ -170,7 +169,7 @@ class UpdateStatusRequest extends FormRequest
                 $substitutedIds = [];
 
                 foreach ($extraItems as $index => $extraItem) {
-                    if (($extraItem['origin'] ?? null) !== AssistanceItemOrigin::Substitute) {
+                    if (AssistanceItemOrigin::tryFrom((string) ($extraItem['origin'] ?? '')) !== AssistanceItemOrigin::Substitute) {
                         continue;
                     }
 

@@ -2,15 +2,15 @@
 
 namespace App\Services\User;
 
+use App\Enums\DocumentRequirementMilestone;
+use App\Enums\RequestStatusCode;
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceDocument;
 use App\Models\DocumentType;
 use App\Models\Program;
 use App\Models\ProgramDocumentRequirement;
 use App\Models\RequestSubStatus;
-use App\Support\DocumentRequirementMilestone;
-use App\Support\RequestStatusCode;
-use App\Support\RequestSubStatusCode;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -76,7 +76,7 @@ class AssistanceDocumentService
                 'document_type_name' => $requirement->documentType?->name ?? 'Document',
                 'document_type_slug' => $requirement->documentType?->slug ?? '',
                 'is_required' => $requirement->is_required,
-                'required_before' => $requirement->required_before,
+                'required_before' => $requirement->required_before?->value,
                 'is_complete' => $typeDocuments->isNotEmpty(),
                 'documents' => $typeDocuments
                     ->map(fn (AssistanceDocument $document): array => $this->documentPayload($document))
@@ -106,7 +106,7 @@ class AssistanceDocumentService
     /**
      * @return list<string>
      */
-    public function missingRequiredLabels(Assistance $assistance, string $milestone): array
+    public function missingRequiredLabels(Assistance $assistance, DocumentRequirementMilestone $milestone): array
     {
         $assistance->loadMissing([
             'program.documentRequirements.documentType:id,name,slug',
@@ -177,7 +177,7 @@ class AssistanceDocumentService
         $this->failForMissingDocuments('Required documents are missing. '.implode(' ', $messages));
     }
 
-    public function milestoneForSubStatus(RequestSubStatus $subStatus): ?string
+    public function milestoneForSubStatus(RequestSubStatus $subStatus): ?DocumentRequirementMilestone
     {
         $subStatus->loadMissing('requestStatus');
 
@@ -246,7 +246,7 @@ class AssistanceDocumentService
     /**
      * @return Collection<int, ProgramDocumentRequirement>
      */
-    private function requirementsForMilestone(?Program $program, string $milestone): Collection
+    private function requirementsForMilestone(?Program $program, DocumentRequirementMilestone $milestone): Collection
     {
         $milestones = $milestone === DocumentRequirementMilestone::Delivered
             ? [DocumentRequirementMilestone::Verified, DocumentRequirementMilestone::Delivered]
@@ -259,7 +259,7 @@ class AssistanceDocumentService
     /**
      * @param  list<string>  $missing
      */
-    private function missingDocumentsMessage(array $missing, string $milestone): string
+    private function missingDocumentsMessage(array $missing, DocumentRequirementMilestone $milestone): string
     {
         $stage = $milestone === DocumentRequirementMilestone::Delivered
             ? 'Delivered'

@@ -2,19 +2,27 @@
 
 namespace App\Policies;
 
+use App\Enums\PermissionName;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
+use App\Policies\Concerns\ChecksDepartmentPermission;
 
 class AssistancePolicy
 {
+    use ChecksDepartmentPermission;
+
     /**
      * Determine whether the user can view any models.
      */
     public function viewAny(User $user, Department $department): bool
     {
-        return $user->department_id === $department->id;
+        return $this->allows(
+            $user,
+            PermissionName::AssistanceViewAny,
+            $user->department_id === $department->id,
+        );
     }
 
     /**
@@ -22,7 +30,11 @@ class AssistancePolicy
      */
     public function view(User $user, Assistance $assistance): bool
     {
-        return $this->belongsToUserDepartment($user, $assistance);
+        return $this->allows(
+            $user,
+            PermissionName::AssistanceView,
+            $this->belongsToUserDepartment($user, $assistance),
+        );
     }
 
     /**
@@ -30,8 +42,11 @@ class AssistancePolicy
      */
     public function create(User $user, Program $program): bool
     {
-        return $user->department_id === $program->department_id
-            && $program->isEncodable();
+        return $this->allows(
+            $user,
+            PermissionName::AssistanceCreate,
+            $user->department_id === $program->department_id,
+        ) && $program->isEncodable();
     }
 
     /**
@@ -39,7 +54,11 @@ class AssistancePolicy
      */
     public function update(User $user, Assistance $assistance): bool
     {
-        return $this->belongsToUserDepartment($user, $assistance);
+        return $this->allows(
+            $user,
+            PermissionName::AssistanceUpdate,
+            $this->belongsToUserDepartment($user, $assistance),
+        );
     }
 
     /**
@@ -47,7 +66,11 @@ class AssistancePolicy
      */
     public function delete(User $user, Assistance $assistance): bool
     {
-        return $this->belongsToUserDepartment($user, $assistance);
+        return $this->allows(
+            $user,
+            PermissionName::AssistanceDelete,
+            $this->belongsToUserDepartment($user, $assistance),
+        );
     }
 
     /**
@@ -55,7 +78,7 @@ class AssistancePolicy
      */
     public function restore(User $user, Assistance $assistance): bool
     {
-        return $this->belongsToUserDepartment($user, $assistance);
+        return $this->update($user, $assistance);
     }
 
     /**
@@ -63,7 +86,7 @@ class AssistancePolicy
      */
     public function forceDelete(User $user, Assistance $assistance): bool
     {
-        return $this->update($user, $assistance);
+        return $this->delete($user, $assistance);
     }
 
     /**
@@ -71,12 +94,12 @@ class AssistancePolicy
      */
     public function assign(User $user, Assistance $assistance): bool
     {
-        if (! $this->belongsToUserDepartment($user, $assistance)) {
+        if (! $this->allows(
+            $user,
+            PermissionName::AssistanceAssign,
+            $this->belongsToUserDepartment($user, $assistance),
+        )) {
             return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
         }
 
         return $assistance->currentWorkflowStep()?->assigned_to_id === null;
@@ -87,12 +110,12 @@ class AssistancePolicy
      */
     public function claim(User $user, Assistance $assistance): bool
     {
-        if (! $this->belongsToUserDepartment($user, $assistance)) {
+        if (! $this->allows(
+            $user,
+            PermissionName::AssistanceClaim,
+            $this->belongsToUserDepartment($user, $assistance),
+        )) {
             return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
         }
 
         $step = $assistance->currentWorkflowStep();
@@ -109,12 +132,12 @@ class AssistancePolicy
      */
     public function advance(User $user, Assistance $assistance): bool
     {
-        if (! $this->belongsToUserDepartment($user, $assistance)) {
+        if (! $this->allows(
+            $user,
+            PermissionName::AssistanceAdvance,
+            $this->belongsToUserDepartment($user, $assistance),
+        )) {
             return false;
-        }
-
-        if ($user->isAdmin()) {
-            return true;
         }
 
         $step = $assistance->currentWorkflowStep();

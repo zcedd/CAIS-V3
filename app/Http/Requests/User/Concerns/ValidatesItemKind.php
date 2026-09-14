@@ -2,17 +2,17 @@
 
 namespace App\Http\Requests\User\Concerns;
 
+use App\Enums\ItemKind;
 use App\Models\Item;
 use App\Models\ItemStockBalance;
 use App\Models\ItemUnitMeasurement;
-use App\Support\ItemKind;
 use Illuminate\Validation\Validator;
 
 trait ValidatesItemKind
 {
     protected function assertCashUsesPhpUnit(Validator $validator): void
     {
-        if ($this->input('kind') !== ItemKind::Cash) {
+        if (ItemKind::tryFrom((string) $this->input('kind')) !== ItemKind::Cash) {
             return;
         }
 
@@ -30,7 +30,7 @@ trait ValidatesItemKind
 
     protected function assertCannotChangeStockedGoodsKind(Validator $validator, Item $item): void
     {
-        if ($item->kind !== ItemKind::Goods || $this->input('kind') === ItemKind::Goods) {
+        if ($item->kind !== ItemKind::Goods || ItemKind::tryFrom((string) $this->input('kind')) === ItemKind::Goods) {
             return;
         }
 

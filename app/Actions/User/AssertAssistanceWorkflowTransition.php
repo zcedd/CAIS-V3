@@ -2,13 +2,13 @@
 
 namespace App\Actions\User;
 
+use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
-use App\Support\RequestStatusCode;
 use Illuminate\Validation\ValidationException;
 
 class AssertAssistanceWorkflowTransition
@@ -133,7 +133,7 @@ class AssertAssistanceWorkflowTransition
             return true;
         }
 
-        if ($user->isAdmin()) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 

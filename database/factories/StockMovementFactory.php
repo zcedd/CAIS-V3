@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
+use App\Enums\StockMovementType;
 use App\Models\Item;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Support\StockMovementType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -27,7 +27,7 @@ class StockMovementFactory extends Factory
             'item_id' => $item->id,
             'program_id' => null,
             'stock_lot_id' => null,
-            'type' => StockMovementType::Receipt,
+            'type' => StockMovementType::Receipt->value,
             'quantity' => fake()->numberBetween(1, 50),
             'assistance_item_id' => null,
             'reverses_movement_id' => null,

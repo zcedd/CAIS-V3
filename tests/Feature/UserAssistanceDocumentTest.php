@@ -1,11 +1,11 @@
 <?php
 
+use App\Enums\DocumentTypeSlug;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\DocumentTypeSlug;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;

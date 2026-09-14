@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProgramFieldType;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
@@ -7,7 +8,6 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\ProgramField;
 use App\Models\User;
-use App\Support\ProgramFieldType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -53,14 +53,14 @@ test('program create can define custom fields', function () {
         'fields' => [
             [
                 'label' => 'Household Size',
-                'type' => ProgramFieldType::Number,
+                'type' => ProgramFieldType::Number->value,
                 'is_required' => true,
                 'show_in_table' => true,
                 'sort_order' => 0,
             ],
             [
                 'label' => 'Sector',
-                'type' => ProgramFieldType::Select,
+                'type' => ProgramFieldType::Select->value,
                 'options' => ['Farming', 'Fishing'],
                 'is_required' => false,
                 'show_in_table' => false,
@@ -79,7 +79,7 @@ test('program create can define custom fields', function () {
         'program_id' => $program->id,
         'label' => 'Household Size',
         'key' => 'household_size',
-        'type' => ProgramFieldType::Number,
+        'type' => ProgramFieldType::Number->value,
         'is_required' => 1,
         'show_in_table' => 1,
     ]);
@@ -88,7 +88,7 @@ test('program create can define custom fields', function () {
         'program_id' => $program->id,
         'label' => 'Sector',
         'key' => 'sector',
-        'type' => ProgramFieldType::Select,
+        'type' => ProgramFieldType::Select->value,
     ]);
 
     $sector = ProgramField::query()
@@ -119,14 +119,14 @@ test('program update syncs custom fields', function () {
     $keep = ProgramField::factory()->forProgram($program)->create([
         'label' => 'Keep Me',
         'key' => 'keep_me',
-        'type' => ProgramFieldType::Text,
+        'type' => ProgramFieldType::Text->value,
         'show_in_table' => false,
     ]);
 
     $remove = ProgramField::factory()->forProgram($program)->create([
         'label' => 'Remove Me',
         'key' => 'remove_me',
-        'type' => ProgramFieldType::Text,
+        'type' => ProgramFieldType::Text->value,
     ]);
 
     $response = $this->actingAs($user)->put(route('user.programs.update', [
@@ -143,14 +143,14 @@ test('program update syncs custom fields', function () {
             [
                 'id' => $keep->id,
                 'label' => 'Keep Me Updated',
-                'type' => ProgramFieldType::Text,
+                'type' => ProgramFieldType::Text->value,
                 'is_required' => true,
                 'show_in_table' => true,
                 'sort_order' => 0,
             ],
             [
                 'label' => 'New Field',
-                'type' => ProgramFieldType::Boolean,
+                'type' => ProgramFieldType::Boolean->value,
                 'is_required' => false,
                 'show_in_table' => false,
                 'sort_order' => 1,
@@ -172,7 +172,7 @@ test('program update syncs custom fields', function () {
     $this->assertDatabaseHas('program_fields', [
         'program_id' => $program->id,
         'label' => 'New Field',
-        'type' => ProgramFieldType::Boolean,
+        'type' => ProgramFieldType::Boolean->value,
     ]);
 });
 
@@ -192,7 +192,7 @@ test('select fields require options', function () {
         'fields' => [
             [
                 'label' => 'Sector',
-                'type' => ProgramFieldType::Select,
+                'type' => ProgramFieldType::Select->value,
                 'options' => [],
                 'is_required' => false,
                 'show_in_table' => false,

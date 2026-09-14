@@ -2,6 +2,7 @@
 
 namespace App\Services\User;
 
+use App\Enums\ItemKind;
 use App\Models\AssistanceItem;
 use App\Models\Department;
 use App\Models\Item;
@@ -9,7 +10,6 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\StockLot;
 use App\Models\StockMovement;
-use App\Support\ItemKind;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -289,7 +289,7 @@ class ItemService
      */
     private function inventoryAttributes(array $validated): array
     {
-        if (! ItemKind::tracksInventory($validated['kind'])) {
+        if (! ItemKind::from((string) $validated['kind'])->tracksInventory()) {
             return [
                 'is_perishable' => false,
                 'low_stock_threshold' => null,

@@ -58,6 +58,7 @@ class FortifyServiceProvider extends ServiceProvider
             'email' => $request->email,
             'token' => $request->route('token'),
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
+            'isInvite' => $request->boolean('invite'),
         ]));
 
         Fortify::requestPasswordResetLinkView(fn (Request $request) => Inertia::render('auth/forgot-password', [

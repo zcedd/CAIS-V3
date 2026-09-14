@@ -3,6 +3,8 @@ import { LucideIcon } from 'lucide-react';
 
 export interface Auth {
     user: User;
+    is_super_admin?: boolean;
+    permissions?: string[];
 }
 
 export interface BreadcrumbItem {
@@ -21,6 +23,7 @@ export interface NavItem {
     icon?: LucideIcon | null;
     isActive?: boolean;
     badge?: number;
+    permission?: string;
 }
 
 export interface SharedData {

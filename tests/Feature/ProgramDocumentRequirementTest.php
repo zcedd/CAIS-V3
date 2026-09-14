@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\DocumentRequirementMilestone;
+use App\Enums\DocumentTypeSlug;
 use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Fund;
@@ -7,8 +9,6 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
-use App\Support\DocumentRequirementMilestone;
-use App\Support\DocumentTypeSlug;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -57,13 +57,13 @@ test('program create can define a document checklist', function () {
             [
                 'document_type_id' => $idType->id,
                 'is_required' => true,
-                'required_before' => DocumentRequirementMilestone::Verified,
+                'required_before' => DocumentRequirementMilestone::Verified->value,
                 'sort_order' => 0,
             ],
             [
                 'document_type_id' => $photoType->id,
                 'is_required' => true,
-                'required_before' => DocumentRequirementMilestone::Delivered,
+                'required_before' => DocumentRequirementMilestone::Delivered->value,
                 'sort_order' => 1,
             ],
         ],
@@ -79,13 +79,13 @@ test('program create can define a document checklist', function () {
         'program_id' => $program->id,
         'document_type_id' => $idType->id,
         'is_required' => 1,
-        'required_before' => DocumentRequirementMilestone::Verified,
+        'required_before' => DocumentRequirementMilestone::Verified->value,
     ]);
 
     $this->assertDatabaseHas('program_document_requirements', [
         'program_id' => $program->id,
         'document_type_id' => $photoType->id,
-        'required_before' => DocumentRequirementMilestone::Delivered,
+        'required_before' => DocumentRequirementMilestone::Delivered->value,
     ]);
 });
 
@@ -110,7 +110,7 @@ test('program update can replace the document checklist', function () {
     $existing = $program->documentRequirements()->create([
         'document_type_id' => $idType->id,
         'is_required' => true,
-        'required_before' => DocumentRequirementMilestone::Verified,
+        'required_before' => DocumentRequirementMilestone::Verified->value,
         'sort_order' => 0,
     ]);
 
@@ -128,7 +128,7 @@ test('program update can replace the document checklist', function () {
             [
                 'document_type_id' => $indigencyType->id,
                 'is_required' => false,
-                'required_before' => DocumentRequirementMilestone::Delivered,
+                'required_before' => DocumentRequirementMilestone::Delivered->value,
                 'sort_order' => 0,
             ],
         ],
@@ -142,7 +142,7 @@ test('program update can replace the document checklist', function () {
         'program_id' => $program->id,
         'document_type_id' => $indigencyType->id,
         'is_required' => 0,
-        'required_before' => DocumentRequirementMilestone::Delivered,
+        'required_before' => DocumentRequirementMilestone::Delivered->value,
     ]);
 });
 
@@ -165,13 +165,13 @@ test('program document checklist rejects duplicate document types', function () 
             [
                 'document_type_id' => $idType->id,
                 'is_required' => true,
-                'required_before' => DocumentRequirementMilestone::Verified,
+                'required_before' => DocumentRequirementMilestone::Verified->value,
                 'sort_order' => 0,
             ],
             [
                 'document_type_id' => $idType->id,
                 'is_required' => true,
-                'required_before' => DocumentRequirementMilestone::Delivered,
+                'required_before' => DocumentRequirementMilestone::Delivered->value,
                 'sort_order' => 1,
             ],
         ],

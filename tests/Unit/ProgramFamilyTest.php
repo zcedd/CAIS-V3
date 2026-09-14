@@ -1,8 +1,8 @@
 <?php
 
+use App\Enums\ProgramKind;
 use App\Models\Department;
 use App\Models\Program;
-use App\Support\ProgramKind;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

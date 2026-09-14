@@ -3,6 +3,8 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\PermissionName;
+use App\Enums\RoleName;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -10,17 +12,18 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'firstName', 'middleName', 'lastName', 'email', 'password'])]
+#[Fillable(['name', 'firstName', 'middleName', 'lastName', 'email', 'password', 'department_id'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
     /**
      * Get the attributes that should be cast.
@@ -66,8 +69,19 @@ class User extends Authenticatable
         return $this->hasMany(Assistance::class, 'assigned_to_id');
     }
 
-    public function isAdmin(): bool
+    public function isSuperAdmin(): bool
     {
-        return $this->hasAnyRole(['admin', 'Admin']);
+        return $this->hasRole(RoleName::SuperAdmin);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function grantedPermissionNames(): array
+    {
+        return array_values(array_filter(
+            PermissionName::values(),
+            fn (string $permission): bool => $this->can($permission),
+        ));
     }
 }

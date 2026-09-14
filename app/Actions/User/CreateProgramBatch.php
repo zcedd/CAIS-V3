@@ -2,10 +2,10 @@
 
 namespace App\Actions\User;
 
+use App\Enums\ProgramKind;
 use App\Models\Program;
 use App\Services\User\ProgramDocumentRequirementService;
 use App\Services\User\ProgramFieldService;
-use App\Support\ProgramKind;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
 

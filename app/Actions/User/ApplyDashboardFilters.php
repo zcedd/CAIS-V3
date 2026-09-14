@@ -2,10 +2,10 @@
 
 namespace App\Actions\User;
 
+use App\Enums\ProgramKind;
 use App\Models\Individual;
 use App\Models\Organization;
 use App\Models\Program;
-use App\Support\ProgramKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
