@@ -82,7 +82,7 @@ class RolePermissionSeeder extends Seeder
                 continue;
             }
 
-            foreach ($legacy->users()->get() as $user) {
+            foreach ($legacy->users()->with('roles')->get() as $user) {
                 $user->assignRole($superAdmin);
                 $user->removeRole($legacy);
             }
