@@ -20,6 +20,8 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+require __DIR__.'/public.php';
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
 

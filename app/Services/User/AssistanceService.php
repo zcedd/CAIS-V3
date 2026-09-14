@@ -262,6 +262,9 @@ class AssistanceService
                         ->values()
                         ->all(),
                     'mode_of_request' => $assistance->mode_of_request_name ?? '—',
+                    'encoder_name' => $assistance->user_id === null
+                        ? 'Public intake'
+                        : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: '—'),
                     'date_requested' => $formatDate($assistance->date_requested),
                     'date_delivered' => $formatDate($assistance->date_delivered),
                     'request_status' => $requestStatus,
@@ -323,6 +326,7 @@ class AssistanceService
         $assistancesQuery->select([
             'assistances.id',
             'assistances.beneficiary_id',
+            'assistances.user_id',
             'assistances.mode_of_request_id',
             'assistances.date_requested',
             'assistances.date_delivered',
@@ -335,6 +339,7 @@ class AssistanceService
             'rs.name as request_status_name',
             'assistances.current_status_recorded_at as request_sub_status_recorded_at',
         ])->with([
+            'user:id,firstName,lastName',
             'assistanceItem',
             'assistanceItem.item:id,name,kind,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',

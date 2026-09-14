@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Http\Requests\User\Concerns\ValidatesPublicIntake;
 use App\Models\Department;
 use App\Models\Program;
 use App\Support\ProgramKind;
@@ -13,6 +14,8 @@ use Illuminate\Validation\Validator;
 
 class StoreBatchRequest extends FormRequest
 {
+    use ValidatesPublicIntake;
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -46,6 +49,7 @@ class StoreBatchRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
+            ...$this->publicIntakeRules(false),
         ];
     }
 
@@ -75,6 +79,13 @@ class StoreBatchRequest extends FormRequest
                         'A batch cannot have child batches.',
                     );
                 }
+
+                if ($this->boolean('public_intake') && $program->is_organization) {
+                    $validator->errors()->add(
+                        'public_intake',
+                        'Public intake is only available for individual programs.',
+                    );
+                }
             },
         ];
     }
@@ -89,6 +100,7 @@ class StoreBatchRequest extends FormRequest
             'start_at' => 'start date',
             'end_at' => 'end date',
             'fund_ids' => 'funds',
+            ...$this->publicIntakeAttributes(),
         ];
     }
 }

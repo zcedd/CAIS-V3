@@ -92,6 +92,7 @@ type SchemeBatchRow = {
     start_at: string | null;
     end_at: string | null;
     is_closed: boolean;
+    public_intake?: boolean;
     total_requests: number;
 };
 
@@ -137,6 +138,7 @@ export default function UserProgramScheme({
     const [startAtOpen, setStartAtOpen] = useState(false);
     const [endAtOpen, setEndAtOpen] = useState(false);
     const [selectedFundIds, setSelectedFundIds] = useState<string[]>([]);
+    const [publicIntake, setPublicIntake] = useState(false);
 
     useEffect(() => {
         if (!department?.slug) {
@@ -188,6 +190,7 @@ export default function UserProgramScheme({
         setStartAt(undefined);
         setEndAt(undefined);
         setSelectedFundIds([]);
+        setPublicIntake(false);
     }, [addBatchOpen]);
 
     const heading = program.name;
@@ -350,6 +353,12 @@ export default function UserProgramScheme({
                                                             ? 'Closed'
                                                             : 'Open'}
                                                     </Badge>
+                                                    {batch.public_intake &&
+                                                    !batch.is_closed ? (
+                                                        <Badge variant="outline">
+                                                            Public intake
+                                                        </Badge>
+                                                    ) : null}
                                                 </div>
                                             </Link>
                                         ) : (
@@ -408,6 +417,9 @@ export default function UserProgramScheme({
                                 start_at: formatDateForSubmit(startAt),
                                 end_at: formatDateForSubmit(endAt),
                                 fund_ids: selectedFundIds,
+                                public_intake: program.is_organization
+                                    ? false
+                                    : publicIntake,
                             })}
                             onSuccess={() => {
                                 setAddBatchOpen(false);
@@ -462,6 +474,33 @@ export default function UserProgramScheme({
                                         />
                                         <InputError message={errors.fund_ids} />
                                     </div>
+                                    {program.is_organization ? null : (
+                                        <div className="flex items-start gap-3">
+                                            <Input
+                                                id="scheme-batch-public-intake"
+                                                type="checkbox"
+                                                checked={publicIntake}
+                                                onChange={(event) =>
+                                                    setPublicIntake(
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                                className="mt-1 size-4 shrink-0 rounded border-input"
+                                            />
+                                            <div className="grid gap-1">
+                                                <Label
+                                                    htmlFor="scheme-batch-public-intake"
+                                                    className="font-normal"
+                                                >
+                                                    Enable public intake
+                                                </Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Let residents apply to this
+                                                    batch from the public form.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                     <DrawerFooter className="px-0">
                                         <Button type="submit" disabled={processing}>
                                             {processing

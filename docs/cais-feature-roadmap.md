@@ -196,6 +196,8 @@ Statuses include Awaiting Review and Assigned to Team, but requests are not owne
 
 Relief is often household-based. Add a household record so staff can see that a family already received aid even if a different member applied.
 
+Implementation spec: [household-family-grouping.md](household-family-grouping.md).
+
 ### 10. Public / kiosk intake (later)
 
 Statuses like In Progress and Saved For Later look designed for a requester-facing form that does not exist yet.

@@ -29,6 +29,7 @@ import {
     ProgramStatusBreakdown,
     ProgramStatusBreakdownSkeleton,
 } from '@/pages/user/programs/status-breakdown';
+import { show as publicApplyShow } from '@/routes/public/apply';
 import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
@@ -54,6 +55,7 @@ import type {
 import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
     Building2,
+    Copy,
     CalendarRange,
     Coins,
     Package,
@@ -69,6 +71,7 @@ import {
     useRef,
     useState,
 } from 'react';
+import { toast } from 'sonner';
 
 const ProgramAssistanceTableSection = lazy(() =>
     import('@/pages/user/programs/program-assistance-table').then((module) => ({
@@ -105,6 +108,7 @@ type ProgramDetail = {
     end_at_input: string | null;
     is_closed: boolean | null;
     is_organization: boolean | null;
+    public_intake?: boolean | null;
     kind?: string | null;
     batch_name?: string | null;
     department_id: number;
@@ -458,6 +462,9 @@ export default function UserProgramShow({
                                     {program.batch_name}
                                 </Badge>
                             ) : null}
+                            {program.public_intake && !isClosed ? (
+                                <Badge variant="outline">Public intake</Badge>
+                            ) : null}
                             {department ? (
                                 <Badge variant="outline">
                                     <Building2 aria-hidden />
@@ -467,6 +474,21 @@ export default function UserProgramShow({
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        {program.public_intake && !isClosed ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    void navigator.clipboard.writeText(
+                                        `${window.location.origin}${publicApplyShow.url(program.id)}`,
+                                    );
+                                    toast.success('Public intake URL copied.');
+                                }}
+                            >
+                                <Copy className="size-4" />
+                                Copy public URL
+                            </Button>
+                        ) : null}
                         {canEdit ? (
                             <Button
                                 type="button"

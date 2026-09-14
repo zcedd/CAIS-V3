@@ -47,6 +47,7 @@ class ProgramService
                 'end_at',
                 'is_closed',
                 'is_organization',
+                'public_intake',
                 'department_id',
                 'kind',
             ])
@@ -104,6 +105,9 @@ class ProgramService
             'department_id' => $department->id,
             'is_closed' => false,
             'is_organization' => $validated['is_organization'] ?? false,
+            'public_intake' => $kind === ProgramKind::Scheme
+                ? false
+                : (bool) ($validated['public_intake'] ?? false),
             'kind' => $kind,
         ]);
 
@@ -159,6 +163,7 @@ class ProgramService
             'end_at' => $validated['end_at'] ?? null,
             'is_organization' => $validated['is_organization'] ?? false,
             'is_closed' => $validated['is_closed'] ?? false,
+            'public_intake' => $validated['public_intake'] ?? false,
         ]);
 
         $program->fund()->sync($validated['fund_ids']);
@@ -252,6 +257,7 @@ class ProgramService
                 'end_at',
                 'is_closed',
                 'is_organization',
+                'public_intake',
                 'department_id',
                 'kind',
                 'batch_number',
@@ -503,6 +509,7 @@ class ProgramService
                     'start_at' => $batch->start_at,
                     'end_at' => $batch->end_at,
                     'is_closed' => (bool) $batch->is_closed,
+                    'public_intake' => (bool) $batch->public_intake,
                     'total_requests' => (int) ($counted?->assistance_count ?? 0),
                 ];
             })
@@ -572,6 +579,7 @@ class ProgramService
             'start_at' => $validated['start_at'],
             'end_at' => $validated['end_at'] ?? null,
             'is_closed' => $validated['is_closed'] ?? false,
+            'public_intake' => $validated['public_intake'] ?? false,
         ]);
 
         $program->fund()->sync($validated['fund_ids'] ?? []);

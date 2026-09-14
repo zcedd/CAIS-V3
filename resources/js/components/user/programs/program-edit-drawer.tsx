@@ -17,12 +17,14 @@ import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
 import { Textarea } from '@/components/ui/textarea';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
+import { show as publicApplyShow } from '@/routes/public/apply';
 import { update as updateProgram } from '@/routes/user/programs';
 import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
 import { Form } from '@inertiajs/react';
+import { Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -45,6 +47,7 @@ type ProgramDetail = {
     descriptions: string | null;
     is_closed: boolean | null;
     is_organization?: boolean | null;
+    public_intake?: boolean | null;
     kind?: string | null;
     batch_name?: string | null;
     start_at_input: string | null;
@@ -224,6 +227,12 @@ export function ProgramEditDrawer({
                         is_closed: isScheme
                             ? undefined
                             : data.is_closed === '1' || data.is_closed === true,
+                        public_intake: isScheme
+                            ? undefined
+                            : program.is_organization
+                              ? false
+                              : data.public_intake === '1' ||
+                                data.public_intake === true,
                         fund_ids: isScheme
                             ? []
                             : selectedFundIds.map(Number),
@@ -414,6 +423,57 @@ export function ProgramEditDrawer({
                                         accepting assistance.
                                     </p>
                                 </div>
+                            </div>
+                            )}
+
+                            {isScheme || program.is_organization ? null : (
+                            <div className="space-y-3">
+                                <div className="flex items-start gap-3">
+                                    <Input
+                                        id="edit-program-public-intake"
+                                        type="checkbox"
+                                        name="public_intake"
+                                        value="1"
+                                        defaultChecked={
+                                            program.public_intake ?? false
+                                        }
+                                        className="mt-1 size-4 shrink-0 rounded border-input"
+                                    />
+                                    <div className="grid gap-1">
+                                        <Label
+                                            htmlFor="edit-program-public-intake"
+                                            className="font-normal"
+                                        >
+                                            Enable public intake
+                                        </Label>
+                                        <p className="text-sm text-muted-foreground">
+                                            Let residents apply from a public or
+                                            kiosk form. Staff still verify
+                                            inside CAIS.
+                                        </p>
+                                        <InputError
+                                            message={errors.public_intake}
+                                        />
+                                    </div>
+                                </div>
+                                {program.public_intake && !program.is_closed ? (
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                            void navigator.clipboard.writeText(
+                                                `${window.location.origin}${publicApplyShow.url(program.id)}`,
+                                            );
+                                            toast.success(
+                                                'Public intake URL copied.',
+                                            );
+                                        }}
+                                    >
+                                        <Copy className="size-4" />
+                                        Copy public URL
+                                    </Button>
+                                ) : null}
                             </div>
                             )}
 

@@ -9,6 +9,7 @@ export type ProgramListRow = {
     end_at: string | null;
     is_closed: boolean | null;
     is_organization: boolean | null;
+    public_intake?: boolean | null;
     kind?: string | null;
     batches_count?: number | null;
     open_batches_count?: number | null;
@@ -73,6 +74,14 @@ export function ProgramFolderCard({
                             >
                                 {isClosed ? 'Closed' : 'Open'}
                             </span>
+                            {program.public_intake && !isClosed ? (
+                                <>
+                                    <span className="mx-1.5 text-border">
+                                        ·
+                                    </span>
+                                    <span>Public intake</span>
+                                </>
+                            ) : null}
                             {isScheme ? (
                                 <>
                                     <span className="mx-1.5 text-border">
