@@ -4,6 +4,7 @@ namespace App\Services\User;
 
 use App\Models\AssistanceItem;
 use App\Support\AssistanceItemOrigin;
+use App\Support\EmptyCell;
 use Illuminate\Support\Collection;
 
 /**
@@ -89,7 +90,7 @@ class AssistanceItemFulfillmentService
 
                 return [
                     'item_id' => (int) $first->item_id,
-                    'name' => $first->item?->name ?? '—',
+                    'name' => $first->item?->name ?? EmptyCell::VALUE,
                     'kind' => $first->item?->kind,
                     'unit' => $first->item?->unitMeasurement?->name,
                     'specification' => $specification === '' ? null : $specification,
@@ -118,7 +119,7 @@ class AssistanceItemFulfillmentService
             ->map(static fn (AssistanceItem $item): array => [
                 'id' => (int) $item->id,
                 'item_id' => (int) $item->item_id,
-                'name' => $item->item?->name ?? '—',
+                'name' => $item->item?->name ?? EmptyCell::VALUE,
                 'kind' => $item->item?->kind,
                 'unit' => $item->item?->unitMeasurement?->name,
                 'quantity' => (int) $item->quantity,

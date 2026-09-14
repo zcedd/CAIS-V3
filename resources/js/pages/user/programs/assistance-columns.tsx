@@ -1,6 +1,7 @@
 'use client';
 
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
+import { SlaBadge } from '@/components/user/sla-badge';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AssistanceDataTableRowActions } from '@/pages/user/programs/assistance-row-actions';
@@ -9,6 +10,7 @@ import type {
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
     AssistanceTransferProgramOption,
+    DepartmentStaffOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import type { AssistanceItemOrigin } from '@/types/assistance-item';
@@ -17,6 +19,7 @@ import type { ItemKind } from '@/types/item';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 export type UserProgramAssistanceItem = {
     id: number;
@@ -61,6 +64,12 @@ export type UserProgramAssistanceRow = {
     items: UserProgramAssistanceItem[];
     mode_of_request: string;
     encoder_name?: string | null;
+    assigned_to_id?: number | null;
+    assignee_name?: string | null;
+    can_advance?: boolean;
+    step_has_owner?: boolean;
+    sla_due_at?: string | null;
+    sla_state?: string | null;
     date_requested: string | null;
     date_delivered: string | null;
     request_status: string | null;
@@ -74,13 +83,13 @@ export type UserProgramAssistanceRow = {
 
 function formatRequestSubStatusRecordedAt(value: string | null): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const recorded = new Date(value);
 
     if (Number.isNaN(recorded.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return recorded.toLocaleString(undefined, {
@@ -119,6 +128,7 @@ export type UserProgramAssistanceTableContext = {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
+    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onAssistanceUpdated?: () => void;
 };
@@ -133,6 +143,7 @@ export function createUserProgramAssistanceColumns({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
+    staffOptions = [],
     canTransferAssistance,
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
@@ -141,7 +152,7 @@ export function createUserProgramAssistanceColumns({
             .filter((field) => field.show_in_table)
             .map((field) => ({
                 id: `field_${field.key}`,
-                accessorFn: (row) => row.field_values?.[field.key] ?? '—',
+                accessorFn: (row) => row.field_values?.[field.key] ?? EMPTY_CELL,
                 enableSorting: false,
                 meta: {
                     title: field.label,
@@ -158,7 +169,7 @@ export function createUserProgramAssistanceColumns({
 
                     return (
                         <span className="max-w-[min(16rem,40vw)] whitespace-normal text-muted-foreground">
-                            {value?.trim() ? value : '—'}
+                            {value?.trim() ? value : EMPTY_CELL}
                         </span>
                     );
                 },
@@ -254,7 +265,11 @@ export function createUserProgramAssistanceColumns({
                 const items = row.original.items;
 
                 if (items.length === 0) {
-                    return <span className="text-muted-foreground">—</span>;
+                    return (
+                        <span className="text-muted-foreground">
+                            {EMPTY_CELL}
+                        </span>
+                    );
                 }
 
                 const first = items[0];
@@ -363,9 +378,31 @@ export function createUserProgramAssistanceColumns({
             ),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {(row.getValue('encoder_name') as string | null) ?? '—'}
+                    {(row.getValue('encoder_name') as string | null) ?? EMPTY_CELL}
                 </span>
             ),
+        },
+        {
+            accessorKey: 'assignee_name',
+            meta: { title: 'Assignee' },
+            enableSorting: false,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="Assignee" />
+            ),
+            cell: ({ row }) => (
+                <span className="text-muted-foreground">
+                    {row.original.assignee_name ?? 'Unassigned'}
+                </span>
+            ),
+        },
+        {
+            accessorKey: 'sla_state',
+            meta: { title: 'SLA' },
+            enableSorting: false,
+            header: ({ column }) => (
+                <DataTableColumnHeader column={column} title="SLA" />
+            ),
+            cell: ({ row }) => <SlaBadge state={row.original.sla_state} />,
         },
         {
             accessorKey: 'date_requested',
@@ -378,7 +415,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
+                        {value ?? EMPTY_CELL}
                     </span>
                 );
             },
@@ -394,7 +431,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
-                        {value ?? '—'}
+                        {value ?? EMPTY_CELL}
                     </span>
                 );
             },
@@ -410,7 +447,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="max-w-[min(24rem,50vw)] whitespace-normal text-muted-foreground">
-                        {value?.trim() ? value : '—'}
+                        {value?.trim() ? value : EMPTY_CELL}
                     </span>
                 );
             },
@@ -431,6 +468,7 @@ export function createUserProgramAssistanceColumns({
                     programFields={programFields}
                     requestSubStatusOptions={requestSubStatusOptions}
                     transferProgramOptions={transferProgramOptions}
+                    staffOptions={staffOptions}
                     canTransferAssistance={canTransferAssistance}
                     onAssistanceUpdated={onAssistanceUpdated}
                 />
@@ -443,6 +481,8 @@ export const userProgramAssistanceInitialColumnVisibility = {
     request_sub_status_recorded_at: true,
     mode_of_request: true,
     encoder_name: true,
+    assignee_name: true,
+    sla_state: true,
     date_requested: false,
     date_delivered: false,
     remark: true,

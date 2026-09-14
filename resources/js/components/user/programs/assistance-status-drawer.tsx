@@ -28,11 +28,13 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { slaLabel } from '@/components/user/sla-badge';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceItem } from '@/pages/user/programs/assistance-columns';
 import type {
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
+    DepartmentStaffOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { update as updateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
@@ -202,6 +204,11 @@ type AssistanceStatusDrawerProps = {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     assistanceItems: UserProgramAssistanceItem[];
     programItems: AssistanceProgramItemOption[];
+    staffOptions?: DepartmentStaffOption[];
+    assignedToId?: number | null;
+    slaState?: string | null;
+    canAdvance?: boolean;
+    stepHasOwner?: boolean;
     onUpdated?: () => void;
 };
 
@@ -218,6 +225,11 @@ export function AssistanceStatusDrawer({
     requestSubStatusOptions,
     assistanceItems,
     programItems,
+    staffOptions = [],
+    assignedToId = null,
+    slaState = null,
+    canAdvance = true,
+    stepHasOwner = false,
     onUpdated,
 }: AssistanceStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -232,11 +244,16 @@ export function AssistanceStatusDrawer({
     const [recordedAt, setRecordedAt] = useState<Date | undefined>(undefined);
     const [recordedAtOpen, setRecordedAtOpen] = useState(false);
     const [defaultRemark, setDefaultRemark] = useState('');
+    const [selectedAssigneeId, setSelectedAssigneeId] = useState(
+        assignedToId !== null ? String(assignedToId) : 'unassigned',
+    );
 
     const selectedSubStatus = requestSubStatusOptions.find(
         (option) => String(option.id) === selectedSubStatusId,
     );
-    const isDeliveredStatus = selectedSubStatus?.request_status === 'Delivered';
+    const isDeliveredStatus =
+        selectedSubStatus?.request_status_code === 'delivered' ||
+        selectedSubStatus?.request_status === 'Delivered';
     const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
     const requiresDocuments = isVerifiedStatus || isDeliveredStatus;
     const undeliveredItems = useMemo(
@@ -334,12 +351,16 @@ export function AssistanceStatusDrawer({
         setRecordedAt(undefined);
         setRecordedAtOpen(false);
         setDefaultRemark('');
+        setSelectedAssigneeId('unassigned');
     };
 
     const populateForm = () => {
         wasDeliveredStatus.current = false;
         setSelectedSubStatusId(
             currentSubStatusId !== null ? String(currentSubStatusId) : '',
+        );
+        setSelectedAssigneeId(
+            assignedToId !== null ? String(assignedToId) : 'unassigned',
         );
         setRecordedAt(parseRecordedAt(currentRecordedAt) ?? new Date());
         setDefaultRemark('');
@@ -357,7 +378,7 @@ export function AssistanceStatusDrawer({
         }
 
         populateForm();
-    }, [open, currentSubStatusId, currentRecordedAt]);
+    }, [open, currentSubStatusId, currentRecordedAt, assignedToId]);
 
     useEffect(() => {
         if (!isDeliveredStatus) {
@@ -464,6 +485,11 @@ export function AssistanceStatusDrawer({
                         ...data,
                         request_sub_status_id: Number(selectedSubStatusId),
                         recorded_at: formatDateTimeForSubmit(recordedAt),
+                        assigned_to_id: stepHasOwner
+                            ? undefined
+                            : selectedAssigneeId === 'unassigned'
+                              ? null
+                              : Number(selectedAssigneeId),
                         delivered_items: isDeliveredStatus
                             ? selectedDeliveredItemIds
                                   .filter(
@@ -545,6 +571,54 @@ export function AssistanceStatusDrawer({
                                     message={errors.request_sub_status_id}
                                 />
                             </div>
+
+                            {slaState && slaState !== 'none' ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Current SLA: {slaLabel(slaState)}
+                                </p>
+                            ) : null}
+
+                            {!canAdvance ? (
+                                <p className="text-sm text-muted-foreground">
+                                    Only the assignee for this stage can update
+                                    the status.
+                                </p>
+                            ) : null}
+
+                            {staffOptions.length > 0 && !stepHasOwner ? (
+                                <div className="space-y-2">
+                                    <Label htmlFor="assistance-assignee">
+                                        Assignee
+                                    </Label>
+                                    <Select
+                                        value={selectedAssigneeId}
+                                        onValueChange={setSelectedAssigneeId}
+                                    >
+                                        <SelectTrigger
+                                            id="assistance-assignee"
+                                            className={selectClassName}
+                                        >
+                                            <SelectValue placeholder="Unassigned" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="unassigned">
+                                                Unassigned
+                                            </SelectItem>
+                                            {staffOptions.map((staff) => (
+                                                <SelectItem
+                                                    key={staff.id}
+                                                    value={String(staff.id)}
+                                                >
+                                                    {staff.name}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError
+                                        message={errors.assigned_to_id}
+                                    />
+                                </div>
+                            ) : null}
 
                             {requiresDocuments ? (
                                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
@@ -927,10 +1001,10 @@ export function AssistanceStatusDrawer({
                                                                 <SelectContent>
                                                                     <SelectItem value="additional">
                                                                         Additional
-                                                                        — given
+                                                                        (given
                                                                         on top
                                                                         of the
-                                                                        request
+                                                                        request)
                                                                     </SelectItem>
                                                                     <SelectItem
                                                                         value="substitute"
@@ -940,11 +1014,11 @@ export function AssistanceStatusDrawer({
                                                                         }
                                                                     >
                                                                         Substitute
-                                                                        — given
+                                                                        (given
                                                                         in place
                                                                         of a
                                                                         requested
-                                                                        item
+                                                                        item)
                                                                     </SelectItem>
                                                                 </SelectContent>
                                                             </Select>
@@ -1360,6 +1434,7 @@ export function AssistanceStatusDrawer({
                                     type="submit"
                                     disabled={
                                         processing ||
+                                        !canAdvance ||
                                         !selectedSubStatusId ||
                                         !recordedAt ||
                                         (isDeliveredStatus &&

@@ -314,7 +314,7 @@ export function AssistanceEditDrawer({
                 <DrawerHeader>
                     <DrawerTitle>Edit assistance</DrawerTitle>
                     <DrawerDescription>
-                        Update assistance record for {programName}.
+                        Change the assistance record for {programName}.
                     </DrawerDescription>
                 </DrawerHeader>
 

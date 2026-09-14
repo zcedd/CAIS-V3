@@ -18,6 +18,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { AssistanceEditDrawer } from '@/components/user/programs/assistance-edit-drawer';
 import { AssistanceStatusDrawer } from '@/components/user/programs/assistance-status-drawer';
 import { AssistanceTransferDrawer } from '@/pages/user/programs/assistance-transfer-drawer';
@@ -26,6 +27,7 @@ import type {
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
     AssistanceTransferProgramOption,
+    DepartmentStaffOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
@@ -57,6 +59,7 @@ interface AssistanceDataTableRowActionsProps {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
+    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onAssistanceUpdated?: () => void;
 }
@@ -72,6 +75,7 @@ export function AssistanceDataTableRowActions({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
+    staffOptions = [],
     canTransferAssistance,
     onAssistanceUpdated,
 }: AssistanceDataTableRowActionsProps) {
@@ -103,9 +107,9 @@ export function AssistanceDataTableRowActions({
     };
 
     const deleteTargetLabel =
-        record.beneficiary_name !== '—'
+        record.beneficiary_name !== EMPTY_CELL
             ? record.beneficiary_name
-            : record.cais_number !== '—'
+            : record.cais_number !== EMPTY_CELL
               ? record.cais_number
               : 'this assistance';
 
@@ -164,7 +168,7 @@ export function AssistanceDataTableRowActions({
                         </DropdownMenuItem>
                     ) : null}
                     <DropdownMenuSeparator />
-                    {record.cais_number !== '—' ? (
+                    {record.cais_number !== EMPTY_CELL ? (
                         <DropdownMenuItem
                             onClick={() => {
                                 void navigator.clipboard.writeText(
@@ -176,7 +180,7 @@ export function AssistanceDataTableRowActions({
                             Copy CAIS number
                         </DropdownMenuItem>
                     ) : null}
-                    {record.beneficiary_name !== '—' ? (
+                    {record.beneficiary_name !== EMPTY_CELL ? (
                         <DropdownMenuItem
                             onClick={() => {
                                 void navigator.clipboard.writeText(
@@ -229,6 +233,11 @@ export function AssistanceDataTableRowActions({
                 requestSubStatusOptions={requestSubStatusOptions}
                 assistanceItems={record.items}
                 programItems={programItems}
+                staffOptions={staffOptions}
+                assignedToId={record.assigned_to_id ?? null}
+                slaState={record.sla_state}
+                canAdvance={record.can_advance !== false}
+                stepHasOwner={Boolean(record.step_has_owner)}
                 onUpdated={onAssistanceUpdated}
             />
 
@@ -267,7 +276,7 @@ export function AssistanceDataTableRowActions({
                             <span className="font-medium text-foreground">
                                 {deleteTargetLabel}
                             </span>
-                            . This action cannot be undone.
+                            . This cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>

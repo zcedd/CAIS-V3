@@ -1,8 +1,10 @@
+import { EMPTY_CELL } from '@/lib/empty-cell';
+
 export function formatProgramDate(
     value: string | null | undefined,
 ): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const parsed = new Date(value);
@@ -21,7 +23,7 @@ export function formatProgramPeriod(
     endAt: string | null | undefined,
 ): string {
     if (!startAt) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const start = formatProgramDate(startAt);
@@ -30,5 +32,5 @@ export function formatProgramPeriod(
         return start;
     }
 
-    return `${start} – ${formatProgramDate(endAt)}`;
+    return `${start} to ${formatProgramDate(endAt)}`;
 }

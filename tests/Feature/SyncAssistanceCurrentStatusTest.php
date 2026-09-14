@@ -7,9 +7,9 @@ use App\Models\Department;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\User;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 uses(RefreshDatabase::class);
@@ -19,32 +19,11 @@ uses(RefreshDatabase::class);
  */
 function seedAssistanceStatusCatalog(): array
 {
-    $draftStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Draft']);
-    $verificationStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Verification']);
-    $deliveredStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Delivered']);
-    $closedStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Closed']);
-
     return [
-        'in_progress' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $draftStatusId,
-            'name' => 'In Progress',
-            'description' => null,
-        ]),
-        'verified' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $verificationStatusId,
-            'name' => 'Verified',
-            'description' => null,
-        ]),
-        'delivered' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $deliveredStatusId,
-            'name' => 'Successfully Delivered',
-            'description' => null,
-        ]),
-        'closed' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $closedStatusId,
-            'name' => 'Closed after Resolution',
-            'description' => null,
-        ]),
+        'in_progress' => catalogReasonId(RequestSubStatusCode::AwaitingReview),
+        'verified' => catalogReasonId(RequestSubStatusCode::Verified),
+        'delivered' => catalogReasonId(RequestSubStatusCode::Delivered),
+        'closed' => catalogReasonId(RequestSubStatusCode::Closed),
     ];
 }
 

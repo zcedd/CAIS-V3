@@ -87,7 +87,7 @@ export function ServerPagination({
             )}
         >
             <p className="text-xs text-muted-foreground tabular-nums">
-                {from ?? 0}–{to ?? 0} of {total}
+                {from ?? 0} to {to ?? 0} of {total}
             </p>
 
             <div className="flex flex-wrap items-center gap-3">

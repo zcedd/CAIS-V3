@@ -40,7 +40,7 @@ export function AssistanceFieldInputs({
             <div className="space-y-1">
                 <Label>Program information</Label>
                 <p className="text-sm text-muted-foreground">
-                    Extra details collected for this program.
+                    Extra details for this program.
                 </p>
             </div>
             <InputError message={errors.field_values} />

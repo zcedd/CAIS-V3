@@ -1,14 +1,15 @@
 import type { NotificationEntry } from '@/types';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 export function formatTimestamp(timestamp: string | null): string {
     if (!timestamp) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const date = new Date(timestamp);
 
     if (Number.isNaN(date.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return date.toLocaleString();

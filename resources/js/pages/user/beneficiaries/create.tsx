@@ -291,7 +291,7 @@ export default function UserBeneficiariesCreate({
                             Add beneficiary
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Register an individual or create an organization.
+                            Add a person or an organization.
                         </p>
                     </div>
                     <Button variant="outline" asChild>
@@ -323,7 +323,7 @@ export default function UserBeneficiariesCreate({
                             <CardHeader>
                                 <CardTitle>Individual beneficiary</CardTitle>
                                 <CardDescription>
-                                    Enter the individual beneficiary details.
+                                    Name, address, and contact details.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -1039,8 +1039,8 @@ export default function UserBeneficiariesCreate({
                             <CardHeader>
                                 <CardTitle>Organization beneficiary</CardTitle>
                                 <CardDescription>
-                                    Register an organization and attach a
-                                    president plus optional members.
+                                    Add an organization, a president, and
+                                    optional members.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>

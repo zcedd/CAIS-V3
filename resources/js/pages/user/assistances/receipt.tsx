@@ -12,6 +12,7 @@ import type {
     AssistanceRequestedItem,
 } from '@/types/assistance-item';
 import { Head, Link } from '@inertiajs/react';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { Printer } from 'lucide-react';
 import { useEffect } from 'react';
 
@@ -31,13 +32,13 @@ type ReceiptPayload = {
 
 function formatDate(value: string | null | undefined): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const parsed = new Date(value);
 
     if (Number.isNaN(parsed.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
@@ -96,7 +97,7 @@ function RequestedItemsTable({ items }: { items: AssistanceRequestedItem[] }) {
                                 <td className="py-1.5 text-muted-foreground">
                                     {item.specification?.trim()
                                         ? item.specification
-                                        : '—'}
+                                        : EMPTY_CELL}
                                 </td>
                             </tr>
                         ))}
@@ -156,7 +157,7 @@ function ReleasedItemsTable({ items }: { items: AssistanceReleasedItem[] }) {
                                     ]
                                         .map((value) => value?.trim())
                                         .filter(Boolean)
-                                        .join(' · ') || '—'}
+                                        .join(' · ') || EMPTY_CELL}
                                 </td>
                             </tr>
                         ))}
@@ -177,7 +178,7 @@ export default function UserAssistanceReceipt({
     receipt: ReceiptPayload;
 }) {
     const heading =
-        receipt.cais_number !== '—'
+        receipt.cais_number !== EMPTY_CELL
             ? `Acknowledgment · ${receipt.cais_number}`
             : `Acknowledgment · Assistance #${receipt.assistance_id}`;
 

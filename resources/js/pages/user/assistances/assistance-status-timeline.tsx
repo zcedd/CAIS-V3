@@ -16,6 +16,7 @@ export type AssistanceStatusTimelineEntry = {
     parent_status: string | null;
     remark: string | null;
     recorded_at: string;
+    event_type?: 'status' | 'assignment';
 };
 
 function formatTimelineTimestamp(iso: string): { date: string; time: string } {
@@ -72,8 +73,7 @@ export function AssistanceStatusTimeline({
                     No status updates yet
                 </p>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                    Sub-status changes for this assistance will appear here as
-                    they are recorded.
+                    Sub-status changes for this assistance show up here.
                 </p>
             </div>
         );
@@ -125,7 +125,14 @@ export function AssistanceStatusTimeline({
                                         <p className="font-medium leading-snug">
                                             {entry.name}
                                         </p>
-                                        {entry.parent_status ? (
+                                        {entry.event_type === 'assignment' ? (
+                                            <Badge
+                                                variant="outline"
+                                                className="w-fit font-normal"
+                                            >
+                                                Assignment
+                                            </Badge>
+                                        ) : entry.parent_status ? (
                                             <Badge
                                                 variant={
                                                     isLatest

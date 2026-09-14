@@ -22,9 +22,7 @@ class AssistancePolicy
      */
     public function view(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -41,9 +39,7 @@ class AssistancePolicy
      */
     public function update(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -51,9 +47,7 @@ class AssistancePolicy
      */
     public function delete(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -61,9 +55,7 @@ class AssistancePolicy
      */
     public function restore(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
-
-        return $user->department_id === $assistance->program?->department_id;
+        return $this->belongsToUserDepartment($user, $assistance);
     }
 
     /**
@@ -71,7 +63,73 @@ class AssistancePolicy
      */
     public function forceDelete(User $user, Assistance $assistance): bool
     {
-        $assistance->loadMissing('program:id,department_id');
+        return $this->update($user, $assistance);
+    }
+
+    /**
+     * Determine whether the user can assign the assistance.
+     */
+    public function assign(User $user, Assistance $assistance): bool
+    {
+        if (! $this->belongsToUserDepartment($user, $assistance)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        return $assistance->currentWorkflowStep()?->assigned_to_id === null;
+    }
+
+    /**
+     * Determine whether the user can claim the assistance.
+     */
+    public function claim(User $user, Assistance $assistance): bool
+    {
+        if (! $this->belongsToUserDepartment($user, $assistance)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $step = $assistance->currentWorkflowStep();
+
+        if ($step?->assigned_to_id === null) {
+            return true;
+        }
+
+        return (int) $step->assigned_to_id === (int) $user->id;
+    }
+
+    /**
+     * Determine whether the user can advance the assistance status.
+     */
+    public function advance(User $user, Assistance $assistance): bool
+    {
+        if (! $this->belongsToUserDepartment($user, $assistance)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        $step = $assistance->currentWorkflowStep();
+
+        if ($step?->assigned_to_id === null) {
+            return true;
+        }
+
+        return (int) $assistance->assigned_to_id === (int) $user->id
+            || (int) $step->assigned_to_id === (int) $user->id;
+    }
+
+    private function belongsToUserDepartment(User $user, Assistance $assistance): bool
+    {
+        $assistance->loadMissing('program');
 
         return $user->department_id === $assistance->program?->department_id;
     }

@@ -3,9 +3,19 @@
 import { DataTable } from '@/components/data-table';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { Badge } from '@/components/ui/badge';
+import { slaLabel } from '@/components/user/sla-badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { AssistanceDocumentsSection } from '@/pages/user/assistances/assistance-documents';
 import {
     AssistanceStatusTimeline,
@@ -17,6 +27,8 @@ import {
     show as assistanceShow,
 } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
+import { assign as assignAssistance } from '@/routes/user/programs/assistances';
+import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
 import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
@@ -35,7 +47,7 @@ import type {
     AssistanceDocumentsPayload,
     DocumentTypeOption,
 } from '@/types/document';
-import { Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
 import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
 import {
     ArrowLeft,
@@ -51,7 +63,8 @@ import {
     UserRound,
     type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 
 type DepartmentSummary = {
     id: number;
@@ -74,6 +87,13 @@ type AssistanceProfile = {
     current_sub_status: string | null;
     mode_of_request: string;
     encoder_name?: string | null;
+    assigned_to_id?: number | null;
+    assignee_name?: string | null;
+    sla_due_at?: string | null;
+    sla_state?: string | null;
+    can_advance?: boolean;
+    can_assign?: boolean;
+    step_has_owner?: boolean;
     date_requested: string | null;
     date_verified: string | null;
     date_delivered: string | null;
@@ -83,6 +103,13 @@ type AssistanceProfile = {
     released_items: AssistanceReleasedItem[];
     item_variance: AssistanceItemVariance;
     status_history: AssistanceStatusTimelineEntry[];
+    assignments?: Array<{
+        id: number;
+        assigned_to_name: string;
+        assigned_by_name: string;
+        remark: string | null;
+        recorded_at: string | null;
+    }>;
 };
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
@@ -97,13 +124,13 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
 
 function formatDate(value: string | null | undefined): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const parsed = new Date(value);
 
     if (Number.isNaN(parsed.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
@@ -146,7 +173,7 @@ function DetailItem({
                 {label}
             </dt>
             <dd className="mt-1 text-sm font-medium tabular-nums">
-                {value && value !== '' ? value : '—'}
+                {value && value !== '' ? value : EMPTY_CELL}
             </dd>
         </div>
     );
@@ -240,7 +267,7 @@ function createRequestedItemColumns(): ColumnDef<AssistanceRequestedItem>[] {
                 <span className="text-muted-foreground">
                     {row.original.specification?.trim()
                         ? row.original.specification
-                        : '—'}
+                        : EMPTY_CELL}
                 </span>
             ),
         },
@@ -303,7 +330,7 @@ function createReleasedItemColumns(): ColumnDef<AssistanceReleasedItem>[] {
                 <span className="text-muted-foreground">
                     {row.original.fulfillment_reason?.trim()
                         ? row.original.fulfillment_reason
-                        : '—'}
+                        : EMPTY_CELL}
                 </span>
             ),
         },
@@ -315,7 +342,7 @@ function createReleasedItemColumns(): ColumnDef<AssistanceReleasedItem>[] {
                 <span className="text-muted-foreground">
                     {row.original.specification?.trim()
                         ? row.original.specification
-                        : '—'}
+                        : EMPTY_CELL}
                 </span>
             ),
         },
@@ -369,12 +396,14 @@ export default function UserAssistanceShow({
     assistance,
     documents,
     document_types,
+    staff_options = [],
 }: {
     department: DepartmentSummary;
     program: ProgramSummary;
     assistance: AssistanceProfile;
     documents: AssistanceDocumentsPayload;
     document_types: DocumentTypeOption[];
+    staff_options?: DepartmentStaffOption[];
 }) {
     const statusOption = assistanceStatuses.find(
         (entry) => entry.value === assistance.status,
@@ -438,12 +467,41 @@ export default function UserAssistanceShow({
     ]);
 
     const heading =
-        assistance.cais_number !== '—'
+        assistance.cais_number !== EMPTY_CELL
             ? assistance.cais_number
             : `Assistance #${assistance.id}`;
 
     const isOrganization =
         assistance.beneficiary_type?.toLowerCase() === 'organization';
+    const [assigneeId, setAssigneeId] = useState(
+        assistance.assigned_to_id
+            ? String(assistance.assigned_to_id)
+            : 'unassigned',
+    );
+
+    const timelineEntries = useMemo<AssistanceStatusTimelineEntry[]>(() => {
+        const statusEntries = assistance.status_history.map((entry) => ({
+            ...entry,
+            event_type: 'status' as const,
+        }));
+        const assignmentEntries = (assistance.assignments ?? [])
+            .filter((entry) => Boolean(entry.recorded_at))
+            .map((entry) => ({
+                id: entry.id + 1_000_000,
+                name: `Assigned to ${entry.assigned_to_name}`,
+                parent_status: null,
+                remark: [
+                    `By ${entry.assigned_by_name}`,
+                    entry.remark?.trim() ? entry.remark : null,
+                ]
+                    .filter(Boolean)
+                    .join(': '),
+                recorded_at: entry.recorded_at as string,
+                event_type: 'assignment' as const,
+            }));
+
+        return [...statusEntries, ...assignmentEntries];
+    }, [assistance.status_history, assistance.assignments]);
 
     return (
         <>
@@ -479,6 +537,15 @@ export default function UserAssistanceShow({
                             {assistance.encoder_name ? (
                                 <Badge variant="outline">
                                     {assistance.encoder_name}
+                                </Badge>
+                            ) : null}
+                            <Badge variant="outline">
+                                {assistance.assignee_name ?? 'Unassigned'}
+                            </Badge>
+                            {assistance.sla_state &&
+                            assistance.sla_state !== 'none' ? (
+                                <Badge variant="outline">
+                                    SLA {slaLabel(assistance.sla_state)}
                                 </Badge>
                             ) : null}
                             {assistance.beneficiary_type ? (
@@ -534,7 +601,7 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Overview"
-                            description="Request details, beneficiary, key dates, and items summary"
+                            description="Who requested this, when, and a short items summary"
                         />
 
                         <div className="grid gap-6 lg:grid-cols-3">
@@ -582,6 +649,17 @@ export default function UserAssistanceShow({
                                                     ? `${assistance.status} · ${assistance.current_sub_status}`
                                                     : assistance.status
                                             }
+                                        />
+                                        <DetailItem
+                                            label="Assignee"
+                                            value={
+                                                assistance.assignee_name ??
+                                                'Unassigned'
+                                            }
+                                        />
+                                        <DetailItem
+                                            label="SLA"
+                                            value={slaLabel(assistance.sla_state)}
                                         />
                                     </dl>
                                 </div>
@@ -860,11 +938,87 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Assistance tracking"
-                            description="Timeline of sub-status updates for this request, oldest to newest"
+                            description="Status changes and assignments, oldest first"
                         />
-                        <AssistanceStatusTimeline
-                            entries={assistance.status_history}
-                        />
+                        {assistance.can_advance === false ? (
+                            <p className="text-sm text-muted-foreground">
+                                Only the assignee for this stage can update the
+                                status.
+                            </p>
+                        ) : null}
+                        {staff_options.length > 0 &&
+                        assistance.can_assign !== false ? (
+                            <Form
+                                {...assignAssistance.form.patch({
+                                    department: department.slug,
+                                    program: program.id,
+                                    assistance: assistance.id,
+                                })}
+                                disableWhileProcessing
+                                options={{ preserveScroll: true }}
+                                transform={(data) => ({
+                                    ...data,
+                                    assigned_to_id:
+                                        assigneeId === 'unassigned'
+                                            ? null
+                                            : Number(assigneeId),
+                                })}
+                                onSuccess={() =>
+                                    toast.success(
+                                        'Assistance assignment updated.',
+                                    )
+                                }
+                                className="flex flex-wrap items-end gap-2 rounded-lg border p-3"
+                            >
+                                {({ processing }) => (
+                                    <>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="assistance-show-assignee">
+                                                Assignee
+                                            </Label>
+                                            <Select
+                                                value={assigneeId}
+                                                onValueChange={setAssigneeId}
+                                            >
+                                                <SelectTrigger
+                                                    id="assistance-show-assignee"
+                                                    className="h-9 w-56"
+                                                >
+                                                    <SelectValue placeholder="Unassigned" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="unassigned">
+                                                        Unassigned
+                                                    </SelectItem>
+                                                    {staff_options.map(
+                                                        (staff) => (
+                                                            <SelectItem
+                                                                key={staff.id}
+                                                                value={String(
+                                                                    staff.id,
+                                                                )}
+                                                            >
+                                                                {staff.name}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <Button
+                                            type="submit"
+                                            size="sm"
+                                            disabled={processing}
+                                        >
+                                            {processing
+                                                ? 'Saving...'
+                                                : 'Update assignment'}
+                                        </Button>
+                                    </>
+                                )}
+                            </Form>
+                        ) : null}
+                        <AssistanceStatusTimeline entries={timelineEntries} />
                     </div>
                 </section>
 
@@ -884,7 +1038,7 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Items requested"
-                            description="What the beneficiary applied for, and how much of it is still owed"
+                            description="What they applied for, and how much is still owed"
                         />
                         <VarianceSummary variance={variance} />
                         <DataTable
@@ -905,7 +1059,7 @@ export default function UserAssistanceShow({
                     <div className="flex flex-col gap-4 p-4">
                         <SectionHeading
                             title="Items released"
-                            description="What was actually handed over, including additional and substitute items"
+                            description="What was handed over, including extra and substitute items"
                         />
                         <DataTable
                             columns={releasedItemColumns}

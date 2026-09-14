@@ -190,7 +190,7 @@ export default function UserFundsIndex({
                         Funds
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage funds assigned to your department.
+                        Funds assigned to your department.
                     </p>
                 </div>
 

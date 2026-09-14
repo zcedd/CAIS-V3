@@ -11,6 +11,7 @@ import {
     type AssistanceProgramItemOption,
     type AssistanceRequestSubStatusOption,
     type AssistanceTransferProgramOption,
+    type DepartmentStaffOption,
     type AssistanceTableFilters,
     type ModeFilterOption,
     type StatusFilterOption,
@@ -29,6 +30,7 @@ export const ASSISTANCE_TABLE_DEFER_GROUP_PROPS = [
     'program_items',
     'program_fields',
     'request_sub_status_options',
+    'staff_options',
     'transfer_program_options',
 ] as const;
 
@@ -95,6 +97,7 @@ export function isAssistancesTableReady(props: {
     program_items?: AssistanceProgramItemOption[];
     program_fields?: ProgramFieldOption[];
     request_sub_status_options?: AssistanceRequestSubStatusOption[];
+    staff_options?: DepartmentStaffOption[];
     transfer_program_options?: AssistanceTransferProgramOption[];
 }): props is {
     assistances: PaginatedAssistances;
@@ -104,6 +107,7 @@ export function isAssistancesTableReady(props: {
     program_items: AssistanceProgramItemOption[];
     program_fields: ProgramFieldOption[];
     request_sub_status_options: AssistanceRequestSubStatusOption[];
+    staff_options: DepartmentStaffOption[];
     transfer_program_options: AssistanceTransferProgramOption[];
 } {
     return (
@@ -114,6 +118,7 @@ export function isAssistancesTableReady(props: {
         props.program_items !== undefined &&
         props.program_fields !== undefined &&
         props.request_sub_status_options !== undefined &&
+        props.staff_options !== undefined &&
         props.transfer_program_options !== undefined
     );
 }
@@ -155,6 +160,7 @@ type ProgramAssistanceTableProps = {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
+    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onVisitTable: (
         overrides: Partial<
@@ -185,6 +191,7 @@ type ProgramAssistanceTableSectionProps = {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
+    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onVisitTable: ProgramAssistanceTableProps['onVisitTable'];
 };
@@ -207,6 +214,7 @@ function ProgramAssistanceTable({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
+    staffOptions = [],
     canTransferAssistance,
     onVisitTable,
 }: ProgramAssistanceTableProps) {
@@ -304,6 +312,7 @@ export function ProgramAssistanceTableSection({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
+    staffOptions = [],
     canTransferAssistance,
     onVisitTable,
 }: ProgramAssistanceTableSectionProps) {
@@ -319,6 +328,7 @@ export function ProgramAssistanceTableSection({
                 programFields,
                 requestSubStatusOptions,
                 transferProgramOptions,
+                staffOptions,
                 canTransferAssistance,
                 onAssistanceUpdated: () => onVisitTable({ page: 1 }),
             }),
@@ -332,6 +342,7 @@ export function ProgramAssistanceTableSection({
             programFields,
             requestSubStatusOptions,
             transferProgramOptions,
+            staffOptions,
             canTransferAssistance,
             onVisitTable,
         ],
@@ -357,6 +368,7 @@ export function ProgramAssistanceTableSection({
                 programFields={programFields}
                 requestSubStatusOptions={requestSubStatusOptions}
                 transferProgramOptions={transferProgramOptions}
+                staffOptions={staffOptions}
                 canTransferAssistance={canTransferAssistance}
                 onVisitTable={onVisitTable}
             />

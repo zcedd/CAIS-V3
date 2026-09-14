@@ -11,9 +11,9 @@ use App\Models\Program;
 use App\Models\User;
 use App\Support\DocumentRequirementMilestone;
 use App\Support\DocumentTypeSlug;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -23,26 +23,10 @@ uses(RefreshDatabase::class);
  */
 function seedDocumentChecklistStatusCatalog(): array
 {
-    $draftStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Draft']);
-    $verificationStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Verification']);
-    $deliveredStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Delivered']);
-
     return [
-        'in_progress' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $draftStatusId,
-            'name' => 'In Progress',
-            'description' => null,
-        ]),
-        'verified' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $verificationStatusId,
-            'name' => 'Verified',
-            'description' => null,
-        ]),
-        'delivered' => DB::table('request_sub_statuses')->insertGetId([
-            'request_status_id' => $deliveredStatusId,
-            'name' => 'Successfully Delivered',
-            'description' => null,
-        ]),
+        'in_progress' => catalogReasonId(RequestSubStatusCode::AwaitingReview),
+        'verified' => catalogReasonId(RequestSubStatusCode::Verified),
+        'delivered' => catalogReasonId(RequestSubStatusCode::Delivered),
     ];
 }
 
@@ -66,6 +50,8 @@ function createDocumentChecklistContext(): array
         'program_id' => $program->id,
         'date_requested' => now()->toDateString(),
         'user_id' => $user->id,
+        'assigned_to_id' => $user->id,
+        'assigned_at' => now(),
     ]);
     $documentType = DocumentType::query()->where('slug', DocumentTypeSlug::ValidId)->firstOrFail();
 

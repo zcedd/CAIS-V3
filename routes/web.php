@@ -3,6 +3,7 @@
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
 use App\Http\Controllers\User\AssistanceDocumentController as UserAssistanceDocumentController;
+use App\Http\Controllers\User\AssistanceQueueController as UserAssistanceQueueController;
 use App\Http\Controllers\User\AssistanceReceiptController as UserAssistanceReceiptController;
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\User\NotificationController as UserNotificationControll
 use App\Http\Controllers\User\ProgramBatchController as UserProgramBatchController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use App\Http\Controllers\User\UnspscCodeController as UserUnspscCodeController;
+use App\Http\Controllers\User\WorkflowController as UserWorkflowController;
 use App\Http\Middleware\EnsureUserBelongsToDepartment;
 use Illuminate\Support\Facades\Route;
 
@@ -46,6 +48,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::get('unspsc-codes', [UserUnspscCodeController::class, 'search'])->name('user.unspsc-codes.search');
 
+        Route::get('queue', [UserAssistanceQueueController::class, 'index'])->name('user.queue.index');
+        Route::patch('queue/assign', [UserAssistanceQueueController::class, 'bulkAssign'])->name('user.queue.assign');
+
+        Route::get('workflows', [UserWorkflowController::class, 'index'])->name('user.workflows.index');
+        Route::post('workflows', [UserWorkflowController::class, 'store'])->name('user.workflows.store');
+        Route::put('workflows/{workflow}', [UserWorkflowController::class, 'update'])->name('user.workflows.update');
+
         Route::scopeBindings()->group(function () {
             Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
             Route::post('programs/{program}/batches', [UserProgramBatchController::class, 'store'])->name('user.programs.batches.store');
@@ -67,6 +76,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'update'])->name('user.programs.assistances.update');
             Route::delete('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'destroy'])->name('user.programs.assistances.destroy');
             Route::patch('programs/{program}/assistances/{assistance}/status', [UserAssistanceController::class, 'updateStatus'])->name('user.programs.assistances.status.update');
+            Route::patch('programs/{program}/assistances/{assistance}/assign', [UserAssistanceController::class, 'assign'])->name('user.programs.assistances.assign');
+            Route::patch('programs/{program}/assistances/{assistance}/claim', [UserAssistanceController::class, 'claim'])->name('user.programs.assistances.claim');
             Route::patch('programs/{program}/assistances/{assistance}/transfer', [UserAssistanceController::class, 'transfer'])->name('user.programs.assistances.transfer');
             Route::get('programs/{program}/assistances/{assistance}/receipt', [UserAssistanceReceiptController::class, 'show'])->name('user.assistances.receipt');
             Route::post('programs/{program}/assistances/{assistance}/documents', [UserAssistanceDocumentController::class, 'store'])->name('user.assistances.documents.store');

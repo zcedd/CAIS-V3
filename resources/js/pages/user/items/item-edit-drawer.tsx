@@ -84,8 +84,8 @@ export function ItemEditDrawer({
                 <DrawerHeader>
                     <DrawerTitle>Edit item</DrawerTitle>
                     <DrawerDescription>
-                        Update the catalog item, UNSPSC classification, and
-                        stock settings.
+                        Change the catalog item, UNSPSC code, and stock
+                        settings.
                     </DrawerDescription>
                 </DrawerHeader>
 

@@ -95,7 +95,19 @@ export type AssistanceRequestSubStatusOption = {
     id: number;
     name: string;
     request_status: string | null;
+    request_status_code?: string | null;
     label: string;
+};
+
+export type DepartmentStaffOption = {
+    id: number;
+    name: string;
+};
+
+export type WorkflowOption = {
+    id: number;
+    name: string;
+    is_default: boolean;
 };
 
 export type AssistanceTransferProgramOption = {
@@ -598,7 +610,7 @@ export function AssistanceDataTableToolbar({
                     <DrawerHeader>
                         <DrawerTitle>Add assistance</DrawerTitle>
                         <DrawerDescription>
-                            Create a new assistance record for {programName}.
+                            Add an assistance record for {programName}.
                         </DrawerDescription>
                     </DrawerHeader>
                     {canCreate ? (

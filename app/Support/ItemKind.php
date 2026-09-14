@@ -55,7 +55,7 @@ class ItemKind
         }
 
         if ($quantity === null) {
-            return $unit ?? '—';
+            return $unit ?? EmptyCell::VALUE;
         }
 
         return $unit ? "{$quantity} {$unit}" : (string) $quantity;

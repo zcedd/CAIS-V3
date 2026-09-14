@@ -18,6 +18,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
 import {
@@ -34,6 +41,7 @@ import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/type
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
+import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
 import {
     applyCreateDrawerOpenChange,
     useCreateDrawerTourLock,
@@ -133,6 +141,7 @@ export default function UserProgramsIndex({
     funds,
     items,
     document_types = [],
+    workflow_options = [],
 }: {
     programs: PaginatedPrograms;
     department: DepartmentSummary | null;
@@ -143,6 +152,7 @@ export default function UserProgramsIndex({
     funds?: SelectOption[];
     items?: SelectOption[];
     document_types?: DocumentTypeOption[];
+    workflow_options?: WorkflowOption[];
 }) {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(false);
@@ -176,6 +186,7 @@ export default function UserProgramsIndex({
     const [eligibility, setEligibility] = useState<ProgramEligibilityFormValue>(
         emptyProgramEligibility(),
     );
+    const [workflowId, setWorkflowId] = useState('default');
 
     const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
@@ -207,6 +218,7 @@ export default function UserProgramsIndex({
         setFirstBatchStartAtOpen(false);
         setFirstBatchEndAtOpen(false);
         setEligibility(emptyProgramEligibility());
+        setWorkflowId('default');
     };
 
     useEffect(() => {
@@ -306,7 +318,7 @@ export default function UserProgramsIndex({
                         <p className="text-sm text-muted-foreground">
                             {department
                                 ? 'Programs assigned to your department.'
-                                : 'You are not linked to a department yet, so no programs are shown.'}
+                                : 'Your account is not linked to a department, so there is nothing to show.'}
                         </p>
                     </div>
                 </div>
@@ -513,6 +525,10 @@ export default function UserProgramsIndex({
                                     eligibility,
                                     selectedItemIds,
                                 ),
+                                workflow_id:
+                                    workflowId === 'default'
+                                        ? null
+                                        : Number(workflowId),
                             })}
                             onSuccess={() => {
                                 resetCreateForm();
@@ -857,6 +873,47 @@ export default function UserProgramsIndex({
                                         isOrganization={isOrganization}
                                         errors={errors}
                                     />
+
+                                    {workflow_options.length > 0 ? (
+                                        <div className="space-y-2">
+                                            <Label htmlFor="program-workflow">
+                                                Workflow
+                                            </Label>
+                                            <Select
+                                                value={workflowId}
+                                                onValueChange={setWorkflowId}
+                                            >
+                                                <SelectTrigger id="program-workflow">
+                                                    <SelectValue placeholder="Department default" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="default">
+                                                        Use department default
+                                                    </SelectItem>
+                                                    {workflow_options.map(
+                                                        (workflow) => (
+                                                            <SelectItem
+                                                                key={workflow.id}
+                                                                value={String(
+                                                                    workflow.id,
+                                                                )}
+                                                            >
+                                                                {workflow.name}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-sm text-muted-foreground">
+                                                Leave as the department default
+                                                unless this program needs a
+                                                different pipeline.
+                                            </p>
+                                            <InputError
+                                                message={errors.workflow_id}
+                                            />
+                                        </div>
+                                    ) : null}
 
                                     <div
                                         className="flex items-start gap-3"

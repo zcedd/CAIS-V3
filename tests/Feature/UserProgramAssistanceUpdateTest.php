@@ -9,9 +9,9 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
-use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Support\AssistanceItemOrigin;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -70,9 +70,7 @@ test('authenticated users can update assistance for their department program', f
         'user_id' => $user->id,
     ]);
 
-    $inProgressSubStatusId = RequestSubStatus::query()
-        ->where('name', 'In Progress')
-        ->value('id');
+    $inProgressSubStatusId = catalogReasonId(RequestSubStatusCode::AwaitingReview);
 
     if ($inProgressSubStatusId !== null) {
         AssistanceRequestSubStatus::query()->create([

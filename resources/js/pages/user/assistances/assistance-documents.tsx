@@ -235,8 +235,8 @@ export function AssistanceDocumentsSection({
                     </ul>
                 ) : (
                     <p className="text-sm text-muted-foreground">
-                        This program has no document checklist. You can still
-                        attach supporting files below.
+                        This program has no checklist. You can still attach
+                        files below.
                     </p>
                 )}
 

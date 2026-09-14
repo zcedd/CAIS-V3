@@ -12,18 +12,13 @@ import {
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent
-    
+    ChartTooltipContent,
 } from '@/components/ui/chart';
-import type {ChartConfig} from '@/components/ui/chart';
+import type { ChartConfig } from '@/components/ui/chart';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { DashboardChartFrame } from '@/pages/user/dashboard/dashboard-chart-frame';
-import {
-    aggregateRequestsTrend
-    
-    
-} from '@/types/dashboard';
-import type {RequestsTrendPoint, TrendPeriod} from '@/types/dashboard';
+import { aggregateRequestsTrend } from '@/types/dashboard';
+import type { RequestsTrendPoint, TrendPeriod } from '@/types/dashboard';
 
 const chartConfig = {
     count: {
@@ -88,15 +83,15 @@ export function RequestsTrendChart({ data }: RequestsTrendChartProps) {
             </CardHeader>
             <CardContent>
                 {chartData.length === 0 ? (
-                    <p className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
-                        No request timeline for the selected filters.
+                    <p className="flex h-60 items-center justify-center text-sm text-muted-foreground">
+                        No request timeline with these filters.
                     </p>
                 ) : (
                     <DashboardChartFrame height={240}>
                         <ChartContainer
                             key={period}
                             config={chartConfig}
-                            className="!aspect-auto h-full w-full"
+                            className="aspect-auto! h-full w-full"
                             initialDimension={{ width: 640, height: 240 }}
                         >
                             <LineChart

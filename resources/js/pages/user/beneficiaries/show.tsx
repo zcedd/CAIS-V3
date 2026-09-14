@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import { BeneficiaryEditDrawer } from '@/components/user/beneficiaries/beneficiary-edit-drawer';
 import {
     BeneficiaryShowTableToolbar,
@@ -345,8 +346,8 @@ export default function UserBeneficiaryShow({
     const membershipEntityLabel = isOrganization ? 'Name' : 'Organization';
     const membershipTitle = isOrganization ? 'Members' : 'Organizations';
     const membershipDescription = isOrganization
-        ? 'Individuals registered under this organization'
-        : 'Organizations this individual belongs to';
+        ? 'People listed under this organization'
+        : 'Organizations this person belongs to';
     const membershipEmpty = isOrganization
         ? 'No members listed.'
         : 'Not a member of any organization.';
@@ -455,8 +456,8 @@ export default function UserBeneficiaryShow({
                             title="Overview"
                             description={
                                 isOrganization
-                                    ? 'Organization contact, membership, and linked programs'
-                                    : 'Demographic details, contact, attributes, and linked programs'
+                                    ? 'Contact, members, and linked programs'
+                                    : 'Demographics, contact, attributes, and linked programs'
                             }
                         />
 
@@ -687,7 +688,7 @@ export default function UserBeneficiaryShow({
                                                                 {program
                                                                     .department
                                                                     ?.name ??
-                                                                    '—'}
+                                                                    EMPTY_CELL}
                                                             </p>
                                                         </div>
                                                         <Badge

@@ -31,8 +31,8 @@ export default function PublicApplyIndex({
                         Apply for assistance
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Choose a program to start a public request. Staff will
-                        verify and approve it inside CAIS.{' '}
+                        Choose a program to apply. Staff will check the request
+                        in CAIS.{' '}
                         <Link
                             href={trackIndex.url()}
                             className="underline underline-offset-4"

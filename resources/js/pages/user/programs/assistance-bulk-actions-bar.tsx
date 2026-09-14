@@ -47,6 +47,16 @@ export function AssistanceBulkActionsBar({
             .filter((id): id is number => typeof id === 'number');
     }, [rowSelection, table]);
 
+    const canAdvanceSelection = useMemo(() => {
+        return selectedAssistanceIds.every((id) => {
+            const row = table.getRowModel().flatRows.find(
+                (tableRow) => tableRow.original.id === id,
+            );
+
+            return row?.original.can_advance !== false;
+        });
+    }, [selectedAssistanceIds, table]);
+
     const handleBulkStatusUpdated = () => {
         table.resetRowSelection();
         onBulkStatusUpdated?.();
@@ -76,6 +86,7 @@ export function AssistanceBulkActionsBar({
                         type="button"
                         variant="default"
                         className="h-8"
+                        disabled={!canAdvanceSelection}
                         onClick={() => setBulkStatusOpen(true)}
                     >
                         <ListChecks className="size-4" />
@@ -111,6 +122,7 @@ export function AssistanceBulkActionsBar({
                 programId={programId}
                 programName={programName}
                 requestSubStatusOptions={requestSubStatusOptions}
+                canAdvance={canAdvanceSelection}
                 onUpdated={handleBulkStatusUpdated}
             />
 

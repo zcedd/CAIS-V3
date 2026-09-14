@@ -6,7 +6,8 @@ use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
 use App\Models\Beneficiary;
 use App\Models\Program;
-use App\Models\RequestSubStatus;
+use App\Services\Workflow\RequestStatusCatalog;
+use App\Support\RequestSubStatusCode;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -55,7 +56,8 @@ class TransferProgramAssistance
             ]);
 
             $currentSubStatusId = $assistance->current_request_sub_status_id
-                ?? RequestSubStatus::query()->where('name', 'In Progress')->value('id');
+                ?? app(RequestStatusCatalog::class)
+                    ->reasonId(RequestSubStatusCode::AwaitingReview);
 
             if ($currentSubStatusId !== null && $reason !== '') {
                 AssistanceRequestSubStatus::query()->create([

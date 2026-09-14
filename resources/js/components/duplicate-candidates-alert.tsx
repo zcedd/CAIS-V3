@@ -37,7 +37,7 @@ export function DuplicateCandidatesAlert({
             <AlertDescription>
                 <p className="mb-2">
                     {error ??
-                        'Existing beneficiaries look similar to this record. Open the match instead of creating another profile unless you are sure this is a different person.'}
+                        'Someone similar is already in the registry. Open that record unless you are sure this is a different person.'}
                 </p>
                 <ul className="space-y-2">
                     {candidates.map((candidate) => (
@@ -49,7 +49,7 @@ export function DuplicateCandidatesAlert({
                                 })}
                                 className="font-medium text-foreground"
                             >
-                                {candidate.cais_number ?? 'No CAIS'} —{' '}
+                                {candidate.cais_number ?? 'No CAIS'}:{' '}
                                 {candidate.name}
                             </Link>
                             <span className="mt-0.5 block text-muted-foreground">
@@ -66,7 +66,8 @@ export function DuplicateCandidatesAlert({
                 </ul>
                 {acknowledged ? (
                     <p className="mt-3 text-sm font-medium text-foreground">
-                        Create anyway is selected. Submit the form to continue.
+                        You chose Create anyway. Submit the form to add this
+                        record.
                     </p>
                 ) : (
                     <Button

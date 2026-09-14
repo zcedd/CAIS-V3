@@ -87,7 +87,7 @@ export function ItemDataTableRowActions({
                     {tracksInventory(record.kind) ? (
                         <DropdownMenuItem onSelect={() => setStockOpen(true)}>
                             <Package className="mr-2 h-4 w-4" />
-                            Manage stock
+                            Update stock
                         </DropdownMenuItem>
                     ) : null}
                     <DropdownMenuSeparator />

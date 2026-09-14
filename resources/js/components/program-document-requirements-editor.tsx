@@ -79,8 +79,9 @@ export function ProgramDocumentRequirementsEditor({
                 <div className="space-y-1">
                     <Label>Document checklist</Label>
                     <p className="text-sm text-muted-foreground">
-                        Require IDs, indigency, delivery photos, or a signed
-                        acknowledgment before Verified or Delivered.
+                        Staff must attach IDs, indigency papers, delivery
+                        photos, or a signed acknowledgment before Verified or
+                        Delivered.
                     </p>
                 </div>
                 <Button
@@ -99,8 +100,8 @@ export function ProgramDocumentRequirementsEditor({
 
             {requirements.length === 0 ? (
                 <p className="rounded-xl border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                    No required documents yet. Add types that staff must attach
-                    on each assistance request.
+                    No required documents yet. Add the file types staff must
+                    attach on each request.
                 </p>
             ) : (
                 <div className="space-y-3">

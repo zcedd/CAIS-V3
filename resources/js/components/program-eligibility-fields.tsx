@@ -40,7 +40,7 @@ export function ProgramEligibilityFields({
             <div>
                 <p className="text-sm font-medium">Eligibility</p>
                 <p className="text-sm text-muted-foreground">
-                    Optional rules applied when staff encode assistance.
+                    Optional rules used when staff encode assistance.
                 </p>
             </div>
 

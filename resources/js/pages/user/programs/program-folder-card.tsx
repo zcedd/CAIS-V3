@@ -26,7 +26,7 @@ function formatPeriod(startAt: string | null, endAt: string | null): string {
     }
 
     if (startAt && endAt) {
-        return `${startAt} – ${endAt}`;
+        return `${startAt} to ${endAt}`;
     }
 
     return startAt ?? endAt ?? 'No schedule';

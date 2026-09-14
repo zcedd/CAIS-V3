@@ -13,8 +13,11 @@ use App\Models\StockMovement;
 use App\Models\User;
 use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\ProgramService;
+use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Support\ItemKind;
+use App\Support\RequestSubStatusCode;
 use App\Support\StockMovementType;
+use App\Support\WorkflowTemplate;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -207,6 +210,14 @@ test('cash and service assistances can be encoded and delivered without warehous
         ->and($service->fresh()->kind)->toBe(ItemKind::Service)
         ->and($service->fresh()->tracksInventory())->toBeFalse();
 
+    $walkIn = app(EnsureDepartmentWorkflow::class)->create(
+        $context['department'],
+        WorkflowTemplate::WalkIn,
+        false,
+        'Walk-in relief',
+    );
+    $context['program']->update(['workflow_id' => $walkIn->id]);
+
     $beneficiary = Beneficiary::create([
         'cais_number' => 'CAIS-KIND',
         'name' => 'Juan Dela Cruz',
@@ -247,12 +258,7 @@ test('cash and service assistances can be encoded and delivered without warehous
         ->where('item_id', $service->id)
         ->firstOrFail();
 
-    $deliveredStatusId = DB::table('request_statuses')->insertGetId(['name' => 'Delivered']);
-    $delivered = DB::table('request_sub_statuses')->insertGetId([
-        'request_status_id' => $deliveredStatusId,
-        'name' => 'Successfully Delivered',
-        'description' => null,
-    ]);
+    $delivered = catalogReasonId(RequestSubStatusCode::Delivered);
 
     $this->actingAs($context['user'])
         ->patch(route('user.programs.assistances.status.update', [

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Support\ProgramKind;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -30,6 +31,7 @@ class Program extends Model
         'parent_id',
         'batch_number',
         'batch_name',
+        'workflow_id',
         'created_at',
         'updated_at',
     ];
@@ -131,6 +133,40 @@ class Program extends Model
     public function itemStocks(): HasMany
     {
         return $this->hasMany(ProgramItemStock::class);
+    }
+
+    public function workflow(): BelongsTo
+    {
+        return $this->belongsTo(Workflow::class);
+    }
+
+    public function resolvedWorkflow(): Workflow
+    {
+        $this->loadMissing(['workflow.steps.transitions', 'parent.workflow.steps.transitions', 'department']);
+
+        if ($this->workflow instanceof Workflow) {
+            return $this->workflow;
+        }
+
+        if ($this->isBatch()) {
+            $parent = $this->parent;
+
+            if ($parent instanceof self) {
+                $parent->loadMissing(['workflow.steps.transitions']);
+
+                if ($parent->workflow instanceof Workflow) {
+                    return $parent->workflow;
+                }
+            }
+        }
+
+        $department = $this->department;
+
+        if (! $department instanceof Department) {
+            $department = Department::query()->findOrFail($this->department_id);
+        }
+
+        return app(EnsureDepartmentWorkflow::class)->defaultFor($department);
     }
 
     /**

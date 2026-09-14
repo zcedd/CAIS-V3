@@ -98,4 +98,9 @@ class Department extends Model
     {
         return $this->hasMany(Item::class);
     }
+
+    public function workflows(): HasMany
+    {
+        return $this->hasMany(Workflow::class);
+    }
 }

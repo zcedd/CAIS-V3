@@ -24,7 +24,7 @@ function BreakdownList({
     description,
     data,
     icon,
-    emptyMessage = 'No data for the selected filters.',
+    emptyMessage = 'Nothing matches these filters.',
 }: {
     title: string;
     description: string;
@@ -114,7 +114,7 @@ export function InsightsPanel({
                 <DashboardStatCard
                     label="Barangays reached"
                     value={insights.distinct_barangays.toLocaleString()}
-                    description="Distinct addresses in scope"
+                    description="Distinct addresses in this filter"
                     icon={MapPin}
                 />
             </div>
@@ -125,7 +125,7 @@ export function InsightsPanel({
                     description="How long open requests have been waiting"
                     data={insights.backlog_aging}
                     icon={Timer}
-                    emptyMessage="No open backlog for the selected filters."
+                    emptyMessage="No open backlog with these filters."
                 />
                 <BreakdownList
                     title="Top barangays"
@@ -152,7 +152,7 @@ export function InsightsPanelSkeleton() {
         <div
             className="space-y-4"
             aria-busy="true"
-            aria-label="Loading insights"
+            aria-label="Loading activity"
         >
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, index) => (

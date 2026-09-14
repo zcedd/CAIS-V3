@@ -13,7 +13,6 @@ use App\Models\RequestSubStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 uses(RefreshDatabase::class);
 
@@ -151,7 +150,7 @@ test('authenticated users can create assistance for their department program', f
         ->and($assistanceItem->specification)->toBe('priority');
 
     $inProgressSubStatusId = RequestSubStatus::query()
-        ->where('name', 'In Progress')
+        ->where('name', 'Awaiting Review')
         ->value('id');
 
     if ($inProgressSubStatusId !== null) {
@@ -162,6 +161,8 @@ test('authenticated users can create assistance for their department program', f
                 ->exists(),
         )->toBeTrue();
     }
+
+    expect($assistance->assigned_to_id)->toBe($user->id);
 });
 
 test('creating assistance preserves the recorded at time', function () {
@@ -185,17 +186,6 @@ test('creating assistance preserves the recorded at time', function () {
         $department,
         $program,
     );
-
-    $requestStatusId = DB::table('request_statuses')->where('name', 'In Progress')->value('id')
-        ?? DB::table('request_statuses')->insertGetId(['name' => 'In Progress']);
-
-    if (! DB::table('request_sub_statuses')->where('name', 'In Progress')->exists()) {
-        DB::table('request_sub_statuses')->insert([
-            'request_status_id' => $requestStatusId,
-            'name' => 'In Progress',
-            'description' => null,
-        ]);
-    }
 
     $this->actingAs($user)->post(route('user.programs.assistances.store', [
         'department' => $department->slug,

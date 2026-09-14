@@ -12,6 +12,7 @@ import type {
 } from '@/types/beneficiary';
 import { Link } from '@inertiajs/react';
 import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 const STATUS_BADGE_CLASSES: Record<string, string> = {
     Delivered:
@@ -25,13 +26,13 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
 
 function formatDate(value: string | null | undefined): string {
     if (!value) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     const parsed = new Date(value);
 
     if (Number.isNaN(parsed.getTime())) {
-        return '—';
+        return EMPTY_CELL;
     }
 
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });

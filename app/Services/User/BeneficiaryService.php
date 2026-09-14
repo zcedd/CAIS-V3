@@ -12,6 +12,7 @@ use App\Models\Identification;
 use App\Models\Individual;
 use App\Models\Organization;
 use App\Models\Program;
+use App\Support\EmptyCell;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
@@ -301,7 +302,11 @@ class BeneficiaryService
         $delivered = (clone $base)->where('was_delivered', true)->count();
         $denied = (clone $base)
             ->whereHas('currentRequestSubStatus.requestStatus', static function ($query): void {
-                $query->where('name', 'Denied');
+                $query->where(function ($inner): void {
+                    $inner
+                        ->where('code', 'denied')
+                        ->orWhere('name', 'Denied');
+                });
             })
             ->count();
         $lastRequested = (clone $base)->max('date_requested');
@@ -363,10 +368,10 @@ class BeneficiaryService
                 return [
                     'id' => $assistance->id,
                     'program_id' => $assistance->program_id,
-                    'program_name' => $assistance->program_name ?? '—',
-                    'department_name' => $assistance->department_name ?? '—',
+                    'program_name' => $assistance->program_name ?? EmptyCell::VALUE,
+                    'department_name' => $assistance->department_name ?? EmptyCell::VALUE,
                     'department_slug' => $assistance->department_slug,
-                    'mode_of_request' => $assistance->mode_of_request_name ?? '—',
+                    'mode_of_request' => $assistance->mode_of_request_name ?? EmptyCell::VALUE,
                     'date_requested' => $assistance->date_requested
                         ? Carbon::parse($assistance->date_requested)->toDateString()
                         : null,

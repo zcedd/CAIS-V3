@@ -33,6 +33,7 @@ import type { BreadcrumbItem } from '@/types';
 import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
 import type { ProgramStatusBreakdownPoint, ProgramSummary } from '@/types/program';
 import type { ProgramFieldDefinition } from '@/types/program-field';
+import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
 import { Form, Head, Link, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
     Building2,
@@ -82,6 +83,7 @@ type ProgramEditRelations = {
     item_ids: number[];
     fields: ProgramFieldDefinition[];
     document_requirements?: ProgramDocumentRequirementInput[];
+    workflow_id?: number | null;
 };
 
 type SchemeBatchRow = {
@@ -118,6 +120,7 @@ export default function UserProgramScheme({
     funds,
     items,
     document_types = [],
+    workflow_options = [],
 }: {
     program: ProgramDetail;
     summary?: ProgramSummary;
@@ -128,6 +131,7 @@ export default function UserProgramScheme({
     funds?: SelectOption[];
     items?: SelectOption[];
     document_types?: DocumentTypeOption[];
+    workflow_options?: WorkflowOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
@@ -383,6 +387,7 @@ export default function UserProgramScheme({
                         funds={funds}
                         items={items}
                         documentTypes={document_types}
+                        workflowOptions={workflow_options}
                         formKey={editFormKey}
                         onClose={() => setEditOpen(false)}
                         lockOrganization={batches.length > 0}

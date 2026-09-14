@@ -57,7 +57,7 @@ export function ProgramFieldsEditor({
                 <div className="space-y-1">
                     <Label>Custom fields</Label>
                     <p className="text-sm text-muted-foreground">
-                        Collect program-specific information on each assistance.
+                        Extra questions collected on each assistance record.
                     </p>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={addField}>
@@ -70,8 +70,8 @@ export function ProgramFieldsEditor({
 
             {fields.length === 0 ? (
                 <p className="rounded-xl border border-dashed px-3 py-4 text-sm text-muted-foreground">
-                    No custom fields yet. Optional — add fields when this program
-                    needs extra beneficiary information.
+                    No custom fields yet. Add some if this program needs extra
+                    beneficiary information.
                 </p>
             ) : (
                 <div className="space-y-3">

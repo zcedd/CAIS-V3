@@ -193,7 +193,7 @@ export default function UserDepartmentItemsIndex({
                         Items
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage assistance items and warehouse stock for{' '}
+                        Items and warehouse stock for{' '}
                         {department.name}.
                     </p>
                 </div>

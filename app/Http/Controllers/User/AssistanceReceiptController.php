@@ -8,6 +8,7 @@ use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
 use App\Services\User\AssistanceItemFulfillmentService;
+use App\Support\EmptyCell;
 use App\Support\QrCodeSvg;
 use Illuminate\Support\Carbon;
 use Inertia\Inertia;
@@ -52,8 +53,8 @@ class AssistanceReceiptController extends Controller
             'program' => $program->only(['id', 'name']),
             'receipt' => [
                 'assistance_id' => $assistance->id,
-                'cais_number' => $assistance->beneficiary?->cais_number ?? '—',
-                'beneficiary_name' => $assistance->beneficiary?->name ?? '—',
+                'cais_number' => $assistance->beneficiary?->cais_number ?? EmptyCell::VALUE,
+                'beneficiary_name' => $assistance->beneficiary?->name ?? EmptyCell::VALUE,
                 'date_requested' => $assistance->date_requested
                     ? Carbon::parse($assistance->date_requested)->toDateString()
                     : null,

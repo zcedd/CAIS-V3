@@ -58,6 +58,7 @@ class ProgramController extends Controller
                 fn () => $this->programService->departmentItemsForSelect($department),
             ),
             'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            'workflow_options' => $this->programService->workflowOptions($department),
         ]);
     }
 
@@ -138,6 +139,7 @@ class ProgramController extends Controller
                     'edit',
                 ),
                 'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+                'workflow_options' => $this->programService->workflowOptions($department),
             ]);
         }
 
@@ -215,7 +217,11 @@ class ProgramController extends Controller
                 'table',
             ),
             'request_sub_status_options' => Inertia::defer(
-                fn () => $this->assistanceService->requestSubStatusesForSelect(),
+                fn () => $this->assistanceService->requestSubStatusesForSelect($program),
+                'table',
+            ),
+            'staff_options' => Inertia::defer(
+                fn () => $this->assistanceService->departmentStaffForSelect($program),
                 'table',
             ),
             'transfer_program_options' => Inertia::defer(
@@ -223,6 +229,7 @@ class ProgramController extends Controller
                 'table',
             ),
             'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            'workflow_options' => $this->programService->workflowOptions($department),
         ]);
     }
 }

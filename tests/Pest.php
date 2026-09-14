@@ -5,9 +5,14 @@ use App\Models\Item;
 use App\Models\Program;
 use App\Models\User;
 use App\Services\User\StockLedgerService;
+use App\Services\Workflow\RequestStatusCatalog;
+use App\Support\RequestStatusCode;
+use App\Support\RequestSubStatusCode;
 use App\Support\StockMovementType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /*
@@ -178,4 +183,23 @@ function seedProgramStock(Program $program, Item $item, int $quantity, ?User $us
         'program_id' => $program->id,
         'quantity' => $quantity,
     ]);
+}
+
+function catalogReasonId(RequestSubStatusCode $code): int
+{
+    return app(RequestStatusCatalog::class)->reasonId($code);
+}
+
+function catalogParentId(RequestStatusCode $code): int
+{
+    return app(RequestStatusCatalog::class)->parentId($code);
+}
+
+function assignAdminRole(User $user): User
+{
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+    Role::findOrCreate('admin', 'web');
+    $user->assignRole('admin');
+
+    return $user->fresh() ?? $user;
 }

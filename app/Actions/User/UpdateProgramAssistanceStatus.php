@@ -10,15 +10,21 @@ use App\Models\User;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\StockLedgerService;
 use App\Support\AssistanceItemOrigin;
+use App\Support\RequestStatusCode;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class UpdateProgramAssistanceStatus
 {
     public function __construct(
         private AssistanceDocumentService $assistanceDocumentService,
         private StockLedgerService $stockLedgerService,
+        private AssertAssistanceWorkflowTransition $assertAssistanceWorkflowTransition,
+        private RecalculateAssistanceSla $recalculateAssistanceSla,
+        private RecordAssistanceAssignment $recordAssistanceAssignment,
+        private ApplyWorkflowStepAssignee $applyWorkflowStepAssignee,
     ) {}
 
     /**
@@ -38,27 +44,55 @@ class UpdateProgramAssistanceStatus
      *         fulfillment_reason: string,
      *         specification?: string|null,
      *         substituted_for_assistance_item_id?: int|null
-     *     }>|null
+     *     }>|null,
+     *     assigned_to_id?: int|null
      * }  $validated
      */
     public function __invoke(Assistance $assistance, array $validated): Assistance
     {
         $subStatus = RequestSubStatus::query()
-            ->with('requestStatus:id,name')
+            ->with('requestStatus')
             ->findOrFail($validated['request_sub_status_id']);
 
         $this->assistanceDocumentService->assertCompleteForSubStatus($assistance, $subStatus);
 
         $recordedAt = Carbon::parse($validated['recorded_at']);
         $user = Auth::user();
-        $assistance->loadMissing('program');
+        $assistance->load('program');
+        $step = null;
 
-        return DB::transaction(function () use ($assistance, $validated, $recordedAt, $subStatus, $user): Assistance {
+        if ($user instanceof User) {
+            $step = ($this->assertAssistanceWorkflowTransition)($assistance, $subStatus, $user);
+        }
+
+        return DB::transaction(function () use ($assistance, $validated, $recordedAt, $subStatus, $user, $step): Assistance {
             $assistance = Assistance::query()
                 ->whereKey($assistance->id)
                 ->lockForUpdate()
                 ->firstOrFail();
             $assistance->loadMissing('program');
+
+            if ($user instanceof User && array_key_exists('assigned_to_id', $validated) && $step?->assigned_to_id === null) {
+                $assignee = isset($validated['assigned_to_id'])
+                    ? User::query()->find($validated['assigned_to_id'])
+                    : null;
+
+                ($this->recordAssistanceAssignment)(
+                    $assistance,
+                    $user,
+                    $assignee instanceof User ? $assignee : null,
+                );
+            }
+
+            if (
+                $step?->requires_assignee
+                && $assistance->assigned_to_id === null
+                && $step->assigned_to_id === null
+            ) {
+                throw ValidationException::withMessages([
+                    'assigned_to_id' => 'This step requires an assignee.',
+                ]);
+            }
 
             AssistanceRequestSubStatus::query()->create([
                 'assistance_id' => $assistance->id,
@@ -66,6 +100,10 @@ class UpdateProgramAssistanceStatus
                 'remark' => $validated['remark'] ?? null,
                 'recorded_at' => $recordedAt,
             ]);
+
+            if ($user instanceof User && $step !== null) {
+                ($this->applyWorkflowStepAssignee)($assistance, $step, $user);
+            }
 
             $releasedItems = [];
 
@@ -85,12 +123,12 @@ class UpdateProgramAssistanceStatus
                 }
             }
 
-            if ($user instanceof User && $subStatus->requestStatus?->name === 'Denied') {
+            if ($user instanceof User && RequestStatusCode::Denied->matches($subStatus->requestStatus)) {
                 $this->stockLedgerService->restoreForAssistance($assistance, $user);
             }
 
-            // Milestone dates and current status are synced from status history via
-            // AssistanceRequestSubStatus model events (SyncAssistanceCurrentStatus).
+            $assistance = $assistance->refresh();
+            ($this->recalculateAssistanceSla)($assistance);
 
             return $assistance->refresh();
         });

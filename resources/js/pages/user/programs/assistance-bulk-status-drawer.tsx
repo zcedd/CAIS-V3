@@ -85,6 +85,7 @@ type AssistanceBulkStatusDrawerProps = {
     programId: number;
     programName: string;
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    canAdvance?: boolean;
     onUpdated?: () => void;
 };
 
@@ -96,6 +97,7 @@ export function AssistanceBulkStatusDrawer({
     programId,
     programName,
     requestSubStatusOptions,
+    canAdvance = true,
     onUpdated,
 }: AssistanceBulkStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -106,7 +108,9 @@ export function AssistanceBulkStatusDrawer({
     const bulkStatusOptions = useMemo(
         () =>
             requestSubStatusOptions.filter(
-                (option) => option.request_status !== 'Delivered',
+                (option) =>
+                    option.request_status_code !== 'delivered' &&
+                    option.request_status !== 'Delivered',
             ),
         [requestSubStatusOptions],
     );
@@ -346,11 +350,19 @@ export function AssistanceBulkStatusDrawer({
 
                             <InputError message={errors.assistance_ids} />
 
+                            {!canAdvance ? (
+                                <p className="text-sm text-muted-foreground">
+                                    One or more selected records can only be
+                                    updated by their assignee.
+                                </p>
+                            ) : null}
+
                             <DrawerFooter className="px-0">
                                 <Button
                                     type="submit"
                                     disabled={
                                         processing ||
+                                        !canAdvance ||
                                         !selectedSubStatusId ||
                                         !recordedAt ||
                                         selectedCount === 0

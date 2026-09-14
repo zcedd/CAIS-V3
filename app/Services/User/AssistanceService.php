@@ -4,9 +4,12 @@ namespace App\Services\User;
 
 use App\Actions\User\ApplyAssistanceTableFilters;
 use App\Actions\User\ApplyAssistanceTableSort;
+use App\Actions\User\ApplyWorkflowStepAssignee;
 use App\Actions\User\EvaluateAssistanceEligibility;
 use App\Actions\User\GuardAssistanceEligibility;
 use App\Actions\User\JoinAssistanceTableRelations;
+use App\Actions\User\RecalculateAssistanceSla;
+use App\Actions\User\RecordAssistanceAssignment;
 use App\Models\Assistance;
 use App\Models\AssistanceFieldValue;
 use App\Models\AssistanceItem;
@@ -17,12 +20,16 @@ use App\Models\Program;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
+use App\Services\Workflow\RequestStatusCatalog;
 use App\Support\AssistanceItemOrigin;
+use App\Support\EmptyCell;
+use App\Support\RequestSubStatusCode;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -98,20 +105,38 @@ class AssistanceService
                 'user_id' => $user->id,
             ]);
 
-            $inProgressSubStatusId = RequestSubStatus::query()
-                ->where('name', 'In Progress')
-                ->value('id');
+            $inProgressSubStatusId = app(RequestStatusCatalog::class)
+                ->reasonId(RequestSubStatusCode::AwaitingReview);
 
-            if ($inProgressSubStatusId !== null) {
+            $staffEntryId = $this->staffEntrySubStatusId($program) ?? $inProgressSubStatusId;
+
+            if ($staffEntryId !== null) {
                 AssistanceRequestSubStatus::query()->create([
                     'assistance_id' => $assistance->id,
-                    'request_sub_status_id' => $inProgressSubStatusId,
+                    'request_sub_status_id' => $staffEntryId,
                     'remark' => $overrideReason !== null
                         ? 'Eligibility override: '.$overrideReason
                         : null,
                     'recorded_at' => $recordedAt,
                 ]);
             }
+
+            $workflow = $program->resolvedWorkflow();
+            $entryStep = $workflow->stepForStatus((int) $workflow->staff_entry_request_status_id);
+
+            if ($entryStep?->assigned_to_id !== null) {
+                app(ApplyWorkflowStepAssignee::class)($assistance, $entryStep, $user);
+            } else {
+                app(RecordAssistanceAssignment::class)(
+                    $assistance,
+                    $user,
+                    $user,
+                    null,
+                    false,
+                );
+            }
+
+            app(RecalculateAssistanceSla::class)($assistance->refresh());
 
             foreach ($validated['item_details'] as $itemDetail) {
                 AssistanceItem::query()->create([
@@ -202,11 +227,12 @@ class AssistanceService
         );
 
         $programFieldService = $this->programFieldService;
+        $viewer = Auth::user();
 
         return $assistancesQuery
             ->paginate($perPage)
             ->withQueryString()
-            ->through(static function (Assistance $assistance) use ($programFieldService): array {
+            ->through(function (Assistance $assistance) use ($programFieldService, $viewer): array {
                 $formatDate = static function ($value): ?string {
                     if ($value === null) {
                         return null;
@@ -242,13 +268,13 @@ class AssistanceService
                 return [
                     'id' => $assistance->id,
                     'beneficiary_id' => $assistance->beneficiary_id,
-                    'cais_number' => $assistance->beneficiary_cais_number ?? '—',
-                    'beneficiary_name' => $assistance->beneficiary_name ?? '—',
+                    'cais_number' => $assistance->beneficiary_cais_number ?? EmptyCell::VALUE,
+                    'beneficiary_name' => $assistance->beneficiary_name ?? EmptyCell::VALUE,
                     'items' => $assistance->assistanceItem
                         ->map(static fn (AssistanceItem $assistanceItem): array => [
                             'id' => $assistanceItem->id,
                             'item_id' => $assistanceItem->item_id,
-                            'name' => $assistanceItem->item?->name ?? '—',
+                            'name' => $assistanceItem->item?->name ?? EmptyCell::VALUE,
                             'kind' => $assistanceItem->item?->kind,
                             'quantity' => $assistanceItem->quantity,
                             'unit' => $assistanceItem->item?->unitMeasurement?->name,
@@ -261,10 +287,19 @@ class AssistanceService
                         ])
                         ->values()
                         ->all(),
-                    'mode_of_request' => $assistance->mode_of_request_name ?? '—',
+                    'mode_of_request' => $assistance->mode_of_request_name ?? EmptyCell::VALUE,
                     'encoder_name' => $assistance->user_id === null
                         ? 'Public intake'
-                        : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: '—'),
+                        : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: EmptyCell::VALUE),
+                    'assigned_to_id' => $assistance->assigned_to_id,
+                    'assignee_name' => $assistance->assigned_to_id === null
+                        ? null
+                        : (trim(($assistance->assignedTo?->firstName ?? '').' '.($assistance->assignedTo?->lastName ?? '')) ?: null),
+                    'can_advance' => $viewer instanceof User && $viewer->can('advance', $assistance),
+                    'step_has_owner' => $assistance->currentWorkflowStep()?->assigned_to_id !== null,
+                    'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
+                    'sla_paused_at' => $assistance->sla_paused_at?->toIso8601String(),
+                    'sla_state' => $assistance->slaState(),
                     'date_requested' => $formatDate($assistance->date_requested),
                     'date_delivered' => $formatDate($assistance->date_delivered),
                     'request_status' => $requestStatus,
@@ -327,10 +362,16 @@ class AssistanceService
             'assistances.id',
             'assistances.beneficiary_id',
             'assistances.user_id',
+            'assistances.program_id',
+            'assistances.assigned_to_id',
+            'assistances.assigned_at',
+            'assistances.sla_due_at',
+            'assistances.sla_paused_at',
             'assistances.mode_of_request_id',
             'assistances.date_requested',
             'assistances.date_delivered',
             'assistances.remark',
+            'assistances.current_request_sub_status_id',
             'beneficiaries.cais_number as beneficiary_cais_number',
             'beneficiaries.name as beneficiary_name',
             'mode_of_requests.name as mode_of_request_name',
@@ -340,6 +381,11 @@ class AssistanceService
             'assistances.current_status_recorded_at as request_sub_status_recorded_at',
         ])->with([
             'user:id,firstName,lastName',
+            'assignedTo:id,firstName,lastName',
+            'currentRequestSubStatus:id,request_status_id,name',
+            'program:id,department_id,workflow_id,parent_id',
+            'program.workflow.steps',
+            'program.parent.workflow.steps',
             'assistanceItem',
             'assistanceItem.item:id,name,kind,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
@@ -405,32 +451,77 @@ class AssistanceService
     }
 
     /**
-     * @return list<array{id: int, name: string, request_status: string|null, label: string}>
+     * @return list<array{id: int, name: string, request_status: string|null, request_status_code: string|null, label: string}>
      */
-    public function requestSubStatusesForSelect(): array
+    public function requestSubStatusesForSelect(?Program $program = null): array
     {
-        return RequestSubStatus::query()
+        $query = RequestSubStatus::query()
             ->join(
                 'request_statuses',
                 'request_statuses.id',
                 '=',
                 'request_sub_statuses.request_status_id',
             )
-            ->orderBy('request_statuses.name')
-            ->orderBy('request_sub_statuses.name')
+            ->where('request_sub_statuses.is_retired', false)
+            ->where('request_statuses.is_retired', false)
+            ->orderBy('request_statuses.sort_order')
+            ->orderBy('request_sub_statuses.name');
+
+        if ($program instanceof Program) {
+            $statusIds = $program->resolvedWorkflow()->steps->pluck('request_status_id')->all();
+
+            if ($statusIds !== []) {
+                $query->whereIn('request_sub_statuses.request_status_id', $statusIds);
+            }
+        }
+
+        return $query
             ->get([
                 'request_sub_statuses.id',
                 'request_sub_statuses.name',
                 'request_statuses.name as request_status_name',
+                'request_statuses.code as request_status_code',
             ])
             ->map(static fn ($subStatus): array => [
                 'id' => (int) $subStatus->id,
                 'name' => $subStatus->name,
                 'request_status' => $subStatus->request_status_name,
+                'request_status_code' => $subStatus->request_status_code,
                 'label' => "{$subStatus->request_status_name} — {$subStatus->name}",
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string}>
+     */
+    public function departmentStaffForSelect(Program $program): array
+    {
+        return User::query()
+            ->where('department_id', $program->department_id)
+            ->orderBy('lastName')
+            ->orderBy('firstName')
+            ->get(['id', 'firstName', 'lastName'])
+            ->map(static fn (User $user): array => [
+                'id' => $user->id,
+                'name' => trim($user->firstName.' '.$user->lastName),
+            ])
+            ->all();
+    }
+
+    private function staffEntrySubStatusId(Program $program): ?int
+    {
+        $workflow = $program->resolvedWorkflow();
+        $entryStatusId = $workflow->staff_entry_request_status_id;
+        $step = $workflow->stepForStatus((int) $entryStatusId);
+
+        if ($step?->default_request_sub_status_id) {
+            return (int) $step->default_request_sub_status_id;
+        }
+
+        return app(RequestStatusCatalog::class)
+            ->reasonId(RequestSubStatusCode::AwaitingReview);
     }
 
     /**
@@ -496,7 +587,7 @@ class AssistanceService
                     return [
                         'id' => $assistance->id,
                         'program_id' => $assistance->program_id,
-                        'program_name' => $assistance->program?->name ?? '—',
+                        'program_name' => $assistance->program?->name ?? EmptyCell::VALUE,
                         'status' => $status,
                         'date_requested' => $assistance->date_requested !== null
                             ? Carbon::parse($assistance->date_requested)->toDateString()
@@ -506,7 +597,7 @@ class AssistanceService
                             : null,
                         'items' => $assistance->assistanceItem
                             ->map(static fn (AssistanceItem $item): array => [
-                                'name' => $item->item?->name ?? '—',
+                                'name' => $item->item?->name ?? EmptyCell::VALUE,
                                 'quantity' => (int) $item->quantity,
                                 'is_received' => (bool) $item->is_received,
                             ])

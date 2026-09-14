@@ -6,6 +6,7 @@ import { ItemDataTableRowActions } from '@/pages/user/items/item-row-actions';
 import type { UnitMeasurementOption } from '@/pages/user/items/item-toolbar';
 import { ITEM_KIND_LABELS, tracksInventory, type ItemKind } from '@/types/item';
 import { ColumnDef } from '@tanstack/react-table';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 export type UserDepartmentItemRow = {
     id: number;
@@ -60,7 +61,7 @@ export function createUserDepartmentItemColumns({
             header: ({ column }) => (
                 <DataTableColumnHeader column={column} title="Unit" />
             ),
-            cell: ({ row }) => row.original.unit ?? '—',
+            cell: ({ row }) => row.original.unit ?? EMPTY_CELL,
         },
         {
             id: 'on_hand',
@@ -72,7 +73,7 @@ export function createUserDepartmentItemColumns({
                 tracksInventory(row.original.kind) ? (
                     <span className="tabular-nums">{row.original.on_hand}</span>
                 ) : (
-                    '—'
+                    EMPTY_CELL
                 ),
         },
         {
@@ -87,7 +88,7 @@ export function createUserDepartmentItemColumns({
                         {row.original.allocated}
                     </span>
                 ) : (
-                    '—'
+                    EMPTY_CELL
                 ),
         },
         {
@@ -102,7 +103,7 @@ export function createUserDepartmentItemColumns({
                         {row.original.available}
                     </span>
                 ) : (
-                    '—'
+                    EMPTY_CELL
                 ),
         },
         {
@@ -118,7 +119,7 @@ export function createUserDepartmentItemColumns({
                         {row.original.unspsc_code}
                     </span>
                 ) : (
-                    '—'
+                    EMPTY_CELL
                 ),
         },
         {
@@ -130,8 +131,8 @@ export function createUserDepartmentItemColumns({
             ),
             cell: ({ row }) =>
                 tracksInventory(row.original.kind)
-                    ? (row.original.nearest_expiry ?? '—')
-                    : '—',
+                    ? (row.original.nearest_expiry ?? EMPTY_CELL)
+                    : EMPTY_CELL,
         },
         {
             id: 'actions',

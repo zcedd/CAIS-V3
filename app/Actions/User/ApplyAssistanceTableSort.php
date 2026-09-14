@@ -21,9 +21,9 @@ class ApplyAssistanceTableSort
             'mode_of_request' => $query->orderBy('mode_of_requests.name', $direction),
             'status' => $query->orderByRaw(
                 "CASE
-                    WHEN rs.name = 'Denied' THEN 1
-                    WHEN rs.name = 'Delivered' THEN 2
-                    WHEN rs.name = 'Verification' THEN 3
+                    WHEN rs.code = 'denied' OR rs.name = 'Denied' THEN 1
+                    WHEN rs.code = 'delivered' OR rs.name = 'Delivered' THEN 2
+                    WHEN rs.code = 'review' OR rs.name IN ('Review', 'Verification', 'Pending Review') THEN 3
                     WHEN rs.name IS NOT NULL THEN 4
                     ELSE 5
                 END {$direction}",

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Assistance;
+use App\Support\EmptyCell;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Carbon;
@@ -14,6 +15,7 @@ class StaleAssistanceReminderNotification extends Notification
     public function __construct(
         private Assistance $assistance,
         private string $monthKey,
+        private ?string $dayKey = null,
     ) {}
 
     /**
@@ -45,7 +47,7 @@ class StaleAssistanceReminderNotification extends Notification
 
         $programName = $assistance->program?->name ?? 'Unknown program';
         $beneficiaryName = $assistance->beneficiary?->name ?? 'Unknown beneficiary';
-        $caisNumber = $assistance->beneficiary?->cais_number ?? '—';
+        $caisNumber = $assistance->beneficiary?->cais_number ?? EmptyCell::VALUE;
 
         $latestStatus = $assistance->latestAssistanceRequestSubStatus;
         $requestSubStatus = $latestStatus?->requestSubStatus?->name;
@@ -94,6 +96,7 @@ class StaleAssistanceReminderNotification extends Notification
             'assistance_id' => $assistance->id,
             'program_id' => $assistance->program_id,
             'month_key' => $this->monthKey,
+            'day_key' => $this->dayKey ?? now()->toDateString(),
         ];
     }
 }

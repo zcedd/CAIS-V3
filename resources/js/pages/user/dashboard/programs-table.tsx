@@ -22,7 +22,7 @@ export function ProgramsTable({ department, data }: ProgramsTableProps) {
     return (
         <DashboardSectionCard
             title="Programs"
-            description="Latest programs with delivery rate, denied, and in-progress counts for the selected filters"
+            description="Recent programs, with delivered, denied, and in-progress counts"
             icon={FolderKanban}
             data-tour="dashboard-programs-summary"
         >

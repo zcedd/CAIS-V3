@@ -13,6 +13,7 @@ import {
     DashboardStatCardSkeleton,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DashboardSummary } from '@/types/dashboard';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 
 type DashboardHighlightsProps = {
     summary: DashboardSummary;
@@ -109,14 +110,14 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
                 value={
                     summary.avg_days_to_deliver !== null
                         ? summary.avg_days_to_deliver.toFixed(1)
-                        : '—'
+                        : EMPTY_CELL
                 }
                 description={
                     <>
                         Verify avg:{' '}
                         {summary.avg_days_to_verify !== null
                             ? `${summary.avg_days_to_verify.toFixed(1)}d`
-                            : '—'}
+                            : EMPTY_CELL}
                     </>
                 }
                 icon={Clock3}
@@ -141,7 +142,7 @@ export function DeliverySnapshot({
     return (
         <DashboardSectionCard
             title="Delivery snapshot"
-            description="Completion and load metrics for the selected filters"
+            description="How much of the filtered work is done"
             icon={Package}
             data-tour="dashboard-delivery-snapshot"
             contentClassName="space-y-6"
@@ -205,7 +206,7 @@ export function DeliverySnapshot({
                     description={
                         summary.delivered_requests > 0
                             ? 'Average items per delivered request'
-                            : 'No deliveries in scope'
+                            : 'No deliveries in this filter'
                     }
                 />
             </div>

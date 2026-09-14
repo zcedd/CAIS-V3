@@ -21,7 +21,7 @@ const primaryKpis = [
     {
         key: 'total_requests' as const,
         label: 'Total requests',
-        description: 'Assistance requests in scope',
+        description: 'Assistance requests matching the filters',
         icon: ClipboardList,
     },
     {
@@ -33,7 +33,7 @@ const primaryKpis = [
     {
         key: 'in_progress_requests' as const,
         label: 'In progress',
-        description: 'Not yet in a terminal status',
+        description: 'Not delivered or denied yet',
         icon: Loader,
     },
     {
@@ -54,13 +54,13 @@ const secondaryKpis = [
     {
         key: 'unique_beneficiaries' as const,
         label: 'Beneficiaries',
-        description: 'Unique beneficiaries assisted',
+        description: 'People and organizations assisted',
         icon: Users,
     },
     {
         key: 'active_programs' as const,
         label: 'Active programs',
-        description: 'Open programs in department',
+        description: 'Open programs',
         icon: FolderKanban,
     },
 ];

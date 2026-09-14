@@ -37,14 +37,14 @@ export function UnspscReleasedChart({
 
     const chart =
         chartData.length === 0 ? (
-            <p className="flex h-[180px] items-center justify-center text-sm text-muted-foreground">
-                No classified released items for the selected filters.
+            <p className="flex h-45 items-center justify-center text-sm text-muted-foreground">
+                No classified released items with these filters.
             </p>
         ) : (
             <DashboardChartFrame height={chartHeight} className={className}>
                 <ChartContainer
                     config={chartConfig}
-                    className="!aspect-auto h-full w-full"
+                    className="aspect-auto! h-full w-full"
                     initialDimension={{ width: 640, height: chartHeight }}
                 >
                     <BarChart

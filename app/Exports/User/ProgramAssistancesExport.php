@@ -3,6 +3,7 @@
 namespace App\Exports\User;
 
 use App\Models\Assistance;
+use App\Support\EmptyCell;
 use App\Support\ItemKind;
 use App\Support\SpreadsheetCell;
 use Illuminate\Support\Carbon;
@@ -47,7 +48,7 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
     {
         $items = $assistance->assistanceItem
             ->map(static function ($assistanceItem): string {
-                $name = $assistanceItem->item?->name ?? '—';
+                $name = $assistanceItem->item?->name ?? EmptyCell::VALUE;
                 $quantity = $assistanceItem->quantity;
                 $unit = $assistanceItem->item?->unitMeasurement?->name;
                 $kind = $assistanceItem->item?->kind;
@@ -80,12 +81,12 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
             ->implode('; ');
 
         return [
-            SpreadsheetCell::sanitize($assistance->beneficiary_cais_number ?? '—'),
-            SpreadsheetCell::sanitize($assistance->beneficiary_name ?? '—'),
-            SpreadsheetCell::sanitize($items !== '' ? $items : '—'),
-            SpreadsheetCell::sanitize($assistance->mode_of_request_name ?? '—'),
-            SpreadsheetCell::sanitize($assistance->request_status_name ?? '—'),
-            SpreadsheetCell::sanitize($assistance->request_sub_status_name ?? '—'),
+            SpreadsheetCell::sanitize($assistance->beneficiary_cais_number ?? EmptyCell::VALUE),
+            SpreadsheetCell::sanitize($assistance->beneficiary_name ?? EmptyCell::VALUE),
+            SpreadsheetCell::sanitize($items !== '' ? $items : EmptyCell::VALUE),
+            SpreadsheetCell::sanitize($assistance->mode_of_request_name ?? EmptyCell::VALUE),
+            SpreadsheetCell::sanitize($assistance->request_status_name ?? EmptyCell::VALUE),
+            SpreadsheetCell::sanitize($assistance->request_sub_status_name ?? EmptyCell::VALUE),
             SpreadsheetCell::sanitize($this->formatDateTime($assistance->request_sub_status_recorded_at)),
             SpreadsheetCell::sanitize($this->formatDate($assistance->date_requested)),
             SpreadsheetCell::sanitize($this->formatDate($assistance->date_delivered)),

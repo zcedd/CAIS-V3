@@ -16,8 +16,8 @@ export default function Dashboard({
                             No department assigned
                         </h1>
                         <p className="mt-2 text-sm text-muted-foreground">
-                            Your account is not linked to a department yet. Contact
-                            an administrator to access the department dashboard.
+                            Your account is not linked to a department yet.
+                            Ask an administrator to assign one.
                         </p>
                     </div>
                 ) : (
