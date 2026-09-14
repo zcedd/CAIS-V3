@@ -2,17 +2,18 @@
 
 import { Button } from '@/components/ui/button';
 import { show as assistanceShow } from '@/routes/user/assistances';
+import {
+    ASSISTANCE_ITEM_ORIGIN_LABELS,
+    formatItemQuantity,
+} from '@/types/assistance-item';
+import type {
+    AssistanceItemVariance,
+    AssistanceReleasedItem,
+    AssistanceRequestedItem,
+} from '@/types/assistance-item';
 import { Head, Link } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { useEffect } from 'react';
-
-type ReceiptItem = {
-    name: string;
-    quantity: number | null;
-    unit: string | null;
-    specification: string | null;
-    is_received: boolean;
-};
 
 type ReceiptPayload = {
     assistance_id: number;
@@ -23,8 +24,9 @@ type ReceiptPayload = {
     printed_at: string;
     profile_url: string;
     qr_svg: string;
-    requested_items: ReceiptItem[];
-    released_items: ReceiptItem[];
+    requested_items: AssistanceRequestedItem[];
+    released_items: AssistanceReleasedItem[];
+    item_variance: AssistanceItemVariance;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -41,33 +43,77 @@ function formatDate(value: string | null | undefined): string {
     return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
 }
 
-function formatAmount(item: ReceiptItem): string {
-    if (item.quantity !== null && item.unit) {
-        return `${item.quantity} ${item.unit}`;
-    }
-
-    if (item.quantity !== null) {
-        return String(item.quantity);
-    }
-
-    return item.unit ?? '—';
-}
-
-function ItemsTable({
-    title,
-    items,
-    emptyLabel,
-}: {
-    title: string;
-    items: ReceiptItem[];
-    emptyLabel: string;
-}) {
+function RequestedItemsTable({ items }: { items: AssistanceRequestedItem[] }) {
     return (
         <section className="space-y-2">
-            <h2 className="text-sm font-semibold tracking-tight">{title}</h2>
+            <h2 className="text-sm font-semibold tracking-tight">
+                Items requested
+            </h2>
             {items.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
-                    {emptyLabel}
+                    No requested items recorded.
+                </p>
+            ) : (
+                <table className="w-full border-collapse text-sm">
+                    <thead>
+                        <tr className="border-b border-border text-left">
+                            <th className="py-1.5 pr-3 font-medium">Item</th>
+                            <th className="py-1.5 pr-3 font-medium">
+                                Requested
+                            </th>
+                            <th className="py-1.5 pr-3 font-medium">
+                                Released
+                            </th>
+                            <th className="py-1.5 font-medium">
+                                Specification
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {items.map((item) => (
+                            <tr
+                                key={item.item_id}
+                                className="border-b border-border/70"
+                            >
+                                <td className="py-1.5 pr-3">{item.name}</td>
+                                <td className="py-1.5 pr-3 tabular-nums">
+                                    {formatItemQuantity(
+                                        item.requested_quantity,
+                                        item.unit,
+                                    )}
+                                </td>
+                                <td className="py-1.5 pr-3 tabular-nums">
+                                    {formatItemQuantity(
+                                        item.released_quantity,
+                                        item.unit,
+                                    )}
+                                    {item.substituted_quantity > 0
+                                        ? ' (substituted)'
+                                        : ''}
+                                </td>
+                                <td className="py-1.5 text-muted-foreground">
+                                    {item.specification?.trim()
+                                        ? item.specification
+                                        : '—'}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            )}
+        </section>
+    );
+}
+
+function ReleasedItemsTable({ items }: { items: AssistanceReleasedItem[] }) {
+    return (
+        <section className="space-y-2">
+            <h2 className="text-sm font-semibold tracking-tight">
+                Items actually released
+            </h2>
+            {items.length === 0 ? (
+                <p className="text-sm text-muted-foreground italic">
+                    No items have been marked released yet.
                 </p>
             ) : (
                 <table className="w-full border-collapse text-sm">
@@ -75,25 +121,39 @@ function ItemsTable({
                         <tr className="border-b border-border text-left">
                             <th className="py-1.5 pr-3 font-medium">Item</th>
                             <th className="py-1.5 pr-3 font-medium">Amount</th>
+                            <th className="py-1.5 pr-3 font-medium">Type</th>
                             <th className="py-1.5 font-medium">
-                                Specification
+                                Reason / specification
                             </th>
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, index) => (
+                        {items.map((item) => (
                             <tr
-                                key={`${item.name}-${index}`}
+                                key={item.id}
                                 className="border-b border-border/70"
                             >
                                 <td className="py-1.5 pr-3">{item.name}</td>
                                 <td className="py-1.5 pr-3 tabular-nums">
-                                    {formatAmount(item)}
+                                    {formatItemQuantity(
+                                        item.quantity,
+                                        item.unit,
+                                    )}
+                                </td>
+                                <td className="py-1.5 pr-3">
+                                    {ASSISTANCE_ITEM_ORIGIN_LABELS[item.origin]}
+                                    {item.substituted_for_name
+                                        ? ` for ${item.substituted_for_name}`
+                                        : ''}
                                 </td>
                                 <td className="py-1.5 text-muted-foreground">
-                                    {item.specification?.trim()
-                                        ? item.specification
-                                        : '—'}
+                                    {[
+                                        item.fulfillment_reason,
+                                        item.specification,
+                                    ]
+                                        .map((value) => value?.trim())
+                                        .filter(Boolean)
+                                        .join(' · ') || '—'}
                                 </td>
                             </tr>
                         ))}
@@ -213,17 +273,29 @@ export default function UserAssistanceReceipt({
                     </div>
                 </dl>
 
-                <ItemsTable
-                    title="Items requested"
-                    items={receipt.requested_items}
-                    emptyLabel="No requested items recorded."
-                />
+                <RequestedItemsTable items={receipt.requested_items} />
 
-                <ItemsTable
-                    title="Items actually released"
-                    items={receipt.released_items}
-                    emptyLabel="No items have been marked released yet."
-                />
+                <ReleasedItemsTable items={receipt.released_items} />
+
+                {receipt.item_variance.has_variance ? (
+                    <p className="text-xs text-muted-foreground">
+                        Variance against the request:{' '}
+                        {[
+                            receipt.item_variance.additional_quantity > 0
+                                ? `${receipt.item_variance.additional_quantity} additional`
+                                : null,
+                            receipt.item_variance.substitute_quantity > 0
+                                ? `${receipt.item_variance.substitute_quantity} substitute`
+                                : null,
+                            receipt.item_variance.shortfall_quantity > 0
+                                ? `${receipt.item_variance.shortfall_quantity} not yet released`
+                                : null,
+                        ]
+                            .filter(Boolean)
+                            .join(', ')}
+                        .
+                    </p>
+                ) : null}
 
                 <section className="grid gap-8 pt-8 sm:grid-cols-2">
                     <div className="space-y-10">

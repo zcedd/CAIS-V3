@@ -11,6 +11,7 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\RequestSubStatus;
 use App\Models\User;
+use App\Support\AssistanceItemOrigin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -142,4 +143,113 @@ test('authenticated users can update assistance for their department program', f
     expect($assistanceItem)->not->toBeNull()
         ->and($assistanceItem->quantity)->toBe(4)
         ->and($assistanceItem->specification)->toBe('new spec');
+});
+
+test('updating an assistance rewrites only what is still owed and keeps released lines', function () {
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $unit = ItemUnitMeasurement::create(['name' => 'kg']);
+
+    $riceItem = Item::create([
+        'name' => 'Rice',
+        'department_id' => $department->id,
+        'item_unit_measurement_id' => $unit->id,
+    ]);
+    $oilItem = Item::create([
+        'name' => 'Cooking oil',
+        'department_id' => $department->id,
+        'item_unit_measurement_id' => $unit->id,
+    ]);
+
+    $program->item()->attach([$riceItem->id, $oilItem->id]);
+
+    $beneficiary = Beneficiary::create([
+        'cais_number' => 'CAIS-010',
+        'name' => 'Juan Dela Cruz',
+        'beneficiable_type' => 'App\\Models\\Individual',
+        'beneficiable_id' => 1,
+    ]);
+
+    $assistance = Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => ModeOfRequest::create(['name' => 'Walk In'])->id,
+        'date_requested' => '2026-05-01',
+        'user_id' => $user->id,
+    ]);
+
+    $pendingRice = AssistanceItem::create([
+        'assistance_id' => $assistance->id,
+        'item_id' => $riceItem->id,
+        'origin' => AssistanceItemOrigin::Requested,
+        'quantity' => 1,
+        'requested_quantity' => 1,
+        'is_received' => false,
+    ]);
+
+    $releasedRice = AssistanceItem::create([
+        'assistance_id' => $assistance->id,
+        'item_id' => $riceItem->id,
+        'origin' => AssistanceItemOrigin::Requested,
+        'quantity' => 1,
+        'requested_quantity' => 1,
+        'is_received' => true,
+    ]);
+
+    $additionalOil = AssistanceItem::create([
+        'assistance_id' => $assistance->id,
+        'item_id' => $oilItem->id,
+        'origin' => AssistanceItemOrigin::Additional,
+        'quantity' => 1,
+        'requested_quantity' => 0,
+        'fulfillment_reason' => 'leftover pack',
+        'is_received' => true,
+    ]);
+
+    $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]))->put(
+        route('user.programs.assistances.update', [
+            'department' => $department->slug,
+            'program' => $program->id,
+            'assistance' => $assistance->id,
+        ]),
+        [
+            'beneficiary_id' => $beneficiary->id,
+            'mode_of_request_id' => $assistance->mode_of_request_id,
+            'item_details' => [
+                [
+                    'item_id' => $riceItem->id,
+                    'quantity' => 3,
+                ],
+            ],
+        ],
+    )->assertSessionHasNoErrors();
+
+    $rewrittenRice = AssistanceItem::query()
+        ->where('assistance_id', $assistance->id)
+        ->awaitingRelease()
+        ->sole();
+
+    expect($pendingRice->fresh()->trashed())->toBeTrue()
+        ->and($releasedRice->fresh()->trashed())->toBeFalse()
+        ->and($releasedRice->fresh()->is_received)->toBeTrue()
+        ->and($additionalOil->fresh()->fulfillment_reason)->toBe('leftover pack')
+        ->and($rewrittenRice->quantity)->toBe(3)
+        ->and($rewrittenRice->requested_quantity)->toBe(3);
 });

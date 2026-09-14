@@ -8,7 +8,9 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
+use App\Support\AssistanceItemOrigin;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
@@ -47,8 +49,26 @@ test('authenticated users can view a printable acknowledgment receipt', function
     AssistanceItem::create([
         'assistance_id' => $assistance->id,
         'item_id' => $item->id,
+        'origin' => AssistanceItemOrigin::Requested,
         'quantity' => 2,
+        'requested_quantity' => 2,
         'specification' => '25 kg',
+        'is_received' => true,
+    ]);
+
+    $oilItem = Item::create([
+        'name' => 'Cooking oil',
+        'department_id' => $department->id,
+        'item_unit_measurement_id' => $unit->id,
+    ]);
+
+    AssistanceItem::create([
+        'assistance_id' => $assistance->id,
+        'item_id' => $oilItem->id,
+        'origin' => AssistanceItemOrigin::Additional,
+        'quantity' => 1,
+        'requested_quantity' => 0,
+        'fulfillment_reason' => 'leftover pack',
         'is_received' => true,
     ]);
 
@@ -65,7 +85,15 @@ test('authenticated users can view a printable acknowledgment receipt', function
             ->where('receipt.beneficiary_name', 'Juan Dela Cruz')
             ->where('receipt.released_items.0.name', 'Rice')
             ->where('receipt.released_items.0.quantity', 2)
-            ->where('receipt.requested_items.0.is_received', true)
+            ->where('receipt.released_items.0.origin', AssistanceItemOrigin::Requested)
+            ->where('receipt.released_items.1.name', 'Cooking oil')
+            ->where('receipt.released_items.1.origin', AssistanceItemOrigin::Additional)
+            ->where('receipt.released_items.1.fulfillment_reason', 'leftover pack')
+            ->where('receipt.requested_items', fn (Collection $items): bool => $items->count() === 1)
+            ->where('receipt.requested_items.0.requested_quantity', 2)
+            ->where('receipt.requested_items.0.released_quantity', 2)
+            ->where('receipt.item_variance.additional_quantity', 1)
+            ->where('receipt.item_variance.has_variance', true)
             ->where('receipt.qr_svg', fn (string $svg): bool => str_contains($svg, '<svg') && str_contains($svg, '</svg>'))
             ->has('receipt.profile_url'));
 });

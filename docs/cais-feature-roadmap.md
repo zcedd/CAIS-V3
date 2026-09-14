@@ -60,18 +60,18 @@ Use UNSPSC as a **classification** on each department item:
 
 License: UNSPSC codes are maintained by GS1; confirm the version and usage terms before bundling a code list.
 
-### 3b. Requested vs delivered assistance items
+### _3b. Requested vs delivered assistance items_
 
 Do not rewrite the original request when staff release something that was not applied for. Delivery today can only pick existing pending `assistance_item` rows, and quantity cannot exceed requested. Extras therefore cannot be recorded honestly. Editing the assistance is worse: it deletes all lines and recreates them as not received.
 
 Keep one assistance, two facts: **what was requested** and **what was released**.
 
-| Line | Meaning | Treatment |
-| --- | --- | --- |
-| Requested | What they applied for | Stays pending until that quantity is handed over |
-| Delivered (from request) | Fulfillment of a requested line | Current split-row behavior (`is_received = true`) |
-| **Additional** | Given at release, never on the form | New received row, `requested_quantity = 0`, reason required |
-| **Substitute** | Replaces a requested item | Requested line marked substituted (not delivered); new received row linked to it |
+| Line                     | Meaning                             | Treatment                                                                        |
+| ------------------------ | ----------------------------------- | -------------------------------------------------------------------------------- |
+| Requested                | What they applied for               | Stays pending until that quantity is handed over                                 |
+| Delivered (from request) | Fulfillment of a requested line     | Current split-row behavior (`is_received = true`)                                |
+| **Additional**           | Given at release, never on the form | New received row, `requested_quantity = 0`, reason required                      |
+| **Substitute**           | Replaces a requested item           | Requested line marked substituted (not delivered); new received row linked to it |
 
 Three cases (do not mix them):
 
@@ -138,10 +138,10 @@ Example: Educational Assistance 2026 → Batch 1 (Jan–Mar), Batch 2 (Apr–Jun
 
 Keep using the `programs` table. Add nullable `parent_id` (self FK) and optional `batch_number` / `batch_name`.
 
-| Level | What it is | What lives here |
-| --- | --- | --- |
-| **Parent** | The program used in reports | Name, description, individual vs organization, default items, default custom fields, eligibility rules |
-| **Batch (child)** | An open period staff encode into | Batch name/number, start/end, open/closed, funds and stock for that run, assistances |
+| Level             | What it is                       | What lives here                                                                                        |
+| ----------------- | -------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Parent**        | The program used in reports      | Name, description, individual vs organization, default items, default custom fields, eligibility rules |
+| **Batch (child)** | An open period staff encode into | Batch name/number, start/end, open/closed, funds and stock for that run, assistances                   |
 
 Rules:
 
@@ -264,18 +264,18 @@ The system stores birthday, mobile, PWD, 4Ps, ethnicity, and IDs.
 
 ## UX and product polish
 
-| Gap | Suggestion |
-| --- | --- |
-| Dashboard is view-only | Click a KPI or barangay bar to open the filtered assistance list |
-| Export is program-only | Dashboard-level export of the current filters |
-| Notifications are database-only | Email digest of stale / assigned / denied |
-| Tour exists | Role-based tours + What’s new after releases |
-| Closed programs | Read-only archive with a reopen request; close per batch, archive parent when all batches are closed |
-| Transfers | Require a reason and show on the timeline; restrict to sibling batches under the same parent |
-| Custom program fields | Reuse field templates across programs; inherit from parent, override per batch |
-| No print from show page | One-click print profile / routing slip; receipt shows requested vs released items |
-| Assistance items | Group requested vs released; allow additional/substitute at delivery with a reason |
-| Mobile encode | Compact encode flow for tablets in the field |
+| Gap                             | Suggestion                                                                                           |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Dashboard is view-only          | Click a KPI or barangay bar to open the filtered assistance list                                     |
+| Export is program-only          | Dashboard-level export of the current filters                                                        |
+| Notifications are database-only | Email digest of stale / assigned / denied                                                            |
+| Tour exists                     | Role-based tours + What’s new after releases                                                         |
+| Closed programs                 | Read-only archive with a reopen request; close per batch, archive parent when all batches are closed |
+| Transfers                       | Require a reason and show on the timeline; restrict to sibling batches under the same parent         |
+| Custom program fields           | Reuse field templates across programs; inherit from parent, override per batch                       |
+| No print from show page         | One-click print profile / routing slip; receipt shows requested vs released items                    |
+| Assistance items                | Group requested vs released; allow additional/substitute at delivery with a reason                   |
+| Mobile encode                   | Compact encode flow for tablets in the field                                                         |
 
 ---
 

@@ -6,6 +6,7 @@ use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Beneficiary;
 use App\Services\User\ProgramFieldService;
+use App\Support\AssistanceItemOrigin;
 use Illuminate\Support\Facades\DB;
 
 class UpdateProgramAssistance
@@ -65,15 +66,20 @@ class UpdateProgramAssistance
                 'eligibility_override_reason' => $overrideReason,
             ]);
 
+            // Released and substituted lines record what actually happened, so only the
+            // outstanding part of the request is rewritten here.
             AssistanceItem::query()
                 ->where('assistance_id', $assistance->id)
+                ->awaitingRelease()
                 ->delete();
 
             foreach ($validated['item_details'] as $itemDetail) {
                 AssistanceItem::query()->create([
                     'assistance_id' => $assistance->id,
                     'item_id' => $itemDetail['item_id'],
+                    'origin' => AssistanceItemOrigin::Requested,
                     'quantity' => $itemDetail['quantity'],
+                    'requested_quantity' => $itemDetail['quantity'],
                     'specification' => $itemDetail['specification'] ?? null,
                     'is_received' => false,
                 ]);

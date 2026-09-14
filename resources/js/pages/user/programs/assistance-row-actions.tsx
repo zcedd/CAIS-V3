@@ -33,7 +33,16 @@ import { destroy as destroyProgramAssistance } from '@/routes/user/programs/assi
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Link, router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
-import { Check, Copy, Edit, Eye, MoreHorizontal, Trash, UserRound, ArrowRightLeft } from 'lucide-react';
+import {
+    Check,
+    Copy,
+    Edit,
+    Eye,
+    MoreHorizontal,
+    Trash,
+    UserRound,
+    ArrowRightLeft,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 
@@ -147,7 +156,9 @@ export function AssistanceDataTableRowActions({
                         Update Status
                     </DropdownMenuItem>
                     {canTransferAssistance ? (
-                        <DropdownMenuItem onSelect={() => setTransferOpen(true)}>
+                        <DropdownMenuItem
+                            onSelect={() => setTransferOpen(true)}
+                        >
                             <ArrowRightLeft className="mr-2 h-4 w-4" />
                             Transfer program
                         </DropdownMenuItem>
@@ -217,6 +228,7 @@ export function AssistanceDataTableRowActions({
                 currentRecordedAt={record.request_sub_status_recorded_at}
                 requestSubStatusOptions={requestSubStatusOptions}
                 assistanceItems={record.items}
+                programItems={programItems}
                 onUpdated={onAssistanceUpdated}
             />
 

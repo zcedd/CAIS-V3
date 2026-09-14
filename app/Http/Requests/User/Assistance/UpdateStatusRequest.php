@@ -4,11 +4,14 @@ namespace App\Http\Requests\User\Assistance;
 
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Models\Program;
 use App\Models\RequestSubStatus;
+use App\Support\AssistanceItemOrigin;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Exists;
 use Illuminate\Validation\Validator;
 
 class UpdateStatusRequest extends FormRequest
@@ -22,14 +25,51 @@ class UpdateStatusRequest extends FormRequest
     }
 
     /**
+     * The delivery drawer auto-selects the only outstanding requested line. A substitute of
+     * that same line is the more specific intent, so drop it from delivered_items first.
+     */
+    protected function prepareForValidation(): void
+    {
+        $deliveredItems = $this->input('delivered_items');
+        $extraItems = $this->input('extra_items');
+
+        if (! is_array($deliveredItems) || ! is_array($extraItems)) {
+            return;
+        }
+
+        $substitutedIds = collect($extraItems)
+            ->filter(static fn (mixed $row): bool => is_array($row)
+                && ($row['origin'] ?? null) === AssistanceItemOrigin::Substitute)
+            ->map(static fn (array $row): int => (int) ($row['substituted_for_assistance_item_id'] ?? 0))
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->unique()
+            ->all();
+
+        if ($substitutedIds === []) {
+            return;
+        }
+
+        $this->merge([
+            'delivered_items' => collect($deliveredItems)
+                ->filter(static fn (mixed $row): bool => is_array($row)
+                    && ! in_array((int) ($row['assistance_item_id'] ?? 0), $substitutedIds, true))
+                ->values()
+                ->all(),
+        ]);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
-        /** @var Assistance $assistance */
-        $assistance = $this->route('assistance');
+        /** @var Program $program */
+        $program = $this->route('program');
+
+        $programItemIds = $program->item()->pluck('items.id')->all();
+        $notDelivered = fn (): bool => ! $this->isDeliveredSubStatus();
 
         return [
             'request_sub_status_id' => [
@@ -39,21 +79,32 @@ class UpdateStatusRequest extends FormRequest
             ],
             'recorded_at' => ['required', 'date'],
             'remark' => ['nullable', 'string'],
-            'delivered_items' => [
-                Rule::requiredIf(fn (): bool => $this->isDeliveredSubStatus()),
-                'array',
-                'min:1',
-            ],
+            'delivered_items' => [Rule::prohibitedIf($notDelivered), 'array'],
             'delivered_items.*.assistance_item_id' => [
                 'required',
                 'integer',
                 'distinct',
-                Rule::exists('assistance_item', 'id')
-                    ->where('assistance_id', $assistance->id)
-                    ->where('is_received', 0),
+                $this->awaitingReleaseRule(),
             ],
             'delivered_items.*.quantity' => ['required', 'integer', 'min:1'],
             'delivered_items.*.specification' => ['nullable', 'string', 'max:255'],
+            'extra_items' => [Rule::prohibitedIf($notDelivered), 'array'],
+            'extra_items.*.origin' => [
+                'required',
+                'string',
+                Rule::in(AssistanceItemOrigin::unrequestedValues()),
+            ],
+            'extra_items.*.item_id' => ['required', 'integer', Rule::in($programItemIds)],
+            'extra_items.*.quantity' => ['required', 'integer', 'min:1'],
+            'extra_items.*.specification' => ['nullable', 'string', 'max:255'],
+            'extra_items.*.fulfillment_reason' => ['required', 'string', 'max:255'],
+            'extra_items.*.substituted_for_assistance_item_id' => [
+                'nullable',
+                'integer',
+                'required_if:extra_items.*.origin,'.AssistanceItemOrigin::Substitute,
+                'prohibited_unless:extra_items.*.origin,'.AssistanceItemOrigin::Substitute,
+                $this->awaitingReleaseRule(),
+            ],
         ];
     }
 
@@ -68,36 +119,77 @@ class UpdateStatusRequest extends FormRequest
                     return;
                 }
 
-                /** @var Assistance $assistance */
-                $assistance = $this->route('assistance');
+                $deliveredItems = $this->input('delivered_items', []);
+                $extraItems = $this->input('extra_items', []);
 
-                foreach ($this->input('delivered_items', []) as $index => $deliveredItem) {
-                    $assistanceItemId = $deliveredItem['assistance_item_id'] ?? null;
+                if ($deliveredItems === [] && $extraItems === []) {
+                    $validator->errors()->add(
+                        'delivered_items',
+                        'Select at least one requested item to release, or add an item that was actually released.',
+                    );
 
-                    if ($assistanceItemId === null) {
-                        continue;
-                    }
+                    return;
+                }
 
-                    $assistanceItem = AssistanceItem::query()
-                        ->where('assistance_id', $assistance->id)
-                        ->whereKey($assistanceItemId)
-                        ->first();
+                $remainingByAssistanceItem = $this->remainingQuantities();
+                $fullyReleasedIds = [];
 
-                    if ($assistanceItem === null) {
+                foreach ($deliveredItems as $index => $deliveredItem) {
+                    $assistanceItemId = (int) ($deliveredItem['assistance_item_id'] ?? 0);
+                    $remainingQuantity = $remainingByAssistanceItem[$assistanceItemId] ?? null;
+
+                    if ($remainingQuantity === null) {
                         continue;
                     }
 
                     $deliveredQuantity = (int) ($deliveredItem['quantity'] ?? 0);
 
-                    if (
-                        $assistanceItem->quantity !== null
-                        && $deliveredQuantity > $assistanceItem->quantity
-                    ) {
+                    if ($deliveredQuantity > $remainingQuantity) {
                         $validator->errors()->add(
                             "delivered_items.{$index}.quantity",
-                            'The delivered quantity cannot exceed the requested quantity.',
+                            'The released quantity cannot exceed the remaining requested quantity. Record the excess as an additional item instead.',
                         );
+
+                        continue;
                     }
+
+                    if ($deliveredQuantity === $remainingQuantity) {
+                        $fullyReleasedIds[] = $assistanceItemId;
+                    }
+                }
+
+                $substitutedIds = [];
+
+                foreach ($extraItems as $index => $extraItem) {
+                    if (($extraItem['origin'] ?? null) !== AssistanceItemOrigin::Substitute) {
+                        continue;
+                    }
+
+                    $targetId = (int) ($extraItem['substituted_for_assistance_item_id'] ?? 0);
+
+                    if ($targetId === 0) {
+                        continue;
+                    }
+
+                    if (in_array($targetId, $substitutedIds, true)) {
+                        $validator->errors()->add(
+                            "extra_items.{$index}.substituted_for_assistance_item_id",
+                            'This requested item is already being substituted by another line in this update.',
+                        );
+
+                        continue;
+                    }
+
+                    if (in_array($targetId, $fullyReleasedIds, true)) {
+                        $validator->errors()->add(
+                            "extra_items.{$index}.substituted_for_assistance_item_id",
+                            'This requested item is fully released in this update, so it cannot also be substituted.',
+                        );
+
+                        continue;
+                    }
+
+                    $substitutedIds[] = $targetId;
                 }
             },
         ];
@@ -112,11 +204,50 @@ class UpdateStatusRequest extends FormRequest
             'request_sub_status_id' => 'status',
             'recorded_at' => 'recorded at',
             'remark' => 'remark',
-            'delivered_items' => 'delivered items',
-            'delivered_items.*.assistance_item_id' => 'delivered item',
-            'delivered_items.*.quantity' => 'delivered quantity',
-            'delivered_items.*.specification' => 'delivered specification',
+            'delivered_items' => 'released items',
+            'delivered_items.*.assistance_item_id' => 'requested item',
+            'delivered_items.*.quantity' => 'released quantity',
+            'delivered_items.*.specification' => 'released specification',
+            'extra_items' => 'additional or substitute items',
+            'extra_items.*.origin' => 'line type',
+            'extra_items.*.item_id' => 'item',
+            'extra_items.*.quantity' => 'released quantity',
+            'extra_items.*.specification' => 'specification',
+            'extra_items.*.fulfillment_reason' => 'reason',
+            'extra_items.*.substituted_for_assistance_item_id' => 'substituted requested item',
         ];
+    }
+
+    /**
+     * Only requested lines that are still owed may be released or substituted.
+     */
+    private function awaitingReleaseRule(): Exists
+    {
+        /** @var Assistance $assistance */
+        $assistance = $this->route('assistance');
+
+        return Rule::exists('assistance_item', 'id')
+            ->where('assistance_id', $assistance->id)
+            ->where('origin', AssistanceItemOrigin::Requested)
+            ->where('is_received', 0)
+            ->whereNull('substituted_at')
+            ->whereNull('deleted_at');
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function remainingQuantities(): array
+    {
+        /** @var Assistance $assistance */
+        $assistance = $this->route('assistance');
+
+        return AssistanceItem::query()
+            ->where('assistance_id', $assistance->id)
+            ->awaitingRelease()
+            ->pluck('quantity', 'id')
+            ->map(static fn ($quantity): int => (int) $quantity)
+            ->all();
     }
 
     private function isDeliveredSubStatus(): bool
