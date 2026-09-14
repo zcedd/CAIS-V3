@@ -259,37 +259,28 @@ Queue::failing(function (JobFailed $event) {
 ## Queue Workers
 
 ```bash
-
 # Start worker
-
 php artisan queue:work
 
 # Process specific queue
-
 php artisan queue:work --queue=high,default
 
 # Process one job
-
 php artisan queue:work --once
 
 # Stop worker gracefully
-
 php artisan queue:restart
 
 # Timeout settings
-
 php artisan queue:work --timeout=60
 
 # Memory limit
-
 php artisan queue:work --memory=512
 
 # Max jobs before restart
-
 php artisan queue:work --max-jobs=1000
 
 # Max time before restart
-
 php artisan queue:work --max-time=3600
 ```
 

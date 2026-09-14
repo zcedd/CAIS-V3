@@ -319,21 +319,16 @@ return response()->streamDownload(function () {
 ## Route Caching
 
 ```bash
-
 # Generate route cache
-
 php artisan route:cache
 
 # Clear route cache
-
 php artisan route:clear
 
 # List all routes
-
 php artisan route:list
 
 # Filter routes
-
 php artisan route:list --name=api
 php artisan route:list --path=posts
 ```

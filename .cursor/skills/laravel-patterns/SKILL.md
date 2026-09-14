@@ -36,7 +36,6 @@ Use a conventional Laravel layout with clear layer boundaries (HTTP, services/ac
 ```
 app/
 ├── Actions/            # Single-purpose use cases
-
 ├── Console/
 ├── Events/
 ├── Exceptions/
@@ -44,15 +43,12 @@ app/
 │   ├── Controllers/
 │   ├── Middleware/
 │   ├── Requests/       # Form request validation
-
 │   └── Resources/      # API resources
-
 ├── Jobs/
 ├── Models/
 ├── Policies/
 ├── Providers/
 ├── Services/           # Coordinating domain services
-
 └── Support/
 config/
 database/
