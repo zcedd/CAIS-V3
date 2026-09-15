@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\User\Beneficiary;
 
+use App\Enums\EverifyIntakeMethod;
 use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use App\Http\Requests\User\Concerns\ValidatesDuplicateBeneficiaries;
+use App\Models\User;
+use App\Services\Everify\EverifyVerificationService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -14,9 +17,27 @@ class StoreIndividualRequest extends FormRequest
     use AuthorizesDepartmentBeneficiary;
     use ValidatesDuplicateBeneficiaries;
 
+    /**
+     * @var list<string>
+     */
+    protected $dontFlash = [
+        'current_password',
+        'password',
+        'password_confirmation',
+    ];
+
     public function authorize(): bool
     {
         return $this->canCreateBeneficiary();
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (! $this->filled('intake_method')) {
+            $this->merge([
+                'intake_method' => EverifyIntakeMethod::Manual->value,
+            ]);
+        }
     }
 
     /**
@@ -24,8 +45,17 @@ class StoreIndividualRequest extends FormRequest
      */
     public function rules(): array
     {
+        $usingEverify = $this->input('intake_method') === EverifyIntakeMethod::Everify->value;
+
         return [
             ...$this->duplicateAcknowledgementRules(),
+            'intake_method' => ['required', Rule::enum(EverifyIntakeMethod::class)],
+            'everify_verification_token' => [
+                Rule::requiredIf($usingEverify),
+                'nullable',
+                'string',
+                'uuid',
+            ],
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -58,12 +88,45 @@ class StoreIndividualRequest extends FormRequest
             'address_barangay_id' => 'Barangay',
             'civil_status_id' => 'Civil Status',
             'pwd' => 'person with disability',
+            'intake_method' => 'registration method',
+            'everify_verification_token' => 'eVerify verification',
         ];
     }
 
     public function withValidator(Validator $validator): void
     {
         $this->afterDuplicateCheck($validator, $this->duplicateSearchInput());
+
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            if ($this->input('intake_method') !== EverifyIntakeMethod::Everify->value) {
+                return;
+            }
+
+            $service = $this->container->make(EverifyVerificationService::class);
+
+            if (! $service->isConfigured()) {
+                $validator->errors()->add(
+                    'intake_method',
+                    'eVerify is not configured. Enter details manually.',
+                );
+
+                return;
+            }
+
+            $user = $this->user();
+            $token = (string) $this->input('everify_verification_token');
+
+            if (! $user instanceof User || $token === '' || ! $service->ticketBelongsTo($user, $token)) {
+                $validator->errors()->add(
+                    'everify_verification_token',
+                    'Verify with PhilSys before saving.',
+                );
+            }
+        });
     }
 
     /**

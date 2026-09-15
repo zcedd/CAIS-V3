@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\EverifyVerificationStatus;
 use App\Services\User\BeneficiaryMorphService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,13 @@ class Individual extends Model
     use HasFactory;
     use LogsActivity;
     use SoftDeletes;
+
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'everify_status' => 'skipped',
+    ];
 
     protected $fillable = [
         'cais_number',
@@ -37,6 +45,10 @@ class Individual extends Model
         'is_solo_parent',
         'spouse',
         'address_barangay_id',
+        'everify_status',
+        'everify_verified_at',
+        'everify_result_grade',
+        'everify_query_log_id',
         'created_at',
         'updated_at',
     ];
@@ -75,6 +87,9 @@ class Individual extends Model
             'pwd' => 'boolean',
             'is_4ps_beneficiary' => 'boolean',
             'is_solo_parent' => 'boolean',
+            'everify_status' => EverifyVerificationStatus::class,
+            'everify_verified_at' => 'datetime',
+            'everify_result_grade' => 'integer',
         ];
     }
 

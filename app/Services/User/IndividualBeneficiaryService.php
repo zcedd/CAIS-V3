@@ -2,9 +2,15 @@
 
 namespace App\Services\User;
 
+use App\Enums\EverifyIntakeMethod;
+use App\Enums\EverifyVerificationStatus;
+use App\Exceptions\EverifyVerificationException;
 use App\Models\Beneficiary;
 use App\Models\Individual;
 use App\Models\Organization;
+use App\Models\User;
+use App\Services\Everify\EverifyVerificationResult;
+use App\Services\Everify\EverifyVerificationService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -12,6 +18,7 @@ class IndividualBeneficiaryService
 {
     public function __construct(
         private BeneficiaryMorphService $beneficiaryMorphService,
+        private EverifyVerificationService $everifyVerificationService,
     ) {}
 
     /**
@@ -32,13 +39,16 @@ class IndividualBeneficiaryService
      *     is_solo_parent?: bool|null,
      *     spouse?: string|null,
      *     address_barangay_id?: int|null,
-     *     identifications?: list<array{identification_id: int, number: string}>
+     *     identifications?: list<array{identification_id: int, number: string}>,
+     *     intake_method?: string|null
      * }  $validated
      */
-    public function create(array $validated): Individual
+    public function create(array $validated, ?User $actor = null): Individual
     {
-        return $this->beneficiaryMorphService->withReservedCaisNumber('PRO', function (string $caisNumber) use ($validated): Individual {
-            return DB::transaction(function () use ($validated, $caisNumber): Individual {
+        $verification = $this->resolveVerification($validated, $actor);
+
+        return $this->beneficiaryMorphService->withReservedCaisNumber('PRO', function (string $caisNumber) use ($validated, $verification): Individual {
+            return DB::transaction(function () use ($validated, $caisNumber, $verification): Individual {
                 $individual = Individual::query()->create([
                     'cais_number' => $caisNumber,
                     'first_name' => $validated['first_name'],
@@ -57,6 +67,7 @@ class IndividualBeneficiaryService
                     'is_solo_parent' => $validated['is_solo_parent'] ?? false,
                     'spouse' => $validated['spouse'] ?? null,
                     'address_barangay_id' => $validated['address_barangay_id'] ?? null,
+                    ...$verification->individualAttributes(),
                 ]);
 
                 $this->syncIdentifications($individual, $validated['identifications'] ?? []);
@@ -66,6 +77,8 @@ class IndividualBeneficiaryService
                     $caisNumber,
                     $individual->fullName(),
                 );
+
+                $this->everifyVerificationService->attachIndividual($verification, $individual);
 
                 return $individual->refresh();
             });
@@ -219,6 +232,15 @@ class IndividualBeneficiaryService
                 ])
                 ->values()
                 ->all(),
+            'everify_status' => $individual->everify_status instanceof EverifyVerificationStatus
+                ? $individual->everify_status->value
+                : EverifyVerificationStatus::Skipped->value,
+            'everify_status_label' => $individual->everify_status instanceof EverifyVerificationStatus
+                ? $individual->everify_status->label()
+                : EverifyVerificationStatus::Skipped->label(),
+            'everify_verified_at' => $individual->everify_verified_at
+                ? Carbon::parse($individual->everify_verified_at)->toIso8601String()
+                : null,
             'organizations' => $individual->organization
                 ->sortBy(static fn (Organization $organization): string => $organization->name)
                 ->map(fn (Organization $organization): array => [
@@ -231,6 +253,35 @@ class IndividualBeneficiaryService
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function resolveVerification(array $validated, ?User $actor): EverifyVerificationResult
+    {
+        $method = EverifyIntakeMethod::tryFrom((string) ($validated['intake_method'] ?? ''))
+            ?? EverifyIntakeMethod::Manual;
+
+        if ($method !== EverifyIntakeMethod::Everify) {
+            return EverifyVerificationResult::skipped();
+        }
+
+        if (! $actor instanceof User) {
+            throw new EverifyVerificationException(
+                'Sign in to verify with eVerify.',
+            );
+        }
+
+        $token = $validated['everify_verification_token'] ?? null;
+
+        if (! is_string($token) || $token === '') {
+            throw new EverifyVerificationException(
+                'Verify with PhilSys before saving.',
+            );
+        }
+
+        return $this->everifyVerificationService->consumeTicket($actor, $token);
     }
 
     /**

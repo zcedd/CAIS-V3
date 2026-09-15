@@ -35,7 +35,16 @@ class UpdateIndividualRequest extends FormRequest
      */
     public function rules(): array
     {
-        return (new StoreIndividualRequest)->rules();
+        $rules = (new StoreIndividualRequest)->rules();
+        unset($rules['intake_method']);
+
+        foreach (array_keys($rules) as $key) {
+            if ($key === 'face_liveness_session_id' || str_starts_with($key, 'everify_')) {
+                unset($rules[$key]);
+            }
+        }
+
+        return $rules;
     }
 
     public function withValidator(Validator $validator): void

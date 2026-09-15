@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Actions\User\FindPossibleDuplicateBeneficiaries;
+use App\Enums\EverifyVerificationStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Beneficiary\CreateFormRequest;
 use App\Http\Requests\User\Beneficiary\EditRequest;
@@ -13,11 +14,15 @@ use App\Http\Requests\User\Beneficiary\StoreIndividualRequest;
 use App\Http\Requests\User\Beneficiary\StoreOrganizationRequest;
 use App\Http\Requests\User\Beneficiary\UpdateIndividualRequest;
 use App\Http\Requests\User\Beneficiary\UpdateOrganizationRequest;
+use App\Http\Requests\User\Beneficiary\VerifyEverifyRequest;
 use App\Http\Requests\User\SearchBeneficiariesRequest;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Individual;
 use App\Models\Organization;
+use App\Models\User;
+use App\Services\Everify\EverifyPersonQuery;
+use App\Services\Everify\EverifyVerificationService;
 use App\Services\User\BeneficiaryService;
 use App\Services\User\IndividualBeneficiaryService;
 use App\Services\User\OrganizationBeneficiaryService;
@@ -34,6 +39,7 @@ class BeneficiaryController extends Controller
         private BeneficiaryService $beneficiaryService,
         private IndividualBeneficiaryService $individualBeneficiaryService,
         private OrganizationBeneficiaryService $organizationBeneficiaryService,
+        private EverifyVerificationService $everifyVerificationService,
     ) {}
 
     public function index(IndexRequest $request, Department $department): Response
@@ -61,9 +67,38 @@ class BeneficiaryController extends Controller
 
     public function create(CreateFormRequest $request, Department $department): Response
     {
+        $everify = $this->everifyVerificationService->frontendConfig();
+
         return Inertia::render('user/beneficiaries/create', [
             'department' => $department->only(['id', 'name', 'slug']),
             'form_options' => $this->beneficiaryService->formOptions(),
+            'everify_enabled' => $everify['enabled'],
+            'everify_public_key' => $everify['public_key'],
+            'everify_liveness_sdk_url' => $everify['liveness_sdk_url'],
+            'everify_biometrics' => $everify['biometrics'],
+            'everify_fingerprint' => $everify['fingerprint'],
+        ]);
+    }
+
+    public function verifyIndividual(
+        VerifyEverifyRequest $request,
+        Department $department,
+    ): JsonResponse {
+        $user = $request->user();
+
+        if (! $user instanceof User) {
+            abort(403);
+        }
+
+        $result = $this->everifyVerificationService->verify(
+            $user,
+            EverifyPersonQuery::fromValidated($request->validated()),
+        );
+
+        return response()->json([
+            'verified' => true,
+            'result_grade' => $result->resultGrade,
+            'verification_token' => $this->everifyVerificationService->issueTicket($user, $result),
         ]);
     }
 
@@ -71,15 +106,22 @@ class BeneficiaryController extends Controller
         StoreIndividualRequest $request,
         Department $department,
     ): RedirectResponse {
-        $individual = $this->individualBeneficiaryService->create($request->validated());
+        $individual = $this->individualBeneficiaryService->create(
+            $request->validated(),
+            $request->user(),
+        );
         $individual->load('beneficiaryRecord');
+
+        $message = $individual->everify_status === EverifyVerificationStatus::Verified
+            ? 'Individual beneficiary created and verified with PhilSys.'
+            : 'Individual beneficiary created successfully.';
 
         return redirect()
             ->route('user.beneficiaries.show', [
                 'department' => $department->slug,
                 'beneficiary' => $individual->beneficiaryRecord->id,
             ])
-            ->with('success', 'Individual beneficiary created successfully.');
+            ->with('success', $message);
     }
 
     public function storeOrganization(
