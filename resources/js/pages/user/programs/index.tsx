@@ -2,7 +2,10 @@ import { DataTableFacetedFilter } from '@/components/data-table/data-table-facet
 import type { ServerPaginationMeta } from '@/components/data-table/types';
 import InputError from '@/components/input-error';
 import { ProgramDocumentRequirementsEditor } from '@/components/program-document-requirements-editor';
-import { ProgramEligibilityFields, eligibilityPayloadFromForm } from '@/components/program-eligibility-fields';
+import {
+    ProgramEligibilityFields,
+    eligibilityPayloadFromForm,
+} from '@/components/program-eligibility-fields';
 import { ProgramFieldsEditor } from '@/components/program-fields-editor';
 import { ServerPagination } from '@/components/server-pagination';
 import { Button } from '@/components/ui/button';
@@ -37,7 +40,10 @@ import {
     store as storeProgram,
 } from '@/routes/user/programs';
 import type { BreadcrumbItem } from '@/types';
-import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
+import type {
+    DocumentTypeOption,
+    ProgramDocumentRequirementInput,
+} from '@/types/document';
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
@@ -195,7 +201,8 @@ export default function UserProgramsIndex({
 
     const itemOptions = (items ?? []).map((item) => ({
         value: String(item.id),
-        label: String(`${item.name} (${item.unit})`),
+        label:
+            item.unit != null ? `${item.name} (${item.unit})` : `${item.name}`,
     }));
 
     const resetCreateForm = () => {
@@ -502,8 +509,7 @@ export default function UserProgramsIndex({
                                     !isOrganization
                                         ? publicIntake
                                         : false,
-                                ...(programKind === 'scheme' &&
-                                createFirstBatch
+                                ...(programKind === 'scheme' && createFirstBatch
                                     ? {
                                           first_batch: {
                                               batch_name: firstBatchName,
@@ -578,15 +584,12 @@ export default function UserProgramsIndex({
                                             <Button
                                                 type="button"
                                                 variant={
-                                                    programKind ===
-                                                    'standalone'
+                                                    programKind === 'standalone'
                                                         ? 'default'
                                                         : 'outline'
                                                 }
                                                 onClick={() =>
-                                                    setProgramKind(
-                                                        'standalone',
-                                                    )
+                                                    setProgramKind('standalone')
                                                 }
                                             >
                                                 One-off program
@@ -699,12 +702,9 @@ export default function UserProgramsIndex({
                                                             value={
                                                                 firstBatchName
                                                             }
-                                                            onChange={(
-                                                                event,
-                                                            ) =>
+                                                            onChange={(event) =>
                                                                 setFirstBatchName(
-                                                                    event
-                                                                        .target
+                                                                    event.target
                                                                         .value,
                                                                 )
                                                             }
@@ -819,8 +819,7 @@ export default function UserProgramsIndex({
                                                                     apply to
                                                                     this batch
                                                                     from the
-                                                                    public
-                                                                    form.
+                                                                    public form.
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -893,7 +892,9 @@ export default function UserProgramsIndex({
                                                     {workflow_options.map(
                                                         (workflow) => (
                                                             <SelectItem
-                                                                key={workflow.id}
+                                                                key={
+                                                                    workflow.id
+                                                                }
                                                                 value={String(
                                                                     workflow.id,
                                                                 )}
