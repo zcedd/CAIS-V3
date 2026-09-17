@@ -32,6 +32,7 @@ use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\AssistanceService;
 use App\Services\User\StockLedgerService;
+use App\Services\Workflow\WorkflowEngine;
 use App\Support\EmptyCell;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -49,6 +50,7 @@ class AssistanceController extends Controller
         private AssistanceDocumentService $assistanceDocumentService,
         private AssistanceItemFulfillmentService $assistanceItemFulfillmentService,
         private StockLedgerService $stockLedgerService,
+        private WorkflowEngine $workflowEngine,
     ) {}
 
     /**
@@ -276,8 +278,15 @@ class AssistanceController extends Controller
         Program $program,
         Assistance $assistance,
         AssignAssistance $assignAssistance,
+        WorkflowEngine $workflowEngine,
     ): RedirectResponse {
-        $assignAssistance($assistance, $request->user(), $request->user(), 'Claimed from queue');
+        $task = $workflowEngine->currentTask($assistance);
+
+        if ($task !== null) {
+            $workflowEngine->claimTask($task, $request->user());
+        } else {
+            $assignAssistance($assistance, $request->user(), $request->user(), 'Claimed from queue');
+        }
 
         return redirect()
             ->back()
@@ -337,6 +346,9 @@ class AssistanceController extends Controller
             'program.workflow.steps',
             'program.parent.workflow.steps',
             'program.department:id,name,slug',
+            'workflowInstance.currentStep.requestStatus',
+            'workflowInstance.tasks.step',
+            'workflowInstance.tasks.assignedUser:id,firstName,lastName',
             'assistanceItem',
             'assistanceItem.item:id,name,kind,item_unit_measurement_id',
             'assistanceItem.item.unitMeasurement:id,name',
@@ -374,6 +386,9 @@ class AssistanceController extends Controller
             $assistance->assistanceItem,
         );
 
+        $currentTask = $this->workflowEngine->currentTask($assistance);
+        $currentStep = $assistance->currentWorkflowStep();
+
         return Inertia::render('user/assistances/show', [
             'department' => $department->only(['id', 'name', 'slug']),
             'program' => $program->only(['id', 'name']),
@@ -397,7 +412,14 @@ class AssistanceController extends Controller
                     : null,
                 'can_advance' => $request->user()?->can('advance', $assistance) ?? false,
                 'can_assign' => $request->user()?->can('assign', $assistance) ?? false,
-                'step_has_owner' => $assistance->currentWorkflowStep()?->assigned_to_id !== null,
+                'can_claim' => $request->user()?->can('claim', $assistance) ?? false,
+                'step_has_owner' => $currentStep?->assigned_to_id !== null,
+                'workflow_step' => $currentStep?->displayName(),
+                'workflow_step_code' => $currentStep?->code,
+                'current_task' => $this->workflowEngine->serializeTask($currentTask),
+                'available_actions' => $request->user() instanceof User
+                    ? $this->workflowEngine->availableTransitions($assistance, $request->user())
+                    : [],
                 'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
                 'sla_state' => $assistance->slaState(),
                 'date_requested' => $formatDate($assistance->date_requested),

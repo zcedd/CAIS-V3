@@ -159,7 +159,7 @@ class ProgramService
             return;
         }
 
-        $program->update([
+        $payload = [
             'name' => $validated['name'],
             'descriptions' => $validated['descriptions'],
             'start_at' => $validated['start_at'],
@@ -167,8 +167,13 @@ class ProgramService
             'is_organization' => $validated['is_organization'] ?? false,
             'is_closed' => $validated['is_closed'] ?? false,
             'public_intake' => $validated['public_intake'] ?? false,
-            'workflow_id' => $validated['workflow_id'] ?? null,
-        ]);
+        ];
+
+        if (array_key_exists('workflow_id', $validated)) {
+            $payload['workflow_id'] = $validated['workflow_id'];
+        }
+
+        $program->update($payload);
 
         $program->fund()->sync($validated['fund_ids']);
         $program->item()->sync($validated['item_ids']);
@@ -543,8 +548,11 @@ class ProgramService
             'descriptions' => $validated['descriptions'],
             'start_at' => $validated['start_at'],
             'end_at' => $validated['end_at'] ?? null,
-            'workflow_id' => $validated['workflow_id'] ?? $program->workflow_id,
         ];
+
+        if (array_key_exists('workflow_id', $validated)) {
+            $payload['workflow_id'] = $validated['workflow_id'];
+        }
 
         if (! $program->batches()->exists()) {
             $payload['is_organization'] = $validated['is_organization'] ?? $program->is_organization;
@@ -587,7 +595,7 @@ class ProgramService
         $parent = $program->parent;
         $schemeName = $parent instanceof Program ? $parent->name : $program->name;
 
-        $program->update([
+        $payload = [
             'batch_name' => $batchName,
             'name' => Program::composeBatchDisplayName($schemeName, $batchName),
             'descriptions' => $validated['descriptions'] ?? $program->descriptions,
@@ -595,8 +603,13 @@ class ProgramService
             'end_at' => $validated['end_at'] ?? null,
             'is_closed' => $validated['is_closed'] ?? false,
             'public_intake' => $validated['public_intake'] ?? false,
-            'workflow_id' => $validated['workflow_id'] ?? $program->workflow_id,
-        ]);
+        ];
+
+        if (array_key_exists('workflow_id', $validated)) {
+            $payload['workflow_id'] = $validated['workflow_id'];
+        }
+
+        $program->update($payload);
 
         $program->fund()->sync($validated['fund_ids'] ?? []);
         $program->item()->sync($validated['item_ids']);

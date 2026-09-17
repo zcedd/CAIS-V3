@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -21,6 +22,7 @@ class Assistance extends Model
 
     protected $fillable = [
         'program_id',
+        'workflow_id',
         'beneficiary_id',
         'mode_of_request_id',
         'current_request_sub_status_id',
@@ -58,6 +60,33 @@ class Assistance extends Model
         return $this->belongsTo(Program::class);
     }
 
+    public function workflow(): BelongsTo
+    {
+        return $this->belongsTo(Workflow::class);
+    }
+
+    public function resolvedWorkflow(): Workflow
+    {
+        $this->loadMissing([
+            'workflow.steps.transitions',
+            'program.workflow.steps.transitions',
+            'program.parent.workflow.steps.transitions',
+            'program.department',
+        ]);
+
+        if ($this->workflow instanceof Workflow) {
+            return $this->workflow;
+        }
+
+        $program = $this->program;
+
+        if (! $program instanceof Program) {
+            $program = Program::query()->findOrFail($this->program_id);
+        }
+
+        return $program->resolvedWorkflow();
+    }
+
     public function beneficiary()
     {
         return $this->belongsTo(Beneficiary::class);
@@ -88,18 +117,42 @@ class Assistance extends Model
         return $this->hasMany(AssistanceAssignment::class)->orderByDesc('id');
     }
 
+    public function workflowInstance(): HasOne
+    {
+        return $this->hasOne(AssistanceWorkflow::class);
+    }
+
+    public function workflowTasks(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            WorkflowTask::class,
+            AssistanceWorkflow::class,
+        );
+    }
+
+    public function currentTask(): ?WorkflowTask
+    {
+        $this->loadMissing('workflowInstance.currentTask.assignedUser', 'workflowInstance.currentTask.step');
+
+        $task = $this->workflowInstance?->currentTask;
+
+        return $task instanceof WorkflowTask ? $task : null;
+    }
+
     public function currentWorkflowStep(): ?WorkflowStep
     {
         $this->loadMissing([
+            'workflowInstance.currentStep',
+            'workflow.steps',
             'program.workflow.steps',
             'program.parent.workflow.steps',
             'currentRequestSubStatus',
         ]);
 
-        $program = $this->program;
+        $instanceStep = $this->workflowInstance?->currentStep;
 
-        if (! $program instanceof Program) {
-            return null;
+        if ($instanceStep instanceof WorkflowStep) {
+            return $instanceStep;
         }
 
         $statusId = (int) ($this->currentRequestSubStatus?->request_status_id ?? 0);
@@ -108,7 +161,7 @@ class Assistance extends Model
             return null;
         }
 
-        return $program->resolvedWorkflow()->stepForStatus($statusId);
+        return $this->resolvedWorkflow()->stepForStatus($statusId);
     }
 
     public function item()

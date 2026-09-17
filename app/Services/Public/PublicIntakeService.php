@@ -20,6 +20,7 @@ use App\Models\User;
 use App\Services\User\IndividualBeneficiaryService;
 use App\Services\User\ProgramFieldService;
 use App\Services\Workflow\RequestStatusCatalog;
+use App\Services\Workflow\WorkflowEngine;
 use App\Support\IdentityNormalizer;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -124,6 +125,7 @@ class PublicIntakeService
 
             $assistance = $draft ?? Assistance::query()->create([
                 'program_id' => $program->id,
+                'workflow_id' => $program->resolvedWorkflow()->id,
                 'beneficiary_id' => $beneficiary->id,
                 'mode_of_request_id' => $this->onlineModeOfRequestId(),
                 'date_requested' => now()->toDateString(),
@@ -135,6 +137,7 @@ class PublicIntakeService
                 $assistance->update([
                     'remark' => $validated['remark'] ?? $assistance->remark,
                     'date_requested' => now()->toDateString(),
+                    'workflow_id' => $assistance->workflow_id ?? $program->resolvedWorkflow()->id,
                 ]);
                 $assistance->assistanceItem()->delete();
             }
@@ -174,9 +177,13 @@ class PublicIntakeService
                     ? User::query()->find($entryStep->assigned_to_id)
                     : null;
 
+                $assistance->forceFill(['workflow_id' => $workflow->id])->save();
+
                 if ($entryStep !== null && $owner instanceof User) {
                     app(ApplyWorkflowStepAssignee::class)($assistance, $entryStep, $owner, false);
                 }
+
+                app(WorkflowEngine::class)->start($assistance->refresh(), $owner, false);
             }
 
             $beneficiary->refresh();

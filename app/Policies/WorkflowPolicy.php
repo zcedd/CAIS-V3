@@ -88,6 +88,69 @@ class WorkflowPolicy
         return $this->delete($user, $workflow);
     }
 
+    public function publish(User $user, Workflow $workflow): bool
+    {
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowPublish,
+            $user->department_id === $workflow->department_id,
+        );
+    }
+
+    public function version(User $user, Workflow $workflow): bool
+    {
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowVersion,
+            $user->department_id === $workflow->department_id,
+        );
+    }
+
+    public function assign(User $user, Workflow $workflow): bool
+    {
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowAssign,
+            $user->department_id === $workflow->department_id,
+        );
+    }
+
+    public function manage(User $user, Workflow $workflow): bool
+    {
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowManage,
+            $user->department_id === $workflow->department_id,
+        );
+    }
+
+    public function viewTask(User $user, Workflow $workflow): bool
+    {
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowTaskView,
+            $user->department_id === $workflow->department_id,
+        );
+    }
+
+    public function reassignTask(User $user, Workflow $workflow): bool
+    {
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowTaskReassign,
+            $user->department_id === $workflow->department_id,
+        );
+    }
+
+    public function overrideTask(User $user, Workflow $workflow): bool
+    {
+        return $this->allows(
+            $user,
+            PermissionName::WorkflowTaskOverride,
+            $user->department_id === $workflow->department_id,
+        );
+    }
+
     private function belongsToDepartment(User $user, Department $department): bool
     {
         return $user->department_id === $department->id;

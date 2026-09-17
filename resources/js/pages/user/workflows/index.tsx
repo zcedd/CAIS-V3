@@ -2,9 +2,11 @@
 
 import { WorkflowEditor } from '@/pages/user/workflows/workflow-editor';
 import type {
+    WorkflowAbilities,
     WorkflowDepartmentSummary,
     WorkflowPayload,
     WorkflowReason,
+    WorkflowRoleOption,
     WorkflowStaffOption,
     WorkflowStatus,
 } from '@/pages/user/workflows/workflow-editor';
@@ -19,14 +21,18 @@ export default function UserWorkflowsIndex({
     statuses,
     reasons,
     staff_options = [],
+    role_options = [],
     can_create = false,
+    can = {},
 }: {
     department: WorkflowDepartmentSummary;
     workflows: WorkflowPayload[];
     statuses: WorkflowStatus[];
     reasons: WorkflowReason[];
     staff_options?: WorkflowStaffOption[];
+    role_options?: WorkflowRoleOption[];
     can_create?: boolean;
+    can?: WorkflowAbilities;
 }) {
     useEffect(() => {
         setLayoutProps({
@@ -48,8 +54,8 @@ export default function UserWorkflowsIndex({
                         Workflows
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        The stages a request can move through. Programs use the
-                        department default unless they pick another workflow.
+                        The stages a request can move through. Program
+                        administrators cannot change the assigned workflow.
                     </p>
                 </div>
 
@@ -59,7 +65,9 @@ export default function UserWorkflowsIndex({
                     statuses={statuses}
                     reasons={reasons}
                     staff_options={staff_options}
+                    role_options={role_options}
                     can_create={can_create}
+                    can={can}
                 />
             </div>
         </>

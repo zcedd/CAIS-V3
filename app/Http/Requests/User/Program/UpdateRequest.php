@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Http\Requests\User\Concerns\AuthorizesProgramWorkflowAssignment;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateRequest extends FormRequest
 {
+    use AuthorizesProgramWorkflowAssignment;
     use ValidatesProgramDocumentRequirements;
     use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
@@ -33,6 +35,13 @@ class UpdateRequest extends FormRequest
             && $department instanceof Department
             && $program->department_id === $department->id
             && Gate::allows('update', $program);
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (! $this->canAssignWorkflow()) {
+            $this->offsetUnset('workflow_id');
+        }
     }
 
     /**
@@ -73,13 +82,15 @@ class UpdateRequest extends FormRequest
             ],
             ...$this->programFieldDefinitionRules(),
             ...$this->programDocumentRequirementRules(),
-            'workflow_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('workflows', 'id')->where(
-                    fn ($query) => $query->where('department_id', $program instanceof Program ? $program->department_id : $departmentId),
-                ),
-            ],
+            'workflow_id' => $this->canAssignWorkflow()
+                ? [
+                    'nullable',
+                    'integer',
+                    Rule::exists('workflows', 'id')->where(
+                        fn ($query) => $query->where('department_id', $program instanceof Program ? $program->department_id : $departmentId),
+                    ),
+                ]
+                : ['prohibited'],
         ];
 
         if (! $isBatch) {

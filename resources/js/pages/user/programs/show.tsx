@@ -42,7 +42,10 @@ import {
 } from '@/lib/format-program-period';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
-import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
+import type {
+    DocumentTypeOption,
+    ProgramDocumentRequirementInput,
+} from '@/types/document';
 import type {
     ProgramCoveredItem,
     ProgramFund,
@@ -361,7 +364,13 @@ export default function UserProgramShow({
         setLayoutProps({
             breadcrumbs,
         });
-    }, [department?.slug, program.id, program.name, program.batch_name, program.parent]);
+    }, [
+        department?.slug,
+        program.id,
+        program.name,
+        program.batch_name,
+        program.parent,
+    ]);
 
     const visitTable = useCallback(
         (
@@ -714,8 +723,9 @@ export default function UserProgramShow({
                                                             </Badge>
                                                         ) : null}
                                                     </span>
-                                                    <span className="tabular-nums text-muted-foreground">
-                                                        {row.remaining} remaining
+                                                    <span className="text-muted-foreground tabular-nums">
+                                                        {row.remaining}{' '}
+                                                        remaining
                                                     </span>
                                                 </li>
                                             ))}

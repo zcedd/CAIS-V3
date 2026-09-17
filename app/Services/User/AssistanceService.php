@@ -23,6 +23,7 @@ use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Services\Workflow\RequestStatusCatalog;
+use App\Services\Workflow\WorkflowEngine;
 use App\Support\EmptyCell;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -97,6 +98,7 @@ class AssistanceService
 
             $assistance = Assistance::query()->create([
                 'program_id' => $program->id,
+                'workflow_id' => $program->resolvedWorkflow()->id,
                 'beneficiary_id' => $beneficiary->id,
                 'mode_of_request_id' => $validated['mode_of_request_id'],
                 'date_requested' => $recordedAt->toDateString(),
@@ -124,6 +126,8 @@ class AssistanceService
             $workflow = $program->resolvedWorkflow();
             $entryStep = $workflow->stepForStatus((int) $workflow->staff_entry_request_status_id);
 
+            $assistance->forceFill(['workflow_id' => $workflow->id])->save();
+
             if ($entryStep?->assigned_to_id !== null) {
                 app(ApplyWorkflowStepAssignee::class)($assistance, $entryStep, $user);
             } else {
@@ -135,6 +139,8 @@ class AssistanceService
                     false,
                 );
             }
+
+            app(WorkflowEngine::class)->start($assistance->refresh(), $user);
 
             app(RecalculateAssistanceSla::class)($assistance->refresh());
 

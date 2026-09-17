@@ -57,6 +57,8 @@ import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 
 type DepartmentSummary = {
     id: number;
@@ -160,6 +162,7 @@ export default function UserProgramsIndex({
     document_types?: DocumentTypeOption[];
     workflow_options?: WorkflowOption[];
 }) {
+    const canAssignWorkflow = useCan()(Permission.WorkflowAssign);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(false);
     const createDrawerTourLocked = useCreateDrawerTourLock();
@@ -531,10 +534,14 @@ export default function UserProgramsIndex({
                                     eligibility,
                                     selectedItemIds,
                                 ),
-                                workflow_id:
-                                    workflowId === 'default'
-                                        ? null
-                                        : Number(workflowId),
+                                ...(canAssignWorkflow
+                                    ? {
+                                          workflow_id:
+                                              workflowId === 'default'
+                                                  ? null
+                                                  : Number(workflowId),
+                                      }
+                                    : {}),
                             })}
                             onSuccess={() => {
                                 resetCreateForm();
@@ -873,7 +880,8 @@ export default function UserProgramsIndex({
                                         errors={errors}
                                     />
 
-                                    {workflow_options.length > 0 ? (
+                                    {canAssignWorkflow &&
+                                    workflow_options.length > 0 ? (
                                         <div className="space-y-2">
                                             <Label htmlFor="program-workflow">
                                                 Workflow

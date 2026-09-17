@@ -30,18 +30,25 @@ import {
 import { formatProgramPeriod } from '@/lib/format-program-period';
 import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
-import type { DocumentTypeOption, ProgramDocumentRequirementInput } from '@/types/document';
-import type { ProgramStatusBreakdownPoint, ProgramSummary } from '@/types/program';
+import type {
+    DocumentTypeOption,
+    ProgramDocumentRequirementInput,
+} from '@/types/document';
+import type {
+    ProgramStatusBreakdownPoint,
+    ProgramSummary,
+} from '@/types/program';
 import type { ProgramFieldDefinition } from '@/types/program-field';
 import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
-import { Form, Head, Link, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
-    Building2,
-    Pencil,
-    Plus,
-    UserRound,
-    Users,
-} from 'lucide-react';
+    Form,
+    Head,
+    Link,
+    router,
+    setLayoutProps,
+    WhenVisible,
+} from '@inertiajs/react';
+import { Building2, Pencil, Plus, UserRound, Users } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -167,7 +174,9 @@ export default function UserProgramScheme({
         if (
             !editOpen ||
             !department?.slug ||
-            (funds !== undefined && items !== undefined && program_edit !== undefined)
+            (funds !== undefined &&
+                items !== undefined &&
+                program_edit !== undefined)
         ) {
             return;
         }
@@ -247,13 +256,19 @@ export default function UserProgramScheme({
                     </div>
                     <div className="flex flex-wrap gap-2">
                         {canEdit ? (
-                            <Button type="button" onClick={() => setEditOpen(true)}>
+                            <Button
+                                type="button"
+                                onClick={() => setEditOpen(true)}
+                            >
                                 <Pencil className="size-4" />
                                 Edit program
                             </Button>
                         ) : null}
                         {canEdit && department ? (
-                            <Button type="button" onClick={() => setAddBatchOpen(true)}>
+                            <Button
+                                type="button"
+                                onClick={() => setAddBatchOpen(true)}
+                            >
                                 <Plus className="size-4" />
                                 Add batch
                             </Button>
@@ -261,7 +276,11 @@ export default function UserProgramScheme({
                     </div>
                 </div>
 
-                <WhenVisible data="summary" buffer={200} fallback={<ProgramKpiCardsSkeleton />}>
+                <WhenVisible
+                    data="summary"
+                    buffer={200}
+                    fallback={<ProgramKpiCardsSkeleton />}
+                >
                     {summary ? (
                         <ProgramKpiCards summary={summary} />
                     ) : (
@@ -302,8 +321,11 @@ export default function UserProgramScheme({
                         >
                             {description || 'No description'}
                         </p>
-                        <p className="text-sm tabular-nums text-muted-foreground">
-                            {formatProgramPeriod(program.start_at, program.end_at)}
+                        <p className="text-sm text-muted-foreground tabular-nums">
+                            {formatProgramPeriod(
+                                program.start_at,
+                                program.end_at,
+                            )}
                         </p>
                     </div>
                 </section>
@@ -326,19 +348,26 @@ export default function UserProgramScheme({
                         ) : (
                             <ul className="divide-y divide-border">
                                 {batches.map((batch) => (
-                                    <li key={batch.id} className="py-3 first:pt-0 last:pb-0">
+                                    <li
+                                        key={batch.id}
+                                        className="py-3 first:pt-0 last:pb-0"
+                                    >
                                         {department?.slug ? (
                                             <Link
-                                                href={departmentProgramShow.url({
-                                                    department: department.slug,
-                                                    program: batch.id,
-                                                })}
+                                                href={departmentProgramShow.url(
+                                                    {
+                                                        department:
+                                                            department.slug,
+                                                        program: batch.id,
+                                                    },
+                                                )}
                                                 prefetch
                                                 className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
                                             >
                                                 <div className="min-w-0">
                                                     <p className="font-medium">
-                                                        {batch.batch_name ?? batch.name}
+                                                        {batch.batch_name ??
+                                                            batch.name}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground">
                                                         {formatProgramPeriod(
@@ -446,7 +475,9 @@ export default function UserProgramScheme({
                                             }
                                             placeholder="Batch 1"
                                         />
-                                        <InputError message={errors.batch_name} />
+                                        <InputError
+                                            message={errors.batch_name}
+                                        />
                                     </div>
                                     <ProgramDatePicker
                                         id="scheme-batch-start-at"
@@ -507,13 +538,19 @@ export default function UserProgramScheme({
                                         </div>
                                     )}
                                     <DrawerFooter className="px-0">
-                                        <Button type="submit" disabled={processing}>
+                                        <Button
+                                            type="submit"
+                                            disabled={processing}
+                                        >
                                             {processing
                                                 ? 'Creating...'
                                                 : 'Create batch'}
                                         </Button>
                                         <DrawerClose asChild>
-                                            <Button type="button" variant="outline">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                            >
                                                 Cancel
                                             </Button>
                                         </DrawerClose>

@@ -5,6 +5,12 @@ export const Permission = {
     ItemViewAny: 'item.viewAny',
     FundViewAny: 'fund.viewAny',
     WorkflowViewAny: 'workflow.viewAny',
+    WorkflowCreate: 'workflow.create',
+    WorkflowUpdate: 'workflow.update',
+    WorkflowPublish: 'workflow.publish',
+    WorkflowVersion: 'workflow.version',
+    WorkflowAssign: 'workflow.assign',
+    WorkflowManage: 'workflow.manage',
 } as const;
 
 export function hasPermission(
