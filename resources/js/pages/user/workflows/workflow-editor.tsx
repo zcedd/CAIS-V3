@@ -385,7 +385,9 @@ export function WorkflowEditor({
                                             id="workflow-create-name"
                                             value={createName}
                                             onChange={(event) =>
-                                                setCreateName(event.target.value)
+                                                setCreateName(
+                                                    event.target.value,
+                                                )
                                             }
                                             placeholder="Walk-in relief"
                                         />
@@ -606,8 +608,7 @@ export function WorkflowEditor({
                                                   step.assigned_department_id ||
                                                       department.id,
                                               )
-                                            : step.assigned_department_id ===
-                                                ''
+                                            : step.assigned_department_id === ''
                                               ? null
                                               : Number(
                                                     step.assigned_department_id,
@@ -625,9 +626,7 @@ export function WorkflowEditor({
                                         step.transition_status_ids.map(Number),
                                 })),
                             })}
-                            onSuccess={() =>
-                                toast.success('Workflow updated.')
-                            }
+                            onSuccess={() => toast.success('Workflow updated.')}
                             className="space-y-4"
                         >
                             {({ errors, processing }) => (
@@ -797,10 +796,8 @@ export function WorkflowEditor({
                                                                     '',
                                                                 assigned_to_id:
                                                                     'none',
-                                                                automatic_assignment:
-                                                                    false,
-                                                                allows_skip_to_deliver:
-                                                                    false,
+                                                                automatic_assignment: false,
+                                                                allows_skip_to_deliver: false,
                                                                 is_start: false,
                                                                 is_end: false,
                                                                 transition_status_ids:
@@ -1307,56 +1304,57 @@ export function WorkflowEditor({
                                                         ) : null}
                                                         {step.assignment_type ===
                                                         'user' ? (
-                                                        <div className="min-w-56 space-y-2">
-                                                            <Label>
-                                                                User
-                                                            </Label>
-                                                            <Select
-                                                                value={
-                                                                    step.assigned_to_id
-                                                                }
-                                                                onValueChange={(
-                                                                    value,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            assigned_to_id:
-                                                                                value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="None (team queue)" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">
-                                                                        None —
-                                                                        team
-                                                                        queue
-                                                                    </SelectItem>
-                                                                    {staff_options.map(
-                                                                        (
-                                                                            staff,
-                                                                        ) => (
-                                                                            <SelectItem
-                                                                                key={
-                                                                                    staff.id
-                                                                                }
-                                                                                value={String(
-                                                                                    staff.id,
-                                                                                )}
-                                                                            >
-                                                                                {
-                                                                                    staff.name
-                                                                                }
-                                                                            </SelectItem>
-                                                                        ),
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
+                                                            <div className="min-w-56 space-y-2">
+                                                                <Label>
+                                                                    User
+                                                                </Label>
+                                                                <Select
+                                                                    value={
+                                                                        step.assigned_to_id
+                                                                    }
+                                                                    onValueChange={(
+                                                                        value,
+                                                                    ) =>
+                                                                        updateStep(
+                                                                            index,
+                                                                            {
+                                                                                assigned_to_id:
+                                                                                    value,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="None (team queue)" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="none">
+                                                                            None
+                                                                            -
+                                                                            team
+                                                                            queue
+                                                                        </SelectItem>
+                                                                        {staff_options.map(
+                                                                            (
+                                                                                staff,
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        staff.id
+                                                                                    }
+                                                                                    value={String(
+                                                                                        staff.id,
+                                                                                    )}
+                                                                                >
+                                                                                    {
+                                                                                        staff.name
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            ),
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
                                                         ) : null}
                                                         <label className="flex items-center gap-2">
                                                             <Input

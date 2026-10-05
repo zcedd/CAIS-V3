@@ -54,7 +54,7 @@ class StaleAssistanceReminderNotification extends Notification
         $requestStatus = $latestStatus?->requestSubStatus?->requestStatus?->name;
 
         $statusLabel = $requestSubStatus !== null
-            ? ($requestStatus !== null ? "{$requestStatus} — {$requestSubStatus}" : $requestSubStatus)
+            ? ($requestStatus !== null ? "{$requestStatus} - {$requestSubStatus}" : $requestSubStatus)
             : ($assistance->currentRequestSubStatus?->requestStatus?->name
                 ?? $assistance->currentRequestSubStatus?->name
                 ?? 'Unrequested');

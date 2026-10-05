@@ -172,7 +172,7 @@ export default function AdminWorkflowsIndex({
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        {workflow.department?.name ?? '—'}
+                                        {workflow.department?.name ?? '-'}
                                     </TableCell>
                                 </TableRow>
                             ))

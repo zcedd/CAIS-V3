@@ -9,14 +9,15 @@ use Illuminate\Validation\Validator;
 trait ValidatesPublicIntake
 {
     /**
+     * Parent programs and organization programs may send public intake as off.
+     * Enabling it is rejected in afterPublicIntakeValidation().
+     *
      * @return array<string, mixed>
      */
-    protected function publicIntakeRules(bool $prohibited): array
+    protected function publicIntakeRules(): array
     {
         return [
-            'public_intake' => $prohibited
-                ? ['prohibited']
-                : ['nullable', 'boolean'],
+            'public_intake' => ['nullable', 'boolean'],
         ];
     }
 

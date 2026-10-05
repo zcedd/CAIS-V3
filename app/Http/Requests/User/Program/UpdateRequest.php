@@ -65,7 +65,7 @@ class UpdateRequest extends FormRequest
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => $isBatch ? ['prohibited'] : ['nullable', 'boolean'],
             'is_closed' => $isScheme ? ['prohibited'] : ['nullable', 'boolean'],
-            ...$this->publicIntakeRules($isScheme),
+            ...$this->publicIntakeRules(),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
             'fund_ids.*' => [
                 'integer',

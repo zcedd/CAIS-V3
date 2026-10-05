@@ -57,7 +57,7 @@ class StoreRequest extends FormRequest
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => ['nullable', 'boolean'],
             'kind' => ['nullable', Rule::enum(ProgramKind::class)->only(ProgramKind::creatable())],
-            ...$this->publicIntakeRules($isScheme),
+            ...$this->publicIntakeRules(),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
             'fund_ids.*' => [
                 'integer',

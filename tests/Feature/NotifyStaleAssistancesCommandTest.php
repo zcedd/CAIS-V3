@@ -131,7 +131,7 @@ test('it creates database notifications for stale open assistances', function ()
     expect($notification->data['message'])->toContain('Juan Dela Cruz');
     expect($notification->data['message'])->toContain('CAIS-001');
     expect($notification->data['message'])->toContain('Aid Program');
-    expect($notification->data['message'])->toContain('Submitted — Awaiting Review');
+    expect($notification->data['message'])->toContain('Submitted - Awaiting Review');
     expect($notification->data['message'])->toContain('View request profile');
     expect($encoder->notifications()->count())->toBe(0);
 

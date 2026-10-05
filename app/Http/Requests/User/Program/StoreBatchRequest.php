@@ -49,7 +49,7 @@ class StoreBatchRequest extends FormRequest
                     fn ($query) => $query->where('department_id', $departmentId),
                 ),
             ],
-            ...$this->publicIntakeRules(false),
+            ...$this->publicIntakeRules(),
         ];
     }
 

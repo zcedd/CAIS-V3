@@ -138,6 +138,8 @@ class WorkflowStep extends Model
             return str_replace('_', ' ', $this->code);
         }
 
+        $this->loadMissing('requestStatus');
+
         return $this->requestStatus?->name ?? 'Step';
     }
 
@@ -150,6 +152,8 @@ class WorkflowStep extends Model
         if ($this->is_end || $type === WorkflowStepType::Completion || $type === WorkflowStepType::Hold || $type === WorkflowStepType::Rejection) {
             return false;
         }
+
+        $this->loadMissing('requestStatus');
 
         $status = $this->requestStatus;
 

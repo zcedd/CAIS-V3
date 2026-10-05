@@ -199,7 +199,7 @@ export default function UserProgramsIndex({
 
     const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
-        label: String(`${fund.name} (${fund.year})`),
+        label: fund.year ? `${fund.name} (${fund.year})` : fund.name,
     }));
 
     const itemOptions = (items ?? []).map((item) => ({
@@ -471,7 +471,8 @@ export default function UserProgramsIndex({
                     <DrawerHeader>
                         <DrawerTitle>Create program</DrawerTitle>
                         <DrawerDescription>
-                            Add a new program for {department?.name ?? 'your'}.
+                            Add a new program for{' '}
+                            {(department?.name ?? 'your department').trim()}.
                         </DrawerDescription>
                     </DrawerHeader>
                     {canCreate && department && (
@@ -618,7 +619,7 @@ export default function UserProgramsIndex({
                                         <p className="text-sm text-muted-foreground">
                                             {programKind === 'scheme'
                                                 ? 'Use a parent program for repeating aid. Staff encode into batches, not the parent.'
-                                                : 'A single program staff encode into directly.'}
+                                                : 'A single program that staff encode into directly.'}
                                         </p>
                                         <InputError message={errors.kind} />
                                     </div>
@@ -828,9 +829,24 @@ export default function UserProgramsIndex({
                                                                     from the
                                                                     public form.
                                                                 </p>
+                                                                <InputError
+                                                                    message={
+                                                                        errors[
+                                                                            'first_batch.public_intake'
+                                                                        ]
+                                                                    }
+                                                                />
                                                             </div>
                                                         </div>
-                                                    ) : null}
+                                                    ) : (
+                                                        <InputError
+                                                            message={
+                                                                errors[
+                                                                    'first_batch.public_intake'
+                                                                ]
+                                                            }
+                                                        />
+                                                    )}
                                                 </div>
                                             ) : null}
                                             <InputError
@@ -995,7 +1011,11 @@ export default function UserProgramsIndex({
                                                 />
                                             </div>
                                         </div>
-                                    ) : null}
+                                    ) : (
+                                        <InputError
+                                            message={errors.public_intake}
+                                        />
+                                    )}
 
                                     <DrawerFooter
                                         className="px-0"

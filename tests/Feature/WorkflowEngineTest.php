@@ -23,6 +23,7 @@ use App\Services\User\AssistanceService;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Services\Workflow\PublishWorkflowValidator;
 use App\Services\Workflow\WorkflowEngine;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\ValidationException;
 
 function workflowEngineContext(): array
@@ -75,6 +76,30 @@ test('creating an assistance starts a workflow instance and the first task', fun
         ->and($assistance->refresh()->workflow_id)->not->toBeNull()
         ->and(WorkflowTask::query()->where('assistance_workflow_id', $instance->id)->count())->toBe(1)
         ->and($assistance->currentRequestSubStatus?->request_status_id)->toBe(catalogParentId(RequestStatusCode::Submitted));
+});
+
+test('creating an assistance starts a workflow when lazy loading is disabled', function () {
+    ['user' => $user, 'program' => $program, 'beneficiary' => $beneficiary, 'mode' => $mode, 'item' => $item] = workflowEngineContext();
+
+    Model::preventLazyLoading(true);
+
+    try {
+        $assistance = app(AssistanceService::class)->create($program, $user, [
+            'beneficiary_id' => $beneficiary->id,
+            'mode_of_request_id' => $mode->id,
+            'recorded_at' => now()->toDateTimeString(),
+            'item_details' => [
+                ['item_id' => $item->id, 'quantity' => 1],
+            ],
+        ]);
+    } finally {
+        Model::preventLazyLoading(false);
+    }
+
+    $instance = AssistanceWorkflow::query()->where('assistance_id', $assistance->id)->first();
+
+    expect($instance)->not->toBeNull()
+        ->and(WorkflowTask::query()->where('assistance_workflow_id', $instance->id)->count())->toBe(1);
 });
 
 test('the engine rejects a skip from submitted to delivered on the standard workflow', function () {
