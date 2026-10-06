@@ -16,7 +16,6 @@ use App\Http\Controllers\User\NotificationController as UserNotificationControll
 use App\Http\Controllers\User\ProgramBatchController as UserProgramBatchController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use App\Http\Controllers\User\UnspscCodeController as UserUnspscCodeController;
-use App\Http\Controllers\User\WorkflowController as UserWorkflowController;
 use App\Http\Controllers\User\WorkflowTaskController as UserWorkflowTaskController;
 use App\Http\Middleware\EnsureUserBelongsToDepartment;
 use Illuminate\Support\Facades\Route;
@@ -84,14 +83,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('workflow-tasks/{task}/return', [UserWorkflowTaskController::class, 'complete'])->name('user.workflow-tasks.return');
         Route::post('workflow-tasks/{task}/reject', [UserWorkflowTaskController::class, 'complete'])->name('user.workflow-tasks.reject');
         Route::post('workflow-tasks/{task}/reassign', [UserWorkflowTaskController::class, 'reassign'])->name('user.workflow-tasks.reassign');
-
-        Route::get('workflows', [UserWorkflowController::class, 'index'])->name('user.workflows.index');
-        Route::post('workflows', [UserWorkflowController::class, 'store'])->name('user.workflows.store');
-        Route::put('workflows/{workflow}', [UserWorkflowController::class, 'update'])->name('user.workflows.update');
-        Route::post('workflows/{workflow}/publish', [UserWorkflowController::class, 'publish'])->name('user.workflows.publish');
-        Route::post('workflows/{workflow}/activate', [UserWorkflowController::class, 'activate'])->name('user.workflows.activate');
-        Route::post('workflows/{workflow}/deactivate', [UserWorkflowController::class, 'deactivate'])->name('user.workflows.deactivate');
-        Route::post('workflows/{workflow}/version', [UserWorkflowController::class, 'version'])->name('user.workflows.version');
 
         Route::scopeBindings()->group(function () {
             Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');

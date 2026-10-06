@@ -1,61 +1,133 @@
-'use client';
-
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Label } from '@/components/ui/label';
+import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
+import type { ServerPaginationMeta } from '@/components/data-table/types';
+import { Card, CardContent } from '@/components/ui/card';
+import { createAdminWorkflowColumns } from '@/pages/admin/workflows/workflow-columns';
+import { AdminWorkflowToolbar } from '@/pages/admin/workflows/workflow-toolbar';
 import { index as adminUsersIndex } from '@/routes/admin/users';
-import {
-    create as adminWorkflowsCreate,
-    index as adminWorkflowsIndex,
-    show as adminWorkflowsShow,
-} from '@/routes/admin/workflows';
+import { index as adminWorkflowsIndex } from '@/routes/admin/workflows';
 import type { BreadcrumbItem } from '@/types';
 import type { AdminDepartmentOption } from '@/types/admin-user';
-import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { Plus } from 'lucide-react';
-import { useEffect } from 'react';
+import type {
+    AdminWorkflowAbilities,
+    AdminWorkflowRow,
+    AdminWorkflowStatusOption,
+    AdminWorkflowTableFilters,
+} from '@/types/admin-workflow';
+import { Head, router, setLayoutProps } from '@inertiajs/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-type WorkflowSummary = {
-    id: number;
-    name: string;
-    code: string | null;
-    version: number;
-    status: string;
-    status_label: string;
-    is_default: boolean;
-    department: { id: number; name: string; slug: string } | null;
+const WORKFLOWS_TABLE_PARTIAL_PROPS = ['workflows'] as const;
+const WORKFLOWS_TABLE_SKELETON_COLUMNS = 6;
+
+type PaginatedWorkflows = ServerPaginationMeta & {
+    data: AdminWorkflowRow[];
 };
 
-type WorkflowAbilities = {
-    create: boolean;
-};
+function buildWorkflowsQuery(
+    state: {
+        search: string;
+        department_id: number | null;
+        status: string[];
+        sort: string;
+        direction: 'asc' | 'desc';
+        per_page: number;
+        page?: number;
+    },
+    overrides: Partial<typeof state> = {},
+): Record<string, string | number | string[]> {
+    const next = { ...state, ...overrides };
+    const query: Record<string, string | number | string[]> = {
+        sort: next.sort,
+        direction: next.direction,
+        per_page: next.per_page,
+    };
+
+    if (next.page !== undefined) {
+        query.page = next.page;
+    }
+
+    const search = next.search.trim();
+    if (search !== '') {
+        query.search = search;
+    }
+
+    if (next.department_id !== null) {
+        query.department_id = next.department_id;
+    }
+
+    if (next.status.length > 0) {
+        query.status = next.status;
+    }
+
+    return query;
+}
+
+function isWorkflowsPartialVisit(only?: string[]): boolean {
+    if (!only?.length) {
+        return false;
+    }
+
+    return only.some((prop) =>
+        WORKFLOWS_TABLE_PARTIAL_PROPS.includes(
+            prop as (typeof WORKFLOWS_TABLE_PARTIAL_PROPS)[number],
+        ),
+    );
+}
 
 export default function AdminWorkflowsIndex({
-    departments,
-    department,
     workflows,
+    departments,
+    status_options,
+    search,
+    department_id,
+    status,
+    sort,
+    direction,
     can,
 }: {
+    workflows: PaginatedWorkflows;
     departments: AdminDepartmentOption[];
-    department: { id: number; name: string; slug: string } | null;
-    workflows: WorkflowSummary[];
-    can: WorkflowAbilities;
+    status_options: AdminWorkflowStatusOption[];
+    search: string;
+    department_id: number | null;
+    status: string[];
+    sort: string;
+    direction: 'asc' | 'desc';
+    can: AdminWorkflowAbilities;
 }) {
+    const [tableState, setTableState] = useState({
+        sort,
+        direction,
+        per_page: workflows.per_page,
+        search,
+        department_id,
+        status,
+    });
+    const [isTableReloading, setIsTableReloading] = useState(false);
+    const tableStateRef = useRef(tableState);
+
+    useEffect(() => {
+        tableStateRef.current = tableState;
+    }, [tableState]);
+
+    useEffect(() => {
+        const removeStart = router.on('start', (event) => {
+            if (isWorkflowsPartialVisit(event.detail.visit.only)) {
+                setIsTableReloading(true);
+            }
+        });
+
+        const removeFinish = router.on('finish', () => {
+            setIsTableReloading(false);
+        });
+
+        return () => {
+            removeStart();
+            removeFinish();
+        };
+    }, []);
+
     useEffect(() => {
         setLayoutProps({
             breadcrumbs: [
@@ -71,115 +143,103 @@ export default function AdminWorkflowsIndex({
         });
     }, []);
 
-    const visitDepartment = (slug: string) => {
-        router.get(
-            adminWorkflowsIndex.url({
-                query: slug === 'all' ? {} : { department: slug },
-            }),
-            {},
-            {
-                preserveState: true,
-                preserveScroll: true,
-                only: ['department', 'workflows', 'can'],
-            },
-        );
+    const tableFilters: AdminWorkflowTableFilters = {
+        search: tableState.search,
+        department_id: tableState.department_id,
+        status: tableState.status,
     };
+
+    const visitTable = useCallback(
+        (
+            overrides: Partial<
+                AdminWorkflowTableFilters & {
+                    sort: string;
+                    direction: 'asc' | 'desc';
+                    per_page: number;
+                    page: number;
+                }
+            > = {},
+        ) => {
+            const next = { ...tableStateRef.current, ...overrides };
+            setTableState(next);
+            router.cancelAll();
+            router.get(
+                adminWorkflowsIndex.url({
+                    query: buildWorkflowsQuery(next, overrides),
+                }),
+                {},
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    only: [...WORKFLOWS_TABLE_PARTIAL_PROPS],
+                },
+            );
+        },
+        [],
+    );
+
+    const workflowColumns = useMemo(
+        () =>
+            createAdminWorkflowColumns({
+                canDelete: can.delete,
+            }),
+        [can.delete],
+    );
 
     return (
         <>
             <Head title="Workflows" />
 
-            <div className="space-y-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div className="max-w-sm space-y-2">
-                        <Label htmlFor="admin-workflow-department">
-                            Department
-                        </Label>
-                        <Select
-                            value={department?.slug ?? 'all'}
-                            onValueChange={visitDepartment}
-                        >
-                            <SelectTrigger id="admin-workflow-department">
-                                <SelectValue placeholder="All departments" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">
-                                    All departments
-                                </SelectItem>
-                                {departments.map((option) => (
-                                    <SelectItem
-                                        key={option.id}
-                                        value={option.slug}
-                                    >
-                                        {option.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    {can.create ? (
-                        <Button asChild>
-                            <Link href={adminWorkflowsCreate.url()}>
-                                <Plus className="size-4" />
-                                Create Workflow
-                            </Link>
-                        </Button>
-                    ) : null}
-                </div>
-
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Version</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Department</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {workflows.length === 0 ? (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={4}
-                                    className="text-muted-foreground"
-                                >
-                                    No workflows yet.
-                                </TableCell>
-                            </TableRow>
-                        ) : (
-                            workflows.map((workflow) => (
-                                <TableRow key={workflow.id}>
-                                    <TableCell>
-                                        <Link
-                                            href={adminWorkflowsShow.url(
-                                                workflow.id,
-                                            )}
-                                            className="font-medium hover:underline"
-                                        >
-                                            {workflow.name}
-                                        </Link>
-                                        {workflow.code ? (
-                                            <p className="text-xs text-muted-foreground">
-                                                {workflow.code}
-                                            </p>
-                                        ) : null}
-                                    </TableCell>
-                                    <TableCell>v{workflow.version}</TableCell>
-                                    <TableCell>
-                                        <Badge variant="secondary">
-                                            {workflow.status_label}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        {workflow.department?.name ?? '-'}
-                                    </TableCell>
-                                </TableRow>
-                            ))
+            <Card>
+                <CardContent>
+                    <DataTable
+                        columns={workflowColumns}
+                        data={workflows.data}
+                        emptyMessage="No workflows match your filters."
+                        manualPagination
+                        manualSorting
+                        manualFiltering
+                        serverPagination={workflows}
+                        serverSorting={{
+                            sort: tableState.sort,
+                            direction: tableState.direction,
+                        }}
+                        partialReloadOnly={[...WORKFLOWS_TABLE_PARTIAL_PROPS]}
+                        isLoading={isTableReloading}
+                        loadingFallback={
+                            <DataTableSkeleton
+                                columnCount={WORKFLOWS_TABLE_SKELETON_COLUMNS}
+                                rowCount={tableState.per_page}
+                            />
+                        }
+                        onServerSortingChange={(columnId, nextDirection) => {
+                            visitTable({
+                                sort: columnId,
+                                direction: nextDirection,
+                                page: 1,
+                            });
+                        }}
+                        onPerPageChange={(nextPerPage) => {
+                            visitTable({
+                                per_page: nextPerPage,
+                                page: 1,
+                            });
+                        }}
+                        toolbar={(table, columnVisibility) => (
+                            <AdminWorkflowToolbar
+                                table={table}
+                                columnVisibility={columnVisibility}
+                                filters={tableFilters}
+                                departments={departments}
+                                statusOptions={status_options}
+                                canCreate={can.create}
+                                onFiltersChange={visitTable}
+                                onWorkflowCreated={() => visitTable({ page: 1 })}
+                            />
                         )}
-                    </TableBody>
-                </Table>
-            </div>
+                    />
+                </CardContent>
+            </Card>
         </>
     );
 }

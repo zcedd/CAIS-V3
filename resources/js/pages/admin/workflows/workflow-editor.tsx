@@ -23,16 +23,8 @@ import {
     update as updateAdminWorkflow,
     version as versionAdminWorkflow,
 } from '@/routes/admin/workflows';
-import {
-    activate as activateWorkflow,
-    deactivate as deactivateWorkflow,
-    publish as publishWorkflow,
-    store as storeWorkflow,
-    update as updateWorkflow,
-    version as versionWorkflow,
-} from '@/routes/user/workflows';
 import { Form, router } from '@inertiajs/react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -180,7 +172,6 @@ export function WorkflowEditor({
     reasons,
     staff_options = [],
     role_options = [],
-    can_create = false,
     variant = 'department',
     can = {},
 }: {
@@ -191,11 +182,9 @@ export function WorkflowEditor({
     reasons: WorkflowReason[];
     staff_options?: WorkflowStaffOption[];
     role_options?: WorkflowRoleOption[];
-    can_create?: boolean;
     variant?: 'department' | 'admin';
     can?: WorkflowAbilities;
 }) {
-    const canCreate = can.create ?? can_create;
     const canUpdate = can.update ?? true;
     const canPublish = can.publish ?? true;
     const canManage = can.manage ?? true;
@@ -207,9 +196,6 @@ export function WorkflowEditor({
     const [selectedId, setSelectedId] = useState<number | null>(
         workflows[0]?.id ?? null,
     );
-    const [createName, setCreateName] = useState('');
-    const [createTemplate, setCreateTemplate] = useState('standard');
-    const [createDefault, setCreateDefault] = useState(false);
 
     const selected = workflows.find((workflow) => workflow.id === selectedId);
 
@@ -275,36 +261,16 @@ export function WorkflowEditor({
     };
 
     const publishUrl = (workflowId: number) =>
-        isAdmin
-            ? publishAdminWorkflow.url(workflowId)
-            : publishWorkflow.url({
-                  department: department.slug,
-                  workflow: workflowId,
-              });
+        publishAdminWorkflow.url(workflowId);
 
     const activateUrl = (workflowId: number) =>
-        isAdmin
-            ? activateAdminWorkflow.url(workflowId)
-            : activateWorkflow.url({
-                  department: department.slug,
-                  workflow: workflowId,
-              });
+        activateAdminWorkflow.url(workflowId);
 
     const deactivateUrl = (workflowId: number) =>
-        isAdmin
-            ? deactivateAdminWorkflow.url(workflowId)
-            : deactivateWorkflow.url({
-                  department: department.slug,
-                  workflow: workflowId,
-              });
+        deactivateAdminWorkflow.url(workflowId);
 
     const versionUrl = (workflowId: number) =>
-        isAdmin
-            ? versionAdminWorkflow.url(workflowId)
-            : versionWorkflow.url({
-                  department: department.slug,
-                  workflow: workflowId,
-              });
+        versionAdminWorkflow.url(workflowId);
 
     const updateStep = (index: number, changes: Partial<DraftStep>) => {
         setSteps((current) =>
@@ -355,95 +321,6 @@ export function WorkflowEditor({
                             </li>
                         ))}
                     </ul>
-
-                    {canCreate && !isAdmin ? (
-                        <Form
-                            {...storeWorkflow.form.post(department.slug)}
-                            disableWhileProcessing
-                            resetOnSuccess
-                            transform={() => ({
-                                name: createName,
-                                template: createTemplate,
-                                is_default: createDefault,
-                                steps: [],
-                            })}
-                            onSuccess={() => {
-                                setCreateName('');
-                                setCreateTemplate('standard');
-                                setCreateDefault(false);
-                                toast.success('Workflow created.');
-                            }}
-                            className="space-y-3 border-t pt-3"
-                        >
-                            {({ errors, processing }) => (
-                                <>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="workflow-create-name">
-                                            New workflow
-                                        </Label>
-                                        <Input
-                                            id="workflow-create-name"
-                                            value={createName}
-                                            onChange={(event) =>
-                                                setCreateName(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            placeholder="Walk-in relief"
-                                        />
-                                        <InputError message={errors.name} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label htmlFor="workflow-create-template">
-                                            Template
-                                        </Label>
-                                        <Select
-                                            value={createTemplate}
-                                            onValueChange={setCreateTemplate}
-                                        >
-                                            <SelectTrigger id="workflow-create-template">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="standard">
-                                                    Standard
-                                                </SelectItem>
-                                                <SelectItem value="walk_in">
-                                                    Walk-in
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                    <label className="flex items-center gap-2 text-sm">
-                                        <Input
-                                            type="checkbox"
-                                            className="size-4"
-                                            checked={createDefault}
-                                            onChange={(event) =>
-                                                setCreateDefault(
-                                                    event.target.checked,
-                                                )
-                                            }
-                                        />
-                                        Set as department default
-                                    </label>
-                                    <Button
-                                        type="submit"
-                                        size="sm"
-                                        disabled={
-                                            processing ||
-                                            createName.trim() === ''
-                                        }
-                                    >
-                                        <Plus className="size-4" />
-                                        {processing
-                                            ? 'Creating...'
-                                            : 'Create from template'}
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
-                    ) : null}
                 </CardContent>
             </Card>
 
@@ -556,12 +433,7 @@ export function WorkflowEditor({
                     </CardHeader>
                     <CardContent>
                         <Form
-                            {...(isAdmin
-                                ? updateAdminWorkflow.form.put(selected.id)
-                                : updateWorkflow.form.put({
-                                      department: department.slug,
-                                      workflow: selected.id,
-                                  }))}
+                            {...updateAdminWorkflow.form.put(selected.id)}
                             disableWhileProcessing
                             options={{ preserveScroll: true }}
                             transform={() => ({

@@ -2,7 +2,6 @@
 
 use App\Enums\PermissionName;
 use App\Enums\RoleName;
-use App\Enums\WorkflowTemplate;
 use App\Models\Assistance;
 use App\Models\Beneficiary;
 use App\Models\Department;
@@ -172,7 +171,7 @@ test('staff with the beneficiary role can create an individual beneficiary', fun
     expect(Beneficiary::query()->where('name', 'Juan Cruz')->exists())->toBeTrue();
 });
 
-test('staff with the workflow role can create a workflow', function () {
+test('staff with the workflow role cannot manage workflows', function () {
     $department = Department::create(['name' => 'Department A']);
     $user = grantResourceRoles(
         User::factory()->create(['department_id' => $department->id]),
@@ -180,14 +179,16 @@ test('staff with the workflow role can create a workflow', function () {
     );
 
     $this->actingAs($user)
-        ->from(route('user.workflows.index', $department->slug))
-        ->post(route('user.workflows.store', $department->slug), [
+        ->get("/{$department->slug}/workflows")
+        ->assertNotFound();
+
+    $this->actingAs($user)
+        ->post(route('admin.workflows.store'), [
+            'department_id' => $department->id,
             'name' => 'Walk-in relief',
-            'template' => WorkflowTemplate::WalkIn->value,
-            'is_default' => false,
+            'code' => 'WALK_IN',
         ])
-        ->assertRedirect()
-        ->assertSessionHas('success');
+        ->assertForbidden();
 });
 
 test('super admin can act in another department without resource roles', function () {
@@ -206,7 +207,7 @@ test('super admin can act in another department without resource roles', functio
     ]);
 
     $this->actingAs($user)
-        ->get(route('user.workflows.index', $departmentB->slug))
+        ->get(route('user.programs.index', $departmentB->slug))
         ->assertSuccessful();
 
     $this->actingAs($user)

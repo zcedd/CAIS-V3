@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Actions\Admin\ReassignWorkflowTask;
 use App\Enums\RoleName;
+use App\Enums\WorkflowStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\Workflow\ActivateRequest;
 use App\Http\Requests\Admin\Workflow\AssignProgramsRequest;
@@ -40,20 +41,35 @@ class WorkflowController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
-        $departments = Department::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
-
-        $slug = $request->departmentSlug();
-        $department = $slug === ''
-            ? null
-            : $departments->firstWhere('slug', $slug);
+        $search = $request->search();
+        $departmentId = $request->departmentId();
+        $statuses = $request->statuses();
 
         return Inertia::render('admin/workflows/index', [
-            'departments' => $departments,
-            'department' => $department?->only(['id', 'name', 'slug']),
-            'workflows' => $this->adminWorkflowService->listSummaries($department),
-            'can' => $this->adminWorkflowService->abilities($user, null, $department),
+            'workflows' => $this->adminWorkflowService->paginate(
+                $search,
+                $departmentId,
+                $statuses,
+                $request->sort(),
+                $request->direction(),
+                $request->perPage(),
+            ),
+            'departments' => Department::query()
+                ->orderBy('name')
+                ->get(['id', 'name', 'slug']),
+            'status_options' => array_map(
+                static fn (WorkflowStatus $status): array => [
+                    'value' => $status->value,
+                    'label' => $status->label(),
+                ],
+                WorkflowStatus::cases(),
+            ),
+            'search' => $search,
+            'department_id' => $departmentId,
+            'status' => $statuses,
+            'sort' => $request->sort(),
+            'direction' => $request->direction(),
+            'can' => $this->adminWorkflowService->abilities($user),
         ]);
     }
 
@@ -74,10 +90,10 @@ class WorkflowController extends Controller
     public function store(StoreRequest $request): RedirectResponse
     {
         $department = Department::query()->findOrFail($request->integer('department_id'));
-        $workflow = $this->adminWorkflowService->create($department, $request->validated());
+        $this->adminWorkflowService->create($department, $request->validated());
 
         return redirect()
-            ->route('admin.workflows.show', $workflow)
+            ->back()
             ->with('success', 'Workflow created as a draft.');
     }
 
@@ -112,17 +128,22 @@ class WorkflowController extends Controller
     public function destroy(DestroyRequest $request, Workflow $workflow): RedirectResponse
     {
         $result = $this->adminWorkflowService->delete($workflow);
+        $deleted = $result !== 'deactivated';
+        $message = $deleted
+            ? 'Workflow deleted.'
+            : 'Workflow is in use, so it was deactivated instead of deleted.';
+        $previousPath = parse_url((string) url()->previous(), PHP_URL_PATH);
+        $editorPath = parse_url(route('admin.workflows.show', $workflow), PHP_URL_PATH);
+
+        if ($deleted && is_string($previousPath) && $previousPath === $editorPath) {
+            return redirect()
+                ->route('admin.workflows.index')
+                ->with('success', $message);
+        }
 
         return redirect()
-            ->route('admin.workflows.index', [
-                'department' => $workflow->department?->slug,
-            ])
-            ->with(
-                'success',
-                $result === 'deactivated'
-                    ? 'Workflow is in use, so it was deactivated instead of deleted.'
-                    : 'Workflow deleted.',
-            );
+            ->back()
+            ->with('success', $message);
     }
 
     public function publish(PublishRequest $request, Workflow $workflow): RedirectResponse

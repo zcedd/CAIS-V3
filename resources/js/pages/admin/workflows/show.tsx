@@ -3,18 +3,18 @@
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { WorkflowEditor } from '@/pages/user/workflows/workflow-editor';
+import { WorkflowEditor } from '@/pages/admin/workflows/workflow-editor';
 import type {
     WorkflowDepartmentSummary,
     WorkflowPayload,
     WorkflowReason,
     WorkflowStaffOption,
     WorkflowStatus,
-} from '@/pages/user/workflows/workflow-editor';
+} from '@/pages/admin/workflows/workflow-editor';
 import { index as adminUsersIndex } from '@/routes/admin/users';
 import {
     index as adminWorkflowsIndex,
-    assignPrograms as assignWorkflowPrograms,
+    programs as assignWorkflowPrograms,
 } from '@/routes/admin/workflows';
 import type { BreadcrumbItem } from '@/types';
 import type { AdminDepartmentOption } from '@/types/admin-user';

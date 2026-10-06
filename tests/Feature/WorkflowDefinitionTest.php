@@ -1,26 +1,27 @@
 <?php
 
 use App\Actions\Admin\CreateWorkflowVersion;
+use App\Enums\RequestStatusCode;
 use App\Enums\RoleName;
 use App\Enums\WorkflowStatus;
-use App\Enums\WorkflowTemplate;
+use App\Enums\WorkflowTransitionAction;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
 use App\Models\Workflow;
+use App\Models\WorkflowStep;
+use App\Models\WorkflowStepTransition;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Services\Workflow\PublishWorkflowValidator;
+use Illuminate\Database\Eloquent\Model;
 
-test('staff can create a workflow version of an active definition', function () {
+test('a super admin can create a workflow version of an active definition', function () {
     $department = Department::create(['name' => 'Version Department']);
-    $user = grantResourceRoles(User::factory()->create(['department_id' => $department->id]));
+    $admin = assignSuperAdminRole(User::factory()->create());
     $workflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
 
-    $this->actingAs($user)
-        ->post(route('user.workflows.version', [
-            'department' => $department->slug,
-            'workflow' => $workflow->id,
-        ]))
+    $this->actingAs($admin)
+        ->post(route('admin.workflows.version', $workflow))
         ->assertRedirect()
         ->assertSessionHas('success');
 
@@ -36,17 +37,69 @@ test('staff can create a workflow version of an active definition', function () 
         ->and($workflow->refresh()->status)->toBe(WorkflowStatus::Active);
 });
 
+test('a super admin can save a draft workflow with stage transitions', function () {
+    Model::preventLazyLoading(true);
+
+    try {
+        $department = Department::create(['name' => 'Draft Edit Department']);
+        $admin = assignSuperAdminRole(User::factory()->create());
+        $workflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+        $draft = app(CreateWorkflowVersion::class)($workflow);
+        $draft->load('steps.requestStatus');
+
+        $denied = $draft->steps->first(
+            static fn (WorkflowStep $step): bool => RequestStatusCode::Denied->matches($step->requestStatus),
+        );
+        $start = $draft->steps->first(static fn (WorkflowStep $step): bool => $step->is_start);
+
+        expect($denied)->not->toBeNull()
+            ->and($start)->not->toBeNull();
+
+        $steps = $draft->steps->map(static function (WorkflowStep $step) use ($denied, $start): array {
+            return [
+                'id' => $step->id,
+                'code' => $step->code,
+                'name' => $step->name,
+                'request_status_id' => $step->request_status_id,
+                'sort_order' => $step->sort_order,
+                'is_start' => $step->is_start,
+                'is_end' => $step->is_end,
+                'transition_status_ids' => $step->is($start) ? [$denied->request_status_id] : [],
+            ];
+        })->all();
+
+        $this->actingAs($admin)
+            ->put(route('admin.workflows.update', $draft), [
+                'name' => 'Updated draft',
+                'code' => $draft->code,
+                'description' => $draft->description,
+                'steps' => $steps,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $transition = WorkflowStepTransition::query()
+            ->where('workflow_step_id', $start->id)
+            ->where('to_request_status_id', $denied->request_status_id)
+            ->first();
+
+        expect($draft->refresh()->name)->toBe('Updated draft')
+            ->and($transition)->not->toBeNull()
+            ->and($transition?->action)->toBe(WorkflowTransitionAction::Reject);
+    } finally {
+        Model::preventLazyLoading(false);
+    }
+});
+
 test('active workflows cannot be edited in place', function () {
     $department = Department::create(['name' => 'Immutable Department']);
-    $user = grantResourceRoles(User::factory()->create(['department_id' => $department->id]));
+    $admin = assignSuperAdminRole(User::factory()->create());
     $workflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
 
-    $this->actingAs($user)
-        ->put(route('user.workflows.update', [
-            'department' => $department->slug,
-            'workflow' => $workflow->id,
-        ]), [
+    $this->actingAs($admin)
+        ->put(route('admin.workflows.update', $workflow), [
             'name' => 'Changed',
+            'code' => $workflow->code,
             'steps' => [
                 [
                     'request_status_id' => $workflow->steps->first()->request_status_id,
@@ -93,24 +146,13 @@ test('activating a published workflow retires the previous active version', func
         ->and($workflow->refresh()->status)->toBe(WorkflowStatus::Inactive);
 });
 
-test('a walk-in template can be created from the department workflow page', function () {
+test('department staff cannot open workflow management', function () {
     $department = Department::create(['name' => 'Template Department']);
     $user = grantResourceRoles(User::factory()->create(['department_id' => $department->id]));
 
     $this->actingAs($user)
-        ->post(route('user.workflows.store', $department->slug), [
-            'name' => 'Walk-in relief',
-            'template' => WorkflowTemplate::WalkIn->value,
-            'is_default' => false,
-        ])
-        ->assertRedirect()
-        ->assertSessionHas('success');
-
-    expect(Workflow::query()
-        ->where('department_id', $department->id)
-        ->where('name', 'Walk-in relief')
-        ->where('template', WorkflowTemplate::WalkIn)
-        ->exists())->toBeTrue();
+        ->get("/{$department->slug}/workflows")
+        ->assertNotFound();
 });
 
 test('admin can deactivate an active workflow', function () {
@@ -152,13 +194,45 @@ test('staff with the workflow role cannot publish a workflow', function () {
     $draft = app(CreateWorkflowVersion::class)($workflow);
 
     $this->actingAs($user)
-        ->post(route('user.workflows.publish', [
-            'department' => $department->slug,
-            'workflow' => $draft->id,
-        ]))
+        ->post(route('admin.workflows.publish', $draft))
         ->assertForbidden();
 
     expect($draft->refresh()->status)->toBe(WorkflowStatus::Draft);
+});
+
+test('deleting an unused workflow from the editor returns to the workflow list', function () {
+    $department = Department::create(['name' => 'Delete Department']);
+    $admin = assignSuperAdminRole(User::factory()->create());
+    $workflow = Workflow::factory()->draft()->create([
+        'department_id' => $department->id,
+        'name' => 'Unused draft',
+    ]);
+
+    $this->actingAs($admin)
+        ->from(route('admin.workflows.show', $workflow))
+        ->delete(route('admin.workflows.destroy', $workflow))
+        ->assertRedirect(route('admin.workflows.index'))
+        ->assertSessionHas('success', 'Workflow deleted.');
+
+    expect(Workflow::query()->find($workflow->id))->toBeNull();
+});
+
+test('deleting an unused workflow from the list stays on the list', function () {
+    $department = Department::create(['name' => 'List Delete Department']);
+    $admin = assignSuperAdminRole(User::factory()->create());
+    $workflow = Workflow::factory()->draft()->create([
+        'department_id' => $department->id,
+        'name' => 'List draft',
+    ]);
+    $listUrl = route('admin.workflows.index', ['search' => 'List draft']);
+
+    $this->actingAs($admin)
+        ->from($listUrl)
+        ->delete(route('admin.workflows.destroy', $workflow))
+        ->assertRedirect($listUrl)
+        ->assertSessionHas('success', 'Workflow deleted.');
+
+    expect(Workflow::query()->find($workflow->id))->toBeNull();
 });
 
 test('deleting a referenced workflow deactivates it instead', function () {
@@ -177,8 +251,9 @@ test('deleting a referenced workflow deactivates it instead', function () {
     ]);
 
     $this->actingAs($admin)
+        ->from(route('admin.workflows.show', $workflow))
         ->delete(route('admin.workflows.destroy', $workflow))
-        ->assertRedirect()
+        ->assertRedirect(route('admin.workflows.show', $workflow))
         ->assertSessionHas('success');
 
     expect(Workflow::query()->find($workflow->id))->not->toBeNull()

@@ -285,6 +285,8 @@ class WorkflowService
     public function update(Workflow $workflow, array $validated): Workflow
     {
         return DB::transaction(function () use ($workflow, $validated): Workflow {
+            $workflow->loadMissing(['department', 'steps']);
+
             if (! $workflow->isMutable()) {
                 throw ValidationException::withMessages([
                     'status' => 'Published and active workflows cannot be edited. Create a new version instead.',
@@ -394,6 +396,7 @@ class WorkflowService
 
         $stepsByStatus = WorkflowStep::query()
             ->where('workflow_id', $workflow->id)
+            ->with('requestStatus')
             ->get()
             ->keyBy(static fn (WorkflowStep $step): int => (int) $step->request_status_id);
 

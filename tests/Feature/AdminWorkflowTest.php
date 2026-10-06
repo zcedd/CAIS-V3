@@ -32,9 +32,12 @@ test('super admin can open the admin workflows page without a department', funct
         ->assertInertia(fn (Assert $page) => $page
             ->component('admin/workflows/index')
             ->has('departments', 1)
-            ->where('department', null)
-            ->where('workflows', [])
-            ->where('can.create', true));
+            ->where('department_id', null)
+            ->where('search', '')
+            ->where('status', [])
+            ->where('workflows.data', [])
+            ->where('can.create', true)
+            ->where('can.delete', true));
 });
 
 test('super admin can create a draft workflow from the admin page', function () {
@@ -63,6 +66,38 @@ test('super admin can create a draft workflow from the admin page', function () 
         ->and($workflow->status)->toBe(WorkflowStatus::Draft)
         ->and($workflow->version)->toBe(1)
         ->and($workflow->description)->toBe('Workflow for processing medical assistance requests.');
+});
+
+test('super admin can filter workflows by name, department, and status', function () {
+    $welfare = Department::create(['name' => 'Social Welfare']);
+    $health = Department::create(['name' => 'Health']);
+    $admin = assignSuperAdminRole(User::factory()->create());
+
+    Workflow::factory()->draft()->create([
+        'department_id' => $welfare->id,
+        'name' => 'Medical Assistance',
+        'code' => 'MEDICAL',
+    ]);
+    Workflow::factory()->create([
+        'department_id' => $health->id,
+        'name' => 'Food Relief',
+        'code' => 'FOOD',
+        'status' => WorkflowStatus::Active,
+    ]);
+
+    $this->actingAs($admin)
+        ->get(route('admin.workflows.index', [
+            'search' => 'Medical',
+            'department_id' => $welfare->id,
+            'status' => [WorkflowStatus::Draft->value],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('workflows.data', 1)
+            ->where('workflows.data.0.name', 'Medical Assistance')
+            ->where('search', 'Medical')
+            ->where('department_id', $welfare->id)
+            ->where('status', [WorkflowStatus::Draft->value]));
 });
 
 test('staff cannot create a workflow through the admin store route', function () {

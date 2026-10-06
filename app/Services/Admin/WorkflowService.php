@@ -13,11 +13,17 @@ use App\Models\User;
 use App\Models\Workflow;
 use App\Services\User\WorkflowService as StaffWorkflowService;
 use App\Services\Workflow\PublishWorkflowValidator;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class WorkflowService
 {
+    private const DEFAULT_PER_PAGE = 15;
+
+    /** @var list<string> */
+    private const SORTABLE_COLUMNS = ['name', 'code', 'version', 'status', 'department'];
+
     public function __construct(
         private StaffWorkflowService $staffWorkflowService,
         private PublishWorkflowValidator $publishWorkflowValidator,
@@ -44,6 +50,54 @@ class WorkflowService
             ->get()
             ->map(fn (Workflow $workflow): array => $this->summary($workflow))
             ->all();
+    }
+
+    /**
+     * @param  list<string>  $statuses
+     * @return LengthAwarePaginator<int, array<string, mixed>>
+     */
+    public function paginate(
+        string $search,
+        ?int $departmentId,
+        array $statuses,
+        string $sort,
+        string $direction,
+        int $perPage,
+    ): LengthAwarePaginator {
+        $sortColumn = in_array($sort, self::SORTABLE_COLUMNS, true) ? $sort : 'name';
+        $sortDirection = $direction === 'asc' ? 'asc' : 'desc';
+
+        $query = Workflow::query()
+            ->with(['department:id,name,slug'])
+            ->withCount(['programs', 'instances', 'assistances'])
+            ->when($search !== '', function ($query) use ($search): void {
+                $like = '%'.$search.'%';
+
+                $query->where(function ($query) use ($like): void {
+                    $query->where('name', 'like', $like)
+                        ->orWhere('code', 'like', $like);
+                });
+            })
+            ->when($departmentId !== null, fn ($query) => $query->where('department_id', $departmentId))
+            ->when($statuses !== [], fn ($query) => $query->whereIn('status', $statuses));
+
+        if ($sortColumn === 'department') {
+            $query->orderBy(
+                Department::query()
+                    ->select('name')
+                    ->whereColumn('departments.id', 'workflows.department_id')
+                    ->limit(1),
+                $sortDirection,
+            );
+        } else {
+            $query->orderBy($sortColumn, $sortDirection);
+        }
+
+        return $query
+            ->orderByDesc('id')
+            ->paginate($perPage > 0 ? $perPage : self::DEFAULT_PER_PAGE)
+            ->withQueryString()
+            ->through(fn (Workflow $workflow): array => $this->summary($workflow));
     }
 
     /**
