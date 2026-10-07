@@ -1,8 +1,34 @@
+import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
+import {
+    Building2,
+    Copy,
+    CalendarRange,
+    Coins,
+    Package,
+    Pencil,
+    UserRound,
+    Users,
+} from 'lucide-react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+} from 'react';
+import { toast } from 'sonner';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ProgramApprovalActions } from '@/components/user/programs/program-approval-actions';
+import {
+    formatProgramDate,
+    formatProgramPeriod,
+} from '@/lib/format-program-period';
+import { cn } from '@/lib/utils';
 import type {
     AssistanceModeOption,
     AssistanceProgramItemOption,
@@ -24,9 +50,10 @@ import {
     ASSISTANCE_TABLE_SKELETON_COLUMNS,
     buildTableQuery,
     isAssistancesPartialVisit,
-    isAssistancesTableReady,
-    type PaginatedAssistances,
+    isAssistancesTableReady
+    
 } from '@/pages/user/programs/program-assistance-table';
+import type {PaginatedAssistances} from '@/pages/user/programs/program-assistance-table';
 import {
     ProgramStatusBreakdown,
     ProgramStatusBreakdownSkeleton,
@@ -36,11 +63,6 @@ import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
-import {
-    formatProgramDate,
-    formatProgramPeriod,
-} from '@/lib/format-program-period';
-import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 import type {
     DocumentTypeOption,
@@ -57,26 +79,6 @@ import type {
     ProgramFieldDefinition,
     ProgramFieldOption,
 } from '@/types/program-field';
-import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
-import {
-    Building2,
-    Copy,
-    CalendarRange,
-    Coins,
-    Package,
-    Pencil,
-    UserRound,
-    Users,
-} from 'lucide-react';
-import {
-    lazy,
-    Suspense,
-    useCallback,
-    useEffect,
-    useRef,
-    useState,
-} from 'react';
-import { toast } from 'sonner';
 
 const ProgramAssistanceTableSection = lazy(() =>
     import('@/pages/user/programs/program-assistance-table').then((module) => ({
@@ -118,6 +120,9 @@ type ProgramDetail = {
     batch_name?: string | null;
     department_id: number;
     parent?: { id: number; name: string } | null;
+    approval_status?: string | null;
+    approval_label?: string | null;
+    return_comment?: string | null;
 };
 
 type ProgramEditRelations = {
@@ -581,6 +586,16 @@ export default function UserProgramShow({
                         ) : null}
                     </div>
                 </div>
+
+                {department?.slug ? (
+                    <ProgramApprovalActions
+                        departmentSlug={department.slug}
+                        programId={program.id}
+                        approvalStatus={program.approval_status}
+                        approvalLabel={program.approval_label}
+                        returnComment={program.return_comment}
+                    />
+                ) : null}
 
                 <div data-tour="program-kpis">
                     <WhenVisible

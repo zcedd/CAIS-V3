@@ -19,6 +19,7 @@ export type Auth = {
     user: User;
     is_super_admin?: boolean;
     permissions?: string[];
+    can_switch_office?: boolean;
 };
 
 export type TwoFactorSetupData = {

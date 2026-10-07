@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,7 +12,6 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import type { AdminDepartmentOption, AdminRoleOption, AdminUserRow } from '@/types/admin-user';
-import { useState } from 'react';
 
 type UserFormFieldsProps = {
     user?: AdminUserRow | null;
@@ -32,6 +32,10 @@ export function UserFormFields({
 }: UserFormFieldsProps) {
     const [departmentId, setDepartmentId] = useState(
         user?.department?.id ? String(user.department.id) : 'none',
+    );
+    const officeValues = new Set(roleOptions.map((role) => role.value));
+    const [office, setOffice] = useState(
+        user?.roles.find((role) => officeValues.has(role)) ?? 'none',
     );
 
     return (
@@ -137,27 +141,28 @@ export function UserFormFields({
                 <InputError message={errors.department_id} />
             </div>
 
-            <fieldset className="space-y-2">
-                <legend className="text-sm font-medium">Roles</legend>
-                <div className="grid gap-2">
-                    {roleOptions.map((role) => (
-                        <label
-                            key={role.value}
-                            className="flex items-center gap-2 text-sm"
-                        >
-                            <Input
-                                type="checkbox"
-                                name="roles[]"
-                                value={role.value}
-                                defaultChecked={user?.roles.includes(role.value)}
-                                className="size-4 shrink-0 rounded border-input"
-                            />
-                            {role.label}
-                        </label>
-                    ))}
-                </div>
-                <InputError message={errors.roles} />
-            </fieldset>
+            <div className="space-y-2">
+                <Label htmlFor={`${idPrefix}-office`}>Office</Label>
+                <input
+                    type="hidden"
+                    name="office"
+                    value={office === 'none' ? '' : office}
+                />
+                <Select value={office} onValueChange={setOffice}>
+                    <SelectTrigger id={`${idPrefix}-office`}>
+                        <SelectValue placeholder="Choose an office" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">Choose an office</SelectItem>
+                        {roleOptions.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                                {role.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+                <InputError message={errors.office ?? errors.roles} />
+            </div>
         </>
     );
 }

@@ -19,6 +19,10 @@ enum PermissionName: string
     case ProgramUpdate = 'program.update';
     case ProgramDelete = 'program.delete';
     case ProgramDownloadAssistance = 'program.downloadAssistance';
+    case ProgramSubmit = 'program.submit';
+    case ProgramEndorse = 'program.endorse';
+    case ProgramApprove = 'program.approve';
+    case ProgramReturn = 'program.return';
 
     case BeneficiaryViewAny = 'beneficiary.viewAny';
     case BeneficiaryView = 'beneficiary.view';
@@ -74,9 +78,71 @@ enum PermissionName: string
             RoleName::Fund => self::forResource('fund'),
             RoleName::Workflow => self::departmentWorkflowPermissions(),
             RoleName::Supervisor => [self::DepartmentSupervise],
-            RoleName::Head => self::cases(),
+            RoleName::Head, RoleName::DepartmentHead => self::departmentHeadPermissions(),
+            RoleName::ReleasingOfficer => self::releasingOfficerPermissions(),
+            RoleName::Governor => self::governorPermissions(),
             RoleName::SuperAdmin => self::workflowManagement(),
         };
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function departmentHeadPermissions(): array
+    {
+        return [
+            ...self::forResource('program'),
+            self::ProgramSubmit,
+            self::ProgramEndorse,
+            ...self::forResource('fund'),
+            ...self::forResource('item'),
+            self::BeneficiaryViewAny,
+            self::BeneficiaryView,
+            self::AssistanceViewAny,
+            self::AssistanceView,
+        ];
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function releasingOfficerPermissions(): array
+    {
+        return [
+            self::BeneficiaryViewAny,
+            self::BeneficiaryView,
+            self::BeneficiaryCreate,
+            self::BeneficiaryUpdate,
+            self::AssistanceViewAny,
+            self::AssistanceView,
+            self::AssistanceCreate,
+            self::AssistanceUpdate,
+            self::AssistanceClaim,
+            self::AssistanceAdvance,
+            self::ProgramViewAny,
+            self::ProgramView,
+            self::ItemViewAny,
+            self::ItemView,
+        ];
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function governorPermissions(): array
+    {
+        return [
+            self::ProgramViewAny,
+            self::ProgramView,
+            self::ProgramApprove,
+            self::ProgramReturn,
+            self::FundViewAny,
+            self::FundView,
+            self::AssistanceViewAny,
+            self::AssistanceView,
+            self::BeneficiaryViewAny,
+            self::BeneficiaryView,
+        ];
     }
 
     /**
@@ -124,9 +190,17 @@ enum PermissionName: string
      */
     public static function forResource(string $resource): array
     {
+        $approval = [
+            self::ProgramSubmit,
+            self::ProgramEndorse,
+            self::ProgramApprove,
+            self::ProgramReturn,
+        ];
+
         return array_values(array_filter(
             self::cases(),
-            static fn (self $permission): bool => str_starts_with($permission->value, $resource.'.'),
+            static fn (self $permission): bool => str_starts_with($permission->value, $resource.'.')
+                && ! in_array($permission, $approval, true),
         ));
     }
 }

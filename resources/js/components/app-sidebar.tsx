@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    ArrowRightLeft,
     Bell,
     FolderKanban,
     Inbox,
@@ -24,14 +25,15 @@ import {
 } from '@/components/ui/sidebar';
 import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
-import { dashboard } from '@/routes';
+import { dashboard, portal } from '@/routes';
 import { index as adminUsersIndex } from '@/routes/admin/users';
+import { index as governorProgramsIndex } from '@/routes/governor/programs';
+import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiaries';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
 import { index as departmentNotificationsIndex } from '@/routes/user/notifications';
 import { index as departmentProgramsIndex } from '@/routes/user/programs';
-import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiaries';
 import { index as departmentQueueIndex } from '@/routes/user/queue';
 import type { NavItem } from '@/types';
 import type { Auth } from '@/types/auth';
@@ -68,10 +70,31 @@ export function AppSidebar() {
         const items: NavItem[] = [
             {
                 title: 'Dashboard',
-                href: slug ? departmentDashboardIndex(slug) : dashboard(),
+                href: slug
+                    ? departmentDashboardIndex(slug)
+                    : !props.auth.is_super_admin &&
+                        can(Permission.ProgramApprove)
+                      ? governorProgramsIndex()
+                      : dashboard(),
                 icon: LayoutGrid,
             },
         ];
+
+        if (props.auth.can_switch_office) {
+            items.push({
+                title: 'Offices',
+                href: portal(),
+                icon: ArrowRightLeft,
+            });
+        }
+
+        if (!slug && can(Permission.ProgramApprove)) {
+            items.push({
+                title: 'Approvals',
+                href: governorProgramsIndex(),
+                icon: Landmark,
+            });
+        }
 
         if (props.auth.is_super_admin) {
             items.push({
@@ -124,7 +147,7 @@ export function AppSidebar() {
         }
 
         return items;
-    }, [can, props.auth.is_super_admin, props.auth.user]);
+    }, [can, props.auth.can_switch_office, props.auth.is_super_admin, props.auth.user]);
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">

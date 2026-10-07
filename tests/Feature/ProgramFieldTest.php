@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramFieldType;
 use App\Models\Department;
 use App\Models\Fund;
@@ -112,6 +113,7 @@ test('program update syncs custom fields', function () {
         'department_id' => $department->id,
         'is_closed' => false,
         'is_organization' => false,
+        'approval_status' => ProgramApprovalStatus::Draft,
     ]);
     $program->fund()->attach($fund->id);
     $program->item()->attach($item->id);
@@ -300,6 +302,7 @@ test('program update assigns a distinct key when a deleted label is reused', fun
         'department_id' => $department->id,
         'is_closed' => false,
         'is_organization' => false,
+        'approval_status' => ProgramApprovalStatus::Draft,
     ]);
     $program->fund()->attach($fund->id);
     $program->item()->attach($item->id);

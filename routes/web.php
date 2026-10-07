@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
 use App\Http\Controllers\GlobalDashboardController;
+use App\Http\Controllers\Governor\ProgramController as GovernorProgramController;
+use App\Http\Controllers\PortalController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
 use App\Http\Controllers\User\AssistanceDocumentController as UserAssistanceDocumentController;
 use App\Http\Controllers\User\AssistanceQueueController as UserAssistanceQueueController;
@@ -28,6 +30,15 @@ require __DIR__.'/public.php';
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
+    Route::get('portal', [PortalController::class, 'show'])->name('portal');
+    Route::post('portal/enter', [PortalController::class, 'enter'])->name('portal.enter');
+
+    Route::prefix('governor')->name('governor.')->group(function () {
+        Route::get('programs', [GovernorProgramController::class, 'index'])->name('programs.index');
+        Route::get('programs/{program}', [GovernorProgramController::class, 'show'])->name('programs.show');
+        Route::post('programs/{program}/approve', [GovernorProgramController::class, 'approve'])->name('programs.approve');
+        Route::post('programs/{program}/return', [GovernorProgramController::class, 'returnToDepartment'])->name('programs.return');
+    });
 
     Route::middleware('super-admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', fn () => redirect()->route('admin.users.index'))->name('index');
@@ -86,6 +97,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::scopeBindings()->group(function () {
             Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
+            Route::post('programs/{program}/submit', [UserProgramController::class, 'submit'])->name('user.programs.submit');
+            Route::post('programs/{program}/endorse', [UserProgramController::class, 'endorse'])->name('user.programs.endorse');
+            Route::post('programs/{program}/revise', [UserProgramController::class, 'revise'])->name('user.programs.revise');
             Route::post('programs/{program}/batches', [UserProgramBatchController::class, 'store'])->name('user.programs.batches.store');
 
             Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');

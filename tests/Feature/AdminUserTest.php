@@ -28,7 +28,7 @@ test('department heads cannot view the admin users page', function () {
     seedRolesAndPermissions();
 
     $user = User::factory()->create();
-    $user->syncRoles([RoleName::Head->value]);
+    $user->syncRoles([RoleName::DepartmentHead->value]);
 
     $this->actingAs($user)
         ->get(route('admin.users.index'))
@@ -85,7 +85,7 @@ test('super admin can create a user with a department and roles', function () {
             'lastName' => 'Santos',
             'email' => 'ana@example.com',
             'department_id' => $department->id,
-            'roles' => [RoleName::Assistance->value, RoleName::Program->value],
+            'roles' => [RoleName::DepartmentHead->value],
         ])
         ->assertRedirect(route('admin.users.index'))
         ->assertSessionHas('success');
@@ -96,8 +96,8 @@ test('super admin can create a user with a department and roles', function () {
         ->and($user->firstName)->toBe('Ana')
         ->and($user->department_id)->toBe($department->id)
         ->and($user->email_verified_at)->not->toBeNull()
-        ->and($user->hasRole(RoleName::Assistance))->toBeTrue()
-        ->and($user->hasRole(RoleName::Program))->toBeTrue()
+        ->and($user->hasRole(RoleName::DepartmentHead))->toBeTrue()
+        ->and($user->roles)->toHaveCount(1)
         ->and($user->isSuperAdmin())->toBeFalse()
         ->and(Hash::check('password', $user->password))->toBeFalse();
 
@@ -114,7 +114,7 @@ test('an invited user can set a password from the invite link and log in', funct
             'firstName' => 'Ana',
             'lastName' => 'Santos',
             'email' => 'ana@example.com',
-            'roles' => [RoleName::Assistance->value],
+            'roles' => [RoleName::Governor->value],
         ])
         ->assertRedirect();
 
@@ -174,7 +174,7 @@ test('super admin can update a user department and roles', function () {
             'lastName' => 'Reyes',
             'email' => 'ana@example.com',
             'department_id' => $department->id,
-            'roles' => [RoleName::Workflow->value],
+            'roles' => [RoleName::ReleasingOfficer->value],
         ])
         ->assertRedirect(route('admin.users.index'))
         ->assertSessionHas('success');
@@ -183,11 +183,12 @@ test('super admin can update a user department and roles', function () {
 
     expect($user->lastName)->toBe('Reyes')
         ->and($user->department_id)->toBe($department->id)
-        ->and($user->hasRole(RoleName::Workflow))->toBeTrue()
+        ->and($user->hasRole(RoleName::ReleasingOfficer))->toBeTrue()
         ->and($user->roles)->toHaveCount(1);
 });
 
 test('super admin cannot remove their own super admin role', function () {
+    $department = Department::create(['name' => 'Social Welfare']);
     $admin = assignSuperAdminRole(User::factory()->create());
 
     $this->actingAs($admin)
@@ -196,7 +197,8 @@ test('super admin cannot remove their own super admin role', function () {
             'firstName' => $admin->firstName,
             'lastName' => $admin->lastName,
             'email' => $admin->email,
-            'roles' => [RoleName::Head->value],
+            'department_id' => $department->id,
+            'roles' => [RoleName::DepartmentHead->value],
         ])
         ->assertRedirect(route('admin.users.index'))
         ->assertSessionHasErrors('roles');
@@ -208,12 +210,15 @@ test('the last super admin cannot be demoted', function () {
     $admin = assignSuperAdminRole(User::factory()->create());
     $otherAdmin = assignSuperAdminRole(User::factory()->create());
 
+    $department = Department::create(['name' => 'Social Welfare']);
+
     $this->actingAs($admin)
         ->put(route('admin.users.update', $otherAdmin), [
             'firstName' => $otherAdmin->firstName,
             'lastName' => $otherAdmin->lastName,
             'email' => $otherAdmin->email,
-            'roles' => [RoleName::Head->value],
+            'department_id' => $department->id,
+            'roles' => [RoleName::DepartmentHead->value],
         ])
         ->assertRedirect();
 
@@ -225,7 +230,8 @@ test('the last super admin cannot be demoted', function () {
             'firstName' => $admin->firstName,
             'lastName' => $admin->lastName,
             'email' => $admin->email,
-            'roles' => [RoleName::Head->value],
+            'department_id' => $department->id,
+            'roles' => [RoleName::DepartmentHead->value],
         ])
         ->assertRedirect(route('admin.users.index'))
         ->assertSessionHasErrors('roles');

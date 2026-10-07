@@ -23,12 +23,17 @@ class UpdateRequest extends FormRequest
         $departmentId = $this->input('department_id');
         $password = $this->input('password');
 
-        $this->merge([
-            'department_id' => $departmentId === '' || $departmentId === 'none' ? null : $departmentId,
-            'roles' => array_values(array_filter(
+        $office = $this->input('office');
+        $roles = is_string($office) && $office !== ''
+            ? [$office]
+            : array_values(array_filter(
                 (array) $this->input('roles', []),
                 static fn (mixed $role): bool => is_string($role) && $role !== '',
-            )),
+            ));
+
+        $this->merge([
+            'department_id' => $departmentId === '' || $departmentId === 'none' ? null : $departmentId,
+            'roles' => $roles,
             'password' => is_string($password) && $password === '' ? null : $password,
         ]);
     }
@@ -53,10 +58,34 @@ class UpdateRequest extends FormRequest
                 Rule::unique('users', 'email')->ignore($userId),
             ],
             'password' => ['nullable', 'string', 'confirmed', Password::defaults()],
-            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
-            'roles' => ['nullable', 'array'],
-            'roles.*' => [Rule::enum(RoleName::class)],
+            'department_id' => [
+                Rule::requiredIf(fn (): bool => $this->officeRequiresDepartment()),
+                'nullable',
+                'integer',
+                'exists:departments,id',
+            ],
+            'roles' => ['required', 'array', 'size:1'],
+            'roles.*' => [Rule::in(RoleName::officeRoleValues())],
         ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'roles.required' => 'Choose an office.',
+            'roles.size' => 'Choose one office.',
+            'department_id.required' => 'A department is required for this office.',
+        ];
+    }
+
+    private function officeRequiresDepartment(): bool
+    {
+        $office = RoleName::tryFrom((string) ($this->input('roles.0') ?? ''));
+
+        return $office?->requiresDepartment() ?? false;
     }
 
     /**

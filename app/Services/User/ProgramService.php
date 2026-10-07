@@ -3,6 +3,7 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
 use App\Models\Department;
 use App\Models\Fund;
@@ -13,6 +14,7 @@ use App\Models\ProgramItemCap;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 
 class ProgramService
 {
@@ -112,6 +114,7 @@ class ProgramService
                 : (bool) ($validated['public_intake'] ?? false),
             'kind' => $kind,
             'workflow_id' => $validated['workflow_id'] ?? null,
+            'approval_status' => ProgramApprovalStatus::Draft,
         ]);
 
         if ($kind !== ProgramKind::Scheme) {
@@ -147,6 +150,8 @@ class ProgramService
      */
     public function update(Program $program, array $validated): void
     {
+        $this->assertDefinitionMayChange($program, $validated);
+
         if ($program->isBatch()) {
             $this->updateBatch($program, $validated);
 
@@ -281,6 +286,9 @@ class ProgramService
                 'batch_name',
                 'workflow_id',
             ]),
+            'approval_status' => $program->approvalSubject()->approval_status?->value,
+            'approval_label' => $program->approvalSubject()->approval_status?->label(),
+            'return_comment' => $program->latestReturnComment(),
             'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
             'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
             'parent' => $parent instanceof Program
@@ -649,6 +657,172 @@ class ProgramService
     private function forgetDashboardFilterOptions(int $departmentId): void
     {
         Cache::forget("dashboard.filter_options.{$departmentId}");
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function assertDefinitionMayChange(Program $program, array $validated): void
+    {
+        if ($program->canReviseDefinition()) {
+            return;
+        }
+
+        if ($this->definitionChanged($program, $validated)) {
+            throw ValidationException::withMessages([
+                'name' => 'This program can only be edited while it is a draft or has been returned.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function definitionChanged(Program $program, array $validated): bool
+    {
+        if (! $program->isBatch() && array_key_exists('name', $validated) && (string) $validated['name'] !== (string) $program->name) {
+            return true;
+        }
+
+        if ($program->isBatch() && array_key_exists('batch_name', $validated) && (string) $validated['batch_name'] !== (string) $program->batch_name) {
+            return true;
+        }
+
+        if (array_key_exists('descriptions', $validated) && (string) ($validated['descriptions'] ?? '') !== (string) ($program->descriptions ?? '')) {
+            return true;
+        }
+
+        if (array_key_exists('start_at', $validated) && $this->programDateForInput($validated['start_at']) !== $this->programDateForInput($program->getRawOriginal('start_at'))) {
+            return true;
+        }
+
+        if (array_key_exists('end_at', $validated) && $this->programDateForInput($validated['end_at'] ?? null) !== $this->programDateForInput($program->getRawOriginal('end_at'))) {
+            return true;
+        }
+
+        if (array_key_exists('is_organization', $validated) && (bool) $validated['is_organization'] !== (bool) $program->is_organization) {
+            return true;
+        }
+
+        if (array_key_exists('workflow_id', $validated) && (int) ($validated['workflow_id'] ?? 0) !== (int) ($program->workflow_id ?? 0)) {
+            return true;
+        }
+
+        if (array_key_exists('fund_ids', $validated) && $this->idsChanged($program->fund()->pluck('funds.id')->all(), $validated['fund_ids'])) {
+            return true;
+        }
+
+        if (array_key_exists('item_ids', $validated) && $this->idsChanged($program->item()->pluck('items.id')->all(), $validated['item_ids'])) {
+            return true;
+        }
+
+        if (array_key_exists('fields', $validated) && $this->structuredChanged(
+            $this->normalizeFields($this->programFieldService->fieldsPayload($program)),
+            $this->normalizeFields(is_array($validated['fields']) ? $validated['fields'] : []),
+        )) {
+            return true;
+        }
+
+        if (array_key_exists('document_requirements', $validated) && $this->structuredChanged(
+            $this->normalizeRequirements($this->programDocumentRequirementService->requirementsPayload($program)),
+            $this->normalizeRequirements(is_array($validated['document_requirements']) ? $validated['document_requirements'] : []),
+        )) {
+            return true;
+        }
+
+        return $this->eligibilityChanged($program, $validated);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function eligibilityChanged(Program $program, array $validated): bool
+    {
+        $keys = [
+            'cooldown_days',
+            'require_pwd',
+            'require_4ps',
+            'require_solo_parent',
+            'require_indigenous',
+            'item_caps',
+        ];
+
+        $current = null;
+
+        foreach ($keys as $key) {
+            if (! array_key_exists($key, $validated)) {
+                continue;
+            }
+
+            $current ??= $this->eligibilityPayload($program);
+
+            if ($this->structuredChanged($current[$key] ?? null, $validated[$key])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $fields
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeFields(array $fields): array
+    {
+        return array_map(function (array $field): array {
+            $type = $field['type'] ?? '';
+
+            return [
+                'label' => (string) ($field['label'] ?? ''),
+                'key' => (string) ($field['key'] ?? ''),
+                'type' => $type instanceof \BackedEnum ? $type->value : (string) $type,
+                'options' => array_values(is_array($field['options'] ?? null) ? $field['options'] : []),
+                'is_required' => (bool) ($field['is_required'] ?? false),
+                'show_in_table' => (bool) ($field['show_in_table'] ?? false),
+                'sort_order' => (int) ($field['sort_order'] ?? 0),
+            ];
+        }, array_values($fields));
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $requirements
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeRequirements(array $requirements): array
+    {
+        return array_map(function (array $requirement): array {
+            $milestone = $requirement['required_before'] ?? '';
+
+            return [
+                'document_type_id' => (int) ($requirement['document_type_id'] ?? 0),
+                'is_required' => (bool) ($requirement['is_required'] ?? false),
+                'required_before' => $milestone instanceof \BackedEnum ? $milestone->value : (string) $milestone,
+                'sort_order' => (int) ($requirement['sort_order'] ?? 0),
+            ];
+        }, array_values($requirements));
+    }
+
+    private function structuredChanged(mixed $current, mixed $incoming): bool
+    {
+        return json_encode($current) !== json_encode($incoming);
+    }
+
+    /**
+     * @param  list<mixed>  $current
+     */
+    private function idsChanged(array $current, mixed $incoming): bool
+    {
+        $normalize = static function (array $ids): array {
+            $values = array_map(static fn (mixed $id): int => (int) $id, $ids);
+            sort($values);
+
+            return $values;
+        };
+
+        $next = is_array($incoming) ? $incoming : [];
+
+        return $normalize($current) !== $normalize($next);
     }
 
     private function programDateForInput(mixed $value): ?string

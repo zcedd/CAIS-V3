@@ -66,13 +66,54 @@ class RolePermissionSeeder extends Seeder
         $supervisor->syncPermissions([PermissionName::DepartmentSupervise->value]);
 
         $head = Role::findOrCreate(RoleName::Head->value, 'web');
-        $head->syncPermissions(PermissionName::values());
+        $head->syncPermissions(
+            array_map(
+                static fn (PermissionName $permission): string => $permission->value,
+                PermissionName::forRole(RoleName::Head),
+            ),
+        );
 
+        foreach ([RoleName::Governor, RoleName::DepartmentHead, RoleName::ReleasingOfficer] as $office) {
+            $role = Role::findOrCreate($office->value, 'web');
+            $role->syncPermissions(
+                array_map(
+                    static fn (PermissionName $permission): string => $permission->value,
+                    PermissionName::forRole($office),
+                ),
+            );
+        }
+
+        $this->migrateHeadUsers();
         $this->migrateLegacyAdminUsers($superAdmin);
         $this->deleteLegacyRoles();
         $this->deleteLegacyPermissions();
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
+    }
+
+    private function migrateHeadUsers(): void
+    {
+        $head = Role::query()
+            ->where('name', RoleName::Head->value)
+            ->where('guard_name', 'web')
+            ->first();
+
+        $departmentHead = Role::query()
+            ->where('name', RoleName::DepartmentHead->value)
+            ->where('guard_name', 'web')
+            ->first();
+
+        if ($head === null || $departmentHead === null) {
+            return;
+        }
+
+        foreach ($head->users()->get() as $user) {
+            if (! $user->hasRole($departmentHead)) {
+                $user->assignRole($departmentHead);
+            }
+
+            $user->removeRole($head);
+        }
     }
 
     private function migrateLegacyAdminUsers(Role $superAdmin): void

@@ -1,3 +1,14 @@
+import {
+    Form,
+    Head,
+    Link,
+    router,
+    setLayoutProps,
+    WhenVisible,
+} from '@inertiajs/react';
+import { Building2, Pencil, Plus, UserRound, Users } from 'lucide-react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +24,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { ProgramApprovalActions } from '@/components/user/programs/program-approval-actions';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
+import { formatProgramPeriod } from '@/lib/format-program-period';
+import { cn } from '@/lib/utils';
+import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
 import {
     ProgramKpiCards,
     ProgramKpiCardsSkeleton,
@@ -22,13 +37,11 @@ import {
     ProgramStatusBreakdown,
     ProgramStatusBreakdownSkeleton,
 } from '@/pages/user/programs/status-breakdown';
-import { store as storeProgramBatch } from '@/routes/user/programs/batches';
 import {
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
-import { formatProgramPeriod } from '@/lib/format-program-period';
-import { cn } from '@/lib/utils';
+import { store as storeProgramBatch } from '@/routes/user/programs/batches';
 import type { BreadcrumbItem } from '@/types';
 import type {
     DocumentTypeOption,
@@ -39,18 +52,6 @@ import type {
     ProgramSummary,
 } from '@/types/program';
 import type { ProgramFieldDefinition } from '@/types/program-field';
-import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
-import {
-    Form,
-    Head,
-    Link,
-    router,
-    setLayoutProps,
-    WhenVisible,
-} from '@inertiajs/react';
-import { Building2, Pencil, Plus, UserRound, Users } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { toast } from 'sonner';
 
 const ProgramEditDrawer = lazy(() =>
     import('@/components/user/programs/program-edit-drawer').then((module) => ({
@@ -83,6 +84,9 @@ type ProgramDetail = {
     is_organization: boolean | null;
     kind?: string | null;
     department_id: number;
+    approval_status?: string | null;
+    approval_label?: string | null;
+    return_comment?: string | null;
 };
 
 type ProgramEditRelations = {
@@ -275,6 +279,16 @@ export default function UserProgramScheme({
                         ) : null}
                     </div>
                 </div>
+
+                {department?.slug ? (
+                    <ProgramApprovalActions
+                        departmentSlug={department.slug}
+                        programId={program.id}
+                        approvalStatus={program.approval_status}
+                        approvalLabel={program.approval_label}
+                        returnComment={program.return_comment}
+                    />
+                ) : null}
 
                 <WhenVisible
                     data="summary"

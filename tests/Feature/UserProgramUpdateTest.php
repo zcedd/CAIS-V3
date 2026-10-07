@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProgramApprovalStatus;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
@@ -101,6 +102,7 @@ test('authenticated users can update programs for their department', function ()
         'department_id' => $department->id,
         'is_closed' => false,
         'is_organization' => false,
+        'approval_status' => ProgramApprovalStatus::Draft,
     ]);
 
     $program->fund()->attach($fund->id);

@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\Program\EndorseApprovalRequest;
 use App\Http\Requests\User\Program\IndexRequest;
+use App\Http\Requests\User\Program\ReviseApprovalRequest;
 use App\Http\Requests\User\Program\ShowRequest;
 use App\Http\Requests\User\Program\StoreRequest;
+use App\Http\Requests\User\Program\SubmitApprovalRequest;
 use App\Http\Requests\User\Program\UpdateRequest;
 use App\Models\Department;
 use App\Models\Program;
+use App\Models\User;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceService;
+use App\Services\User\ProgramApprovalService;
 use App\Services\User\ProgramService;
 use App\Services\User\StockLedgerService;
 use Illuminate\Http\RedirectResponse;
@@ -24,6 +29,7 @@ class ProgramController extends Controller
         private AssistanceService $assistanceService,
         private AssistanceDocumentService $assistanceDocumentService,
         private StockLedgerService $stockLedgerService,
+        private ProgramApprovalService $programApprovalService,
     ) {}
 
     /**
@@ -96,6 +102,56 @@ class ProgramController extends Controller
         return redirect()
             ->back()
             ->with('success', 'Program updated successfully.');
+    }
+
+    public function submit(
+        SubmitApprovalRequest $request,
+        Department $department,
+        Program $program,
+    ): RedirectResponse {
+        $this->transitionApproval($request->user(), $program, 'submit');
+
+        return redirect()
+            ->back()
+            ->with('success', 'Program submitted for review.');
+    }
+
+    public function endorse(
+        EndorseApprovalRequest $request,
+        Department $department,
+        Program $program,
+    ): RedirectResponse {
+        $this->transitionApproval($request->user(), $program, 'endorse');
+
+        return redirect()
+            ->back()
+            ->with('success', 'Program endorsed for governor approval.');
+    }
+
+    public function revise(
+        ReviseApprovalRequest $request,
+        Department $department,
+        Program $program,
+    ): RedirectResponse {
+        $this->transitionApproval($request->user(), $program, 'revise');
+
+        return redirect()
+            ->back()
+            ->with('success', 'Program returned to draft.');
+    }
+
+    private function transitionApproval(?User $user, Program $program, string $action): void
+    {
+        if (! $user instanceof User) {
+            abort(403);
+        }
+
+        match ($action) {
+            'submit' => $this->programApprovalService->submit($user, $program),
+            'endorse' => $this->programApprovalService->endorse($user, $program),
+            'revise' => $this->programApprovalService->revise($user, $program),
+            default => abort(404),
+        };
     }
 
     /**

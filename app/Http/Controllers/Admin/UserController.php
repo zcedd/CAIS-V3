@@ -39,7 +39,7 @@ class UserController extends Controller
             'departments' => Department::query()
                 ->orderBy('name')
                 ->get(['id', 'name', 'slug']),
-            'role_options' => RoleName::options(),
+            'role_options' => RoleName::officeOptions(),
             'search' => $search,
             'department_id' => $departmentId,
             'role' => $roles,

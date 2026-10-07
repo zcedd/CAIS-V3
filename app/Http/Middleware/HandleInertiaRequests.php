@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\Auth\OfficePortal;
 use App\Services\User\NotificationService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -46,6 +47,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $user?->loadMissing('department:id,name,slug'),
                 'is_super_admin' => $user instanceof User && $user->isSuperAdmin(),
                 'permissions' => $user instanceof User ? $user->grantedPermissionNames() : [],
+                'can_switch_office' => $user instanceof User
+                    && count(app(OfficePortal::class)->allowedOffices($user)) > 1,
             ],
             'unreadNotificationsCount' => $user
                 ? app(NotificationService::class)->unreadCountForUser($user)

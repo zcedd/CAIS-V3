@@ -223,7 +223,7 @@ test('the programs index lists parents only', function () {
     $this->actingAs($user)
         ->get(route('user.programs.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('user/programs/index')
             ->has('programs.data', 2)
             ->where('programs.data.0.name', $standalone->name)
@@ -244,7 +244,7 @@ test('searching a batch name returns the parent program on the index', function 
             'search' => 'Q3 Run',
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('user/programs/index')
             ->has('programs.data', 1)
             ->where('programs.data.0.id', $scheme->id));
@@ -262,7 +262,7 @@ test('the parent program show page lists batches and does not include the assist
             'program' => $scheme->id,
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('user/programs/scheme')
             ->where('program.kind', ProgramKind::Scheme->value)
             ->has('batches', 1)
@@ -563,7 +563,9 @@ test('closing the last open batch closes the parent program', function () {
         'descriptions' => 'Parent',
         'start_at' => '2026-01-01',
     ]);
-    $batch = Program::factory()->batch($scheme)->create();
+    $batch = Program::factory()->batch($scheme)->create([
+        'start_at' => '2026-01-01',
+    ]);
     $batch->item()->attach($item->id);
     $batch->fund()->attach($fund->id);
 
@@ -642,8 +644,8 @@ test('dashboard program filter on a parent includes batch assistances', function
             'program' => [$scheme->id],
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
-            ->loadDeferredProps('kpis', fn($reload) => $reload
+        ->assertInertia(fn (Assert $page) => $page
+            ->loadDeferredProps('kpis', fn ($reload) => $reload
                 ->where('summary.total_requests', 1)));
 });
 

@@ -2,6 +2,7 @@
 
 use App\Enums\DocumentRequirementMilestone;
 use App\Enums\DocumentTypeSlug;
+use App\Enums\ProgramApprovalStatus;
 use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Fund;
@@ -104,6 +105,7 @@ test('program update can replace the document checklist', function () {
         'department_id' => $department->id,
         'is_closed' => false,
         'is_organization' => false,
+        'approval_status' => ProgramApprovalStatus::Draft,
     ]);
     $program->fund()->attach($fund->id);
     $program->item()->attach($item->id);

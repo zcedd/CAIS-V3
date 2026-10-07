@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\PermissionName;
+use App\Enums\RoleName;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
@@ -29,6 +30,10 @@ class ProgramPolicy
      */
     public function view(User $user, Program $program): bool
     {
+        if ($this->governorMayRead($user)) {
+            return true;
+        }
+
         return $this->allows(
             $user,
             PermissionName::ProgramView,
@@ -98,5 +103,50 @@ class ProgramPolicy
             PermissionName::ProgramDownloadAssistance,
             $user->department_id === $program->department_id,
         );
+    }
+
+    public function reviewInbox(User $user): bool
+    {
+        return $user->can(PermissionName::ProgramApprove->value);
+    }
+
+    public function submit(User $user, Program $program): bool
+    {
+        return $this->departmentApproval($user, $program, PermissionName::ProgramSubmit);
+    }
+
+    public function endorse(User $user, Program $program): bool
+    {
+        return $this->departmentApproval($user, $program, PermissionName::ProgramEndorse);
+    }
+
+    public function revise(User $user, Program $program): bool
+    {
+        return $this->departmentApproval($user, $program, PermissionName::ProgramEndorse);
+    }
+
+    public function approve(User $user, Program $program): bool
+    {
+        return $user->can(PermissionName::ProgramApprove->value);
+    }
+
+    public function returnToDepartment(User $user, Program $program): bool
+    {
+        return $user->can(PermissionName::ProgramReturn->value);
+    }
+
+    private function departmentApproval(User $user, Program $program, PermissionName $permission): bool
+    {
+        return $this->allows(
+            $user,
+            $permission,
+            $user->department_id === $program->approvalSubject()->department_id,
+        );
+    }
+
+    private function governorMayRead(User $user): bool
+    {
+        return $user->hasRole(RoleName::Governor)
+            && $user->can(PermissionName::ProgramView->value);
     }
 }

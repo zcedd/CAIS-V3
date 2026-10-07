@@ -1,6 +1,10 @@
 export const Permission = {
     AssistanceViewAny: 'assistance.viewAny',
     ProgramViewAny: 'program.viewAny',
+    ProgramSubmit: 'program.submit',
+    ProgramEndorse: 'program.endorse',
+    ProgramApprove: 'program.approve',
+    ProgramReturn: 'program.return',
     BeneficiaryViewAny: 'beneficiary.viewAny',
     ItemViewAny: 'item.viewAny',
     FundViewAny: 'fund.viewAny',

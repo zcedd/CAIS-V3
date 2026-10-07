@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\ProgramApprovalAction;
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,6 +27,7 @@ class Program extends Model
         'end_at',
         'department_id',
         'is_closed',
+        'approval_status',
         'is_organization',
         'public_intake',
         'kind',
@@ -42,6 +45,7 @@ class Program extends Model
     protected $attributes = [
         'kind' => ProgramKind::Standalone->value,
         'is_closed' => false,
+        'approval_status' => ProgramApprovalStatus::Approved->value,
         'is_organization' => false,
         'public_intake' => false,
     ];
@@ -50,6 +54,7 @@ class Program extends Model
         'start_at' => 'datetime:M d, Y',
         'end_at' => 'datetime:M d, Y',
         'is_closed' => 'boolean',
+        'approval_status' => ProgramApprovalStatus::class,
         'is_organization' => 'boolean',
         'public_intake' => 'boolean',
         'batch_number' => 'integer',
@@ -74,6 +79,11 @@ class Program extends Model
     public function assistance(): HasMany
     {
         return $this->hasMany(Assistance::class);
+    }
+
+    public function approvalEvents(): HasMany
+    {
+        return $this->hasMany(ProgramApprovalEvent::class);
     }
 
     public function assistances(): HasMany
@@ -226,7 +236,46 @@ class Program extends Model
 
     public function isEncodable(): bool
     {
-        return ($this->kind ?? ProgramKind::Standalone)->isEncodable() && ! $this->is_closed;
+        return ($this->kind ?? ProgramKind::Standalone)->isEncodable()
+            && ! $this->is_closed
+            && $this->approvalSubject()->isApproved();
+    }
+
+    public function approvalSubject(): self
+    {
+        if (! $this->isBatch()) {
+            return $this;
+        }
+
+        $parent = $this->relationLoaded('parent') ? $this->parent : $this->parent()->first();
+
+        return $parent instanceof self ? $parent : $this;
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === ProgramApprovalStatus::Approved;
+    }
+
+    public function canReviseDefinition(): bool
+    {
+        return $this->approvalSubject()->approval_status?->canReviseDefinition() ?? false;
+    }
+
+    public function latestReturnComment(): ?string
+    {
+        $subject = $this->approvalSubject();
+
+        if ($subject->approval_status !== ProgramApprovalStatus::Returned) {
+            return null;
+        }
+
+        $comment = $subject->approvalEvents()
+            ->where('action', ProgramApprovalAction::Return)
+            ->latest('id')
+            ->value('comment');
+
+        return is_string($comment) && $comment !== '' ? $comment : null;
     }
 
     public function acceptsPublicIntake(): bool
@@ -246,7 +295,18 @@ class Program extends Model
             ->where('public_intake', true)
             ->where('is_organization', false)
             ->where('is_closed', false)
-            ->whereIn('kind', ProgramKind::encodable());
+            ->whereIn('kind', ProgramKind::encodable())
+            ->where(function (Builder $query): void {
+                $query->where(function (Builder $query): void {
+                    $query->where('kind', ProgramKind::Standalone)
+                        ->where('approval_status', ProgramApprovalStatus::Approved);
+                })->orWhere(function (Builder $query): void {
+                    $query->where('kind', ProgramKind::Batch)
+                        ->whereHas('parent', function (Builder $query): void {
+                            $query->where('approval_status', ProgramApprovalStatus::Approved);
+                        });
+                });
+            });
     }
 
     public function isEffectivelyClosed(): bool
@@ -264,7 +324,7 @@ class Program extends Model
             return (bool) $this->is_closed;
         }
 
-        return $this->batches->every(static fn(Program $batch): bool => (bool) $batch->is_closed);
+        return $this->batches->every(static fn (Program $batch): bool => (bool) $batch->is_closed);
     }
 
     /**
@@ -289,7 +349,7 @@ class Program extends Model
             ->where('kind', ProgramKind::Batch)
             ->orderBy('id')
             ->pluck('id')
-            ->map(static fn(mixed $id): int => (int) $id)
+            ->map(static fn (mixed $id): int => (int) $id)
             ->all();
     }
 
@@ -308,6 +368,6 @@ class Program extends Model
 
     public static function composeBatchDisplayName(string $schemeName, string $batchName): string
     {
-        return $schemeName . ' - ' . $batchName;
+        return $schemeName.' - '.$batchName;
     }
 }
