@@ -3,6 +3,7 @@
 use App\Actions\Admin\CreateWorkflowVersion;
 use App\Enums\RequestStatusCode;
 use App\Enums\RoleName;
+use App\Enums\WorkflowAssignmentType;
 use App\Enums\WorkflowStatus;
 use App\Enums\WorkflowTransitionAction;
 use App\Models\Department;
@@ -13,6 +14,7 @@ use App\Models\WorkflowStep;
 use App\Models\WorkflowStepTransition;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Services\Workflow\PublishWorkflowValidator;
+use App\Services\Workflow\RequestStatusCatalog;
 use Illuminate\Database\Eloquent\Model;
 
 test('a super admin can create a workflow version of an active definition', function () {
@@ -91,6 +93,35 @@ test('a super admin can save a draft workflow with stage transitions', function 
     }
 });
 
+test('saving a draft stage without a code uses the request status code', function () {
+    $department = Department::create(['name' => 'Blank Stage Code']);
+    $admin = assignSuperAdminRole(User::factory()->create());
+    $workflow = Workflow::factory()->draft()->create([
+        'department_id' => $department->id,
+        'name' => 'Blank code draft',
+        'code' => 'BLANK_CODE',
+    ]);
+    $reviewId = app(RequestStatusCatalog::class)->parentId(RequestStatusCode::Review);
+
+    $this->actingAs($admin)
+        ->put(route('admin.workflows.update', $workflow), [
+            'name' => 'Blank code draft',
+            'code' => 'BLANK_CODE',
+            'steps' => [
+                [
+                    'code' => '',
+                    'name' => 'Review',
+                    'request_status_id' => $reviewId,
+                    'sort_order' => 10,
+                ],
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($workflow->steps()->first()?->code)->toBe('REVIEW');
+});
+
 test('active workflows cannot be edited in place', function () {
     $department = Department::create(['name' => 'Immutable Department']);
     $admin = assignSuperAdminRole(User::factory()->create());
@@ -108,6 +139,26 @@ test('active workflows cannot be edited in place', function () {
             ],
         ])
         ->assertSessionHasErrors('status');
+});
+
+test('a draft with claim pool stages can be published', function () {
+    $department = Department::create(['name' => 'Claim Pool Publish']);
+    $admin = assignSuperAdminRole(User::factory()->create());
+    $workflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+    $draft = app(CreateWorkflowVersion::class)($workflow);
+
+    $draft->steps()->update([
+        'assignment_type' => WorkflowAssignmentType::None->value,
+        'assigned_role' => null,
+        'assigned_to_id' => null,
+    ]);
+
+    $this->actingAs($admin)
+        ->post(route('admin.workflows.publish', $draft))
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($draft->refresh()->status)->toBe(WorkflowStatus::Published);
 });
 
 test('publishing a valid draft marks it published without activating it', function () {
@@ -179,7 +230,11 @@ test('publishing an empty draft returns configuration errors', function () {
         ->from(route('admin.workflows.show', $workflow))
         ->post(route('admin.workflows.publish', $workflow))
         ->assertRedirect()
-        ->assertSessionHasErrors('workflow');
+        ->assertSessionHasErrors([
+            'workflow.0' => 'No start step configured.',
+            'workflow.1' => 'Workflow has no steps.',
+            'workflow.2' => 'No end step configured.',
+        ]);
 
     expect($workflow->refresh()->status)->toBe(WorkflowStatus::Draft);
 });

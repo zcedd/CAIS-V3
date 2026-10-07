@@ -23,7 +23,7 @@ import {
     update as updateAdminWorkflow,
     version as versionAdminWorkflow,
 } from '@/routes/admin/workflows';
-import { Form, router } from '@inertiajs/react';
+import { Form, router, usePage } from '@inertiajs/react';
 import { Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -157,11 +157,24 @@ export type WorkflowAbilities = {
     duplicate?: boolean;
 };
 
-function workflowErrorMessages(errors: Record<string, string>): string[] {
-    return Object.entries(errors)
+function workflowErrorMessages(
+    errors: Record<string, string | string[] | undefined>,
+): string[] {
+    const messages = Object.entries(errors)
         .filter(([key]) => key === 'workflow' || key.startsWith('workflow.'))
-        .map(([, message]) => message)
-        .filter((message) => message.trim() !== '');
+        .flatMap(([, message]) => {
+            if (Array.isArray(message)) {
+                return message;
+            }
+
+            return typeof message === 'string' ? [message] : [];
+        })
+        .map((message) => message.trim())
+        .filter((message) => message !== '');
+
+    return messages.filter(
+        (message, index) => messages.indexOf(message) === index,
+    );
 }
 
 export function WorkflowEditor({
@@ -185,6 +198,10 @@ export function WorkflowEditor({
     variant?: 'department' | 'admin';
     can?: WorkflowAbilities;
 }) {
+    const pageErrors = (usePage().props.errors ?? {}) as Record<
+        string,
+        string | string[] | undefined
+    >;
     const canUpdate = can.update ?? true;
     const canPublish = can.publish ?? true;
     const canManage = can.manage ?? true;
@@ -256,6 +273,13 @@ export function WorkflowEditor({
             {
                 preserveScroll: true,
                 onSuccess: () => toast.success(success),
+                onError: (errors) => {
+                    const messages = workflowErrorMessages(errors);
+
+                    toast.error(
+                        messages[0] ?? 'The workflow could not be updated.',
+                    );
+                },
             },
         );
     };
@@ -501,10 +525,16 @@ export function WorkflowEditor({
                             onSuccess={() => toast.success('Workflow updated.')}
                             className="space-y-4"
                         >
-                            {({ errors, processing }) => (
+                            {({ errors, processing }) => {
+                                const configurationErrors =
+                                    workflowErrorMessages({
+                                        ...pageErrors,
+                                        ...errors,
+                                    });
+
+                                return (
                                 <>
-                                    {workflowErrorMessages(errors).length >
-                                    0 ? (
+                                    {configurationErrors.length > 0 ? (
                                         <Alert variant="destructive">
                                             <AlertTitle>
                                                 Cannot publish workflow.
@@ -512,22 +542,18 @@ export function WorkflowEditor({
                                             <AlertDescription>
                                                 <p className="mb-2">
                                                     {
-                                                        workflowErrorMessages(
-                                                            errors,
-                                                        ).length
+                                                        configurationErrors.length
                                                     }{' '}
                                                     configuration{' '}
-                                                    {workflowErrorMessages(
-                                                        errors,
-                                                    ).length === 1
+                                                    {configurationErrors.length ===
+                                                    1
                                                         ? 'error'
                                                         : 'errors'}
                                                     :
                                                 </p>
                                                 <ul className="list-disc space-y-1 pl-4">
-                                                    {workflowErrorMessages(
-                                                        errors,
-                                                    ).map((message) => (
+                                                    {configurationErrors.map(
+                                                        (message) => (
                                                         <li key={message}>
                                                             {message}
                                                         </li>
@@ -1294,7 +1320,8 @@ export function WorkflowEditor({
                                             : 'Save workflow'}
                                     </Button>
                                 </>
-                            )}
+                                );
+                            }}
                         </Form>
                     </CardContent>
                 </Card>

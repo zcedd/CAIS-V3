@@ -450,8 +450,14 @@ class WorkflowService
      */
     private function uniqueStepCode(string $requested, int $requestStatusId, array $usedCodes): string
     {
-        $fallback = RequestStatus::query()->whereKey($requestStatusId)->value('code');
-        $base = Str::upper(Str::slug($requested !== '' ? $requested : (string) $fallback, '_'));
+        $source = $requested;
+
+        if ($source === '') {
+            $fallback = RequestStatus::query()->whereKey($requestStatusId)->value('code');
+            $source = $fallback instanceof RequestStatusCode ? $fallback->value : '';
+        }
+
+        $base = Str::upper(Str::slug($source, '_'));
         $base = $base !== '' ? $base : 'STEP';
         $code = $base;
         $suffix = 2;

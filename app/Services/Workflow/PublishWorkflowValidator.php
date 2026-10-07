@@ -106,10 +106,6 @@ class PublishWorkflowValidator
         $type = $step->assignment_type ?? WorkflowAssignmentType::None;
         $errors = [];
 
-        if ($step->isTaskStep() && $type === WorkflowAssignmentType::None && $step->assigned_to_id === null) {
-            $errors[] = $label.' step has no assignment rule.';
-        }
-
         if ($type === WorkflowAssignmentType::User || $step->assigned_to_id !== null) {
             $user = $step->assignedTo;
 

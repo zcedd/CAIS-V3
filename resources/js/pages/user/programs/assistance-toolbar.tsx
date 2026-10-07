@@ -120,6 +120,54 @@ type AssistanceItemDetail = {
     specification: string;
 };
 
+const ASSISTANCE_FORM_ERROR_KEYS = [
+    'beneficiary_id',
+    'mode_of_request_id',
+    'recorded_at',
+    'item_details',
+    'item_ids',
+    'field_values',
+    'eligibility_override_reason',
+    'remark',
+    'program',
+    'workflow',
+    'eligibility',
+] as const;
+
+function isAssistanceFormErrorKey(key: string): boolean {
+    return ASSISTANCE_FORM_ERROR_KEYS.some(
+        (prefix) => key === prefix || key.startsWith(`${prefix}.`),
+    );
+}
+
+function assistanceErrorMessages(
+    errors: Record<string, string | string[] | undefined>,
+    keys: (key: string) => boolean = isAssistanceFormErrorKey,
+): string[] {
+    return Object.entries(errors)
+        .filter(([key]) => keys(key))
+        .flatMap(([, message]) =>
+            Array.isArray(message) ? message : message ? [message] : [],
+        )
+        .filter(
+            (message, index, messages) => messages.indexOf(message) === index,
+        );
+}
+
+function isInlineAssistanceError(key: string): boolean {
+    return (
+        key === 'beneficiary_id' ||
+        key === 'mode_of_request_id' ||
+        key === 'recorded_at' ||
+        key === 'item_details' ||
+        key === 'item_ids' ||
+        key === 'field_values' ||
+        key === 'eligibility_override_reason' ||
+        key === 'remark' ||
+        /^item_details\.\d+\.(quantity|specification|item_id)$/.test(key)
+    );
+}
+
 function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
     if (!date) {
         return undefined;
@@ -328,9 +376,15 @@ export function AssistanceDataTableToolbar({
         useState<EligibilityPreview | null>(null);
     const [eligibilityLoading, setEligibilityLoading] = useState(false);
     const [overrideReason, setOverrideReason] = useState('');
-    const { eligibility_findings: flashedFindings } = usePage<{
+    const page = usePage<{
         eligibility_findings?: EligibilityPreview['findings'] | null;
-    }>().props;
+        errors?: Record<string, string | string[] | undefined>;
+    }>();
+    const { eligibility_findings: flashedFindings } = page.props;
+    const pageErrors = page.props.errors ?? {};
+    const pageAssistanceErrorSummary = assistanceErrorMessages(pageErrors).join(
+        ' ',
+    );
 
     const programItemSelectOptions = programItems.map((item) => ({
         value: String(item.id),
@@ -348,6 +402,12 @@ export function AssistanceDataTableToolbar({
         setEligibilityPreview(null);
         setOverrideReason('');
     };
+
+    useEffect(() => {
+        if (pageAssistanceErrorSummary !== '') {
+            setCreateOpen(true);
+        }
+    }, [pageAssistanceErrorSummary]);
 
     useEffect(() => {
         setSearchQuery(filters.search);
@@ -622,6 +682,8 @@ export function AssistanceDataTableToolbar({
                             method="post"
                             disableWhileProcessing
                             resetOnSuccess
+                            options={{ preserveScroll: true }}
+                            onError={() => setCreateOpen(true)}
                             transform={(data) => ({
                                 ...data,
                                 recorded_at:
@@ -651,7 +713,30 @@ export function AssistanceDataTableToolbar({
                             }}
                             className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
                         >
-                            {({ errors, processing }) => (
+                            {({ errors: formErrors, processing }) => {
+                                const errors = {
+                                    ...Object.fromEntries(
+                                        Object.entries(pageErrors)
+                                            .filter(([key]) =>
+                                                isAssistanceFormErrorKey(key),
+                                            )
+                                            .map(([key, message]) => [
+                                                key,
+                                                Array.isArray(message)
+                                                    ? message[0]
+                                                    : message,
+                                            ]),
+                                    ),
+                                    ...formErrors,
+                                };
+                                const errorSummary = assistanceErrorMessages(
+                                    errors,
+                                    (key) =>
+                                        isAssistanceFormErrorKey(key) &&
+                                        !isInlineAssistanceError(key),
+                                ).join(' ');
+
+                                return (
                                 <>
                                     {isOrganization ? (
                                         <BeneficiarySearchCombobox
@@ -914,6 +999,7 @@ export function AssistanceDataTableToolbar({
                                     </div>
 
                                     <DrawerFooter className="px-0">
+                                        <InputError message={errorSummary} />
                                         <Button
                                             type="submit"
                                             disabled={
@@ -940,7 +1026,8 @@ export function AssistanceDataTableToolbar({
                                         </DrawerClose>
                                     </DrawerFooter>
                                 </>
-                            )}
+                                );
+                            }}
                         </Form>
                     ) : null}
                 </DrawerContent>

@@ -164,13 +164,7 @@ class WorkflowService
             ]);
         }
 
-        $errors = $this->publishWorkflowValidator->errors($workflow);
-
-        if ($errors !== []) {
-            throw ValidationException::withMessages([
-                'workflow' => $errors,
-            ]);
-        }
+        $this->assertPublishable($workflow);
 
         $workflow->forceFill([
             'status' => WorkflowStatus::Published,
@@ -187,13 +181,7 @@ class WorkflowService
             ]);
         }
 
-        $errors = $this->publishWorkflowValidator->errors($workflow);
-
-        if ($errors !== []) {
-            throw ValidationException::withMessages([
-                'workflow' => $errors,
-            ]);
-        }
+        $this->assertPublishable($workflow);
 
         return DB::transaction(function () use ($workflow): Workflow {
             Workflow::query()
@@ -324,5 +312,22 @@ class WorkflowService
                 ? $user->can('overrideTask', $workflow)
                 : $user->can(PermissionName::WorkflowTaskOverride->value),
         ];
+    }
+
+    private function assertPublishable(Workflow $workflow): void
+    {
+        $errors = $this->publishWorkflowValidator->errors($workflow);
+
+        if ($errors === []) {
+            return;
+        }
+
+        $messages = [];
+
+        foreach (array_values($errors) as $index => $error) {
+            $messages['workflow.'.$index] = $error;
+        }
+
+        throw ValidationException::withMessages($messages);
     }
 }

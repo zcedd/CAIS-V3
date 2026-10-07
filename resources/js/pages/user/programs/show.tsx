@@ -197,6 +197,18 @@ function programTimelineInfo(
     };
 }
 
+type AssistanceTableSnapshot = {
+    assistances: PaginatedAssistances;
+    mode_options: ModeFilterOption[];
+    status_options: StatusFilterOption[];
+    mode_of_request_options: AssistanceModeOption[];
+    program_items: AssistanceProgramItemOption[];
+    program_fields: ProgramFieldOption[];
+    request_sub_status_options: AssistanceRequestSubStatusOption[];
+    staff_options: DepartmentStaffOption[];
+    transfer_program_options: AssistanceTransferProgramOption[];
+};
+
 function OverviewDetailSkeleton() {
     return (
         <div className="space-y-2" aria-busy="true">
@@ -275,12 +287,48 @@ export default function UserProgramShow({
         mode,
     });
     const [isTableReloading, setIsTableReloading] = useState(false);
+    const [assistanceTableSnapshot, setAssistanceTableSnapshot] = useState<{
+        programId: number;
+        table: AssistanceTableSnapshot;
+    } | null>(null);
 
     const tableStateRef = useRef(tableState);
 
     useEffect(() => {
         tableStateRef.current = tableState;
     }, [tableState]);
+
+    useEffect(() => {
+        const liveAssistanceTable = {
+            assistances,
+            mode_options,
+            status_options,
+            mode_of_request_options,
+            program_items,
+            program_fields,
+            request_sub_status_options,
+            staff_options,
+            transfer_program_options,
+        };
+
+        if (isAssistancesTableReady(liveAssistanceTable)) {
+            setAssistanceTableSnapshot({
+                programId: program.id,
+                table: liveAssistanceTable,
+            });
+        }
+    }, [
+        program.id,
+        assistances,
+        mode_options,
+        status_options,
+        mode_of_request_options,
+        program_items,
+        program_fields,
+        request_sub_status_options,
+        staff_options,
+        transfer_program_options,
+    ]);
 
     useEffect(() => {
         if (
@@ -418,10 +466,26 @@ export default function UserProgramShow({
     const heading = program.name;
     const canEdit = Boolean(department?.slug);
     const canCreateAssistance = Boolean(department?.slug && !program.is_closed);
+    const liveAssistanceTable = {
+        assistances,
+        mode_options,
+        status_options,
+        mode_of_request_options,
+        program_items,
+        program_fields,
+        request_sub_status_options,
+        staff_options,
+        transfer_program_options,
+    };
+    const resolvedAssistanceTable = isAssistancesTableReady(liveAssistanceTable)
+        ? liveAssistanceTable
+        : assistanceTableSnapshot?.programId === program.id
+          ? assistanceTableSnapshot.table
+          : null;
     const canTransferAssistance = Boolean(
         department?.slug &&
         !program.is_closed &&
-        (transfer_program_options?.length ?? 0) > 0,
+        (resolvedAssistanceTable?.transfer_program_options.length ?? 0) > 0,
     );
     const isClosed = Boolean(program.is_closed);
     const description = program.descriptions?.trim();
@@ -751,79 +815,61 @@ export default function UserProgramShow({
                             </p>
                         </div>
 
-                        <WhenVisible
-                            data={[...ASSISTANCE_TABLE_DEFER_GROUP_PROPS]}
-                            buffer={200}
-                            fallback={() => tableSkeleton}
-                        >
-                            {(() => {
-                                const tableProps = {
-                                    assistances,
-                                    mode_options,
-                                    status_options,
-                                    mode_of_request_options,
-                                    program_items,
-                                    program_fields,
-                                    request_sub_status_options,
-                                    staff_options,
-                                    transfer_program_options,
-                                };
-
-                                if (!isAssistancesTableReady(tableProps)) {
-                                    return tableSkeleton;
-                                }
-
-                                return (
-                                    <Suspense fallback={tableSkeleton}>
-                                        <ProgramAssistanceTableSection
-                                            assistances={tableProps.assistances}
-                                            tableFilters={tableFilters}
-                                            tableState={tableState}
-                                            statusOptions={
-                                                tableProps.status_options
-                                            }
-                                            modeOptions={
-                                                tableProps.mode_options
-                                            }
-                                            isLoading={isTableReloading}
-                                            departmentSlug={
-                                                department?.slug ?? ''
-                                            }
-                                            programId={program.id}
-                                            programName={program.name}
-                                            isOrganization={
-                                                program.is_organization ?? false
-                                            }
-                                            canCreateAssistance={
-                                                canCreateAssistance
-                                            }
-                                            modeOfRequestOptions={
-                                                tableProps.mode_of_request_options
-                                            }
-                                            programItems={
-                                                tableProps.program_items
-                                            }
-                                            programFields={
-                                                tableProps.program_fields
-                                            }
-                                            requestSubStatusOptions={
-                                                tableProps.request_sub_status_options
-                                            }
-                                            transferProgramOptions={
-                                                tableProps.transfer_program_options
-                                            }
-                                            staffOptions={
-                                                tableProps.staff_options
-                                            }
-                                            canTransferAssistance={
-                                                canTransferAssistance
-                                            }
-                                            onVisitTable={visitTable}
-                                        />
-                                    </Suspense>
-                                );
-                            })()}
-                        </WhenVisible>
+                        {resolvedAssistanceTable ? (
+                            <Suspense fallback={tableSkeleton}>
+                                <ProgramAssistanceTableSection
+                                    assistances={
+                                        resolvedAssistanceTable.assistances
+                                    }
+                                    tableFilters={tableFilters}
+                                    tableState={tableState}
+                                    statusOptions={
+                                        resolvedAssistanceTable.status_options
+                                    }
+                                    modeOptions={
+                                        resolvedAssistanceTable.mode_options
+                                    }
+                                    isLoading={isTableReloading}
+                                    departmentSlug={department?.slug ?? ''}
+                                    programId={program.id}
+                                    programName={program.name}
+                                    isOrganization={
+                                        program.is_organization ?? false
+                                    }
+                                    canCreateAssistance={canCreateAssistance}
+                                    modeOfRequestOptions={
+                                        resolvedAssistanceTable.mode_of_request_options
+                                    }
+                                    programItems={
+                                        resolvedAssistanceTable.program_items
+                                    }
+                                    programFields={
+                                        resolvedAssistanceTable.program_fields
+                                    }
+                                    requestSubStatusOptions={
+                                        resolvedAssistanceTable.request_sub_status_options
+                                    }
+                                    transferProgramOptions={
+                                        resolvedAssistanceTable.transfer_program_options
+                                    }
+                                    staffOptions={
+                                        resolvedAssistanceTable.staff_options
+                                    }
+                                    canTransferAssistance={
+                                        canTransferAssistance
+                                    }
+                                    onVisitTable={visitTable}
+                                />
+                            </Suspense>
+                        ) : (
+                            <WhenVisible
+                                data={[...ASSISTANCE_TABLE_DEFER_GROUP_PROPS]}
+                                buffer={200}
+                                fallback={() => tableSkeleton}
+                            >
+                                {tableSkeleton}
+                            </WhenVisible>
+                        )}
                     </div>
                 </section>
             </div>
