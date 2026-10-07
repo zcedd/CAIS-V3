@@ -1,20 +1,18 @@
 <?php
 
-namespace App\Http\Requests\User\Workflow;
+namespace App\Http\Requests\Admin\Workflow;
 
-use App\Models\Department;
 use App\Models\Workflow;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
 
-class IndexRequest extends FormRequest
+class VersionRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        $department = $this->route('department');
+        $workflow = $this->route('workflow');
 
-        return $department instanceof Department
-            && Gate::allows('viewAny', [Workflow::class, $department]);
+        return $workflow instanceof Workflow && Gate::allows('version', $workflow);
     }
 
     /**

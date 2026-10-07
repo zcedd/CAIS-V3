@@ -760,7 +760,12 @@ class DashboardService
      */
     public function topBarangays(Department $department, array $filters): array
     {
-        return (clone $this->filteredAssistanceQuery($department, $filters))
+        $barangayExpression = "COALESCE(NULLIF(ab_ind.name, ''), NULLIF(ab_org.name, ''), 'Unspecified')";
+
+        // Group the label in an outer query. Grouping by this COALESCE fails
+        // ONLY_FULL_GROUP_BY on some MySQL and MariaDB versions because it
+        // reads two joined columns.
+        $scoped = (clone $this->filteredAssistanceQuery($department, $filters))
             ->leftJoin('organizations', function ($join): void {
                 $join->on('beneficiaries.beneficiable_id', '=', 'organizations.id')
                     ->where('beneficiaries.beneficiable_type', '=', Organization::class)
@@ -768,12 +773,18 @@ class DashboardService
             })
             ->leftJoin('address_barangays as ab_ind', 'ab_ind.id', '=', 'individuals.address_barangay_id')
             ->leftJoin('address_barangays as ab_org', 'ab_org.id', '=', 'organizations.address_barangay_id')
-            ->selectRaw("COALESCE(NULLIF(ab_ind.name, ''), NULLIF(ab_org.name, ''), 'Unspecified') as barangay")
-            ->selectRaw('COUNT(DISTINCT assistances.id) as count')
-            ->groupByRaw("COALESCE(NULLIF(ab_ind.name, ''), NULLIF(ab_org.name, ''), 'Unspecified')")
+            ->select('assistances.id')
+            ->selectRaw("{$barangayExpression} as barangay")
+            ->distinct()
+            ->toBase();
+
+        return DB::query()
+            ->fromSub($scoped, 'scoped_barangays')
+            ->select('barangay')
+            ->selectRaw('COUNT(*) as count')
+            ->groupBy('barangay')
             ->orderByDesc('count')
             ->limit(8)
-            ->toBase()
             ->get()
             ->map(static fn ($row): array => [
                 'barangay' => (string) $row->barangay,

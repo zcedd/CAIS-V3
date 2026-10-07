@@ -399,44 +399,36 @@ test('sla pauses on hold and stale reminders go to the assignee', function () {
         ->and($encoder->notifications()->where('type', StaleAssistanceReminderNotification::class)->count())->toBe(0);
 });
 
-test('department workflows page lists the default pipeline', function () {
-    ['department' => $department, 'encoder' => $user] = createQueueAssistanceContext();
+test('admin workflows page lists the default pipeline for a department', function () {
+    ['department' => $department] = createQueueAssistanceContext();
+    app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+    $admin = assignSuperAdminRole(User::factory()->create());
 
-    $this->actingAs($user)
-        ->get(route('user.workflows.index', $department->slug))
+    $this->actingAs($admin)
+        ->get(route('admin.workflows.index', ['department_id' => $department->id]))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
-            ->component('user/workflows/index')
-            ->has('workflows', 1)
-            ->where('workflows.0.is_default', true)
-            ->where('can_create', true));
+            ->component('admin/workflows/index')
+            ->has('workflows.data', 1)
+            ->where('workflows.data.0.is_default', true)
+            ->where('can.create', true));
 });
 
-test('super admin can create a workflow from a template', function () {
+test('department users cannot create a workflow from the department area', function () {
     ['department' => $department, 'encoder' => $user] = createQueueAssistanceContext();
-    assignSuperAdminRole($user);
 
     $this->actingAs($user)
-        ->get(route('user.workflows.index', $department->slug))
-        ->assertSuccessful()
-        ->assertInertia(fn ($page) => $page
-            ->where('can_create', true));
-
-    $this->actingAs($user)
-        ->from(route('user.workflows.index', $department->slug))
-        ->post(route('user.workflows.store', $department->slug), [
+        ->post("/{$department->slug}/workflows", [
             'name' => 'Walk-in relief',
             'template' => WorkflowTemplate::WalkIn->value,
             'is_default' => false,
         ])
-        ->assertRedirect()
-        ->assertSessionHas('success');
+        ->assertNotFound();
 
     expect(Workflow::query()
         ->where('department_id', $department->id)
         ->where('name', 'Walk-in relief')
-        ->where('template', WorkflowTemplate::WalkIn)
-        ->exists())->toBeTrue();
+        ->exists())->toBeFalse();
 });
 
 test('staff without the workflow role cannot create a workflow', function () {
@@ -451,9 +443,10 @@ test('staff without the workflow role cannot create a workflow', function () {
     );
 
     $this->actingAs($user)
-        ->post(route('user.workflows.store', $department->slug), [
+        ->post(route('admin.workflows.store'), [
+            'department_id' => $department->id,
             'name' => 'Walk-in relief',
-            'template' => WorkflowTemplate::WalkIn->value,
+            'code' => 'WALK_IN',
         ])
         ->assertForbidden();
 });

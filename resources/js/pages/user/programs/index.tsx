@@ -57,6 +57,8 @@ import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { Plus, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 
 type DepartmentSummary = {
     id: number;
@@ -160,6 +162,7 @@ export default function UserProgramsIndex({
     document_types?: DocumentTypeOption[];
     workflow_options?: WorkflowOption[];
 }) {
+    const canAssignWorkflow = useCan()(Permission.WorkflowAssign);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(false);
     const createDrawerTourLocked = useCreateDrawerTourLock();
@@ -196,7 +199,7 @@ export default function UserProgramsIndex({
 
     const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
-        label: String(`${fund.name} (${fund.year})`),
+        label: fund.year ? `${fund.name} (${fund.year})` : fund.name,
     }));
 
     const itemOptions = (items ?? []).map((item) => ({
@@ -468,7 +471,8 @@ export default function UserProgramsIndex({
                     <DrawerHeader>
                         <DrawerTitle>Create program</DrawerTitle>
                         <DrawerDescription>
-                            Add a new program for {department?.name ?? 'your'}.
+                            Add a new program for{' '}
+                            {(department?.name ?? 'your department').trim()}.
                         </DrawerDescription>
                     </DrawerHeader>
                     {canCreate && department && (
@@ -531,10 +535,14 @@ export default function UserProgramsIndex({
                                     eligibility,
                                     selectedItemIds,
                                 ),
-                                workflow_id:
-                                    workflowId === 'default'
-                                        ? null
-                                        : Number(workflowId),
+                                ...(canAssignWorkflow
+                                    ? {
+                                          workflow_id:
+                                              workflowId === 'default'
+                                                  ? null
+                                                  : Number(workflowId),
+                                      }
+                                    : {}),
                             })}
                             onSuccess={() => {
                                 resetCreateForm();
@@ -611,7 +619,7 @@ export default function UserProgramsIndex({
                                         <p className="text-sm text-muted-foreground">
                                             {programKind === 'scheme'
                                                 ? 'Use a parent program for repeating aid. Staff encode into batches, not the parent.'
-                                                : 'A single program staff encode into directly.'}
+                                                : 'A single program that staff encode into directly.'}
                                         </p>
                                         <InputError message={errors.kind} />
                                     </div>
@@ -821,9 +829,24 @@ export default function UserProgramsIndex({
                                                                     from the
                                                                     public form.
                                                                 </p>
+                                                                <InputError
+                                                                    message={
+                                                                        errors[
+                                                                            'first_batch.public_intake'
+                                                                        ]
+                                                                    }
+                                                                />
                                                             </div>
                                                         </div>
-                                                    ) : null}
+                                                    ) : (
+                                                        <InputError
+                                                            message={
+                                                                errors[
+                                                                    'first_batch.public_intake'
+                                                                ]
+                                                            }
+                                                        />
+                                                    )}
                                                 </div>
                                             ) : null}
                                             <InputError
@@ -873,7 +896,8 @@ export default function UserProgramsIndex({
                                         errors={errors}
                                     />
 
-                                    {workflow_options.length > 0 ? (
+                                    {canAssignWorkflow &&
+                                    workflow_options.length > 0 ? (
                                         <div className="space-y-2">
                                             <Label htmlFor="program-workflow">
                                                 Workflow
@@ -987,7 +1011,11 @@ export default function UserProgramsIndex({
                                                 />
                                             </div>
                                         </div>
-                                    ) : null}
+                                    ) : (
+                                        <InputError
+                                            message={errors.public_intake}
+                                        />
+                                    )}
 
                                     <DrawerFooter
                                         className="px-0"

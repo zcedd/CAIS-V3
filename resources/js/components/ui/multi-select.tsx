@@ -62,18 +62,16 @@ export function MultiSelect({
                     return (
                       <Badge key={value} variant="secondary" className="text-xs px-2 py-0.5 gap-1">
                         {option?.label}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-auto p-0 text-muted-foreground hover:text-foreground"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
+                        <span
+                          className="inline-flex text-muted-foreground hover:text-foreground"
+                          onClick={(event) => {
+                            event.preventDefault()
+                            event.stopPropagation()
                             handleRemove(value)
                           }}
                         >
-                          <X className="h-3 w-3" />
-                        </Button>
+                          <X className="size-3" />
+                        </span>
                       </Badge>
                     )
                   })}

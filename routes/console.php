@@ -12,6 +12,6 @@ Schedule::command('assistances:notify-stale')
     ->daily()
     ->withoutOverlapping();
 
-Schedule::command('stock:notify-low')
+Schedule::command('workflow-tasks:notify-due')
     ->daily()
     ->withoutOverlapping();

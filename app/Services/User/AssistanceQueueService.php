@@ -2,6 +2,7 @@
 
 namespace App\Services\User;
 
+use App\Enums\WorkflowTaskStatus;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\User;
@@ -45,6 +46,9 @@ class AssistanceQueueService
                 'user:id,firstName,lastName',
                 'program.workflow.steps',
                 'program.parent.workflow.steps',
+                'workflowInstance.currentStep',
+                'workflowInstance.tasks.step',
+                'workflowInstance.tasks.assignedUser:id,firstName,lastName',
             ]);
 
         if ($tab === 'mine') {
@@ -111,6 +115,11 @@ class AssistanceQueueService
             'beneficiary_name' => $assistance->beneficiary?->name ?? EmptyCell::VALUE,
             'request_status' => $assistance->currentRequestSubStatus?->requestStatus?->name,
             'request_sub_status' => $assistance->currentRequestSubStatus?->name,
+            'task_name' => $assistance->currentWorkflowStep()?->displayName(),
+            'task_status' => $assistance->currentTask()?->status instanceof WorkflowTaskStatus
+                ? $assistance->currentTask()->status->label()
+                : null,
+            'task_due_at' => $assistance->currentTask()?->due_at?->toIso8601String(),
             'assigned_to_id' => $assistance->assigned_to_id,
             'assignee_name' => $assignee instanceof User
                 ? trim($assignee->firstName.' '.$assignee->lastName)

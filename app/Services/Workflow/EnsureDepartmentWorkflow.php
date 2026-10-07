@@ -4,11 +4,17 @@ namespace App\Services\Workflow;
 
 use App\Enums\RequestStatusCode;
 use App\Enums\RequestSubStatusCode;
+use App\Enums\RoleName;
+use App\Enums\WorkflowAssignmentType;
+use App\Enums\WorkflowStatus;
+use App\Enums\WorkflowStepType;
 use App\Enums\WorkflowTemplate;
+use App\Enums\WorkflowTransitionAction;
 use App\Models\Department;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Models\WorkflowStepTransition;
+use Illuminate\Support\Str;
 
 class EnsureDepartmentWorkflow
 {
@@ -51,7 +57,12 @@ class EnsureDepartmentWorkflow
 
         $workflow = Workflow::query()->create([
             'department_id' => $department->id,
-            'name' => $name ?? $template->label(),
+            'name' => $name ?? ($template === WorkflowTemplate::Standard
+                ? 'Standard Assistance Workflow'
+                : $template->label()),
+            'code' => $this->uniqueCode($department, $name ?? $template->label()),
+            'version' => 1,
+            'status' => WorkflowStatus::Active,
             'template' => $template->value,
             'is_default' => $isDefault,
             'staff_entry_request_status_id' => $submittedId,
@@ -65,57 +76,37 @@ class EnsureDepartmentWorkflow
 
     public function syncTemplateSteps(Workflow $workflow, WorkflowTemplate $template): void
     {
-        $happyPath = $template->happyPath();
-        $defaultReasons = $this->defaultReasons();
+        $definitions = $template === WorkflowTemplate::Standard
+            ? $this->standardSteps()
+            : $this->legacyHappyPathSteps($template);
 
         $stepIdsByCode = [];
 
-        foreach ($happyPath as $index => $stage) {
+        foreach ($definitions as $index => $definition) {
             $step = WorkflowStep::query()->updateOrCreate(
                 [
                     'workflow_id' => $workflow->id,
-                    'request_status_id' => $this->catalog->parentId($stage),
+                    'code' => $definition['code'],
                 ],
                 [
+                    'name' => $definition['name'],
+                    'step_type' => $definition['step_type'],
+                    'request_status_id' => $this->catalog->parentId($definition['status']),
                     'sort_order' => ($index + 1) * 10,
-                    'default_request_sub_status_id' => $this->catalog->reasonId($defaultReasons[$stage->value]),
-                    'sla_hours' => $this->defaultSlaHours($stage),
-                    'requires_assignee' => $stage === RequestStatusCode::Review,
+                    'is_start' => $definition['is_start'],
+                    'is_end' => $definition['is_end'],
+                    'default_request_sub_status_id' => $this->catalog->reasonId($definition['reason']),
+                    'sla_hours' => $definition['sla_hours'],
+                    'requires_assignee' => $definition['assignment_type'] !== WorkflowAssignmentType::None,
+                    'assignment_type' => $definition['assignment_type'],
+                    'assigned_role' => $definition['assigned_role'],
+                    'automatic_assignment' => false,
                     'permission' => null,
-                    'allows_skip_to_deliver' => $template === WorkflowTemplate::WalkIn
-                        && $stage === RequestStatusCode::Submitted,
+                    'allows_skip_to_deliver' => $definition['allows_skip_to_deliver'],
                 ],
             );
 
-            $stepIdsByCode[$stage->value] = $step->id;
-        }
-
-        $parkingStages = [
-            RequestStatusCode::OnHold,
-            RequestStatusCode::Denied,
-        ];
-
-        foreach ($parkingStages as $offset => $stage) {
-            if (isset($stepIdsByCode[$stage->value])) {
-                continue;
-            }
-
-            $step = WorkflowStep::query()->updateOrCreate(
-                [
-                    'workflow_id' => $workflow->id,
-                    'request_status_id' => $this->catalog->parentId($stage),
-                ],
-                [
-                    'sort_order' => 90 + $offset,
-                    'default_request_sub_status_id' => $this->catalog->reasonId($defaultReasons[$stage->value]),
-                    'sla_hours' => null,
-                    'requires_assignee' => false,
-                    'permission' => null,
-                    'allows_skip_to_deliver' => false,
-                ],
-            );
-
-            $stepIdsByCode[$stage->value] = $step->id;
+            $stepIdsByCode[$definition['code']] = $step->id;
         }
 
         WorkflowStep::query()
@@ -123,75 +114,307 @@ class EnsureDepartmentWorkflow
             ->whereNotIn('id', array_values($stepIdsByCode))
             ->delete();
 
+        foreach ($definitions as $definition) {
+            $this->syncNamedTransitions(
+                $stepIdsByCode[$definition['code']],
+                $stepIdsByCode,
+                $definition['targets'],
+            );
+        }
+    }
+
+    /**
+     * @return list<array{
+     *     code: string,
+     *     name: string,
+     *     step_type: WorkflowStepType,
+     *     status: RequestStatusCode,
+     *     reason: RequestSubStatusCode,
+     *     sla_hours: int|null,
+     *     is_start: bool,
+     *     is_end: bool,
+     *     assignment_type: WorkflowAssignmentType,
+     *     assigned_role: string|null,
+     *     allows_skip_to_deliver: bool,
+     *     targets: list<string>
+     * }>
+     */
+    private function standardSteps(): array
+    {
+        $role = RoleName::Assistance->value;
+
+        return [
+            [
+                'code' => 'SUBMITTED',
+                'name' => 'Submitted',
+                'step_type' => WorkflowStepType::Start,
+                'status' => RequestStatusCode::Submitted,
+                'reason' => RequestSubStatusCode::AwaitingReview,
+                'sla_hours' => 48,
+                'is_start' => true,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::Role,
+                'assigned_role' => $role,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['VERIFY_BENEFICIARY', 'ON_HOLD', 'DENIED', 'COMPLETED'],
+            ],
+            [
+                'code' => 'VERIFY_BENEFICIARY',
+                'name' => 'Verify beneficiary',
+                'step_type' => WorkflowStepType::Verification,
+                'status' => RequestStatusCode::Review,
+                'reason' => RequestSubStatusCode::UnderReview,
+                'sla_hours' => 72,
+                'is_start' => false,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::Role,
+                'assigned_role' => $role,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['EVALUATE', 'APPROVE', 'ON_HOLD', 'DENIED', 'COMPLETED'],
+            ],
+            [
+                'code' => 'EVALUATE',
+                'name' => 'Evaluate',
+                'step_type' => WorkflowStepType::Evaluation,
+                'status' => RequestStatusCode::Review,
+                'reason' => RequestSubStatusCode::UnderReview,
+                'sla_hours' => 72,
+                'is_start' => false,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::Role,
+                'assigned_role' => $role,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['APPROVE', 'ON_HOLD', 'DENIED', 'COMPLETED'],
+            ],
+            [
+                'code' => 'APPROVE',
+                'name' => 'Approve',
+                'step_type' => WorkflowStepType::Approval,
+                'status' => RequestStatusCode::Approved,
+                'reason' => RequestSubStatusCode::Approved,
+                'sla_hours' => 48,
+                'is_start' => false,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::Role,
+                'assigned_role' => $role,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['PREPARE', 'RELEASE', 'ON_HOLD', 'DENIED', 'COMPLETED'],
+            ],
+            [
+                'code' => 'PREPARE',
+                'name' => 'Prepare',
+                'step_type' => WorkflowStepType::Preparation,
+                'status' => RequestStatusCode::Approved,
+                'reason' => RequestSubStatusCode::Approved,
+                'sla_hours' => 48,
+                'is_start' => false,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::Role,
+                'assigned_role' => $role,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['RELEASE', 'ON_HOLD', 'DENIED', 'COMPLETED'],
+            ],
+            [
+                'code' => 'RELEASE',
+                'name' => 'Release',
+                'step_type' => WorkflowStepType::Release,
+                'status' => RequestStatusCode::Delivered,
+                'reason' => RequestSubStatusCode::Delivered,
+                'sla_hours' => null,
+                'is_start' => false,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::Role,
+                'assigned_role' => $role,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['COMPLETED', 'DENIED'],
+            ],
+            [
+                'code' => 'COMPLETED',
+                'name' => 'Completed',
+                'step_type' => WorkflowStepType::Completion,
+                'status' => RequestStatusCode::Closed,
+                'reason' => RequestSubStatusCode::Closed,
+                'sla_hours' => null,
+                'is_start' => false,
+                'is_end' => true,
+                'assignment_type' => WorkflowAssignmentType::None,
+                'assigned_role' => null,
+                'allows_skip_to_deliver' => false,
+                'targets' => [],
+            ],
+            [
+                'code' => 'ON_HOLD',
+                'name' => 'On Hold',
+                'step_type' => WorkflowStepType::Hold,
+                'status' => RequestStatusCode::OnHold,
+                'reason' => RequestSubStatusCode::AwaitingInformation,
+                'sla_hours' => null,
+                'is_start' => false,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::None,
+                'assigned_role' => null,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['VERIFY_BENEFICIARY', 'DENIED', 'COMPLETED'],
+            ],
+            [
+                'code' => 'DENIED',
+                'name' => 'Denied',
+                'step_type' => WorkflowStepType::Rejection,
+                'status' => RequestStatusCode::Denied,
+                'reason' => RequestSubStatusCode::Denied,
+                'sla_hours' => null,
+                'is_start' => false,
+                'is_end' => false,
+                'assignment_type' => WorkflowAssignmentType::None,
+                'assigned_role' => null,
+                'allows_skip_to_deliver' => false,
+                'targets' => ['COMPLETED'],
+            ],
+        ];
+    }
+
+    /**
+     * @return list<array{
+     *     code: string,
+     *     name: string,
+     *     step_type: WorkflowStepType,
+     *     status: RequestStatusCode,
+     *     reason: RequestSubStatusCode,
+     *     sla_hours: int|null,
+     *     is_start: bool,
+     *     is_end: bool,
+     *     assignment_type: WorkflowAssignmentType,
+     *     assigned_role: string|null,
+     *     allows_skip_to_deliver: bool,
+     *     targets: list<string>
+     * }>
+     */
+    private function legacyHappyPathSteps(WorkflowTemplate $template): array
+    {
+        $happyPath = $template->happyPath();
+        $reasons = $this->defaultReasons();
+        $steps = [];
+
         foreach ($happyPath as $index => $stage) {
-            $stepId = $stepIdsByCode[$stage->value];
             $next = $happyPath[$index + 1] ?? null;
             $targets = [];
 
             if ($next instanceof RequestStatusCode) {
-                $targets[] = $next;
+                $targets[] = Str::upper($next->value);
             }
 
-            if (! $stage->isTerminal()) {
-                $targets[] = RequestStatusCode::OnHold;
-                $targets[] = RequestStatusCode::Denied;
-
+            if (! $stage->isTerminal() || $stage === RequestStatusCode::Delivered) {
                 if ($stage !== RequestStatusCode::Closed) {
-                    $targets[] = RequestStatusCode::Closed;
+                    $targets[] = 'ON_HOLD';
+                    $targets[] = 'DENIED';
+                    $targets[] = 'CLOSED';
                 }
             }
 
-            if ($stage === RequestStatusCode::Delivered) {
-                $targets[] = RequestStatusCode::Denied;
-            }
-
             if ($template === WorkflowTemplate::WalkIn && $stage === RequestStatusCode::Submitted) {
-                $targets[] = RequestStatusCode::Delivered;
+                $targets[] = 'DELIVERED';
             }
 
-            $this->syncTransitions($stepId, $targets);
+            $steps[] = [
+                'code' => Str::upper($stage->value),
+                'name' => $stage->label(),
+                'step_type' => WorkflowStepType::fromStatusCode(
+                    $stage,
+                    $index === 0,
+                    $stage === RequestStatusCode::Closed,
+                ),
+                'status' => $stage,
+                'reason' => $reasons[$stage->value],
+                'sla_hours' => $this->defaultSlaHours($stage),
+                'is_start' => $index === 0,
+                'is_end' => $stage === RequestStatusCode::Closed,
+                'assignment_type' => WorkflowAssignmentType::None,
+                'assigned_role' => null,
+                'allows_skip_to_deliver' => $template === WorkflowTemplate::WalkIn
+                    && $stage === RequestStatusCode::Submitted,
+                'targets' => array_values(array_unique($targets)),
+            ];
         }
 
-        $resumeStage = $happyPath[0];
+        $resumeCode = Str::upper($happyPath[0]->value);
 
-        foreach ($happyPath as $stage) {
-            if (! $stage->isTerminal()) {
-                $resumeStage = $stage;
-            }
-        }
+        $steps[] = [
+            'code' => 'ON_HOLD',
+            'name' => 'On Hold',
+            'step_type' => WorkflowStepType::Hold,
+            'status' => RequestStatusCode::OnHold,
+            'reason' => RequestSubStatusCode::AwaitingInformation,
+            'sla_hours' => null,
+            'is_start' => false,
+            'is_end' => false,
+            'assignment_type' => WorkflowAssignmentType::None,
+            'assigned_role' => null,
+            'allows_skip_to_deliver' => false,
+            'targets' => [$resumeCode, 'DENIED', 'CLOSED'],
+        ];
 
-        $this->syncTransitions($stepIdsByCode[RequestStatusCode::OnHold->value], [
-            $resumeStage,
-            RequestStatusCode::Denied,
-            RequestStatusCode::Closed,
-        ]);
+        $steps[] = [
+            'code' => 'DENIED',
+            'name' => 'Denied',
+            'step_type' => WorkflowStepType::Rejection,
+            'status' => RequestStatusCode::Denied,
+            'reason' => RequestSubStatusCode::Denied,
+            'sla_hours' => null,
+            'is_start' => false,
+            'is_end' => false,
+            'assignment_type' => WorkflowAssignmentType::None,
+            'assigned_role' => null,
+            'allows_skip_to_deliver' => false,
+            'targets' => ['CLOSED'],
+        ];
 
-        $this->syncTransitions($stepIdsByCode[RequestStatusCode::Denied->value], [
-            RequestStatusCode::Closed,
-        ]);
+        return $steps;
     }
 
     /**
-     * @param  list<RequestStatusCode>  $targets
+     * @param  array<string, int>  $stepIdsByCode
+     * @param  list<string>  $targetCodes
      */
-    private function syncTransitions(int $stepId, array $targets): void
+    private function syncNamedTransitions(int $stepId, array $stepIdsByCode, array $targetCodes): void
     {
-        $targetIds = array_unique(array_map(
-            fn (RequestStatusCode $code): int => $this->catalog->parentId($code),
-            $targets,
-        ));
+        $kept = [];
+
+        foreach ($targetCodes as $code) {
+            $toStepId = $stepIdsByCode[$code] ?? null;
+
+            if ($toStepId === null) {
+                continue;
+            }
+
+            $toStep = WorkflowStep::query()->find($toStepId);
+            $status = $toStep?->requestStatus?->code;
+            $action = match ($status) {
+                RequestStatusCode::Denied => WorkflowTransitionAction::Reject,
+                RequestStatusCode::OnHold => WorkflowTransitionAction::Hold,
+                RequestStatusCode::Closed => WorkflowTransitionAction::Close,
+                default => WorkflowTransitionAction::Advance,
+            };
+
+            $transition = WorkflowStepTransition::query()->updateOrCreate(
+                [
+                    'workflow_step_id' => $stepId,
+                    'to_step_id' => $toStepId,
+                ],
+                [
+                    'to_request_status_id' => (int) $toStep?->request_status_id,
+                    'action' => $action,
+                    'label' => null,
+                    'requires_comment' => $action === WorkflowTransitionAction::Reject,
+                ],
+            );
+
+            $kept[] = $transition->id;
+        }
 
         WorkflowStepTransition::query()
             ->where('workflow_step_id', $stepId)
-            ->whereNotIn('to_request_status_id', $targetIds)
+            ->whereNotIn('id', $kept === [] ? [0] : $kept)
             ->delete();
-
-        foreach ($targetIds as $targetId) {
-            WorkflowStepTransition::query()->firstOrCreate([
-                'workflow_step_id' => $stepId,
-                'to_request_status_id' => $targetId,
-            ]);
-        }
     }
 
     /**
@@ -216,9 +439,25 @@ class EnsureDepartmentWorkflow
             RequestStatusCode::Submitted => 48,
             RequestStatusCode::Review => 72,
             RequestStatusCode::Approved => 48,
-            RequestStatusCode::Delivered => null,
-            RequestStatusCode::Closed => null,
             default => null,
         };
+    }
+
+    private function uniqueCode(Department $department, string $name): string
+    {
+        $base = Str::upper(Str::slug($name, '_'));
+        $base = $base !== '' ? $base : 'WORKFLOW';
+        $code = $base;
+        $suffix = 2;
+
+        while (Workflow::query()
+            ->where('department_id', $department->id)
+            ->where('code', $code)
+            ->exists()) {
+            $code = $base.'_'.$suffix;
+            $suffix++;
+        }
+
+        return $code;
     }
 }

@@ -88,8 +88,10 @@ class AssertAssistanceWorkflowTransition
             return $targetStep;
         }
 
-        if (RequestStatusCode::Denied->matches($targetStatus)
-            && ! RequestStatusCode::Closed->matches($currentStatus)) {
+        if (
+            RequestStatusCode::Denied->matches($targetStatus)
+            && ! RequestStatusCode::Closed->matches($currentStatus)
+        ) {
             return $targetStep;
         }
 
@@ -117,9 +119,11 @@ class AssertAssistanceWorkflowTransition
         foreach ($workflow->steps as $step) {
             $code = $step->requestStatus?->code;
 
-            if ($code === RequestStatusCode::OnHold
+            if (
+                $code === RequestStatusCode::OnHold
                 || $code === RequestStatusCode::Denied
-                || $code === RequestStatusCode::Closed) {
+                || $code === RequestStatusCode::Closed
+            ) {
                 $targets[] = (int) $step->request_status_id;
             }
         }

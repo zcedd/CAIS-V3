@@ -28,6 +28,10 @@ import {
 } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import { assign as assignAssistance } from '@/routes/user/programs/assistances';
+import {
+    claim as claimWorkflowTask,
+    complete as completeWorkflowTask,
+} from '@/routes/user/workflow-tasks';
 import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
 import {
     index as departmentProgramsIndex,
@@ -47,7 +51,7 @@ import type {
     AssistanceDocumentsPayload,
     DocumentTypeOption,
 } from '@/types/document';
-import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
 import {
     ArrowLeft,
@@ -93,7 +97,32 @@ type AssistanceProfile = {
     sla_state?: string | null;
     can_advance?: boolean;
     can_assign?: boolean;
+    can_claim?: boolean;
     step_has_owner?: boolean;
+    workflow_step?: string | null;
+    workflow_step_code?: string | null;
+    current_task?: {
+        id: number;
+        name: string | null;
+        step_code: string | null;
+        status: string;
+        status_label: string;
+        priority: string;
+        assigned_to_id: number | null;
+        assigned_to_name: string | null;
+        assigned_at: string | null;
+        due_at: string | null;
+    } | null;
+    available_actions?: Array<{
+        id: number;
+        action: string;
+        label: string;
+        requires_comment: boolean;
+        to_step_id: number | null;
+        to_step_name: string | null;
+        to_request_status_id: number | null;
+        to_request_sub_status_id: number | null;
+    }>;
     date_requested: string | null;
     date_verified: string | null;
     date_delivered: string | null;
@@ -927,6 +956,132 @@ export default function UserAssistanceShow({
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </section>
+
+                <section className="rounded-xl border border-border bg-card">
+                    <div className="flex flex-col gap-4 p-4">
+                        <SectionHeading
+                            title="Current task"
+                            description="Work assigned for this workflow step"
+                        />
+                        <div className="grid gap-2 text-sm sm:grid-cols-2">
+                            <p>
+                                <span className="text-muted-foreground">
+                                    Step:{' '}
+                                </span>
+                                {assistance.workflow_step ?? EMPTY_CELL}
+                            </p>
+                            <p>
+                                <span className="text-muted-foreground">
+                                    Task:{' '}
+                                </span>
+                                {assistance.current_task?.status_label ??
+                                    'None'}
+                            </p>
+                            <p>
+                                <span className="text-muted-foreground">
+                                    Assignee:{' '}
+                                </span>
+                                {assistance.current_task?.assigned_to_name ??
+                                    assistance.assignee_name ??
+                                    'Unassigned'}
+                            </p>
+                            <p>
+                                <span className="text-muted-foreground">
+                                    Due:{' '}
+                                </span>
+                                {assistance.current_task?.due_at ??
+                                    assistance.sla_due_at ??
+                                    EMPTY_CELL}
+                            </p>
+                        </div>
+                        {assistance.can_claim &&
+                        assistance.current_task &&
+                        assistance.current_task.assigned_to_id === null ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                className="w-fit"
+                                onClick={() =>
+                                    router.post(
+                                        claimWorkflowTask.url({
+                                            department: department.slug,
+                                            task: assistance.current_task!.id,
+                                        }),
+                                        {},
+                                        {
+                                            preserveScroll: true,
+                                            onSuccess: () =>
+                                                toast.success('Task claimed.'),
+                                        },
+                                    )
+                                }
+                            >
+                                Claim task
+                            </Button>
+                        ) : null}
+                        {(assistance.available_actions ?? []).length > 0 &&
+                        assistance.current_task ? (
+                            <div className="flex flex-wrap gap-2">
+                                {(assistance.available_actions ?? []).map(
+                                    (action) => (
+                                        <Button
+                                            key={action.id}
+                                            type="button"
+                                            size="sm"
+                                            variant={
+                                                action.action === 'reject'
+                                                    ? 'destructive'
+                                                    : 'outline'
+                                            }
+                                            onClick={() => {
+                                                const remark =
+                                                    action.requires_comment
+                                                        ? window.prompt(
+                                                              'Comment required for this action',
+                                                          )
+                                                        : null;
+
+                                                if (
+                                                    action.requires_comment &&
+                                                    (remark === null ||
+                                                        remark.trim() === '')
+                                                ) {
+                                                    return;
+                                                }
+
+                                                router.post(
+                                                    completeWorkflowTask.url({
+                                                        department:
+                                                            department.slug,
+                                                        task: assistance
+                                                            .current_task!.id,
+                                                    }),
+                                                    {
+                                                        transition_id:
+                                                            action.id,
+                                                        action: action.action,
+                                                        remark,
+                                                        request_sub_status_id:
+                                                            action.to_request_sub_status_id,
+                                                    },
+                                                    {
+                                                        preserveScroll: true,
+                                                        onSuccess: () =>
+                                                            toast.success(
+                                                                'Task updated.',
+                                                            ),
+                                                    },
+                                                );
+                                            }}
+                                        >
+                                            {action.label}
+                                        </Button>
+                                    ),
+                                )}
+                            </div>
+                        ) : null}
                     </div>
                 </section>
 

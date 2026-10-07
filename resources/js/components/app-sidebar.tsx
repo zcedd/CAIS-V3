@@ -2,7 +2,6 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Bell,
     FolderKanban,
-    GitBranch,
     Inbox,
     Landmark,
     LayoutGrid,
@@ -34,7 +33,6 @@ import { index as departmentNotificationsIndex } from '@/routes/user/notificatio
 import { index as departmentProgramsIndex } from '@/routes/user/programs';
 import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiaries';
 import { index as departmentQueueIndex } from '@/routes/user/queue';
-import { index as departmentWorkflowsIndex } from '@/routes/user/workflows';
 import type { NavItem } from '@/types';
 import type { Auth } from '@/types/auth';
 
@@ -96,12 +94,6 @@ export function AppSidebar() {
                     href: departmentQueueIndex(slug),
                     icon: Inbox,
                     permission: Permission.AssistanceViewAny,
-                },
-                {
-                    title: 'Workflows',
-                    href: departmentWorkflowsIndex(slug),
-                    icon: GitBranch,
-                    permission: Permission.WorkflowViewAny,
                 },
                 {
                     title: 'Beneficiaries',

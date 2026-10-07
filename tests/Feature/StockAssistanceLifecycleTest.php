@@ -236,6 +236,7 @@ test('denying a delivered assistance restores stock', function () {
         [
             'request_sub_status_id' => $context['denied'],
             'recorded_at' => now()->toDateTimeString(),
+            'remark' => 'Request denied after delivery',
         ],
     )->assertSessionHasNoErrors();
 

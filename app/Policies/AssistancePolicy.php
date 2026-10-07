@@ -102,6 +102,14 @@ class AssistancePolicy
             return false;
         }
 
+        $task = $assistance->currentTask();
+
+        if ($task !== null) {
+            return $task->assigned_to_id === null
+                || (int) $task->assigned_to_id === (int) $user->id
+                || $user->can(PermissionName::DepartmentSupervise->value);
+        }
+
         return $assistance->currentWorkflowStep()?->assigned_to_id === null;
     }
 
@@ -116,6 +124,12 @@ class AssistancePolicy
             $this->belongsToUserDepartment($user, $assistance),
         )) {
             return false;
+        }
+
+        $task = $assistance->currentTask();
+
+        if ($task !== null) {
+            return $task->assigned_to_id === null;
         }
 
         $step = $assistance->currentWorkflowStep();
@@ -138,6 +152,17 @@ class AssistancePolicy
             $this->belongsToUserDepartment($user, $assistance),
         )) {
             return false;
+        }
+
+        $task = $assistance->currentTask();
+
+        if ($task !== null) {
+            if ($task->assigned_to_id === null) {
+                return true;
+            }
+
+            return (int) $task->assigned_to_id === (int) $user->id
+                || $user->can(PermissionName::DepartmentSupervise->value);
         }
 
         $step = $assistance->currentWorkflowStep();

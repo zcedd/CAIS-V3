@@ -45,7 +45,12 @@ class RolePermissionSeeder extends Seeder
         }
 
         $superAdmin = Role::findOrCreate(RoleName::SuperAdmin->value, 'web');
-        $superAdmin->syncPermissions([]);
+        $superAdmin->syncPermissions(
+            array_map(
+                static fn (PermissionName $permission): string => $permission->value,
+                PermissionName::forRole(RoleName::SuperAdmin),
+            ),
+        );
 
         foreach (RoleName::resourceRoles() as $roleName) {
             $role = Role::findOrCreate($roleName->value, 'web');

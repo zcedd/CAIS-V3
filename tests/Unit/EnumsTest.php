@@ -4,12 +4,14 @@ use App\Enums\AssistanceItemOrigin;
 use App\Enums\DocumentRequirementMilestone;
 use App\Enums\DocumentTypeSlug;
 use App\Enums\ItemKind;
+use App\Enums\PermissionName;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
 use App\Enums\RoleName;
 use App\Enums\SlaState;
 use App\Enums\StockMovementType;
 use App\Enums\UnspscCodeLevel;
+use App\Enums\WorkflowStatus;
 use App\Support\EmptyCell;
 
 test('program kinds expose creatable and encodable cases', function () {
@@ -56,4 +58,25 @@ test('role names expose labels for administration', function () {
     expect(RoleName::SuperAdmin->label())->toBe('Super admin')
         ->and(RoleName::Workflow->label())->toBe('Workflow')
         ->and(RoleName::values())->toContain(RoleName::Head->value);
+});
+
+test('permission names include workflow management abilities', function () {
+    expect(PermissionName::workflowManagement())
+        ->toContain(PermissionName::WorkflowPublish)
+        ->toContain(PermissionName::WorkflowAssign)
+        ->toContain(PermissionName::WorkflowTaskOverride)
+        ->and(PermissionName::forRole(RoleName::SuperAdmin))
+        ->toBe(PermissionName::workflowManagement())
+        ->and(PermissionName::forRole(RoleName::Workflow))
+        ->not->toContain(PermissionName::WorkflowPublish)
+        ->not->toContain(PermissionName::WorkflowAssign)
+        ->not->toContain(PermissionName::WorkflowTaskOverride);
+});
+
+test('workflow statuses include the published lifecycle', function () {
+    expect(WorkflowStatus::Published->label())->toBe('Published')
+        ->and(WorkflowStatus::Draft->isMutable())->toBeTrue()
+        ->and(WorkflowStatus::Published->isMutable())->toBeFalse()
+        ->and(WorkflowStatus::Active->isAssignable())->toBeTrue()
+        ->and(WorkflowStatus::Published->isAssignable())->toBeFalse();
 });

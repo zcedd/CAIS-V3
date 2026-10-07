@@ -42,6 +42,14 @@ enum PermissionName: string
     case WorkflowCreate = 'workflow.create';
     case WorkflowUpdate = 'workflow.update';
     case WorkflowDelete = 'workflow.delete';
+    case WorkflowPublish = 'workflow.publish';
+    case WorkflowVersion = 'workflow.version';
+    case WorkflowAssign = 'workflow.assign';
+    case WorkflowManage = 'workflow.manage';
+    case WorkflowTaskView = 'workflow.task.view';
+    case WorkflowTaskAssign = 'workflow.task.assign';
+    case WorkflowTaskReassign = 'workflow.task.reassign';
+    case WorkflowTaskOverride = 'workflow.task.override';
 
     case DepartmentSupervise = 'department.supervise';
 
@@ -64,11 +72,51 @@ enum PermissionName: string
             RoleName::Beneficiary => self::forResource('beneficiary'),
             RoleName::Item => self::forResource('item'),
             RoleName::Fund => self::forResource('fund'),
-            RoleName::Workflow => self::forResource('workflow'),
+            RoleName::Workflow => self::departmentWorkflowPermissions(),
             RoleName::Supervisor => [self::DepartmentSupervise],
             RoleName::Head => self::cases(),
-            RoleName::SuperAdmin => [],
+            RoleName::SuperAdmin => self::workflowManagement(),
         };
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function workflowManagement(): array
+    {
+        return [
+            self::WorkflowViewAny,
+            self::WorkflowView,
+            self::WorkflowCreate,
+            self::WorkflowUpdate,
+            self::WorkflowDelete,
+            self::WorkflowPublish,
+            self::WorkflowVersion,
+            self::WorkflowAssign,
+            self::WorkflowManage,
+            self::WorkflowTaskView,
+            self::WorkflowTaskAssign,
+            self::WorkflowTaskReassign,
+            self::WorkflowTaskOverride,
+        ];
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function departmentWorkflowPermissions(): array
+    {
+        return [
+            self::WorkflowViewAny,
+            self::WorkflowView,
+            self::WorkflowCreate,
+            self::WorkflowUpdate,
+            self::WorkflowDelete,
+            self::WorkflowVersion,
+            self::WorkflowTaskView,
+            self::WorkflowTaskAssign,
+            self::WorkflowTaskReassign,
+        ];
     }
 
     /**

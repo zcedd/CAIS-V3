@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User\Program;
 
 use App\Enums\ProgramKind;
+use App\Http\Requests\User\Concerns\AuthorizesProgramWorkflowAssignment;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
@@ -17,6 +18,7 @@ use Illuminate\Validation\Validator;
 
 class StoreRequest extends FormRequest
 {
+    use AuthorizesProgramWorkflowAssignment;
     use ValidatesProgramDocumentRequirements;
     use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
@@ -28,6 +30,13 @@ class StoreRequest extends FormRequest
     public function authorize(): bool
     {
         return Gate::allows('create', [Program::class, $this->route('department')]);
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if (! $this->canAssignWorkflow()) {
+            $this->offsetUnset('workflow_id');
+        }
     }
 
     /**
@@ -48,7 +57,7 @@ class StoreRequest extends FormRequest
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => ['nullable', 'boolean'],
             'kind' => ['nullable', Rule::enum(ProgramKind::class)->only(ProgramKind::creatable())],
-            ...$this->publicIntakeRules($isScheme),
+            ...$this->publicIntakeRules(),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
             'fund_ids.*' => [
                 'integer',
@@ -78,13 +87,15 @@ class StoreRequest extends FormRequest
             ...$this->programEligibilityRules($this->input('item_ids', [])),
             ...$this->programFieldDefinitionRules(),
             ...$this->programDocumentRequirementRules(),
-            'workflow_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('workflows', 'id')->where(
-                    fn ($query) => $query->where('department_id', $departmentId),
-                ),
-            ],
+            'workflow_id' => $this->canAssignWorkflow()
+                ? [
+                    'nullable',
+                    'integer',
+                    Rule::exists('workflows', 'id')->where(
+                        fn ($query) => $query->where('department_id', $departmentId),
+                    ),
+                ]
+                : ['prohibited'],
         ];
     }
 

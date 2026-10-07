@@ -8,6 +8,7 @@ use App\Models\Individual;
 use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
+use App\Models\Organization;
 use App\Models\Program;
 use App\Models\UnspscCode;
 use App\Models\User;
@@ -507,6 +508,53 @@ test('apply dashboard filters use date ranges for selected years and quarters', 
     ]);
 
     expect($summary['total_requests'])->toBe(1);
+});
+
+test('top barangays returns an empty list when the department has no requests', function () {
+    ['department' => $department] = createDashboardFixtures();
+
+    expect(app(DashboardService::class)->topBarangays($department, []))->toBe([]);
+});
+
+test('top barangays groups individual and organization requests by address name', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $barangayId = createAddressBarangay();
+    DB::table('address_barangays')->where('id', $barangayId)->update(['name' => 'Poblacion']);
+
+    $individual = Individual::factory()->create([
+        'sex' => 'Male',
+        'address_barangay_id' => $barangayId,
+    ]);
+    $blank = Individual::factory()->create(['sex' => 'Female']);
+    DB::table('address_barangays')->where('id', $blank->address_barangay_id)->update(['name' => '']);
+
+    $organization = Organization::factory()->create([
+        'address_barangay_id' => $barangayId,
+    ]);
+
+    createAssistanceForIndividual($program, $individual, $item);
+    createAssistanceForIndividual($program, $individual, $item);
+    createAssistanceForIndividual($program, $blank, $item);
+
+    $mode = ModeOfRequest::query()->firstOrCreate(['name' => 'Walk In']);
+
+    Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $organization->beneficiaryRecord->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => now()->toDateString(),
+        'user_id' => User::factory()->create([
+            'department_id' => $program->department_id,
+        ])->id,
+    ]);
+
+    expect(app(DashboardService::class)->topBarangays($department, [
+        'year' => [now()->year],
+    ]))->toBe([
+        ['barangay' => 'Poblacion', 'count' => 3],
+        ['barangay' => 'Unspecified', 'count' => 1],
+    ]);
 });
 
 test('global dashboard redirects users with a department to the department dashboard', function () {

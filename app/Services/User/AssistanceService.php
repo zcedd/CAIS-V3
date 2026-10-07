@@ -23,6 +23,7 @@ use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Services\Workflow\RequestStatusCatalog;
+use App\Services\Workflow\WorkflowEngine;
 use App\Support\EmptyCell;
 use DateTimeInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -97,6 +98,7 @@ class AssistanceService
 
             $assistance = Assistance::query()->create([
                 'program_id' => $program->id,
+                'workflow_id' => $program->resolvedWorkflow()->id,
                 'beneficiary_id' => $beneficiary->id,
                 'mode_of_request_id' => $validated['mode_of_request_id'],
                 'date_requested' => $recordedAt->toDateString(),
@@ -115,7 +117,7 @@ class AssistanceService
                     'assistance_id' => $assistance->id,
                     'request_sub_status_id' => $staffEntryId,
                     'remark' => $overrideReason !== null
-                        ? 'Eligibility override: '.$overrideReason
+                        ? 'Eligibility override: ' . $overrideReason
                         : null,
                     'recorded_at' => $recordedAt,
                 ]);
@@ -123,6 +125,8 @@ class AssistanceService
 
             $workflow = $program->resolvedWorkflow();
             $entryStep = $workflow->stepForStatus((int) $workflow->staff_entry_request_status_id);
+
+            $assistance->forceFill(['workflow_id' => $workflow->id])->save();
 
             if ($entryStep?->assigned_to_id !== null) {
                 app(ApplyWorkflowStepAssignee::class)($assistance, $entryStep, $user);
@@ -135,6 +139,8 @@ class AssistanceService
                     false,
                 );
             }
+
+            app(WorkflowEngine::class)->start($assistance->refresh(), $user);
 
             app(RecalculateAssistanceSla::class)($assistance->refresh());
 
@@ -169,7 +175,7 @@ class AssistanceService
     {
         $assistance->load([
             'beneficiary:id,cais_number,name',
-            'assistanceItem' => static fn ($query) => $query->awaitingRelease(),
+            'assistanceItem' => static fn($query) => $query->awaitingRelease(),
             'fieldValues:id,assistance_id,program_field_id,value',
         ]);
 
@@ -187,7 +193,7 @@ class AssistanceService
             'mode_of_request_id' => $assistance->mode_of_request_id,
             'remark' => $assistance->remark,
             'item_details' => $assistance->assistanceItem
-                ->map(static fn (AssistanceItem $assistanceItem): array => [
+                ->map(static fn(AssistanceItem $assistanceItem): array => [
                     'item_id' => $assistanceItem->item_id,
                     'quantity' => $assistanceItem->quantity ?? 1,
                     'specification' => $assistanceItem->specification,
@@ -195,7 +201,7 @@ class AssistanceService
                 ->values()
                 ->all(),
             'field_values' => $assistance->fieldValues
-                ->map(static fn (AssistanceFieldValue $fieldValue): array => [
+                ->map(static fn(AssistanceFieldValue $fieldValue): array => [
                     'program_field_id' => $fieldValue->program_field_id,
                     'value' => $fieldValue->value,
                 ])
@@ -271,7 +277,7 @@ class AssistanceService
                     'cais_number' => $assistance->beneficiary_cais_number ?? EmptyCell::VALUE,
                     'beneficiary_name' => $assistance->beneficiary_name ?? EmptyCell::VALUE,
                     'items' => $assistance->assistanceItem
-                        ->map(static fn (AssistanceItem $assistanceItem): array => [
+                        ->map(static fn(AssistanceItem $assistanceItem): array => [
                             'id' => $assistanceItem->id,
                             'item_id' => $assistanceItem->item_id,
                             'name' => $assistanceItem->item?->name ?? EmptyCell::VALUE,
@@ -290,11 +296,11 @@ class AssistanceService
                     'mode_of_request' => $assistance->mode_of_request_name ?? EmptyCell::VALUE,
                     'encoder_name' => $assistance->user_id === null
                         ? 'Public intake'
-                        : (trim(($assistance->user?->firstName ?? '').' '.($assistance->user?->lastName ?? '')) ?: EmptyCell::VALUE),
+                        : (trim(($assistance->user?->firstName ?? '') . ' ' . ($assistance->user?->lastName ?? '')) ?: EmptyCell::VALUE),
                     'assigned_to_id' => $assistance->assigned_to_id,
                     'assignee_name' => $assistance->assigned_to_id === null
                         ? null
-                        : (trim(($assistance->assignedTo?->firstName ?? '').' '.($assistance->assignedTo?->lastName ?? '')) ?: null),
+                        : (trim(($assistance->assignedTo?->firstName ?? '') . ' ' . ($assistance->assignedTo?->lastName ?? '')) ?: null),
                     'can_advance' => $viewer instanceof User && $viewer->can('advance', $assistance),
                     'step_has_owner' => $assistance->currentWorkflowStep()?->assigned_to_id !== null,
                     'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
@@ -410,7 +416,7 @@ class AssistanceService
             ->distinct()
             ->orderBy('mode_of_requests.name')
             ->pluck('mode_of_requests.name')
-            ->map(static fn (string $name): array => [
+            ->map(static fn(string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -431,7 +437,7 @@ class AssistanceService
             ->distinct()
             ->orderBy('request_statuses.name')
             ->pluck('request_statuses.name')
-            ->map(static fn (string $name): array => [
+            ->map(static fn(string $name): array => [
                 'label' => $name,
                 'value' => $name,
             ])
@@ -482,12 +488,12 @@ class AssistanceService
                 'request_statuses.name as request_status_name',
                 'request_statuses.code as request_status_code',
             ])
-            ->map(static fn ($subStatus): array => [
+            ->map(static fn($subStatus): array => [
                 'id' => (int) $subStatus->id,
                 'name' => $subStatus->name,
                 'request_status' => $subStatus->request_status_name,
                 'request_status_code' => $subStatus->request_status_code,
-                'label' => "{$subStatus->request_status_name} — {$subStatus->name}",
+                'label' => "{$subStatus->request_status_name} - {$subStatus->name}",
             ])
             ->values()
             ->all();
@@ -503,9 +509,9 @@ class AssistanceService
             ->orderBy('lastName')
             ->orderBy('firstName')
             ->get(['id', 'firstName', 'lastName'])
-            ->map(static fn (User $user): array => [
+            ->map(static fn(User $user): array => [
                 'id' => $user->id,
-                'name' => trim($user->firstName.' '.$user->lastName),
+                'name' => trim($user->firstName . ' ' . $user->lastName),
             ])
             ->all();
     }
@@ -563,7 +569,7 @@ class AssistanceService
             })
             ->when(
                 $exceptAssistanceId !== null,
-                fn ($query) => $query->whereKeyNot($exceptAssistanceId),
+                fn($query) => $query->whereKeyNot($exceptAssistanceId),
             )
             ->with([
                 'program:id,name',
@@ -596,7 +602,7 @@ class AssistanceService
                             ? Carbon::parse($assistance->date_delivered)->toDateString()
                             : null,
                         'items' => $assistance->assistanceItem
-                            ->map(static fn (AssistanceItem $item): array => [
+                            ->map(static fn(AssistanceItem $item): array => [
                                 'name' => $item->item?->name ?? EmptyCell::VALUE,
                                 'quantity' => (int) $item->quantity,
                                 'is_received' => (bool) $item->is_received,
@@ -617,11 +623,11 @@ class AssistanceService
     private function normalizedItemDetails(array $itemDetails): array
     {
         return collect($itemDetails)
-            ->map(static fn (array $row): array => [
+            ->map(static fn(array $row): array => [
                 'item_id' => (int) ($row['item_id'] ?? 0),
                 'quantity' => (int) ($row['quantity'] ?? 0),
             ])
-            ->filter(static fn (array $row): bool => $row['item_id'] > 0 && $row['quantity'] > 0)
+            ->filter(static fn(array $row): bool => $row['item_id'] > 0 && $row['quantity'] > 0)
             ->values()
             ->all();
     }

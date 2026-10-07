@@ -11,20 +11,19 @@ use App\Models\RequestSubStatus;
 use App\Models\User;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\StockLedgerService;
+use App\Services\Workflow\WorkflowEngine;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class UpdateProgramAssistanceStatus
 {
     public function __construct(
         private AssistanceDocumentService $assistanceDocumentService,
         private StockLedgerService $stockLedgerService,
-        private AssertAssistanceWorkflowTransition $assertAssistanceWorkflowTransition,
+        private WorkflowEngine $workflowEngine,
         private RecalculateAssistanceSla $recalculateAssistanceSla,
         private RecordAssistanceAssignment $recordAssistanceAssignment,
-        private ApplyWorkflowStepAssignee $applyWorkflowStepAssignee,
     ) {}
 
     /**
@@ -59,50 +58,54 @@ class UpdateProgramAssistanceStatus
         $recordedAt = Carbon::parse($validated['recorded_at']);
         $user = Auth::user();
         $assistance->load('program');
-        $step = null;
 
-        if ($user instanceof User) {
-            $step = ($this->assertAssistanceWorkflowTransition)($assistance, $subStatus, $user);
-        }
-
-        return DB::transaction(function () use ($assistance, $validated, $recordedAt, $subStatus, $user, $step): Assistance {
+        return DB::transaction(function () use ($assistance, $validated, $recordedAt, $subStatus, $user): Assistance {
             $assistance = Assistance::query()
                 ->whereKey($assistance->id)
                 ->lockForUpdate()
                 ->firstOrFail();
             $assistance->loadMissing('program');
 
-            if ($user instanceof User && array_key_exists('assigned_to_id', $validated) && $step?->assigned_to_id === null) {
+            if ($user instanceof User) {
+                $this->workflowEngine->executeByTargetSubStatus(
+                    $assistance,
+                    $subStatus,
+                    $user,
+                    [
+                        'request_sub_status_id' => $subStatus->id,
+                        'recorded_at' => $recordedAt->toDateTimeString(),
+                        'remark' => $validated['remark'] ?? null,
+                    ],
+                );
+                $assistance = $assistance->refresh();
+            } else {
+                AssistanceRequestSubStatus::query()->create([
+                    'assistance_id' => $assistance->id,
+                    'request_sub_status_id' => $validated['request_sub_status_id'],
+                    'remark' => $validated['remark'] ?? null,
+                    'recorded_at' => $recordedAt,
+                ]);
+            }
+
+            if ($user instanceof User && array_key_exists('assigned_to_id', $validated)) {
+                $task = $this->workflowEngine->currentTask($assistance);
                 $assignee = isset($validated['assigned_to_id'])
                     ? User::query()->find($validated['assigned_to_id'])
                     : null;
 
-                ($this->recordAssistanceAssignment)(
-                    $assistance,
-                    $user,
-                    $assignee instanceof User ? $assignee : null,
-                );
-            }
-
-            if (
-                $step?->requires_assignee
-                && $assistance->assigned_to_id === null
-                && $step->assigned_to_id === null
-            ) {
-                throw ValidationException::withMessages([
-                    'assigned_to_id' => 'This step requires an assignee.',
-                ]);
-            }
-
-            AssistanceRequestSubStatus::query()->create([
-                'assistance_id' => $assistance->id,
-                'request_sub_status_id' => $validated['request_sub_status_id'],
-                'remark' => $validated['remark'] ?? null,
-                'recorded_at' => $recordedAt,
-            ]);
-
-            if ($user instanceof User && $step !== null) {
-                ($this->applyWorkflowStepAssignee)($assistance, $step, $user);
+                if ($task !== null) {
+                    $this->workflowEngine->assignTask(
+                        $task,
+                        $user,
+                        $assignee instanceof User ? $assignee : null,
+                    );
+                } else {
+                    ($this->recordAssistanceAssignment)(
+                        $assistance,
+                        $user,
+                        $assignee instanceof User ? $assignee : null,
+                    );
+                }
             }
 
             $releasedItems = [];
