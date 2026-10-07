@@ -5,6 +5,7 @@ import {
     type BeneficiarySearchOption,
 } from '@/components/beneficiary-search-combobox';
 import { AddressCascadeSelect } from '@/components/address-cascade-select';
+import { NameSuffixSelect } from '@/components/name-suffix-select';
 import { DuplicateCandidatesAlert } from '@/components/duplicate-candidates-alert';
 import InputError from '@/components/input-error';
 import {
@@ -103,6 +104,7 @@ export default function UserBeneficiariesCreate({
         default_province_id: rawFormOptions?.default_province_id ?? null,
         address_cities: toOptionList(rawFormOptions?.address_cities),
         address_barangays: toOptionList(rawFormOptions?.address_barangays),
+        suffixes: rawFormOptions?.suffixes ?? [],
     };
     const [beneficiaryKind, setBeneficiaryKind] = useState<
         'individual' | 'organization'
@@ -424,6 +426,7 @@ export default function UserBeneficiariesCreate({
                                         availableBiometrics={
                                             everify_biometrics
                                         }
+                                        suffixOptions={form_options.suffixes}
                                         onVerified={setEverifyToken}
                                     />
                                 ) : (
@@ -584,22 +587,28 @@ export default function UserBeneficiariesCreate({
                                                     <Label htmlFor="suffix">
                                                         Suffix
                                                     </Label>
-                                                    <Input
+                                                    <NameSuffixSelect
                                                         id="suffix"
                                                         name="suffix"
                                                         value={
                                                             individualForm.suffix
                                                         }
-                                                        onChange={(event) =>
+                                                        options={
+                                                            form_options.suffixes
+                                                        }
+                                                        onValueChange={(
+                                                            suffix,
+                                                        ) =>
                                                             setIndividualForm(
                                                                 (current) => ({
                                                                     ...current,
-                                                                    suffix: event
-                                                                        .target
-                                                                        .value,
+                                                                    suffix,
                                                                 }),
                                                             )
                                                         }
+                                                    />
+                                                    <InputError
+                                                        message={errors.suffix}
                                                     />
                                                 </div>
                                             </div>

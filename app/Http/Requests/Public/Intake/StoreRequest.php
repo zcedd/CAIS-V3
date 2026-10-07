@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Public\Intake;
 
+use App\Enums\NameSuffix;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
 use App\Models\Program;
 use App\Services\Public\PublicIntakeService;
@@ -48,7 +49,7 @@ class StoreRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'suffix' => ['nullable', 'string', 'max:50'],
+            'suffix' => ['nullable', Rule::enum(NameSuffix::class)],
             'birthday' => ['required', 'date'],
             'sex' => ['required', 'string', Rule::in(['Male', 'Female'])],
             'other_address' => ['nullable', 'string', 'max:500'],

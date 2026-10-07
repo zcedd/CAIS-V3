@@ -265,7 +265,9 @@ test('public submit creates a beneficiary and awaiting review assistance', funct
     ['program' => $program, 'item' => $item, 'barangayId' => $barangayId] = createPublicIntakeContext();
 
     $this->post(route('public.apply.store', $program), [
-        ...publicIntakeIdentityPayload($barangayId),
+        ...publicIntakeIdentityPayload($barangayId, [
+            'suffix' => 'Jr.',
+        ]),
         'intent' => 'submit',
         'consent' => true,
         'create_new' => true,
@@ -279,6 +281,7 @@ test('public submit creates a beneficiary and awaiting review assistance', funct
 
     expect($individual)->not->toBeNull()
         ->and($individual->cais_number)->toStartWith('PRO-')
+        ->and($individual->suffix)->toBe('Jr.')
         ->and($assistance)->not->toBeNull()
         ->and($assistance->user_id)->toBeNull()
         ->and($assistance->assigned_to_id)->toBeNull()

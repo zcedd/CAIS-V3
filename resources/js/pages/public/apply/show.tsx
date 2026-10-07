@@ -1,5 +1,6 @@
 import { AssistanceFieldInputs } from '@/components/assistance-field-inputs';
 import { AddressCascadeSelect } from '@/components/address-cascade-select';
+import { NameSuffixSelect } from '@/components/name-suffix-select';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -267,13 +268,15 @@ export default function PublicApplyShow({
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="suffix">Suffix</Label>
-                                <Input
+                                <NameSuffixSelect
                                     id="suffix"
-                                    value={data.suffix}
-                                    onChange={(event) =>
-                                        setData('suffix', event.target.value)
+                                    value={data.suffix ?? ''}
+                                    options={form_options.suffixes}
+                                    onValueChange={(suffix) =>
+                                        setData('suffix', suffix)
                                     }
                                 />
+                                <InputError message={errors.suffix} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="birthday">Birthday</Label>

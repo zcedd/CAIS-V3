@@ -3,6 +3,7 @@
 namespace App\Http\Requests\User\Beneficiary;
 
 use App\Enums\EverifyIntakeMethod;
+use App\Enums\NameSuffix;
 use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use App\Http\Requests\User\Concerns\ValidatesDuplicateBeneficiaries;
 use App\Models\User;
@@ -59,7 +60,7 @@ class StoreIndividualRequest extends FormRequest
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
-            'suffix' => ['nullable', 'string', 'max:50'],
+            'suffix' => ['nullable', Rule::enum(NameSuffix::class)],
             'birthday' => ['nullable', 'date'],
             'sex' => ['required', 'string', Rule::in(['Male', 'Female'])],
             'other_address' => ['nullable', 'string', 'max:500'],

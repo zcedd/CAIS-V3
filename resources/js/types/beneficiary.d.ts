@@ -60,6 +60,11 @@ export type AddressBarangayOption = {
     label: string;
 };
 
+export type NameSuffixOption = {
+    value: string;
+    label: string;
+};
+
 export type FormOptions = {
     civil_statuses: SelectOption[];
     identifications: SelectOption[];
@@ -67,6 +72,7 @@ export type FormOptions = {
     default_province_id: number | null;
     address_cities: AddressCityOption[];
     address_barangays: AddressBarangayOption[];
+    suffixes: NameSuffixOption[];
 };
 
 export type IdentificationEntry = {
