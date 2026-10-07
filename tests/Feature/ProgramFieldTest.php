@@ -203,3 +203,143 @@ test('select fields require options', function () {
 
     $response->assertSessionHasErrors('fields.0.options');
 });
+
+test('program update rejects a field that belongs to another program', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+    ['fund' => $fund, 'item' => $item] = createProgramFieldFixtures($department);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+    $program->fund()->attach($fund->id);
+    $program->item()->attach($item->id);
+
+    $otherProgram = Program::create([
+        'name' => 'Beta Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+    $otherProgram->fund()->attach($fund->id);
+    $otherProgram->item()->attach($item->id);
+
+    $own = ProgramField::factory()->forProgram($program)->create([
+        'label' => 'Keep Me',
+        'key' => 'keep_me',
+        'type' => ProgramFieldType::Text->value,
+    ]);
+
+    $foreign = ProgramField::factory()->forProgram($otherProgram)->create([
+        'label' => 'Foreign Field',
+        'key' => 'foreign_field',
+        'type' => ProgramFieldType::Text->value,
+    ]);
+
+    $response = $this->actingAs($user)->put(route('user.programs.update', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]), [
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => $program->getRawOriginal('start_at'),
+        'end_at' => null,
+        'fund_ids' => [$fund->id],
+        'item_ids' => [$item->id],
+        'fields' => [
+            [
+                'id' => $own->id,
+                'label' => 'Keep Me',
+                'type' => ProgramFieldType::Text->value,
+                'is_required' => false,
+                'show_in_table' => false,
+                'sort_order' => 0,
+            ],
+            [
+                'id' => $foreign->id,
+                'label' => 'Stolen Field',
+                'type' => ProgramFieldType::Text->value,
+                'is_required' => false,
+                'show_in_table' => false,
+                'sort_order' => 1,
+            ],
+        ],
+    ]);
+
+    $response->assertSessionHasErrors([
+        'fields.1.id' => 'The selected custom field is invalid for this program.',
+    ]);
+
+    $own->refresh();
+    $foreign->refresh();
+
+    expect($own->label)->toBe('Keep Me')
+        ->and($foreign->label)->toBe('Foreign Field')
+        ->and($foreign->program_id)->toBe($otherProgram->id);
+});
+
+test('program update assigns a distinct key when a deleted label is reused', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+    ['fund' => $fund, 'item' => $item] = createProgramFieldFixtures($department);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+    $program->fund()->attach($fund->id);
+    $program->item()->attach($item->id);
+
+    $removed = ProgramField::factory()->forProgram($program)->create([
+        'label' => 'School',
+        'key' => 'school',
+        'type' => ProgramFieldType::Text->value,
+    ]);
+    $removed->delete();
+
+    $response = $this->actingAs($user)->put(route('user.programs.update', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]), [
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => $program->getRawOriginal('start_at'),
+        'end_at' => null,
+        'fund_ids' => [$fund->id],
+        'item_ids' => [$item->id],
+        'fields' => [
+            [
+                'label' => 'School',
+                'type' => ProgramFieldType::Text->value,
+                'is_required' => false,
+                'show_in_table' => false,
+                'sort_order' => 0,
+            ],
+        ],
+    ]);
+
+    $response->assertRedirect();
+    $response->assertSessionHas('success');
+
+    expect(ProgramField::withTrashed()->whereKey($removed->id)->value('key'))->toBe('school');
+
+    $this->assertDatabaseHas('program_fields', [
+        'program_id' => $program->id,
+        'label' => 'School',
+        'key' => 'school_2',
+    ]);
+});

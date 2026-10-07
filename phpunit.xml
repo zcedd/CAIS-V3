@@ -32,5 +32,9 @@
         <env name="PULSE_ENABLED" value="false"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="NIGHTWATCH_ENABLED" value="false"/>
+        <env name="EVERIFY_ENABLED" value="false"/>
+        <env name="EVERIFY_CLIENT_ID" value=""/>
+        <env name="EVERIFY_CLIENT_SECRET" value=""/>
+        <env name="EVERIFY_PUBLIC_KEY" value=""/>
     </php>
 </phpunit>

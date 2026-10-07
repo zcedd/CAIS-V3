@@ -74,6 +74,30 @@ export type IdentificationEntry = {
     number: string;
 };
 
+export type EverifyIntakeMethod = 'manual' | 'everify';
+
+export type EverifyVerificationStatus = 'verified' | 'skipped';
+
+export type EverifyIdentityMethod = 'query' | 'qr' | 'pcn';
+
+export type EverifyBiometricMethod = 'face' | 'fingerprint';
+
+export type EverifyFingerprintConfig = {
+    ports: number[];
+    env: string;
+    domain_uri: string;
+    device_id: string | null;
+};
+
+export type EverifyIntakeValues = {
+    identityMethod: EverifyIdentityMethod;
+    biometricMethod: EverifyBiometricMethod;
+    qrValue: string;
+    faceSessionId: string;
+    fingerprint: { biometrics: Array<Record<string, unknown>> } | null;
+    fingerprintDeviceId: string;
+};
+
 export type IndividualFormData = {
     first_name: string;
     middle_name: string;

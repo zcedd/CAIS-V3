@@ -49,6 +49,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('beneficiaries/{beneficiary}', [UserBeneficiaryController::class, 'show'])->name('user.beneficiaries.show');
         Route::get('beneficiaries/{beneficiary}/edit', [UserBeneficiaryController::class, 'edit'])->name('user.beneficiaries.edit');
         Route::get('beneficiaries', [UserBeneficiaryController::class, 'index'])->name('user.beneficiaries.index');
+        Route::post('beneficiaries/individuals/everify', [UserBeneficiaryController::class, 'verifyIndividual'])->name('user.beneficiaries.individuals.everify');
         Route::post('beneficiaries/individuals', [UserBeneficiaryController::class, 'storeIndividual'])->name('user.beneficiaries.individuals.store');
         Route::put('beneficiaries/individuals/{beneficiary}', [UserBeneficiaryController::class, 'updateIndividual'])->name('user.beneficiaries.individuals.update');
         Route::post('beneficiaries/organizations', [UserBeneficiaryController::class, 'storeOrganization'])->name('user.beneficiaries.organizations.store');

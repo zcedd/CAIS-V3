@@ -7,6 +7,10 @@ import {
 import { AddressCascadeSelect } from '@/components/address-cascade-select';
 import { DuplicateCandidatesAlert } from '@/components/duplicate-candidates-alert';
 import InputError from '@/components/input-error';
+import {
+    EverifyRegistrationForm,
+} from '@/components/user/beneficiaries/everify-registration-form';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -28,6 +32,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { toOptionList } from '@/lib/utils';
 import {
     duplicates as beneficiaryDuplicates,
@@ -37,13 +42,15 @@ import { store as storeIndividual } from '@/routes/user/beneficiaries/individual
 import { store as storeOrganization } from '@/routes/user/beneficiaries/organizations';
 import type {
     DepartmentSummary,
+    EverifyBiometricMethod,
+    EverifyFingerprintConfig,
     FormOptions,
     IndividualFormData,
 } from '@/types/beneficiary';
 import type { BreadcrumbItem } from '@/types';
 import type { DuplicateCandidate } from '@/types/eligibility';
 import { Form, Head, Link, setLayoutProps, usePage } from '@inertiajs/react';
-import { Trash2 } from 'lucide-react';
+import { IdCard, Keyboard, ShieldCheck, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
@@ -70,9 +77,24 @@ const emptyIndividualForm = (): IndividualFormData => ({
 export default function UserBeneficiariesCreate({
     department,
     form_options: rawFormOptions,
+    everify_enabled = false,
+    everify_public_key = null,
+    everify_liveness_sdk_url = 'https://liveness.everify.gov.ph/js/everify-liveness-sdk.min.js',
+    everify_biometrics = ['face', 'fingerprint'],
+    everify_fingerprint = {
+        ports: [4301, 4302],
+        env: 'Production',
+        domain_uri: 'https://apps.pdccl.philsys.gov.ph',
+        device_id: null,
+    },
 }: {
     department: DepartmentSummary;
     form_options?: FormOptions;
+    everify_enabled?: boolean;
+    everify_public_key?: string | null;
+    everify_liveness_sdk_url?: string;
+    everify_biometrics?: EverifyBiometricMethod[];
+    everify_fingerprint?: EverifyFingerprintConfig;
 }) {
     const form_options: FormOptions = {
         civil_statuses: toOptionList(rawFormOptions?.civil_statuses),
@@ -102,6 +124,10 @@ export default function UserBeneficiariesCreate({
     const [duplicateCandidates, setDuplicateCandidates] = useState<
         DuplicateCandidate[]
     >([]);
+    const [intakeMethod, setIntakeMethod] = useState<'manual' | 'everify'>(
+        'manual',
+    );
+    const [everifyToken, setEverifyToken] = useState<string | null>(null);
     const { duplicate_candidates: flashedDuplicates } = usePage<{
         duplicate_candidates?: DuplicateCandidate[] | null;
     }>().props;
@@ -323,10 +349,84 @@ export default function UserBeneficiariesCreate({
                             <CardHeader>
                                 <CardTitle>Individual beneficiary</CardTitle>
                                 <CardDescription>
-                                    Name, address, and contact details.
+                                    Enter details yourself, or verify with
+                                    PhilSys eVerify first, then save the
+                                    record.
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="grid gap-4">
+                                <div className="grid gap-2">
+                                    <Label>
+                                        How do you want to add this person?
+                                    </Label>
+                                    <ToggleGroup
+                                        type="single"
+                                        value={intakeMethod}
+                                        onValueChange={(value) => {
+                                            if (
+                                                value === 'manual' ||
+                                                value === 'everify'
+                                            ) {
+                                                setIntakeMethod(value);
+                                                if (value === 'manual') {
+                                                    setEverifyToken(null);
+                                                }
+                                            }
+                                        }}
+                                        variant="outline"
+                                        spacing={0}
+                                        className="w-full sm:w-fit"
+                                    >
+                                        <ToggleGroupItem
+                                            value="manual"
+                                            className="gap-1.5"
+                                        >
+                                            <Keyboard className="size-4" />
+                                            Enter details
+                                        </ToggleGroupItem>
+                                        <ToggleGroupItem
+                                            value="everify"
+                                            className="gap-1.5"
+                                            disabled={!everify_enabled}
+                                        >
+                                            <IdCard className="size-4" />
+                                            Verify with eVerify
+                                        </ToggleGroupItem>
+                                    </ToggleGroup>
+                                    {intakeMethod === 'manual' ? (
+                                        <p className="text-sm text-muted-foreground">
+                                            Save the person without a PhilSys
+                                            check. You can still add a National
+                                            ID number below.
+                                        </p>
+                                    ) : null}
+                                    {!everify_enabled ? (
+                                        <p className="text-sm text-muted-foreground">
+                                            eVerify is not configured on this
+                                            server, so only manual entry is
+                                            available.
+                                        </p>
+                                    ) : null}
+                                </div>
+                                {intakeMethod === 'everify' &&
+                                everifyToken === null ? (
+                                    <EverifyRegistrationForm
+                                        departmentSlug={department.slug}
+                                        individual={individualForm}
+                                        onIndividualChange={setIndividualForm}
+                                        publicKey={everify_public_key}
+                                        livenessSdkUrl={
+                                            everify_liveness_sdk_url
+                                        }
+                                        fingerprintConfig={
+                                            everify_fingerprint
+                                        }
+                                        availableBiometrics={
+                                            everify_biometrics
+                                        }
+                                        onVerified={setEverifyToken}
+                                    />
+                                ) : (
                                 <Form
                                     {...storeIndividual.form(department.slug)}
                                     className="grid gap-4"
@@ -334,10 +434,59 @@ export default function UserBeneficiariesCreate({
                                         ...data,
                                         duplicate_acknowledged:
                                             duplicateAcknowledged,
+                                        everify_verification_token:
+                                            intakeMethod === 'everify'
+                                                ? everifyToken
+                                                : undefined,
                                     })}
                                 >
                                     {({ processing, errors }) => (
                                         <>
+                                            <input
+                                                type="hidden"
+                                                name="intake_method"
+                                                value={intakeMethod}
+                                            />
+                                            {everifyToken ? (
+                                                <>
+                                                    <input
+                                                        type="hidden"
+                                                        name="everify_verification_token"
+                                                        value={everifyToken}
+                                                    />
+                                                    <Alert>
+                                                        <ShieldCheck />
+                                                        <AlertTitle>
+                                                            PhilSys verified
+                                                        </AlertTitle>
+                                                        <AlertDescription>
+                                                            Complete the record
+                                                            below, then save.
+                                                            Name and birthday
+                                                            from the check are
+                                                            already filled when
+                                                            you typed them.
+                                                        </AlertDescription>
+                                                    </Alert>
+                                                    <InputError
+                                                        message={
+                                                            errors.everify_verification_token
+                                                        }
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() =>
+                                                            setEverifyToken(
+                                                                null,
+                                                            )
+                                                        }
+                                                    >
+                                                        Verify a different
+                                                        person
+                                                    </Button>
+                                                </>
+                                            ) : null}
                                             <DuplicateCandidatesAlert
                                                 departmentSlug={department.slug}
                                                 candidates={duplicateCandidates}
@@ -476,6 +625,11 @@ export default function UserBeneficiariesCreate({
                                                                             .value,
                                                                 }),
                                                             )
+                                                        }
+                                                    />
+                                                    <InputError
+                                                        message={
+                                                            errors.birthday
                                                         }
                                                     />
                                                 </div>
@@ -1025,11 +1179,17 @@ export default function UserBeneficiariesCreate({
                                                 type="submit"
                                                 disabled={processing}
                                             >
-                                                Save individual
+                                                {processing
+                                                    ? 'Saving...'
+                                                    : intakeMethod ===
+                                                        'everify'
+                                                      ? 'Save verified individual'
+                                                      : 'Save individual'}
                                             </Button>
                                         </>
                                     )}
                                 </Form>
+                                )}
                             </CardContent>
                         </Card>
                     </TabsContent>

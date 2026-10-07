@@ -39,6 +39,7 @@ import {
     PackageCheck,
     Pencil,
     Phone,
+    ShieldCheck,
     UserRound,
     Users,
     XCircle,
@@ -408,6 +409,20 @@ export default function UserBeneficiaryShow({
                             <Badge variant="outline" className="font-mono">
                                 {beneficiary.cais_number}
                             </Badge>
+                            {!isOrganization ? (
+                                <Badge
+                                    variant={
+                                        details.everify_status === 'verified'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                >
+                                    <ShieldCheck aria-hidden />
+                                    {(details.everify_status_label as
+                                        | string
+                                        | undefined) ?? 'Manual entry'}
+                                </Badge>
+                            ) : null}
                             {isOrganization &&
                             typeof details.total_member === 'number' ? (
                                 <Badge variant="outline">

@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProgramFieldType;
 use App\Enums\RequestStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
@@ -13,6 +14,7 @@ use App\Models\ItemUnitMeasurement;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\ProgramEligibilityRule;
+use App\Models\ProgramField;
 use App\Models\RequestStatus;
 use App\Models\RequestSubStatus;
 use App\Models\User;
@@ -285,6 +287,41 @@ test('public submit creates a beneficiary and awaiting review assistance', funct
 
     expect(AssistanceItem::query()->where('assistance_id', $assistance->id)->value('quantity'))->toBe(2);
     expect(ModeOfRequest::query()->find($assistance->mode_of_request_id)?->name)->toBe('Online');
+});
+
+test('public submit persists program field values', function () {
+    ['program' => $program, 'item' => $item, 'barangayId' => $barangayId] = createPublicIntakeContext();
+
+    $field = ProgramField::factory()->forProgram($program)->required()->create([
+        'label' => 'Household Size',
+        'key' => 'household_size',
+        'type' => ProgramFieldType::Number->value,
+    ]);
+
+    $this->post(route('public.apply.store', $program), [
+        ...publicIntakeIdentityPayload($barangayId),
+        'intent' => 'submit',
+        'consent' => true,
+        'create_new' => true,
+        'item_details' => [
+            ['item_id' => $item->id, 'quantity' => 2],
+        ],
+        'field_values' => [
+            [
+                'program_field_id' => $field->id,
+                'value' => '4',
+            ],
+        ],
+    ])->assertRedirect(route('public.apply.confirmation', $program));
+
+    $assistance = Assistance::query()->first();
+    expect($assistance)->not->toBeNull();
+
+    $this->assertDatabaseHas('assistance_field_values', [
+        'assistance_id' => $assistance->id,
+        'program_field_id' => $field->id,
+        'value' => '4',
+    ]);
 });
 
 test('public submit with a submitted step owner assigns that owner', function () {

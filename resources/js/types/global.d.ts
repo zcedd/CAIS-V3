@@ -17,3 +17,18 @@ declare module '@inertiajs/core' {
         };
     }
 }
+
+interface EverifyLivenessSdkResult {
+    status: 'COMPLETED' | 'CANCELLED';
+    result?: {
+        session_id?: string;
+        photo?: string;
+        photo_url?: string;
+    };
+}
+
+interface Window {
+    eKYC?: () => {
+        start: (options: { pubKey: string }) => Promise<EverifyLivenessSdkResult>;
+    };
+}

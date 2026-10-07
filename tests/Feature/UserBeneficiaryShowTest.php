@@ -57,7 +57,9 @@ test('beneficiary profile lists linked programs and assistances', function () {
             ->component('user/beneficiaries/show')
             ->where('beneficiary.name', 'Juan Cruz')
             ->where('beneficiary.assistances_count', 1)
-            ->has('beneficiary.programs', 1));
+            ->has('beneficiary.programs', 1)
+            ->where('beneficiary.details.everify_status', 'skipped')
+            ->where('beneficiary.details.everify_status_label', 'Manual entry'));
 });
 
 test('beneficiary profile exposes an assistance summary as a deferred prop', function () {
