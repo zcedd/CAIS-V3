@@ -1,6 +1,7 @@
 'use client';
 
 import { AddressCascadeSelect } from '@/components/address-cascade-select';
+import { NameSuffixSelect } from '@/components/name-suffix-select';
 import {
     BeneficiarySearchCombobox,
     type BeneficiarySearchOption,
@@ -275,6 +276,7 @@ export function BeneficiaryEditDrawer({
         default_province_id: formOptions?.default_province_id ?? null,
         address_cities: toOptionList(formOptions?.address_cities),
         address_barangays: toOptionList(formOptions?.address_barangays),
+        suffixes: formOptions?.suffixes ?? [],
     };
 
     const addIdentificationRow = () => {
@@ -563,16 +565,16 @@ export function BeneficiaryEditDrawer({
                                             <Label htmlFor="edit_suffix">
                                                 Suffix
                                             </Label>
-                                            <Input
+                                            <NameSuffixSelect
                                                 id="edit_suffix"
                                                 name="suffix"
                                                 value={individualForm.suffix}
-                                                onChange={(event) =>
+                                                options={options.suffixes}
+                                                onValueChange={(suffix) =>
                                                     setIndividualForm(
                                                         (current) => ({
                                                             ...current,
-                                                            suffix: event.target
-                                                                .value,
+                                                            suffix,
                                                         }),
                                                     )
                                                 }

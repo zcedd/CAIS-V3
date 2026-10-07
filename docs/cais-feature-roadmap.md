@@ -1,6 +1,6 @@
 # CAIS feature roadmap
 
-Suggestions for the Community Assistance Information System, grounded in the current Laravel + Inertia + React codebase.
+Suggestions for the Centralized Assistance Information System, grounded in the current Laravel + Inertia + React codebase.
 
 ## What already exists
 

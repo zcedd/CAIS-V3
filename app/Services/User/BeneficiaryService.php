@@ -3,6 +3,7 @@
 namespace App\Services\User;
 
 use App\Actions\User\JoinAssistanceTableRelations;
+use App\Enums\NameSuffix;
 use App\Models\AddressCity;
 use App\Models\AddressProvince;
 use App\Models\Assistance;
@@ -143,14 +144,15 @@ class BeneficiaryService
      *     address_provinces: list<array{id: int, name: string}>,
      *     default_province_id: int|null,
      *     address_cities: list<array{id: int, name: string, address_province_id: int|null}>,
-     *     address_barangays: list<array{id: int, name: string, address_city_id: int, city: string|null, label: string}>
+     *     address_barangays: list<array{id: int, name: string, address_city_id: int, city: string|null, label: string}>,
+     *     suffixes: list<array{value: string, label: string}>
      * }
      */
     public function formOptions(): array
     {
         Cache::forget('beneficiary.form_options');
 
-        return Cache::remember(
+        $options = Cache::remember(
             'beneficiary.form_options.v2',
             now()->addDay(),
             function (): array {
@@ -235,6 +237,10 @@ class BeneficiaryService
                 ];
             },
         );
+
+        $options['suffixes'] = NameSuffix::options();
+
+        return $options;
     }
 
     /**

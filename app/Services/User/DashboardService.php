@@ -580,19 +580,10 @@ class DashboardService
             ->where('beneficiaries.beneficiable_type', Individual::class)
             ->whereNotNull('individuals.id');
 
-        $sex = (clone $base)
-            ->selectRaw("COALESCE(NULLIF(individuals.sex, ''), 'Unspecified') as label")
-            ->selectRaw('COUNT(DISTINCT assistances.id) as count')
-            ->groupByRaw("COALESCE(NULLIF(individuals.sex, ''), 'Unspecified')")
-            ->orderByDesc('count')
-            ->toBase()
-            ->get()
-            ->map(static fn ($row): array => [
-                'label' => (string) $row->label,
-                'count' => (int) $row->count,
-            ])
-            ->values()
-            ->all();
+        $sex = $this->countDistinctAssistancesByLabel(
+            clone $base,
+            "COALESCE(NULLIF(individuals.sex, ''), 'Unspecified')",
+        );
 
         $ageExpression = "CASE
             WHEN individuals.birthday IS NULL THEN 'Unspecified'
@@ -617,20 +608,10 @@ class DashboardService
             ->values()
             ->all();
 
-        $civilStatus = (clone $base)
-            ->leftJoin('civil_statuses', 'civil_statuses.id', '=', 'individuals.civil_status_id')
-            ->selectRaw("COALESCE(NULLIF(civil_statuses.name, ''), 'Unspecified') as label")
-            ->selectRaw('COUNT(DISTINCT assistances.id) as count')
-            ->groupByRaw("COALESCE(NULLIF(civil_statuses.name, ''), 'Unspecified')")
-            ->orderByDesc('count')
-            ->toBase()
-            ->get()
-            ->map(static fn ($row): array => [
-                'label' => (string) $row->label,
-                'count' => (int) $row->count,
-            ])
-            ->values()
-            ->all();
+        $civilStatus = $this->countDistinctAssistancesByLabel(
+            (clone $base)->leftJoin('civil_statuses', 'civil_statuses.id', '=', 'individuals.civil_status_id'),
+            "COALESCE(NULLIF(civil_statuses.name, ''), 'Unspecified')",
+        );
 
         $booleanTotals = (clone $base)
             ->selectRaw('COUNT(DISTINCT CASE WHEN individuals.pwd = 1 THEN assistances.id END) as pwd_yes')
@@ -800,13 +781,37 @@ class DashboardService
      */
     public function modeOfRequestChart(Department $department, array $filters): array
     {
-        return (clone $this->filteredAssistanceQuery($department, $filters))
-            ->leftJoin('mode_of_requests', 'mode_of_requests.id', '=', 'assistances.mode_of_request_id')
-            ->selectRaw("COALESCE(NULLIF(mode_of_requests.name, ''), 'Unspecified') as label")
-            ->selectRaw('COUNT(DISTINCT assistances.id) as count')
-            ->groupByRaw("COALESCE(NULLIF(mode_of_requests.name, ''), 'Unspecified')")
+        return $this->countDistinctAssistancesByLabel(
+            (clone $this->filteredAssistanceQuery($department, $filters))
+                ->leftJoin('mode_of_requests', 'mode_of_requests.id', '=', 'assistances.mode_of_request_id'),
+            "COALESCE(NULLIF(mode_of_requests.name, ''), 'Unspecified')",
+        );
+    }
+
+    /**
+     * Count distinct assistances by a computed label.
+     *
+     * The label is calculated in an inner query and grouped outside it.
+     * Grouping COALESCE(NULLIF(...)) directly fails ONLY_FULL_GROUP_BY on
+     * some MySQL and MariaDB versions when the expression reads a joined column.
+     *
+     * @param  Builder<Assistance>  $query
+     * @return list<array{label: string, count: int}>
+     */
+    private function countDistinctAssistancesByLabel(Builder $query, string $labelExpression): array
+    {
+        $scoped = (clone $query)
+            ->select('assistances.id')
+            ->selectRaw("{$labelExpression} as label")
+            ->distinct()
+            ->toBase();
+
+        return DB::query()
+            ->fromSub($scoped, 'scoped_assistances')
+            ->select('label')
+            ->selectRaw('COUNT(*) as count')
+            ->groupBy('label')
             ->orderByDesc('count')
-            ->toBase()
             ->get()
             ->map(static fn ($row): array => [
                 'label' => (string) $row->label,

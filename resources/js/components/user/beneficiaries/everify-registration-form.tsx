@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { NameSuffixSelect } from '@/components/name-suffix-select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,6 +23,7 @@ import type {
     EverifyIdentityMethod,
     EverifyIntakeValues,
     IndividualFormData,
+    NameSuffixOption,
 } from '@/types/beneficiary';
 import { verifyIndividual } from '@/actions/App/Http/Controllers/User/BeneficiaryController';
 import { useHttp } from '@inertiajs/react';
@@ -115,6 +117,7 @@ export function EverifyRegistrationForm({
     livenessSdkUrl,
     fingerprintConfig,
     availableBiometrics: availableBiometricsProp,
+    suffixOptions,
     onVerified,
 }: {
     departmentSlug: string;
@@ -126,6 +129,7 @@ export function EverifyRegistrationForm({
     livenessSdkUrl: string;
     fingerprintConfig: EverifyFingerprintConfig;
     availableBiometrics?: EverifyBiometricMethod[];
+    suffixOptions: NameSuffixOption[];
     onVerified: (token: string) => void;
 }) {
     const availableBiometrics = configuredBiometrics(availableBiometricsProp);
@@ -408,16 +412,18 @@ export function EverifyRegistrationForm({
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="everify_suffix">Suffix</Label>
-                                <Input
+                                <NameSuffixSelect
                                     id="everify_suffix"
                                     value={individual.suffix}
-                                    onChange={(event) =>
+                                    options={suffixOptions}
+                                    onValueChange={(suffix) =>
                                         onIndividualChange((current) => ({
                                             ...current,
-                                            suffix: event.target.value,
+                                            suffix,
                                         }))
                                     }
                                 />
+                                <InputError message={errors.suffix} />
                             </div>
                             <div className="grid gap-2">
                                 <Label htmlFor="everify_birthday">

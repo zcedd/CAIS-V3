@@ -4,6 +4,7 @@ use App\Enums\AssistanceItemOrigin;
 use App\Enums\DocumentRequirementMilestone;
 use App\Enums\DocumentTypeSlug;
 use App\Enums\ItemKind;
+use App\Enums\NameSuffix;
 use App\Enums\PermissionName;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
@@ -52,6 +53,28 @@ test('sla states and assistance origins keep closed catalogs', function () {
         ->and(DocumentTypeSlug::ValidId->value)->toBe('valid_id')
         ->and(ProgramFieldType::Select->value)->toBe('select')
         ->and(UnspscCodeLevel::ItemClass->value)->toBe('class');
+});
+
+test('name suffixes list civil name endings', function () {
+    expect(NameSuffix::Junior->value)->toBe('Jr.')
+        ->and(NameSuffix::Senior->label())->toBe('Sr.')
+        ->and(NameSuffix::values())->toBe([
+            'Jr.',
+            'Sr.',
+            'II',
+            'III',
+            'IV',
+            'V',
+            'VI',
+            'VII',
+            'VIII',
+            'IX',
+            'X',
+        ])
+        ->and(NameSuffix::options()[0])->toBe([
+            'value' => 'Jr.',
+            'label' => 'Jr.',
+        ]);
 });
 
 test('role names expose labels for administration', function () {

@@ -4,6 +4,7 @@ namespace App\Http\Requests\User\Beneficiary;
 
 use App\Enums\EverifyBiometricMethod;
 use App\Enums\EverifyIdentityMethod;
+use App\Enums\NameSuffix;
 use App\Http\Requests\User\Beneficiary\Concerns\AuthorizesDepartmentBeneficiary;
 use App\Services\Everify\EverifyVerificationService;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -100,7 +101,7 @@ class VerifyEverifyRequest extends FormRequest
                 'string',
                 'max:255',
             ],
-            'suffix' => ['nullable', 'string', 'max:50'],
+            'suffix' => ['nullable', Rule::enum(NameSuffix::class)],
             'birthday' => [
                 Rule::requiredIf($usingQuery),
                 'nullable',

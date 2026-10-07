@@ -557,6 +557,26 @@ test('top barangays groups individual and organization requests by address name'
     ]);
 });
 
+test('mode of request chart groups missing names as unspecified', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $blank = ModeOfRequest::query()->create(['name' => '']);
+    $individual = Individual::factory()->create(['sex' => 'Male']);
+
+    createAssistanceForIndividual($program, $individual, $item);
+    $blankAssistance = createAssistanceForIndividual($program, $individual, $item);
+    $missingAssistance = createAssistanceForIndividual($program, $individual, $item);
+    $blankAssistance->update(['mode_of_request_id' => $blank->id]);
+    $missingAssistance->update(['mode_of_request_id' => null]);
+
+    expect(app(DashboardService::class)->modeOfRequestChart($department, [
+        'year' => [now()->year],
+    ]))->toBe([
+        ['label' => 'Unspecified', 'count' => 2],
+        ['label' => 'Walk In', 'count' => 1],
+    ]);
+});
+
 test('global dashboard redirects users with a department to the department dashboard', function () {
     ['department' => $department, 'user' => $user] = createDashboardFixtures();
 

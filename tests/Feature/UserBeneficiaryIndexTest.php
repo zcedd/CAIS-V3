@@ -93,7 +93,9 @@ test('beneficiary form options are cached after the first load', function () {
             'default_province_id',
             'address_cities',
             'address_barangays',
-        ]);
+            'suffixes',
+        ])
+        ->and($first['suffixes'][0]['value'])->toBe('Jr.');
 
     $encoded = json_decode(json_encode($second), true);
 
