@@ -18,6 +18,10 @@ class AssistancePolicy
      */
     public function viewAny(User $user, Department $department): bool
     {
+        if ($user->can(PermissionName::ProgramApprove->value)) {
+            return true;
+        }
+
         return $this->allows(
             $user,
             PermissionName::AssistanceViewAny,
@@ -30,6 +34,10 @@ class AssistancePolicy
      */
     public function view(User $user, Assistance $assistance): bool
     {
+        if ($user->can(PermissionName::ProgramApprove->value)) {
+            return true;
+        }
+
         return $this->allows(
             $user,
             PermissionName::AssistanceView,

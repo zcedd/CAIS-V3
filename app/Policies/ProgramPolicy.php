@@ -3,6 +3,7 @@
 namespace App\Policies;
 
 use App\Enums\PermissionName;
+use App\Enums\ProgramApprovalStatus;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\User;
@@ -17,6 +18,10 @@ class ProgramPolicy
      */
     public function viewAny(User $user, Department $department): bool
     {
+        if ($this->approvesPrograms($user)) {
+            return true;
+        }
+
         return $this->allows(
             $user,
             PermissionName::ProgramViewAny,
@@ -29,6 +34,10 @@ class ProgramPolicy
      */
     public function view(User $user, Program $program): bool
     {
+        if ($this->approvesPrograms($user)) {
+            return true;
+        }
+
         return $this->allows(
             $user,
             PermissionName::ProgramView,
@@ -88,6 +97,22 @@ class ProgramPolicy
         return $this->delete($user, $program);
     }
 
+    public function submit(User $user, Program $program): bool
+    {
+        return ! $program->isScheme()
+            && $this->allows(
+                $user,
+                PermissionName::ProgramSubmit,
+                $user->department_id === $program->department_id,
+            );
+    }
+
+    public function approve(User $user, Program $program): bool
+    {
+        return $user->can(PermissionName::ProgramApprove->value)
+            && $program->approval_status === ProgramApprovalStatus::AwaitingGovernor;
+    }
+
     /**
      * Determine whether the user can download assistance for the program.
      */
@@ -98,5 +123,10 @@ class ProgramPolicy
             PermissionName::ProgramDownloadAssistance,
             $user->department_id === $program->department_id,
         );
+    }
+
+    private function approvesPrograms(User $user): bool
+    {
+        return $user->can(PermissionName::ProgramApprove->value);
     }
 }

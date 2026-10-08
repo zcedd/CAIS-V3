@@ -3,6 +3,7 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
 use App\Models\Department;
 use App\Models\Fund;
@@ -13,6 +14,7 @@ use App\Models\ProgramItemCap;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Gate;
 
 class ProgramService
 {
@@ -111,6 +113,7 @@ class ProgramService
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
             'kind' => $kind,
+            'approval_status' => ProgramApprovalStatus::Draft,
             'workflow_id' => $validated['workflow_id'] ?? null,
         ]);
 
@@ -283,6 +286,12 @@ class ProgramService
             ]),
             'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
             'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
+            'approval_status' => $program->approval_status instanceof ProgramApprovalStatus
+                ? $program->approval_status->value
+                : ProgramApprovalStatus::Approved->value,
+            'approval_label' => $program->approval_status instanceof ProgramApprovalStatus
+                ? $program->approval_status->label()
+                : ProgramApprovalStatus::Approved->label(),
             'parent' => $parent instanceof Program
                 ? [
                     'id' => $parent->id,
@@ -504,7 +513,11 @@ class ProgramService
      *     start_at: mixed,
      *     end_at: mixed,
      *     is_closed: bool,
-     *     total_requests: int
+     *     public_intake: bool,
+     *     total_requests: int,
+     *     approval_status: string,
+     *     approval_label: string,
+     *     can_submit_approval: bool
      * }>
      */
     public function schemeBatchesPayload(Program $scheme): array
@@ -519,6 +532,9 @@ class ProgramService
         return $scheme->batches
             ->map(static function (Program $batch) use ($requestCounts): array {
                 $counted = $requestCounts->get($batch->id);
+                $status = $batch->approval_status instanceof ProgramApprovalStatus
+                    ? $batch->approval_status
+                    : ProgramApprovalStatus::Approved;
 
                 return [
                     'id' => $batch->id,
@@ -530,6 +546,13 @@ class ProgramService
                     'is_closed' => (bool) $batch->is_closed,
                     'public_intake' => (bool) $batch->public_intake,
                     'total_requests' => (int) ($counted?->assistance_count ?? 0),
+                    'approval_status' => $status->value,
+                    'approval_label' => $status->label(),
+                    'can_submit_approval' => Gate::allows('submit', $batch)
+                        && in_array($status, [
+                            ProgramApprovalStatus::Draft,
+                            ProgramApprovalStatus::Returned,
+                        ], true),
                 ];
             })
             ->values()

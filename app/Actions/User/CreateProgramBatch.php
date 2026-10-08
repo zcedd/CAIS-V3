@@ -2,6 +2,7 @@
 
 namespace App\Actions\User;
 
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
 use App\Models\Program;
 use App\Services\User\ProgramDocumentRequirementService;
@@ -48,6 +49,7 @@ class CreateProgramBatch
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
             'kind' => ProgramKind::Batch,
+            'approval_status' => ProgramApprovalStatus::Draft,
             'parent_id' => $scheme->id,
             'batch_number' => $nextNumber,
             'batch_name' => $batchName,

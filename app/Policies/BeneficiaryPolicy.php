@@ -17,6 +17,10 @@ class BeneficiaryPolicy
      */
     public function viewAny(User $user, Department $department): bool
     {
+        if ($user->can(PermissionName::ProgramApprove->value)) {
+            return true;
+        }
+
         return $this->allows(
             $user,
             PermissionName::BeneficiaryViewAny,
@@ -29,6 +33,10 @@ class BeneficiaryPolicy
      */
     public function view(User $user, Beneficiary $beneficiary): bool
     {
+        if ($user->can(PermissionName::ProgramApprove->value)) {
+            return true;
+        }
+
         return $this->allows(
             $user,
             PermissionName::BeneficiaryView,

@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
+use App\Http\Controllers\Executive\DashboardController as ExecutiveDashboardController;
+use App\Http\Controllers\Executive\ProgramController as ExecutiveProgramController;
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
 use App\Http\Controllers\User\AssistanceDocumentController as UserAssistanceDocumentController;
@@ -13,6 +15,7 @@ use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ItemStockController as UserItemStockController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
+use App\Http\Controllers\User\ProgramApprovalController as UserProgramApprovalController;
 use App\Http\Controllers\User\ProgramBatchController as UserProgramBatchController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use App\Http\Controllers\User\UnspscCodeController as UserUnspscCodeController;
@@ -28,6 +31,14 @@ require __DIR__.'/public.php';
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
+
+    Route::middleware('executive')->prefix('executive')->name('executive.')->group(function () {
+        Route::get('dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
+        Route::get('programs', [ExecutiveProgramController::class, 'index'])->name('programs.index');
+        Route::get('programs/{program}', [ExecutiveProgramController::class, 'show'])->name('programs.show');
+        Route::post('programs/{program}/approve', [ExecutiveProgramController::class, 'approve'])->name('programs.approve');
+        Route::post('programs/{program}/return', [ExecutiveProgramController::class, 'returnToDepartment'])->name('programs.return');
+    });
 
     Route::middleware('super-admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', fn () => redirect()->route('admin.users.index'))->name('index');
@@ -86,6 +97,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::scopeBindings()->group(function () {
             Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
+            Route::post('programs/{program}/approval', [UserProgramApprovalController::class, 'store'])->name('user.programs.approval.store');
             Route::post('programs/{program}/batches', [UserProgramBatchController::class, 'store'])->name('user.programs.batches.store');
 
             Route::resource('items', UserItemController::class)->only(['index', 'store', 'update', 'destroy'])->names('user.items');

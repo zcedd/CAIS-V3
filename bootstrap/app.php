@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureExecutive;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'super-admin' => EnsureSuperAdmin::class,
+            'executive' => EnsureExecutive::class,
         ]);
 
         $middleware->web(append: [

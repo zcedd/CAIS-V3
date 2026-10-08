@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\ProgramApprovalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Program\IndexRequest;
 use App\Http\Requests\User\Program\ShowRequest;
@@ -14,6 +15,7 @@ use App\Services\User\AssistanceService;
 use App\Services\User\ProgramService;
 use App\Services\User\StockLedgerService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -115,7 +117,7 @@ class ProgramController extends Controller
 
         if ($program->isScheme()) {
             return Inertia::render('user/programs/scheme', [
-                'program' => $this->programService->showOverviewPayload($program),
+                'program' => $this->programPage($program),
                 'summary' => Inertia::defer(
                     fn () => $this->programService->summary($program),
                     'kpis',
@@ -144,7 +146,7 @@ class ProgramController extends Controller
         }
 
         return Inertia::render('user/programs/show', [
-            'program' => $this->programService->showOverviewPayload($program),
+            'program' => $this->programPage($program),
             'summary' => Inertia::defer(
                 fn () => $this->programService->summary($program),
                 'kpis',
@@ -231,5 +233,20 @@ class ProgramController extends Controller
             'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
             'workflow_options' => $this->programService->workflowOptions($department),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function programPage(Program $program): array
+    {
+        return [
+            ...$this->programService->showOverviewPayload($program),
+            'can_submit_approval' => Gate::allows('submit', $program)
+                && in_array($program->approval_status, [
+                    ProgramApprovalStatus::Draft,
+                    ProgramApprovalStatus::Returned,
+                ], true),
+        ];
     }
 }

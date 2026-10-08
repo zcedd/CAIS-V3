@@ -5,6 +5,7 @@ export interface Auth {
     user: User;
     is_super_admin?: boolean;
     permissions?: string[];
+    office_roles?: string[];
 }
 
 export interface BreadcrumbItem {

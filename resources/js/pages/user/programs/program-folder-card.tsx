@@ -13,11 +13,18 @@ export type ProgramListRow = {
     kind?: string | null;
     batches_count?: number | null;
     open_batches_count?: number | null;
+    approval_label?: string | null;
+    department?: {
+        id: number;
+        name: string;
+        slug?: string;
+    } | null;
 };
 
 type ProgramFolderCardProps = {
     program: ProgramListRow;
     className?: string;
+    showDepartment?: boolean;
 };
 
 function formatPeriod(startAt: string | null, endAt: string | null): string {
@@ -35,6 +42,7 @@ function formatPeriod(startAt: string | null, endAt: string | null): string {
 export function ProgramFolderCard({
     program,
     className,
+    showDepartment = false,
 }: ProgramFolderCardProps) {
     const isClosed = Boolean(program.is_closed);
     const isScheme = program.kind === 'scheme';
@@ -58,6 +66,11 @@ export function ProgramFolderCard({
                         <h3 className="line-clamp-2 text-[15px] leading-snug font-semibold tracking-tight">
                             {program.name}
                         </h3>
+                        {showDepartment && program.department?.name ? (
+                            <p className="truncate text-xs text-muted-foreground">
+                                {program.department.name}
+                            </p>
+                        ) : null}
                         <p className="text-xs text-muted-foreground">
                             <span>
                                 {program.is_organization
@@ -94,6 +107,14 @@ export function ProgramFolderCard({
                                             ? ` · ${openBatchCount} open`
                                             : ''}
                                     </span>
+                                </>
+                            ) : null}
+                            {program.approval_label ? (
+                                <>
+                                    <span className="mx-1.5 text-border">
+                                        ·
+                                    </span>
+                                    <span>{program.approval_label}</span>
                                 </>
                             ) : null}
                         </p>
