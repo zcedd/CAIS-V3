@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Database\Eloquent\Builder;
@@ -27,6 +28,7 @@ class Program extends Model
         'is_closed',
         'is_organization',
         'public_intake',
+        'approval_status',
         'kind',
         'parent_id',
         'batch_number',
@@ -52,6 +54,7 @@ class Program extends Model
         'is_closed' => 'boolean',
         'is_organization' => 'boolean',
         'public_intake' => 'boolean',
+        'approval_status' => ProgramApprovalStatus::class,
         'batch_number' => 'integer',
         'kind' => ProgramKind::class,
     ];
@@ -264,7 +267,7 @@ class Program extends Model
             return (bool) $this->is_closed;
         }
 
-        return $this->batches->every(static fn(Program $batch): bool => (bool) $batch->is_closed);
+        return $this->batches->every(static fn (Program $batch): bool => (bool) $batch->is_closed);
     }
 
     /**
@@ -289,7 +292,7 @@ class Program extends Model
             ->where('kind', ProgramKind::Batch)
             ->orderBy('id')
             ->pluck('id')
-            ->map(static fn(mixed $id): int => (int) $id)
+            ->map(static fn (mixed $id): int => (int) $id)
             ->all();
     }
 
@@ -308,6 +311,6 @@ class Program extends Model
 
     public static function composeBatchDisplayName(string $schemeName, string $batchName): string
     {
-        return $schemeName . ' - ' . $batchName;
+        return $schemeName.' - '.$batchName;
     }
 }

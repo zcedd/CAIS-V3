@@ -68,6 +68,16 @@ class RolePermissionSeeder extends Seeder
         $head = Role::findOrCreate(RoleName::Head->value, 'web');
         $head->syncPermissions(PermissionName::values());
 
+        foreach ([RoleName::Governor, RoleName::DepartmentHead, RoleName::ReleasingOfficer] as $roleName) {
+            $role = Role::findOrCreate($roleName->value, 'web');
+            $role->syncPermissions(
+                array_map(
+                    static fn (PermissionName $permission): string => $permission->value,
+                    PermissionName::forRole($roleName),
+                ),
+            );
+        }
+
         $this->migrateLegacyAdminUsers($superAdmin);
         $this->deleteLegacyRoles();
         $this->deleteLegacyPermissions();

@@ -7,24 +7,34 @@ import {
     LayoutGrid,
     Package,
     Shield,
+    Stamp,
     Users,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
-import { NavMain } from '@/components/nav-main';
+import {
+    NavAdministration,
+    NavExecutive,
+    NavMain,
+} from '@/components/nav-main';
 import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
+    SidebarGroup,
+    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
 import { dashboard } from '@/routes';
+import { dashboard as executiveDashboard } from '@/routes/executive';
+import { index as executiveProgramsIndex } from '@/routes/executive/programs';
 import { index as adminUsersIndex } from '@/routes/admin/users';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
@@ -62,6 +72,44 @@ export function AppSidebar() {
         return items;
     }, [props.auth.user, props.unreadNotificationsCount]);
 
+    const administrationNavItems = useMemo((): NavItem[] => {
+        const items: NavItem[] = [];
+
+        if (props.auth.is_super_admin) {
+            items.push({
+                title: 'Admin',
+                href: adminUsersIndex(),
+                icon: Shield,
+            });
+        }
+
+        return items;
+    }, [props.auth.is_super_admin]);
+
+    const executiveNavItems = useMemo((): NavItem[] => {
+        const items: NavItem[] = [];
+
+        if (
+            props.auth.office_roles?.includes('governor') ||
+            can(Permission.ProgramApprove)
+        ) {
+            items.push(
+                {
+                    title: 'Dashboard',
+                    href: executiveDashboard(),
+                    icon: LayoutGrid,
+                },
+                {
+                    title: 'Programs',
+                    href: executiveProgramsIndex(),
+                    icon: Stamp,
+                },
+            );
+        }
+
+        return items;
+    }, [props.auth.office_roles, can, Permission.ProgramApprove]);
+
     const mainNavItems = useMemo((): NavItem[] => {
         const slug = props.auth.user?.department?.slug;
 
@@ -72,14 +120,6 @@ export function AppSidebar() {
                 icon: LayoutGrid,
             },
         ];
-
-        if (props.auth.is_super_admin) {
-            items.push({
-                title: 'Admin',
-                href: adminUsersIndex(),
-                icon: Shield,
-            });
-        }
 
         if (slug) {
             const departmentItems: NavItem[] = [
@@ -124,7 +164,12 @@ export function AppSidebar() {
         }
 
         return items;
-    }, [can, props.auth.is_super_admin, props.auth.user]);
+    }, [
+        can,
+        props.auth.is_super_admin,
+        props.auth.office_roles,
+        props.auth.user,
+    ]);
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">
@@ -136,8 +181,8 @@ export function AppSidebar() {
                                 href={
                                     props.auth.user?.department?.slug
                                         ? departmentDashboardIndex(
-                                            props.auth.user.department.slug,
-                                        )
+                                              props.auth.user.department.slug,
+                                          )
                                         : dashboard()
                                 }
                                 prefetch
@@ -152,6 +197,13 @@ export function AppSidebar() {
 
             <SidebarContent>
                 <NavMain items={mainNavItems} />
+                {executiveNavItems.length > 0 && (
+                    <NavExecutive items={executiveNavItems} />
+                )}
+
+                {administrationNavItems.length > 0 && (
+                    <NavAdministration items={administrationNavItems} />
+                )}
             </SidebarContent>
 
             <SidebarFooter>

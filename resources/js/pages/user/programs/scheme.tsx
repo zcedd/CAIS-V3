@@ -22,6 +22,7 @@ import {
     ProgramStatusBreakdown,
     ProgramStatusBreakdownSkeleton,
 } from '@/pages/user/programs/status-breakdown';
+import { ProgramApprovalSubmit } from '@/components/user/programs/program-approval-submit';
 import { store as storeProgramBatch } from '@/routes/user/programs/batches';
 import {
     index as departmentProgramsIndex,
@@ -82,6 +83,8 @@ type ProgramDetail = {
     is_closed: boolean | null;
     is_organization: boolean | null;
     kind?: string | null;
+    approval_label?: string | null;
+    can_submit_approval?: boolean;
     department_id: number;
 };
 
@@ -103,6 +106,8 @@ type SchemeBatchRow = {
     is_closed: boolean;
     public_intake?: boolean;
     total_requests: number;
+    approval_label?: string | null;
+    can_submit_approval?: boolean;
 };
 
 function formatDateForSubmit(date: Date | undefined): string | undefined {
@@ -252,6 +257,11 @@ export default function UserProgramScheme({
                                     {department.name}
                                 </Badge>
                             ) : null}
+                            {program.approval_label ? (
+                                <Badge variant="outline">
+                                    {program.approval_label}
+                                </Badge>
+                            ) : null}
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -337,7 +347,8 @@ export default function UserProgramScheme({
                                 Batches
                             </h2>
                             <p className="text-xs text-muted-foreground">
-                                Each batch is an open period staff encode into.
+                                Submit each batch separately for executive
+                                approval.
                             </p>
                         </div>
                         {batches.length === 0 ? (
@@ -350,7 +361,7 @@ export default function UserProgramScheme({
                                 {batches.map((batch) => (
                                     <li
                                         key={batch.id}
-                                        className="py-3 first:pt-0 last:pb-0"
+                                        className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
                                     >
                                         {department?.slug ? (
                                             <Link
@@ -362,41 +373,55 @@ export default function UserProgramScheme({
                                                     },
                                                 )}
                                                 prefetch
-                                                className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between"
+                                                className="min-w-0"
                                             >
-                                                <div className="min-w-0">
-                                                    <p className="font-medium">
-                                                        {batch.batch_name ??
-                                                            batch.name}
-                                                    </p>
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {formatProgramPeriod(
-                                                            batch.start_at,
-                                                            batch.end_at,
-                                                        )}
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                                                    <span>
-                                                        {batch.total_requests.toLocaleString()}{' '}
-                                                        requests
-                                                    </span>
-                                                    <Badge variant="outline">
-                                                        {batch.is_closed
-                                                            ? 'Closed'
-                                                            : 'Open'}
-                                                    </Badge>
-                                                    {batch.public_intake &&
-                                                    !batch.is_closed ? (
-                                                        <Badge variant="outline">
-                                                            Public intake
-                                                        </Badge>
-                                                    ) : null}
-                                                </div>
+                                                <p className="font-medium">
+                                                    {batch.batch_name ??
+                                                        batch.name}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {formatProgramPeriod(
+                                                        batch.start_at,
+                                                        batch.end_at,
+                                                    )}
+                                                </p>
                                             </Link>
                                         ) : (
                                             <span>{batch.name}</span>
                                         )}
+                                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                            <span>
+                                                {batch.total_requests.toLocaleString()}{' '}
+                                                requests
+                                            </span>
+                                            <Badge variant="outline">
+                                                {batch.is_closed
+                                                    ? 'Closed'
+                                                    : 'Open'}
+                                            </Badge>
+                                            {batch.approval_label ? (
+                                                <Badge variant="outline">
+                                                    {batch.approval_label}
+                                                </Badge>
+                                            ) : null}
+                                            {batch.public_intake &&
+                                            !batch.is_closed ? (
+                                                <Badge variant="outline">
+                                                    Public intake
+                                                </Badge>
+                                            ) : null}
+                                            {department?.slug ? (
+                                                <ProgramApprovalSubmit
+                                                    departmentSlug={
+                                                        department.slug
+                                                    }
+                                                    programId={batch.id}
+                                                    canSubmit={
+                                                        batch.can_submit_approval
+                                                    }
+                                                />
+                                            ) : null}
+                                        </div>
                                     </li>
                                 ))}
                             </ul>

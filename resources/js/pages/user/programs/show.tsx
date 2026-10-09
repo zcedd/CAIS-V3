@@ -31,6 +31,7 @@ import {
     ProgramStatusBreakdown,
     ProgramStatusBreakdownSkeleton,
 } from '@/pages/user/programs/status-breakdown';
+import { ProgramApprovalSubmit } from '@/components/user/programs/program-approval-submit';
 import { show as publicApplyShow } from '@/routes/public/apply';
 import {
     index as departmentProgramsIndex,
@@ -115,6 +116,8 @@ type ProgramDetail = {
     is_organization: boolean | null;
     public_intake?: boolean | null;
     kind?: string | null;
+    approval_label?: string | null;
+    can_submit_approval?: boolean;
     batch_name?: string | null;
     department_id: number;
     parent?: { id: number; name: string } | null;
@@ -551,6 +554,11 @@ export default function UserProgramShow({
                                     {department.name}
                                 </Badge>
                             ) : null}
+                            {program.approval_label ? (
+                                <Badge variant="outline">
+                                    {program.approval_label}
+                                </Badge>
+                            ) : null}
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -568,6 +576,13 @@ export default function UserProgramShow({
                                 <Copy className="size-4" />
                                 Copy public URL
                             </Button>
+                        ) : null}
+                        {department?.slug ? (
+                            <ProgramApprovalSubmit
+                                departmentSlug={department.slug}
+                                programId={program.id}
+                                canSubmit={program.can_submit_approval}
+                            />
                         ) : null}
                         {canEdit ? (
                             <Button

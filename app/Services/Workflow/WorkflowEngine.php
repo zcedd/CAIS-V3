@@ -171,6 +171,35 @@ class WorkflowEngine
     }
 
     /**
+     * Record Ready for Release on a verified request after executive approval.
+     * Uses the same status history row as a workflow transition, and moves the
+     * workflow when that request already has one.
+     */
+    public function recordGovernorRelease(Assistance $assistance, RequestSubStatus $target, User $actor): Assistance
+    {
+        $payload = [
+            'remark' => 'Executive approved. Ready for release.',
+            'recorded_at' => now()->toDateTimeString(),
+        ];
+
+        $assistance->loadMissing('workflowInstance');
+
+        if ($assistance->workflowInstance === null) {
+            $this->recordStatus($assistance, $target, $actor, $payload);
+
+            return $assistance->refresh();
+        }
+
+        try {
+            return $this->executeByTargetSubStatus($assistance, $target, $actor, $payload);
+        } catch (ValidationException) {
+            $this->recordStatus($assistance, $target, $actor, $payload);
+
+            return $assistance->refresh();
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function executeTransition(
@@ -555,6 +584,10 @@ class WorkflowEngine
         ?WorkflowStep $step,
     ): bool {
         if ($user->isSuperAdmin() || $user->can(PermissionName::DepartmentSupervise->value)) {
+            return true;
+        }
+
+        if ($user->can(PermissionName::ProgramApprove->value)) {
             return true;
         }
 

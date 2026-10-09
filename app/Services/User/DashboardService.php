@@ -14,6 +14,7 @@ use App\Models\Organization;
 use App\Models\Program;
 use App\Support\EmptyCell;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +42,7 @@ class DashboardService
      * }  $filters
      * @return array<string, mixed>
      */
-    public function payload(Department $department, array $filters): array
+    public function payload(?Department $department, array $filters): array
     {
         return [
             'summary' => $this->summary($department, $filters),
@@ -79,6 +80,7 @@ class DashboardService
         return [
             'year' => array_map('strval', $filters['year'] ?? []),
             'quarter' => $filters['quarter'] ?? [],
+            'department' => array_map('strval', $filters['department'] ?? []),
             'program' => array_map('strval', $filters['program'] ?? []),
             'beneficiary_type' => $filters['beneficiary_type'] ?? [],
             'sex' => $filters['sex'] ?? [],
@@ -107,7 +109,7 @@ class DashboardService
      *     avg_requests_per_beneficiary: float
      * }
      */
-    public function summary(Department $department, array $filters): array
+    public function summary(?Department $department, array $filters): array
     {
         $deliveredSql = $this->isDeliveredSql();
         $statusCodeExpression = $this->resolvedStatusCodeExpression();
@@ -128,8 +130,9 @@ class DashboardService
             ->first();
 
         $programCounts = Program::query()
-            ->where('department_id', $department->id)
-            ->roots()
+            ->roots();
+        $this->scopeToDepartments($programCounts, $department, $filters, 'department_id');
+        $programCounts = $programCounts
             ->selectRaw('COUNT(CASE WHEN is_closed = 0 THEN 1 END) as active_programs')
             ->selectRaw('COUNT(CASE WHEN is_closed = 1 THEN 1 END) as closed_programs')
             ->toBase()
@@ -217,7 +220,7 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return list<array{status: string, count: int}>
      */
-    public function requestStatusChart(Department $department, array $filters): array
+    public function requestStatusChart(?Department $department, array $filters): array
     {
         $statusExpression = $this->resolvedStatusExpression();
 
@@ -240,7 +243,7 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return list<array{item: string, unit: string, count: int, quantity: int}>
      */
-    public function deliveredItemsChart(Department $department, array $filters): array
+    public function deliveredItemsChart(?Department $department, array $filters): array
     {
         $itemTable = (new Item)->getTable();
 
@@ -282,7 +285,7 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return list<array{segment: string, code: string, quantity: int}>
      */
-    public function unspscReleasedChart(Department $department, array $filters): array
+    public function unspscReleasedChart(?Department $department, array $filters): array
     {
         $itemTable = (new Item)->getTable();
 
@@ -331,17 +334,21 @@ class DashboardService
      *     delivery_rate: float
      * }>
      */
-    public function programsTable(Department $department, array $filters): array
+    public function programsTable(?Department $department, array $filters): array
     {
         $statusCodeExpression = $this->resolvedStatusCodeExpression();
         $deliveredSql = $this->isDeliveredSql();
         $terminalList = implode("','", RequestStatusCode::terminalValues());
 
         $programQuery = Program::query()
-            ->where('department_id', $department->id)
             ->roots()
             ->with(['batches:id,parent_id,name,is_closed,batch_name,batch_number'])
             ->orderByDesc('id');
+        $this->scopeToDepartments($programQuery, $department, $filters, 'department_id');
+
+        if (! $department instanceof Department) {
+            $programQuery->with('department:id,name,slug');
+        }
 
         $selectedPrograms = $filters['program'] ?? [];
 
@@ -351,7 +358,7 @@ class DashboardService
 
         $programs = $programQuery
             ->limit(self::PROGRAMS_TABLE_LIMIT)
-            ->get(['id', 'name', 'is_closed', 'is_organization', 'kind']);
+            ->get(['id', 'name', 'is_closed', 'is_organization', 'kind', 'department_id']);
 
         if ($programs->isEmpty()) {
             return [];
@@ -375,7 +382,7 @@ class DashboardService
             ->keyBy('id');
 
         return $programs
-            ->map(function (Program $program) use ($statsByProgramId): array {
+            ->map(function (Program $program) use ($department, $statsByProgramId): array {
                 $familyIds = $program->isScheme()
                     ? $program->batches->pluck('id')->all()
                     : [$program->id];
@@ -422,6 +429,12 @@ class DashboardService
                     'type' => $program->is_organization ? 'organization' : 'individual',
                     'status' => $program->is_closed ? 'closed' : 'open',
                     'kind' => $program->kind,
+                    'department_name' => $department instanceof Department
+                        ? $department->name
+                        : $program->department?->name,
+                    'department_slug' => $department instanceof Department
+                        ? $department->slug
+                        : $program->department?->slug,
                     'total_requests' => $total,
                     'delivered' => $delivered,
                     'in_progress' => $inProgress,
@@ -449,15 +462,21 @@ class DashboardService
      *     indigenous: list<array{label: string, value: string}>
      * }
      */
-    public function filterOptions(Department $department): array
+    public function filterOptions(?Department $department, array $filters = []): array
     {
+        $departmentIds = array_values(array_unique(array_map('intval', $filters['department'] ?? [])));
+        $cacheKey = $department instanceof Department
+            ? "dashboard.filter_options.{$department->id}"
+            : 'dashboard.filter_options.all.'.implode('-', $departmentIds);
+
         return Cache::remember(
-            "dashboard.filter_options.{$department->id}",
+            $cacheKey,
             now()->addMinutes(10),
-            function () use ($department): array {
-                $programs = Program::query()
-                    ->where('department_id', $department->id)
-                    ->roots()
+            function () use ($department, $filters): array {
+                $programQuery = Program::query()
+                    ->roots();
+                $this->scopeToDepartments($programQuery, $department, $filters, 'department_id');
+                $programs = $programQuery
                     ->orderBy('name')
                     ->get(['id', 'name'])
                     ->map(static fn (Program $program): array => [
@@ -469,10 +488,12 @@ class DashboardService
 
                 $yearExpression = $this->requestedYearExpression();
 
-                $years = Assistance::query()
+                $yearQuery = Assistance::query()
                     ->join('programs', 'programs.id', '=', 'assistances.program_id')
-                    ->where('programs.department_id', $department->id)
-                    ->whereNotNull('assistances.date_requested')
+                    ->whereNotNull('assistances.date_requested');
+                $this->scopeToDepartments($yearQuery, $department, $filters, 'programs.department_id');
+
+                $years = $yearQuery
                     ->selectRaw("DISTINCT {$yearExpression} as year")
                     ->orderByDesc('year')
                     ->toBase()
@@ -517,6 +538,17 @@ class DashboardService
                     'four_ps' => $yesNo,
                     'solo_parent' => $yesNo,
                     'indigenous' => $yesNo,
+                    'departments' => $department instanceof Department
+                        ? []
+                        : Department::query()
+                            ->orderBy('name')
+                            ->get(['id', 'name'])
+                            ->map(static fn (Department $option): array => [
+                                'label' => $option->name,
+                                'value' => (string) $option->id,
+                            ])
+                            ->values()
+                            ->all(),
                 ];
             },
         );
@@ -526,7 +558,7 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return list<array{type: string, label: string, count: int}>
      */
-    public function beneficiaryTypeChart(Department $department, array $filters): array
+    public function beneficiaryTypeChart(?Department $department, array $filters): array
     {
         $individualClass = Individual::class;
         $organizationClass = Organization::class;
@@ -574,7 +606,7 @@ class DashboardService
      *     civil_status: list<array{label: string, count: int}>
      * }
      */
-    public function demographics(Department $department, array $filters): array
+    public function demographics(?Department $department, array $filters): array
     {
         $base = (clone $this->filteredAssistanceQuery($department, $filters))
             ->where('beneficiaries.beneficiable_type', Individual::class)
@@ -642,7 +674,7 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return list<array{date: string, count: int}>
      */
-    public function requestsTrend(Department $department, array $filters): array
+    public function requestsTrend(?Department $department, array $filters): array
     {
         return (clone $this->filteredAssistanceQuery($department, $filters))
             ->whereNotNull('assistances.date_requested')
@@ -671,7 +703,7 @@ class DashboardService
      *     distinct_barangays: int
      * }
      */
-    public function insights(Department $department, array $filters): array
+    public function insights(?Department $department, array $filters): array
     {
         $statusCodeExpression = $this->resolvedStatusCodeExpression();
         $terminalList = implode("','", RequestStatusCode::terminalValues());
@@ -739,7 +771,7 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return list<array{barangay: string, count: int}>
      */
-    public function topBarangays(Department $department, array $filters): array
+    public function topBarangays(?Department $department, array $filters): array
     {
         $barangayExpression = "COALESCE(NULLIF(ab_ind.name, ''), NULLIF(ab_org.name, ''), 'Unspecified')";
 
@@ -779,7 +811,7 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return list<array{label: string, count: int}>
      */
-    public function modeOfRequestChart(Department $department, array $filters): array
+    public function modeOfRequestChart(?Department $department, array $filters): array
     {
         return $this->countDistinctAssistancesByLabel(
             (clone $this->filteredAssistanceQuery($department, $filters))
@@ -842,7 +874,7 @@ class DashboardService
     /**
      * @param  array<string, mixed>  $filters
      */
-    private function sumDeliveredItems(Department $department, array $filters): int
+    private function sumDeliveredItems(?Department $department, array $filters): int
     {
         return (int) DB::table((new AssistanceItem)->getTable().' as ai')
             ->joinSub(
@@ -860,7 +892,7 @@ class DashboardService
     /**
      * @param  array<string, mixed>  $filters
      */
-    private function filteredDeliveredAssistanceIdsSubquery(Department $department, array $filters): QueryBuilder
+    private function filteredDeliveredAssistanceIdsSubquery(?Department $department, array $filters): QueryBuilder
     {
         $deliveredSql = $this->isDeliveredSql();
 
@@ -875,12 +907,13 @@ class DashboardService
      * @param  array<string, mixed>  $filters
      * @return Builder<Assistance>
      */
-    private function filteredAssistanceQuery(Department $department, array $filters): Builder
+    private function filteredAssistanceQuery(?Department $department, array $filters): Builder
     {
         $query = Assistance::query()
             ->join('programs', 'programs.id', '=', 'assistances.program_id')
-            ->where('programs.department_id', $department->id)
-            ->leftJoin('beneficiaries', 'beneficiaries.id', '=', 'assistances.beneficiary_id')
+            ->leftJoin('beneficiaries', 'beneficiaries.id', '=', 'assistances.beneficiary_id');
+        $this->scopeToDepartments($query, $department, $filters, 'programs.department_id');
+        $query
             ->leftJoin('individuals', function ($join): void {
                 $join->on('beneficiaries.beneficiable_id', '=', 'individuals.id')
                     ->where('beneficiaries.beneficiable_type', '=', Individual::class)
@@ -891,6 +924,25 @@ class DashboardService
         ($this->joinAssistanceStatusRelations)($query);
 
         return $query;
+    }
+
+    /**
+     * @param  Builder<Model>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function scopeToDepartments(Builder $query, ?Department $department, array $filters, string $column): void
+    {
+        if ($department instanceof Department) {
+            $query->where($column, $department->id);
+
+            return;
+        }
+
+        $departmentIds = array_values(array_unique(array_map('intval', $filters['department'] ?? [])));
+
+        if ($departmentIds !== []) {
+            $query->whereIn($column, $departmentIds);
+        }
     }
 
     private function isDeliveredSql(): string
