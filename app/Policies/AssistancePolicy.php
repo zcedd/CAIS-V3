@@ -164,23 +164,21 @@ class AssistancePolicy
 
         $task = $assistance->currentTask();
 
-        if ($task !== null) {
-            if ($task->assigned_to_id === null) {
-                return true;
-            }
+        if ($task !== null && $task->assigned_to_id !== null) {
+            return (int) $task->assigned_to_id === (int) $user->id;
+        }
 
-            return (int) $task->assigned_to_id === (int) $user->id
-                || $user->can(PermissionName::DepartmentSupervise->value);
+        if ($assistance->assigned_to_id !== null) {
+            return (int) $assistance->assigned_to_id === (int) $user->id;
         }
 
         $step = $assistance->currentWorkflowStep();
 
-        if ($step?->assigned_to_id === null) {
-            return true;
+        if ($step?->assigned_to_id !== null) {
+            return (int) $step->assigned_to_id === (int) $user->id;
         }
 
-        return (int) $assistance->assigned_to_id === (int) $user->id
-            || (int) $step->assigned_to_id === (int) $user->id;
+        return true;
     }
 
     private function belongsToUserDepartment(User $user, Assistance $assistance): bool

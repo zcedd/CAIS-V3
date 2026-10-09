@@ -28,7 +28,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import type { AssistanceRequestSubStatusOption } from '@/pages/user/programs/assistance-toolbar';
+import {
+    workflowAssignedStatusOptions,
+    type AssistanceRequestSubStatusOption,
+} from '@/pages/user/programs/assistance-toolbar';
 import { bulkUpdate as bulkUpdateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
 import { Form } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
@@ -85,6 +88,7 @@ type AssistanceBulkStatusDrawerProps = {
     programId: number;
     programName: string;
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
+    allowedRequestStatusIds?: number[];
     canAdvance?: boolean;
     onUpdated?: () => void;
 };
@@ -97,6 +101,7 @@ export function AssistanceBulkStatusDrawer({
     programId,
     programName,
     requestSubStatusOptions,
+    allowedRequestStatusIds,
     canAdvance = true,
     onUpdated,
 }: AssistanceBulkStatusDrawerProps) {
@@ -107,12 +112,15 @@ export function AssistanceBulkStatusDrawer({
 
     const bulkStatusOptions = useMemo(
         () =>
-            requestSubStatusOptions.filter(
+            workflowAssignedStatusOptions(
+                requestSubStatusOptions,
+                allowedRequestStatusIds,
+            ).filter(
                 (option) =>
                     option.request_status_code !== 'delivered' &&
                     option.request_status !== 'Delivered',
             ),
-        [requestSubStatusOptions],
+        [allowedRequestStatusIds, requestSubStatusOptions],
     );
 
     const resetForm = () => {
@@ -214,6 +222,12 @@ export function AssistanceBulkStatusDrawer({
                                 <InputError
                                     message={errors.request_sub_status_id}
                                 />
+                                {canAdvance && bulkStatusOptions.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        These requests do not share a status
+                                        assigned on the workflow.
+                                    </p>
+                                ) : null}
                             </div>
 
                             {isVerifiedStatus ? (

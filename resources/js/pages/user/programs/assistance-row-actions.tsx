@@ -27,7 +27,6 @@ import type {
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
     AssistanceTransferProgramOption,
-    DepartmentStaffOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
@@ -59,7 +58,6 @@ interface AssistanceDataTableRowActionsProps {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
-    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onAssistanceUpdated?: () => void;
 }
@@ -75,7 +73,6 @@ export function AssistanceDataTableRowActions({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
-    staffOptions = [],
     canTransferAssistance,
     onAssistanceUpdated,
 }: AssistanceDataTableRowActionsProps) {
@@ -233,11 +230,9 @@ export function AssistanceDataTableRowActions({
                 requestSubStatusOptions={requestSubStatusOptions}
                 assistanceItems={record.items}
                 programItems={programItems}
-                staffOptions={staffOptions}
-                assignedToId={record.assigned_to_id ?? null}
                 slaState={record.sla_state}
                 canAdvance={record.can_advance !== false}
-                stepHasOwner={Boolean(record.step_has_owner)}
+                allowedRequestStatusIds={record.allowed_request_status_ids}
                 onUpdated={onAssistanceUpdated}
             />
 

@@ -72,15 +72,7 @@ class AssertAssistanceWorkflowTransition
 
         $allowed = $currentStep->allowedTargetStatusIds();
 
-        if ($allowed === []) {
-            $allowed = $this->defaultTargets($workflow, $currentStep);
-        }
-
         if (in_array($targetStatusId, $allowed, true)) {
-            return $targetStep;
-        }
-
-        if ($targetStep->allows_skip_to_deliver && RequestStatusCode::Delivered->matches($targetStatus)) {
             return $targetStep;
         }
 
@@ -88,47 +80,9 @@ class AssertAssistanceWorkflowTransition
             return $targetStep;
         }
 
-        if (
-            RequestStatusCode::Denied->matches($targetStatus)
-            && ! RequestStatusCode::Closed->matches($currentStatus)
-        ) {
-            return $targetStep;
-        }
-
         throw ValidationException::withMessages([
             'request_sub_status_id' => 'That status is not a valid next step for this request.',
         ]);
-    }
-
-    /**
-     * @return list<int>
-     */
-    private function defaultTargets(Workflow $workflow, WorkflowStep $currentStep): array
-    {
-        $next = $workflow->steps
-            ->first(static fn (WorkflowStep $step): bool => $step->sort_order > $currentStep->sort_order
-                && ! ($step->requestStatus?->is_hold ?? false)
-                && ! ($step->requestStatus?->is_retired ?? false));
-
-        $targets = [];
-
-        if ($next instanceof WorkflowStep) {
-            $targets[] = (int) $next->request_status_id;
-        }
-
-        foreach ($workflow->steps as $step) {
-            $code = $step->requestStatus?->code;
-
-            if (
-                $code === RequestStatusCode::OnHold
-                || $code === RequestStatusCode::Denied
-                || $code === RequestStatusCode::Closed
-            ) {
-                $targets[] = (int) $step->request_status_id;
-            }
-        }
-
-        return array_values(array_unique($targets));
     }
 
     private function userMayAdvance(User $user, Assistance $assistance, WorkflowStep $currentStep): bool

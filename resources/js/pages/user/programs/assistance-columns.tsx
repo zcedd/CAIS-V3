@@ -10,7 +10,6 @@ import type {
     AssistanceProgramItemOption,
     AssistanceRequestSubStatusOption,
     AssistanceTransferProgramOption,
-    DepartmentStaffOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import type { AssistanceItemOrigin } from '@/types/assistance-item';
@@ -68,6 +67,7 @@ export type UserProgramAssistanceRow = {
     assignee_name?: string | null;
     can_advance?: boolean;
     step_has_owner?: boolean;
+    allowed_request_status_ids?: number[];
     sla_due_at?: string | null;
     sla_state?: string | null;
     date_requested: string | null;
@@ -128,7 +128,6 @@ export type UserProgramAssistanceTableContext = {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
-    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onAssistanceUpdated?: () => void;
 };
@@ -143,7 +142,6 @@ export function createUserProgramAssistanceColumns({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
-    staffOptions = [],
     canTransferAssistance,
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
@@ -468,7 +466,6 @@ export function createUserProgramAssistanceColumns({
                     programFields={programFields}
                     requestSubStatusOptions={requestSubStatusOptions}
                     transferProgramOptions={transferProgramOptions}
-                    staffOptions={staffOptions}
                     canTransferAssistance={canTransferAssistance}
                     onAssistanceUpdated={onAssistanceUpdated}
                 />

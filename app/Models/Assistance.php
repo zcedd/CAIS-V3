@@ -164,6 +164,55 @@ class Assistance extends Model
         return $this->resolvedWorkflow()->stepForStatus($statusId);
     }
 
+    /**
+     * Statuses the assignee may choose for this request.
+     *
+     * The list is the statuses assigned as transitions on the current workflow
+     * step, plus the request's current status. Nothing else is added.
+     *
+     * @return list<int>
+     */
+    public function statusIdsAvailableForUpdate(): array
+    {
+        $workflow = $this->resolvedWorkflow();
+        $workflow->loadMissing('steps.requestStatus');
+        $step = $this->currentWorkflowStep();
+
+        if (! $step instanceof WorkflowStep) {
+            return $workflow->steps
+                ->pluck('request_status_id')
+                ->map(static fn ($id): int => (int) $id)
+                ->filter(static fn (int $id): bool => $id > 0)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        $step->loadMissing(['transitions.toStep', 'transitions.toRequestStatus']);
+
+        $ids = $step->allowedTargetStatusIds();
+        $currentStatusId = (int) ($this->currentRequestSubStatus?->request_status_id ?? 0);
+
+        if ($currentStatusId > 0) {
+            $ids[] = $currentStatusId;
+        }
+
+        if ($step->allows_skip_to_deliver) {
+            $delivered = $workflow->steps->first(
+                static fn (WorkflowStep $candidate): bool => RequestStatusCode::Delivered->matches($candidate->requestStatus),
+            );
+
+            if ($delivered instanceof WorkflowStep) {
+                $ids[] = (int) $delivered->request_status_id;
+            }
+        }
+
+        return array_values(array_unique(array_filter(
+            $ids,
+            static fn (int $id): bool => $id > 0,
+        )));
+    }
+
     public function item()
     {
         return $this->belongsToMany(Item::class)->withPivot('is_received', 'specification')->withSoftDeletes()->withTimestamps()->using(AssistanceItem::class);

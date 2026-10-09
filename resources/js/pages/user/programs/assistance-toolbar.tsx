@@ -94,10 +94,28 @@ export type AssistanceProgramItemOption = {
 export type AssistanceRequestSubStatusOption = {
     id: number;
     name: string;
+    request_status_id?: number;
     request_status: string | null;
     request_status_code?: string | null;
     label: string;
 };
+
+export function workflowAssignedStatusOptions(
+    options: AssistanceRequestSubStatusOption[],
+    allowedRequestStatusIds?: number[],
+): AssistanceRequestSubStatusOption[] {
+    if (allowedRequestStatusIds === undefined) {
+        return options;
+    }
+
+    const allowed = new Set(allowedRequestStatusIds);
+
+    return options.filter(
+        (option) =>
+            typeof option.request_status_id === 'number' &&
+            allowed.has(option.request_status_id),
+    );
+}
 
 export type DepartmentStaffOption = {
     id: number;

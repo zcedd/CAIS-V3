@@ -160,7 +160,6 @@ type ProgramAssistanceTableProps = {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
-    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onVisitTable: (
         overrides: Partial<
@@ -191,7 +190,6 @@ type ProgramAssistanceTableSectionProps = {
     programFields: ProgramFieldOption[];
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
-    staffOptions?: DepartmentStaffOption[];
     canTransferAssistance: boolean;
     onVisitTable: ProgramAssistanceTableProps['onVisitTable'];
 };
@@ -214,7 +212,6 @@ function ProgramAssistanceTable({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
-    staffOptions = [],
     canTransferAssistance,
     onVisitTable,
 }: ProgramAssistanceTableProps) {
@@ -312,7 +309,6 @@ export function ProgramAssistanceTableSection({
     programFields,
     requestSubStatusOptions,
     transferProgramOptions,
-    staffOptions = [],
     canTransferAssistance,
     onVisitTable,
 }: ProgramAssistanceTableSectionProps) {
@@ -328,7 +324,6 @@ export function ProgramAssistanceTableSection({
                 programFields,
                 requestSubStatusOptions,
                 transferProgramOptions,
-                staffOptions,
                 canTransferAssistance,
                 onAssistanceUpdated: () => onVisitTable({ page: 1 }),
             }),
@@ -342,7 +337,6 @@ export function ProgramAssistanceTableSection({
             programFields,
             requestSubStatusOptions,
             transferProgramOptions,
-            staffOptions,
             canTransferAssistance,
             onVisitTable,
         ],
@@ -368,7 +362,6 @@ export function ProgramAssistanceTableSection({
                 programFields={programFields}
                 requestSubStatusOptions={requestSubStatusOptions}
                 transferProgramOptions={transferProgramOptions}
-                staffOptions={staffOptions}
                 canTransferAssistance={canTransferAssistance}
                 onVisitTable={onVisitTable}
             />
