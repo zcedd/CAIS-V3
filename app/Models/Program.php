@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use App\Enums\ProgramApprovalAction;
 use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
+use App\Enums\RequestSubStatusCode;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,6 +31,7 @@ class Program extends Model
         'is_organization',
         'public_intake',
         'approval_status',
+        'requires_beneficiaries',
         'kind',
         'parent_id',
         'batch_number',
@@ -46,6 +49,7 @@ class Program extends Model
         'is_closed' => false,
         'is_organization' => false,
         'public_intake' => false,
+        'requires_beneficiaries' => true,
     ];
 
     protected $casts = [
@@ -54,6 +58,7 @@ class Program extends Model
         'is_closed' => 'boolean',
         'is_organization' => 'boolean',
         'public_intake' => 'boolean',
+        'requires_beneficiaries' => 'boolean',
         'approval_status' => ProgramApprovalStatus::class,
         'batch_number' => 'integer',
         'kind' => ProgramKind::class,
@@ -142,6 +147,89 @@ class Program extends Model
     public function workflow(): BelongsTo
     {
         return $this->belongsTo(Workflow::class);
+    }
+
+    public function approvalEvents(): HasMany
+    {
+        return $this->hasMany(ProgramApprovalEvent::class);
+    }
+
+    public function requiresBeneficiaries(): bool
+    {
+        return (bool) $this->requires_beneficiaries;
+    }
+
+    /**
+     * Existing rows were marked approved so they did not re-enter review.
+     * A program is locked only after an executive approval event.
+     */
+    public function isApprovedByExecutive(): bool
+    {
+        if ($this->approval_status !== ProgramApprovalStatus::Approved) {
+            return false;
+        }
+
+        if ($this->relationLoaded('approvalEvents')) {
+            return $this->approvalEvents->contains(
+                fn (ProgramApprovalEvent $event): bool => $event->action === ProgramApprovalAction::Approved,
+            );
+        }
+
+        return $this->approvalEvents()
+            ->where('action', ProgramApprovalAction::Approved)
+            ->exists();
+    }
+
+    public function beneficiaryListIsFrozen(): bool
+    {
+        return $this->requiresBeneficiaries() && $this->isApprovedByExecutive();
+    }
+
+    public function acceptsNewAssistance(): bool
+    {
+        if (! $this->isEncodable()) {
+            return false;
+        }
+
+        if (! $this->requiresBeneficiaries()) {
+            return $this->isApprovedByExecutive();
+        }
+
+        return ! $this->isApprovedByExecutive();
+    }
+
+    public function assistanceRecordsAreEditable(): bool
+    {
+        if ($this->beneficiaryListIsFrozen()) {
+            return false;
+        }
+
+        if (! $this->requiresBeneficiaries()) {
+            return $this->isApprovedByExecutive();
+        }
+
+        return true;
+    }
+
+    public function allowsAssistanceAdvance(Assistance $assistance): bool
+    {
+        if ($this->beneficiaryListIsFrozen()) {
+            $assistance->loadMissing('currentRequestSubStatus');
+            $subStatus = $assistance->currentRequestSubStatus;
+
+            return RequestSubStatusCode::ReadyForRelease->matches($subStatus)
+                || RequestSubStatusCode::PartiallyDelivered->matches($subStatus)
+                || RequestSubStatusCode::Delivered->matches($subStatus);
+        }
+
+        return $this->assistanceRecordsAreEditable();
+    }
+
+    public function beneficiaryApprovalLabel(): string
+    {
+        return $this->requiresBeneficiaries()
+            ? 'With verified beneficiaries'
+            : 'Without beneficiaries';
     }
 
     public function resolvedWorkflow(): Workflow
@@ -235,8 +323,8 @@ class Program extends Model
     public function acceptsPublicIntake(): bool
     {
         return (bool) $this->public_intake
-            && $this->isEncodable()
-            && ! $this->is_organization;
+            && ! $this->is_organization
+            && $this->acceptsNewAssistance();
     }
 
     /**
@@ -249,7 +337,33 @@ class Program extends Model
             ->where('public_intake', true)
             ->where('is_organization', false)
             ->where('is_closed', false)
-            ->whereIn('kind', ProgramKind::encodable());
+            ->whereIn('kind', ProgramKind::encodable())
+            ->where(function (Builder $programs): void {
+                $programs
+                    ->where(function (Builder $withList): void {
+                        $withList
+                            ->where('requires_beneficiaries', true)
+                            ->whereNot(fn (Builder $locked): Builder => $this->approvedByExecutiveConstraint($locked));
+                    })
+                    ->orWhere(function (Builder $withoutList): void {
+                        $withoutList
+                            ->where('requires_beneficiaries', false)
+                            ->where(fn (Builder $approved): Builder => $this->approvedByExecutiveConstraint($approved));
+                    });
+            });
+    }
+
+    /**
+     * @param  Builder<Program>  $query
+     * @return Builder<Program>
+     */
+    private function approvedByExecutiveConstraint(Builder $query): Builder
+    {
+        return $query
+            ->where('approval_status', ProgramApprovalStatus::Approved->value)
+            ->whereHas('approvalEvents', function (Builder $events): void {
+                $events->where('action', ProgramApprovalAction::Approved);
+            });
     }
 
     public function isEffectivelyClosed(): bool

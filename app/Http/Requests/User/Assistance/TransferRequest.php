@@ -75,6 +75,13 @@ class TransferRequest extends FormRequest
                     return;
                 }
 
+                if (! $targetProgram->acceptsNewAssistance()) {
+                    $validator->errors()->add(
+                        'target_program_id',
+                        'Assistance cannot be added to the selected program.',
+                    );
+                }
+
                 /** @var Assistance $assistance */
                 $assistance = $this->route('assistance');
 

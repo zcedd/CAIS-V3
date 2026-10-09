@@ -28,6 +28,8 @@ type GovernorProgram = {
     kind: string | null;
     approval_status: string;
     approval_label: string;
+    requires_beneficiaries: boolean;
+    beneficiary_approval_label: string;
     department: { id: number; name: string } | null;
 };
 
@@ -81,6 +83,9 @@ export default function GovernorProgramShow({
                         </h1>
                         <div className="flex flex-wrap items-center gap-2">
                             <Badge variant="outline">{program.approval_label}</Badge>
+                            <Badge variant="outline">
+                                {program.beneficiary_approval_label}
+                            </Badge>
                             {program.department ? (
                                 <Badge variant="outline">{program.department.name}</Badge>
                             ) : null}
@@ -139,11 +144,19 @@ export default function GovernorProgramShow({
                         <CardTitle>Beneficiaries</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {beneficiaries.data.length === 0 ? (
+                        {!program.requires_beneficiaries ? (
+                            <p className="mb-4 text-sm text-muted-foreground">
+                                This approval covers the program. Staff add
+                                beneficiaries after it is approved.
+                            </p>
+                        ) : null}
+                        {beneficiaries.data.length === 0 &&
+                        program.requires_beneficiaries ? (
                             <p className="text-sm text-muted-foreground">
                                 This program has no beneficiaries yet.
                             </p>
-                        ) : (
+                        ) : null}
+                        {beneficiaries.data.length > 0 ? (
                             <Table>
                                 <TableHeader>
                                     <TableRow>
@@ -170,7 +183,7 @@ export default function GovernorProgramShow({
                                     ))}
                                 </TableBody>
                             </Table>
-                        )}
+                        ) : null}
                         {beneficiaries.last_page > 1 ? (
                             <div className="mt-4 flex gap-2">
                                 {beneficiaries.prev_page_url ? (

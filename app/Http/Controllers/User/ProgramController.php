@@ -8,6 +8,7 @@ use App\Http\Requests\User\Program\IndexRequest;
 use App\Http\Requests\User\Program\ShowRequest;
 use App\Http\Requests\User\Program\StoreRequest;
 use App\Http\Requests\User\Program\UpdateRequest;
+use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
 use App\Services\User\AssistanceDocumentService;
@@ -247,6 +248,8 @@ class ProgramController extends Controller
                     ProgramApprovalStatus::Draft,
                     ProgramApprovalStatus::Returned,
                 ], true),
+            'can_update' => Gate::allows('update', $program),
+            'can_create_assistance' => Gate::allows('create', [Assistance::class, $program]),
         ];
     }
 }

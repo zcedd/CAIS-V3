@@ -177,6 +177,8 @@ export default function UserProgramsIndex({
         ProgramDocumentRequirementInput[]
     >([]);
     const [isOrganization, setIsOrganization] = useState(false);
+    const [requiresBeneficiaries, setRequiresBeneficiaries] =
+        useState(true);
     const [publicIntake, setPublicIntake] = useState(false);
     const [programKind, setProgramKind] = useState<'standalone' | 'scheme'>(
         'standalone',
@@ -508,6 +510,7 @@ export default function UserProgramsIndex({
                                         sort_order: index,
                                     })),
                                 is_organization: isOrganization,
+                                requires_beneficiaries: requiresBeneficiaries,
                                 public_intake:
                                     programKind === 'standalone' &&
                                     !isOrganization
@@ -939,6 +942,43 @@ export default function UserProgramsIndex({
                                             />
                                         </div>
                                     ) : null}
+
+                                    <div className="flex items-start gap-3">
+                                        <Input
+                                            id="program-requires-beneficiaries"
+                                            type="checkbox"
+                                            name="requires_beneficiaries"
+                                            value="1"
+                                            checked={requiresBeneficiaries}
+                                            onChange={(event) =>
+                                                setRequiresBeneficiaries(
+                                                    event.target.checked,
+                                                )
+                                            }
+                                            className="mt-1 size-4 shrink-0 rounded border-input"
+                                        />
+                                        <div className="grid gap-1">
+                                            <Label
+                                                htmlFor="program-requires-beneficiaries"
+                                                className="font-normal"
+                                            >
+                                                Approve with verified
+                                                beneficiaries
+                                            </Label>
+                                            <p className="text-sm text-muted-foreground">
+                                                Leave this off to approve the
+                                                program with no beneficiary
+                                                list. After the executive
+                                                approves it, staff can add
+                                                beneficiaries.
+                                            </p>
+                                            <InputError
+                                                message={
+                                                    errors.requires_beneficiaries
+                                                }
+                                            />
+                                        </div>
+                                    </div>
 
                                     <div
                                         className="flex items-start gap-3"

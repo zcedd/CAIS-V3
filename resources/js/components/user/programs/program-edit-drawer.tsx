@@ -64,6 +64,8 @@ type ProgramDetail = {
     is_closed: boolean | null;
     is_organization?: boolean | null;
     public_intake?: boolean | null;
+    requires_beneficiaries?: boolean;
+    can_change_requires_beneficiaries?: boolean;
     kind?: string | null;
     batch_name?: string | null;
     start_at_input: string | null;
@@ -278,10 +280,22 @@ export function ProgramEditDrawer({
                             })),
                         ...(isBatch
                             ? {}
-                            : eligibilityPayloadFromForm(
-                                  eligibility,
-                                  selectedItemIds,
-                              )),
+                            : {
+                                  requires_beneficiaries:
+                                      program.can_change_requires_beneficiaries ===
+                                      false
+                                          ? Boolean(
+                                                program.requires_beneficiaries,
+                                            )
+                                          : data.requires_beneficiaries ===
+                                                '1' ||
+                                            data.requires_beneficiaries ===
+                                                true,
+                                  ...eligibilityPayloadFromForm(
+                                      eligibility,
+                                      selectedItemIds,
+                                  ),
+                              }),
                         ...(canAssignWorkflow
                             ? {
                                   workflow_id:
@@ -512,6 +526,47 @@ export function ProgramEditDrawer({
                                                 Mark when the program is no
                                                 longer accepting assistance.
                                             </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {isBatch ? null : (
+                                    <div className="flex items-start gap-3">
+                                        <Input
+                                            id="edit-program-requires-beneficiaries"
+                                            type="checkbox"
+                                            name="requires_beneficiaries"
+                                            value="1"
+                                            defaultChecked={
+                                                program.requires_beneficiaries ??
+                                                true
+                                            }
+                                            disabled={
+                                                program.can_change_requires_beneficiaries ===
+                                                false
+                                            }
+                                            className="mt-1 size-4 shrink-0 rounded border-input"
+                                        />
+                                        <div className="grid gap-1">
+                                            <Label
+                                                htmlFor="edit-program-requires-beneficiaries"
+                                                className="font-normal"
+                                            >
+                                                Approve with verified
+                                                beneficiaries
+                                            </Label>
+                                            <p className="text-sm text-muted-foreground">
+                                                Leave this off to approve the
+                                                program with no beneficiary
+                                                list. After the executive
+                                                approves it, staff can add
+                                                beneficiaries.
+                                            </p>
+                                            <InputError
+                                                message={
+                                                    errors.requires_beneficiaries
+                                                }
+                                            />
                                         </div>
                                     </div>
                                 )}

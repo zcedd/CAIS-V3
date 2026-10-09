@@ -58,9 +58,13 @@ class ProgramController extends Controller
 
         $this->approvals->approve($program, $actor, $request->remark());
 
+        $message = $program->requiresBeneficiaries()
+            ? 'Program approved. Verified requests are ready for release.'
+            : 'Program approved. Staff can add beneficiaries to this program.';
+
         return redirect()
             ->route('executive.programs.show', $program)
-            ->with('success', 'Program approved. Verified requests are ready for release.');
+            ->with('success', $message);
     }
 
     public function returnToDepartment(ReturnRequest $request, Program $program): RedirectResponse

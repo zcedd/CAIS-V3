@@ -64,6 +64,7 @@ class UpdateRequest extends FormRequest
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => $isBatch ? ['prohibited'] : ['nullable', 'boolean'],
+            'requires_beneficiaries' => $isBatch ? ['prohibited'] : ['nullable', 'boolean'],
             'is_closed' => $isScheme ? ['prohibited'] : ['nullable', 'boolean'],
             ...$this->publicIntakeRules(),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],
@@ -116,6 +117,29 @@ class UpdateRequest extends FormRequest
         }
 
         $validator->after(function (Validator $validator): void {
+            $program = $this->route('program');
+
+            if (
+                $program instanceof Program
+                && ! $program->isBatch()
+                && $this->exists('requires_beneficiaries')
+                && $this->boolean('requires_beneficiaries') !== $program->requiresBeneficiaries()
+            ) {
+                if ($program->isScheme() && $program->batches()->exists()) {
+                    $validator->errors()->add(
+                        'requires_beneficiaries',
+                        'The beneficiary rule cannot change after a batch exists.',
+                    );
+                }
+
+                if (! $program->isScheme() && $program->assistance()->exists()) {
+                    $validator->errors()->add(
+                        'requires_beneficiaries',
+                        'The beneficiary rule cannot change after assistance records exist.',
+                    );
+                }
+            }
+
             $program = $this->program;
             $fields = $this->input('fields', []);
 
@@ -173,6 +197,7 @@ class UpdateRequest extends FormRequest
             'start_at' => 'start date',
             'end_at' => 'end date',
             'is_organization' => 'organization program',
+            'requires_beneficiaries' => 'beneficiary approval',
             'is_closed' => 'closed program',
             ...$this->publicIntakeAttributes(),
             'fund_ids' => 'funds',

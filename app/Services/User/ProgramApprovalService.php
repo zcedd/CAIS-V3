@@ -42,9 +42,15 @@ class ProgramApprovalService
             ]);
         }
 
-        if ($this->verifiedCount($program) < 1) {
+        if ($program->requiresBeneficiaries() && $this->verifiedCount($program) < 1) {
             throw ValidationException::withMessages([
                 'program' => 'Add at least one verified beneficiary before submitting this program for executive approval.',
+            ]);
+        }
+
+        if (! $program->requiresBeneficiaries() && $this->assistanceQuery($program)->exists()) {
+            throw ValidationException::withMessages([
+                'program' => 'This program is approved without a beneficiary list. Remove assistance records before submitting it.',
             ]);
         }
 
@@ -61,15 +67,18 @@ class ProgramApprovalService
         $this->assertAwaiting($program);
 
         DB::transaction(function () use ($program, $actor, $remark): void {
-            $verified = $this->verifiedAssistances($program);
-            $readyForRelease = $this->readyForReleaseStatus();
-
             $program->update([
                 'approval_status' => ProgramApprovalStatus::Approved,
             ]);
             $this->record($program, $actor, ProgramApprovalAction::Approved, $remark);
 
-            foreach ($verified as $assistance) {
+            if (! $program->requiresBeneficiaries()) {
+                return;
+            }
+
+            $readyForRelease = $this->readyForReleaseStatus();
+
+            foreach ($this->verifiedAssistances($program) as $assistance) {
                 $this->workflowEngine->recordGovernorRelease($assistance, $readyForRelease, $actor);
             }
         });
@@ -154,6 +163,7 @@ class ProgramApprovalService
                 'is_closed',
                 'is_organization',
                 'public_intake',
+                'requires_beneficiaries',
                 'department_id',
                 'kind',
                 'approval_status',
@@ -215,6 +225,8 @@ class ProgramApprovalService
                     'is_closed' => (bool) $program->is_closed,
                     'is_organization' => (bool) $program->is_organization,
                     'public_intake' => (bool) $program->public_intake,
+                    'requires_beneficiaries' => $program->requiresBeneficiaries(),
+                    'beneficiary_approval_label' => $program->beneficiaryApprovalLabel(),
                     'kind' => $program->kind?->value,
                     'batches_count' => (int) $program->batches_count,
                     'open_batches_count' => (int) $program->open_batches_count,
@@ -246,6 +258,8 @@ class ProgramApprovalService
             'kind' => $program->kind?->value,
             'approval_status' => $status->value,
             'approval_label' => $status->label(),
+            'requires_beneficiaries' => $program->requiresBeneficiaries(),
+            'beneficiary_approval_label' => $program->beneficiaryApprovalLabel(),
             'department' => $program->department === null ? null : [
                 'id' => $program->department->id,
                 'name' => $program->department->name,

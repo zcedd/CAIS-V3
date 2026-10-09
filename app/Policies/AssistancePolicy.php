@@ -54,7 +54,7 @@ class AssistancePolicy
             $user,
             PermissionName::AssistanceCreate,
             $user->department_id === $program->department_id,
-        ) && $program->isEncodable();
+        ) && $program->acceptsNewAssistance();
     }
 
     /**
@@ -62,6 +62,10 @@ class AssistancePolicy
      */
     public function update(User $user, Assistance $assistance): bool
     {
+        if (! $this->assistanceRecordsAreEditable($assistance)) {
+            return false;
+        }
+
         return $this->allows(
             $user,
             PermissionName::AssistanceUpdate,
@@ -74,6 +78,10 @@ class AssistancePolicy
      */
     public function delete(User $user, Assistance $assistance): bool
     {
+        if (! $this->assistanceRecordsAreEditable($assistance)) {
+            return false;
+        }
+
         return $this->allows(
             $user,
             PermissionName::AssistanceDelete,
@@ -162,6 +170,13 @@ class AssistancePolicy
             return false;
         }
 
+        $assistance->loadMissing('program');
+        $program = $assistance->program;
+
+        if ($program instanceof Program && ! $program->allowsAssistanceAdvance($assistance)) {
+            return false;
+        }
+
         $task = $assistance->currentTask();
 
         if ($task !== null && $task->assigned_to_id !== null) {
@@ -179,6 +194,14 @@ class AssistancePolicy
         }
 
         return true;
+    }
+
+    private function assistanceRecordsAreEditable(Assistance $assistance): bool
+    {
+        $assistance->loadMissing('program');
+        $program = $assistance->program;
+
+        return ! $program instanceof Program || $program->assistanceRecordsAreEditable();
     }
 
     private function belongsToUserDepartment(User $user, Assistance $assistance): bool

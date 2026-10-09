@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\User\CreateProgramBatch;
 use App\Enums\PermissionName;
 use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
@@ -231,6 +232,181 @@ test('each batch is submitted and approved separately', function () {
         ->and($otherBatch->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft)
         ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ReadyForRelease)
         ->and($otherVerified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
+});
+
+test('a program without beneficiaries can be approved with an empty list', function () {
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::DepartmentHead, $department);
+    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $program = draftProgram($department);
+    $program->update(['requires_beneficiaries' => false]);
+
+    $this->actingAs($head)
+        ->post(route('user.programs.approval.store', [$department, $program]))
+        ->assertRedirect(route('user.programs.show', [$department, $program]));
+
+    $this->actingAs($governor)
+        ->post(route('executive.programs.approve', $program))
+        ->assertRedirect(route('executive.programs.show', $program))
+        ->assertSessionHas('success', 'Program approved. Staff can add beneficiaries to this program.');
+
+    expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::Approved)
+        ->and($program->assistance()->count())->toBe(0);
+});
+
+test('assistance cannot be added to a program without beneficiaries until it is approved', function () {
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::Head, $department);
+    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $program = draftProgram($department);
+    $program->update(['requires_beneficiaries' => false]);
+
+    $this->actingAs($head)
+        ->from(route('user.programs.show', [$department, $program]))
+        ->post(route('user.programs.assistances.store', [$department, $program]), [])
+        ->assertForbidden();
+
+    $this->actingAs($head)
+        ->post(route('user.programs.approval.store', [$department, $program]))
+        ->assertRedirect();
+
+    $this->actingAs($governor)
+        ->post(route('executive.programs.approve', $program))
+        ->assertRedirect();
+
+    $this->actingAs($head)
+        ->from(route('user.programs.show', [$department, $program]))
+        ->post(route('user.programs.assistances.store', [$department, $program]), [])
+        ->assertSessionHasErrors();
+
+    $added = verifiedAssistance($program, $head, 'CAIS-300', 'Later Person', RequestSubStatusCode::AwaitingReview);
+
+    expect($added->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::AwaitingReview)
+        ->and($head->can('advance', $added->fresh()))->toBeTrue();
+});
+
+test('an approved program cannot be edited', function (bool $requiresBeneficiaries) {
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::Head, $department);
+    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $program = draftProgram($department);
+    $program->update(['requires_beneficiaries' => $requiresBeneficiaries]);
+
+    if ($requiresBeneficiaries) {
+        verifiedAssistance($program, $head, 'CAIS-100', 'Verified Person');
+    }
+
+    $this->actingAs($head)
+        ->post(route('user.programs.approval.store', [$department, $program]))
+        ->assertRedirect();
+
+    $this->actingAs($governor)
+        ->post(route('executive.programs.approve', $program))
+        ->assertRedirect();
+
+    $this->actingAs($head)
+        ->put(route('user.programs.update', [$department, $program]), [
+            'name' => 'Changed Program',
+            'descriptions' => 'Household relief',
+            'start_at' => now()->toDateString(),
+            'fund_ids' => [1],
+            'item_ids' => [1],
+        ])
+        ->assertForbidden();
+
+    expect($program->refresh()->name)->toBe('Relief Program');
+})->with([
+    true,
+    false,
+]);
+
+test('an approved beneficiary list stays frozen while release can continue', function () {
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::Head, $department);
+    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $program = draftProgram($department);
+    $verified = verifiedAssistance($program, $head, 'CAIS-100', 'Verified Person');
+    $pending = verifiedAssistance($program, $head, 'CAIS-101', 'Pending Person', RequestSubStatusCode::AwaitingReview);
+
+    $this->actingAs($head)
+        ->post(route('user.programs.approval.store', [$department, $program]))
+        ->assertRedirect();
+
+    $this->actingAs($governor)
+        ->post(route('executive.programs.approve', $program))
+        ->assertRedirect();
+
+    $verified->refresh();
+    $pending->refresh();
+
+    $this->actingAs($head)
+        ->put(route('user.programs.assistances.update', [$department, $program, $verified]), [])
+        ->assertForbidden();
+
+    $this->actingAs($head)
+        ->delete(route('user.programs.assistances.destroy', [$department, $program, $pending]))
+        ->assertForbidden();
+
+    $this->actingAs($head)
+        ->from(route('user.programs.show', [$department, $program]))
+        ->post(route('user.programs.assistances.store', [$department, $program]), [])
+        ->assertForbidden();
+
+    expect($head->can('advance', $verified))->toBeTrue()
+        ->and($head->can('advance', $pending))->toBeFalse();
+});
+
+test('public intake follows the beneficiary rule and executive approval', function () {
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::DepartmentHead, $department);
+    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $withoutList = draftProgram($department);
+    $withoutList->update([
+        'name' => 'Open After Approval',
+        'requires_beneficiaries' => false,
+        'public_intake' => true,
+    ]);
+    $withList = draftProgram($department);
+    $withList->update([
+        'name' => 'Closed After Approval',
+        'public_intake' => true,
+    ]);
+    verifiedAssistance($withList, $head, 'CAIS-400', 'Listed Person');
+
+    $this->get(route('public.apply.show', $withoutList))->assertNotFound();
+
+    $this->actingAs($head)
+        ->post(route('user.programs.approval.store', [$department, $withoutList]))
+        ->assertRedirect();
+    $this->actingAs($head)
+        ->post(route('user.programs.approval.store', [$department, $withList]))
+        ->assertRedirect();
+    $this->actingAs($governor)
+        ->post(route('executive.programs.approve', $withoutList))
+        ->assertRedirect();
+    $this->actingAs($governor)
+        ->post(route('executive.programs.approve', $withList))
+        ->assertRedirect();
+
+    $this->get(route('public.apply.show', $withoutList))->assertOk();
+    $this->get(route('public.apply.show', $withList))->assertNotFound();
+});
+
+test('a batch copies whether the parent program uses beneficiaries', function () {
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $scheme = Program::factory()->scheme()->create([
+        'department_id' => $department->id,
+        'requires_beneficiaries' => false,
+        'approval_status' => ProgramApprovalStatus::Draft,
+    ]);
+
+    $batch = app(CreateProgramBatch::class)($scheme, [
+        'batch_name' => 'First',
+        'start_at' => now()->toDateString(),
+        'fund_ids' => [],
+    ]);
+
+    expect($batch->requiresBeneficiaries())->toBeFalse();
 });
 
 function officeUser(RoleName $role, Department $department): User

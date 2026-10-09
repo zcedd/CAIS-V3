@@ -14,6 +14,7 @@ export type ProgramListRow = {
     batches_count?: number | null;
     open_batches_count?: number | null;
     approval_label?: string | null;
+    beneficiary_approval_label?: string | null;
     department?: {
         id: number;
         name: string;
@@ -106,6 +107,16 @@ export function ProgramFolderCard({
                                         {batchCount > 0
                                             ? ` · ${openBatchCount} open`
                                             : ''}
+                                    </span>
+                                </>
+                            ) : null}
+                            {program.beneficiary_approval_label ? (
+                                <>
+                                    <span className="mx-1.5 text-border">
+                                        ·
+                                    </span>
+                                    <span>
+                                        {program.beneficiary_approval_label}
                                     </span>
                                 </>
                             ) : null}

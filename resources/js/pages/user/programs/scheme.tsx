@@ -84,7 +84,11 @@ type ProgramDetail = {
     is_organization: boolean | null;
     kind?: string | null;
     approval_label?: string | null;
+    beneficiary_approval_label?: string | null;
+    requires_beneficiaries?: boolean;
+    can_change_requires_beneficiaries?: boolean;
     can_submit_approval?: boolean;
+    can_update?: boolean;
     department_id: number;
 };
 
@@ -107,6 +111,7 @@ type SchemeBatchRow = {
     public_intake?: boolean;
     total_requests: number;
     approval_label?: string | null;
+    beneficiary_approval_label?: string | null;
     can_submit_approval?: boolean;
 };
 
@@ -212,7 +217,7 @@ export default function UserProgramScheme({
     }, [addBatchOpen]);
 
     const heading = program.name;
-    const canEdit = Boolean(department?.slug);
+    const canEdit = Boolean(department?.slug && program.can_update);
     const isClosed = Boolean(program.is_closed);
     const description = program.descriptions?.trim();
     const fundOptions = (funds ?? []).map((fund) => ({
@@ -255,6 +260,11 @@ export default function UserProgramScheme({
                                 <Badge variant="outline">
                                     <Building2 aria-hidden />
                                     {department.name}
+                                </Badge>
+                            ) : null}
+                            {program.beneficiary_approval_label ? (
+                                <Badge variant="outline">
+                                    {program.beneficiary_approval_label}
                                 </Badge>
                             ) : null}
                             {program.approval_label ? (
@@ -399,6 +409,13 @@ export default function UserProgramScheme({
                                                     ? 'Closed'
                                                     : 'Open'}
                                             </Badge>
+                                            {batch.beneficiary_approval_label ? (
+                                                <Badge variant="outline">
+                                                    {
+                                                        batch.beneficiary_approval_label
+                                                    }
+                                                </Badge>
+                                            ) : null}
                                             {batch.approval_label ? (
                                                 <Badge variant="outline">
                                                     {batch.approval_label}

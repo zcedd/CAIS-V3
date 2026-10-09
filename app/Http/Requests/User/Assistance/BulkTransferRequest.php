@@ -82,6 +82,13 @@ class BulkTransferRequest extends FormRequest
                     return;
                 }
 
+                if (! $targetProgram->acceptsNewAssistance()) {
+                    $validator->errors()->add(
+                        'target_program_id',
+                        'Assistance cannot be added to the selected program.',
+                    );
+                }
+
                 foreach ($this->assistances() as $assistance) {
                     if (! Gate::allows('update', $assistance)) {
                         $validator->errors()->add(

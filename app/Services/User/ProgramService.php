@@ -3,6 +3,7 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Enums\ProgramApprovalAction;
 use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
 use App\Models\Department;
@@ -15,6 +16,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\ValidationException;
 
 class ProgramService
 {
@@ -51,6 +53,8 @@ class ProgramService
                 'is_closed',
                 'is_organization',
                 'public_intake',
+                'requires_beneficiaries',
+                'approval_status',
                 'department_id',
                 'kind',
             ])
@@ -90,7 +94,16 @@ class ProgramService
             )
             ->orderByDesc('id')
             ->paginate($perPage)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(function (Program $program): Program {
+                $status = $program->approval_status instanceof ProgramApprovalStatus
+                    ? $program->approval_status
+                    : ProgramApprovalStatus::Approved;
+                $program->setAttribute('approval_label', $status->label());
+                $program->setAttribute('beneficiary_approval_label', $program->beneficiaryApprovalLabel());
+
+                return $program;
+            });
     }
 
     /**
@@ -112,6 +125,7 @@ class ProgramService
             'public_intake' => $kind === ProgramKind::Scheme
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
+            'requires_beneficiaries' => (bool) ($validated['requires_beneficiaries'] ?? true),
             'kind' => $kind,
             'approval_status' => ProgramApprovalStatus::Draft,
             'workflow_id' => $validated['workflow_id'] ?? null,
@@ -171,6 +185,10 @@ class ProgramService
             'is_closed' => $validated['is_closed'] ?? false,
             'public_intake' => $validated['public_intake'] ?? false,
         ];
+
+        if (array_key_exists('requires_beneficiaries', $validated)) {
+            $payload['requires_beneficiaries'] = (bool) $validated['requires_beneficiaries'];
+        }
 
         if (array_key_exists('workflow_id', $validated)) {
             $payload['workflow_id'] = $validated['workflow_id'];
@@ -278,6 +296,7 @@ class ProgramService
                 'is_closed',
                 'is_organization',
                 'public_intake',
+                'requires_beneficiaries',
                 'department_id',
                 'kind',
                 'batch_number',
@@ -292,6 +311,9 @@ class ProgramService
             'approval_label' => $program->approval_status instanceof ProgramApprovalStatus
                 ? $program->approval_status->label()
                 : ProgramApprovalStatus::Approved->label(),
+            'requires_beneficiaries' => $program->requiresBeneficiaries(),
+            'beneficiary_approval_label' => $program->beneficiaryApprovalLabel(),
+            'can_change_requires_beneficiaries' => $this->canChangeRequiresBeneficiaries($program),
             'parent' => $parent instanceof Program
                 ? [
                     'id' => $parent->id,
@@ -545,6 +567,8 @@ class ProgramService
                     'end_at' => $batch->end_at,
                     'is_closed' => (bool) $batch->is_closed,
                     'public_intake' => (bool) $batch->public_intake,
+                    'requires_beneficiaries' => $batch->requiresBeneficiaries(),
+                    'beneficiary_approval_label' => $batch->beneficiaryApprovalLabel(),
                     'total_requests' => (int) ($counted?->assistance_count ?? 0),
                     'approval_status' => $status->value,
                     'approval_label' => $status->label(),
@@ -579,6 +603,16 @@ class ProgramService
 
         if (! $program->batches()->exists()) {
             $payload['is_organization'] = $validated['is_organization'] ?? $program->is_organization;
+
+            if (array_key_exists('requires_beneficiaries', $validated)) {
+                $payload['requires_beneficiaries'] = (bool) $validated['requires_beneficiaries'];
+            }
+        }
+
+        if ($previousName !== $validated['name'] && $this->schemeHasExecutiveApprovedBatch($program)) {
+            throw ValidationException::withMessages([
+                'name' => 'This program name cannot change because an approved batch uses it.',
+            ]);
         }
 
         $program->update($payload);
@@ -672,6 +706,29 @@ class ProgramService
     private function forgetDashboardFilterOptions(int $departmentId): void
     {
         Cache::forget("dashboard.filter_options.{$departmentId}");
+    }
+
+    private function canChangeRequiresBeneficiaries(Program $program): bool
+    {
+        if ($program->isBatch() || $program->isApprovedByExecutive()) {
+            return false;
+        }
+
+        if ($program->isScheme()) {
+            return ! $program->batches()->exists();
+        }
+
+        return ! $program->assistance()->exists();
+    }
+
+    private function schemeHasExecutiveApprovedBatch(Program $scheme): bool
+    {
+        return $scheme->batches()
+            ->where('approval_status', ProgramApprovalStatus::Approved->value)
+            ->whereHas('approvalEvents', function ($events): void {
+                $events->where('action', ProgramApprovalAction::Approved);
+            })
+            ->exists();
     }
 
     private function programDateForInput(mixed $value): ?string

@@ -62,6 +62,10 @@ class ProgramPolicy
      */
     public function update(User $user, Program $program): bool
     {
+        if ($program->isApprovedByExecutive()) {
+            return false;
+        }
+
         return $this->allows(
             $user,
             PermissionName::ProgramUpdate,

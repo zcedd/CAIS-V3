@@ -117,7 +117,12 @@ type ProgramDetail = {
     public_intake?: boolean | null;
     kind?: string | null;
     approval_label?: string | null;
+    beneficiary_approval_label?: string | null;
+    requires_beneficiaries?: boolean;
+    can_change_requires_beneficiaries?: boolean;
     can_submit_approval?: boolean;
+    can_update?: boolean;
+    can_create_assistance?: boolean;
     batch_name?: string | null;
     department_id: number;
     parent?: { id: number; name: string } | null;
@@ -467,8 +472,8 @@ export default function UserProgramShow({
     );
 
     const heading = program.name;
-    const canEdit = Boolean(department?.slug);
-    const canCreateAssistance = Boolean(department?.slug && !program.is_closed);
+    const canEdit = Boolean(department?.slug && program.can_update);
+    const canCreateAssistance = Boolean(program.can_create_assistance);
     const liveAssistanceTable = {
         assistances,
         mode_options,
@@ -552,6 +557,11 @@ export default function UserProgramShow({
                                 <Badge variant="outline">
                                     <Building2 aria-hidden />
                                     {department.name}
+                                </Badge>
+                            ) : null}
+                            {program.beneficiary_approval_label ? (
+                                <Badge variant="outline">
+                                    {program.beneficiary_approval_label}
                                 </Badge>
                             ) : null}
                             {program.approval_label ? (
