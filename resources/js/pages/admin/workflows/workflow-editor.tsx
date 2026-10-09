@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MultiSelect } from '@/components/ui/multi-select';
 import {
     Select,
     SelectContent,
@@ -109,6 +110,34 @@ type DraftStep = {
     is_end: boolean;
     transition_status_ids: string[];
 };
+
+function assignedStatusOptions(
+    steps: DraftStep[],
+    index: number,
+    statuses: WorkflowStatus[],
+): { value: string; label: string }[] {
+    const seen = new Set<string>();
+
+    return steps.flatMap((step, stepIndex) => {
+        if (stepIndex === index || seen.has(step.request_status_id)) {
+            return [];
+        }
+
+        seen.add(step.request_status_id);
+
+        const statusName =
+            statuses.find(
+                (status) => String(status.id) === step.request_status_id,
+            )?.name ?? 'Status';
+
+        return [
+            {
+                value: step.request_status_id,
+                label: statusName,
+            },
+        ];
+    });
+}
 
 function stepsFromWorkflow(workflow: WorkflowPayload): DraftStep[] {
     return [...workflow.steps]
@@ -639,12 +668,13 @@ export function WorkflowEditor({
                                                 )
                                             }
                                         />
-                                        Department default
+                                        Use as the department
+                                        default workflow
                                     </label>
 
                                     <div className="space-y-2">
                                         <Label htmlFor="workflow-staff-entry">
-                                            Staff encode entry
+                                            Starting status for staff encoding
                                         </Label>
                                         <Select
                                             value={staffEntryId}
@@ -666,11 +696,21 @@ export function WorkflowEditor({
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        <p className="text-sm text-muted-foreground">
+                                            Status a new request starts in when
+                                            staff encode it.
+                                        </p>
                                     </div>
 
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between gap-2">
-                                            <Label>Stages</Label>
+                                            <div className="space-y-1">
+                                                <Label>Stages</Label>
+                                                <p className="text-sm text-muted-foreground">
+                                                    Each stage is one request
+                                                    status in the path.
+                                                </p>
+                                            </div>
                                             {addableStatuses.length > 0 ? (
                                                 <Select
                                                     onValueChange={(value) => {
@@ -752,10 +792,15 @@ export function WorkflowEditor({
                                                     className="space-y-3 rounded-lg border p-3"
                                                 >
                                                     <div className="flex items-center justify-between gap-2">
-                                                        <p className="font-medium">
-                                                            {index + 1}.{' '}
-                                                            {statusName}
-                                                        </p>
+                                                        <div>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                Request status
+                                                            </p>
+                                                            <p className="font-medium">
+                                                                {index + 1}.{' '}
+                                                                {statusName}
+                                                            </p>
+                                                        </div>
                                                         {steps.length > 1 ? (
                                                             <Button
                                                                 type="button"
@@ -785,7 +830,7 @@ export function WorkflowEditor({
                                                     <div className="grid gap-3 sm:grid-cols-2">
                                                         <div className="space-y-2">
                                                             <Label>
-                                                                Step code
+                                                                Stage code
                                                             </Label>
                                                             <Input
                                                                 value={
@@ -803,10 +848,14 @@ export function WorkflowEditor({
                                                                 }
                                                                 placeholder="VERIFY_BENEFICIARY"
                                                             />
+                                                            <p className="text-sm text-muted-foreground">
+                                                                Short identifier
+                                                                for this stage.
+                                                            </p>
                                                         </div>
                                                         <div className="space-y-2">
                                                             <Label>
-                                                                Step name
+                                                                Stage name
                                                             </Label>
                                                             <Input
                                                                 value={
@@ -828,6 +877,10 @@ export function WorkflowEditor({
                                                                     statusName
                                                                 }
                                                             />
+                                                            <p className="text-sm text-muted-foreground">
+                                                                Name staff see
+                                                                for this stage.
+                                                            </p>
                                                         </div>
                                                     </div>
                                                     <div className="flex flex-wrap gap-4 text-sm">
@@ -852,7 +905,8 @@ export function WorkflowEditor({
                                                                     )
                                                                 }
                                                             />
-                                                            Start step
+                                                            First stage of the
+                                                            workflow
                                                         </label>
                                                         <label className="flex items-center gap-2">
                                                             <Input
@@ -874,108 +928,15 @@ export function WorkflowEditor({
                                                                     )
                                                                 }
                                                             />
-                                                            End step
+                                                            Last stage of the
+                                                            workflow
                                                         </label>
                                                     </div>
                                                     <div className="grid gap-3 sm:grid-cols-2">
                                                         <div className="space-y-2">
                                                             <Label>
-                                                                Step code
-                                                            </Label>
-                                                            <Input
-                                                                value={
-                                                                    step.code
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            code: event.target.value.toUpperCase(),
-                                                                        },
-                                                                    )
-                                                                }
-                                                                placeholder="VERIFY_BENEFICIARY"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Step name
-                                                            </Label>
-                                                            <Input
-                                                                value={
-                                                                    step.name
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            name: event
-                                                                                .target
-                                                                                .value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                                placeholder={
-                                                                    statusName
-                                                                }
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-4 text-sm">
-                                                        <label className="flex items-center gap-2">
-                                                            <Input
-                                                                type="checkbox"
-                                                                className="size-4"
-                                                                checked={
-                                                                    step.is_start
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            is_start:
-                                                                                event
-                                                                                    .target
-                                                                                    .checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            Start step
-                                                        </label>
-                                                        <label className="flex items-center gap-2">
-                                                            <Input
-                                                                type="checkbox"
-                                                                className="size-4"
-                                                                checked={
-                                                                    step.is_end
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            is_end: event
-                                                                                .target
-                                                                                .checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            End step
-                                                        </label>
-                                                    </div>
-                                                    <div className="grid gap-3 sm:grid-cols-2">
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Default reason
+                                                                Reason when the
+                                                                request enters
                                                             </Label>
                                                             <Select
                                                                 value={
@@ -1017,10 +978,16 @@ export function WorkflowEditor({
                                                                     )}
                                                                 </SelectContent>
                                                             </Select>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                Saved when a
+                                                                request moves
+                                                                into this stage.
+                                                            </p>
                                                         </div>
                                                         <div className="space-y-2">
                                                             <Label>
-                                                                SLA hours
+                                                                Time limit
+                                                                (hours)
                                                             </Label>
                                                             <Input
                                                                 type="number"
@@ -1043,12 +1010,52 @@ export function WorkflowEditor({
                                                                 }
                                                                 placeholder="None"
                                                             />
+                                                            <p className="text-sm text-muted-foreground">
+                                                                Leave blank for
+                                                                no time limit.
+                                                            </p>
                                                         </div>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label>
+                                                            Assigned statuses
+                                                        </Label>
+                                                        <MultiSelect
+                                                            options={assignedStatusOptions(
+                                                                steps,
+                                                                index,
+                                                                statuses,
+                                                            )}
+                                                            selected={
+                                                                step.transition_status_ids
+                                                            }
+                                                            onChange={(
+                                                                selected,
+                                                            ) =>
+                                                                updateStep(
+                                                                    index,
+                                                                    {
+                                                                        transition_status_ids:
+                                                                            selected,
+                                                                    },
+                                                                )
+                                                            }
+                                                            placeholder="Assign next statuses"
+                                                        />
+                                                        <p className="text-sm text-muted-foreground">
+                                                            The assignee can
+                                                            only move a request
+                                                            to these statuses.
+                                                            None are assigned
+                                                            until you choose
+                                                            them.
+                                                        </p>
                                                     </div>
                                                     <div className="flex flex-wrap gap-4 text-sm">
                                                         <div className="min-w-56 space-y-2">
                                                             <Label>
-                                                                Assignment type
+                                                                Who handles this
+                                                                stage
                                                             </Label>
                                                             <Select
                                                                 value={
@@ -1275,7 +1282,9 @@ export function WorkflowEditor({
                                                                     )
                                                                 }
                                                             />
-                                                            Automatic assignment
+                                                            Assign automatically
+                                                            when the request
+                                                            reaches this stage
                                                         </label>
                                                         <label className="flex items-center gap-2">
                                                             <Input
@@ -1298,8 +1307,9 @@ export function WorkflowEditor({
                                                                     )
                                                                 }
                                                             />
-                                                            Allow skip to
-                                                            delivered
+                                                            Allow a jump
+                                                            straight to
+                                                            Delivered
                                                         </label>
                                                     </div>
                                                 </div>

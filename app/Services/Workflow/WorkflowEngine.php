@@ -3,7 +3,6 @@
 namespace App\Services\Workflow;
 
 use App\Actions\User\RecalculateAssistanceSla;
-use App\Enums\PermissionName;
 use App\Enums\RequestStatusCode;
 use App\Enums\WorkflowInstanceStatus;
 use App\Enums\WorkflowStatus;
@@ -583,11 +582,7 @@ class WorkflowEngine
         ?WorkflowTask $task,
         ?WorkflowStep $step,
     ): bool {
-        if ($user->isSuperAdmin() || $user->can(PermissionName::DepartmentSupervise->value)) {
-            return true;
-        }
-
-        if ($user->can(PermissionName::ProgramApprove->value)) {
+        if ($user->isSuperAdmin()) {
             return true;
         }
 
@@ -595,9 +590,12 @@ class WorkflowEngine
             return (int) $task->assigned_to_id === (int) $user->id;
         }
 
+        if ($assistance->assigned_to_id !== null) {
+            return (int) $assistance->assigned_to_id === (int) $user->id;
+        }
+
         if ($step?->assigned_to_id !== null) {
-            return (int) $assistance->assigned_to_id === (int) $user->id
-                || (int) $step->assigned_to_id === (int) $user->id;
+            return (int) $step->assigned_to_id === (int) $user->id;
         }
 
         return true;

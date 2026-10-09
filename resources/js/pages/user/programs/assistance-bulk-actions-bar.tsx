@@ -47,15 +47,41 @@ export function AssistanceBulkActionsBar({
             .filter((id): id is number => typeof id === 'number');
     }, [rowSelection, table]);
 
-    const canAdvanceSelection = useMemo(() => {
-        return selectedAssistanceIds.every((id) => {
-            const row = table.getRowModel().flatRows.find(
-                (tableRow) => tableRow.original.id === id,
+    const selectedRows = useMemo(() => {
+        return selectedAssistanceIds
+            .map(
+                (id) =>
+                    table
+                        .getRowModel()
+                        .flatRows.find((tableRow) => tableRow.original.id === id)
+                        ?.original,
+            )
+            .filter(
+                (row): row is UserProgramAssistanceRow => row !== undefined,
             );
-
-            return row?.original.can_advance !== false;
-        });
     }, [selectedAssistanceIds, table]);
+
+    const canAdvanceSelection = useMemo(() => {
+        return selectedRows.every((row) => row.can_advance !== false);
+    }, [selectedRows]);
+
+    const allowedRequestStatusIds = useMemo(() => {
+        return selectedRows.reduce<number[] | undefined>((shared, row) => {
+            const ids = row.allowed_request_status_ids;
+
+            if (ids === undefined) {
+                return shared;
+            }
+
+            if (shared === undefined) {
+                return ids;
+            }
+
+            const allowed = new Set(ids);
+
+            return shared.filter((id) => allowed.has(id));
+        }, undefined);
+    }, [selectedRows]);
 
     const handleBulkStatusUpdated = () => {
         table.resetRowSelection();
@@ -122,6 +148,7 @@ export function AssistanceBulkActionsBar({
                 programId={programId}
                 programName={programName}
                 requestSubStatusOptions={requestSubStatusOptions}
+                allowedRequestStatusIds={allowedRequestStatusIds}
                 canAdvance={canAdvanceSelection}
                 onUpdated={handleBulkStatusUpdated}
             />

@@ -107,6 +107,7 @@ class WorkflowTaskAssigner
             }
         }
 
+        $task->loadMissing('step');
         ($this->recalculateAssistanceSla)($assistance->refresh(), $task->step);
 
         return $task->refresh();
@@ -140,6 +141,7 @@ class WorkflowTaskAssigner
         $task = $task->refresh();
         $user->notify((new WorkflowTaskClaimedNotification($task, $user))->afterCommit());
 
+        $task->loadMissing('step');
         ($this->recalculateAssistanceSla)($assistance->refresh(), $task->step);
 
         return $task->refresh();
@@ -150,9 +152,9 @@ class WorkflowTaskAssigner
         $type = $step->assignment_type ?? WorkflowAssignmentType::None;
 
         if ($step->assigned_to_id !== null) {
-            $user = $step->assignedTo ?? User::query()->find($step->assigned_to_id);
+            $step->loadMissing('assignedTo');
 
-            return $user instanceof User ? $user : null;
+            return $step->assignedTo instanceof User ? $step->assignedTo : null;
         }
 
         if ($type === WorkflowAssignmentType::None) {

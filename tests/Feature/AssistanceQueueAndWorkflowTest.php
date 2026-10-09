@@ -20,6 +20,7 @@ use App\Notifications\AssistanceAssignedNotification;
 use App\Notifications\StaleAssistanceReminderNotification;
 use App\Services\User\AssistanceService;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification;
 
 function createQueueAssistanceContext(): array
@@ -141,6 +142,58 @@ test('assigning an assistance writes history and notifies the new assignee', fun
 
     Notification::assertSentTo($assignee, AssistanceAssignedNotification::class);
     Notification::assertNotSentTo($user, AssistanceAssignedNotification::class);
+});
+
+test('only the assignee can update status using statuses assigned on the workflow', function () {
+    ['department' => $department, 'encoder' => $encoder, 'assignee' => $assignee, 'program' => $program, 'beneficiary' => $beneficiary, 'mode' => $mode] = createQueueAssistanceContext();
+
+    $assistance = Assistance::query()->create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => now()->toDateString(),
+        'user_id' => $encoder->id,
+        'assigned_to_id' => $assignee->id,
+        'assigned_at' => now(),
+    ]);
+
+    AssistanceRequestSubStatus::query()->create([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => catalogReasonId(RequestSubStatusCode::AwaitingReview),
+        'recorded_at' => now(),
+    ]);
+
+    $this->actingAs($assignee);
+    $row = collect(app(AssistanceService::class)->paginatedForProgram(
+        $program,
+        'id',
+        'asc',
+        15,
+        '',
+        [],
+        [],
+    )->items())->first();
+
+    expect($row['allowed_request_status_ids'])
+        ->toContain(catalogParentId(RequestStatusCode::Review))
+        ->toContain(catalogParentId(RequestStatusCode::Submitted))
+        ->not->toContain(catalogParentId(RequestStatusCode::Delivered))
+        ->not->toContain(catalogParentId(RequestStatusCode::Approved));
+
+    $this->actingAs($encoder)
+        ->from(route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]))
+        ->patch(route('user.programs.assistances.status.update', [
+            'department' => $department->slug,
+            'program' => $program->id,
+            'assistance' => $assistance->id,
+        ]), [
+            'request_sub_status_id' => catalogReasonId(RequestSubStatusCode::UnderReview),
+            'recorded_at' => now()->toDateTimeString(),
+        ])
+        ->assertForbidden();
 });
 
 test('standard workflow rejects skipping from submitted to delivered', function () {
@@ -465,19 +518,25 @@ test('staff encode on an owned submitted step assigns the owner instead of the e
     ]);
     $program->item()->attach($item->id);
 
-    $this->actingAs($encoder)
-        ->post(route('user.programs.assistances.store', [
-            'department' => $department->slug,
-            'program' => $program->id,
-        ]), [
-            'beneficiary_id' => $beneficiary->id,
-            'mode_of_request_id' => $mode->id,
-            'recorded_at' => now()->toDateTimeString(),
-            'item_details' => [
-                ['item_id' => $item->id, 'quantity' => 1],
-            ],
-        ])
-        ->assertRedirect();
+    Model::preventLazyLoading(true);
+
+    try {
+        $this->actingAs($encoder)
+            ->post(route('user.programs.assistances.store', [
+                'department' => $department->slug,
+                'program' => $program->id,
+            ]), [
+                'beneficiary_id' => $beneficiary->id,
+                'mode_of_request_id' => $mode->id,
+                'recorded_at' => now()->toDateTimeString(),
+                'item_details' => [
+                    ['item_id' => $item->id, 'quantity' => 1],
+                ],
+            ])
+            ->assertRedirect();
+    } finally {
+        Model::preventLazyLoading(false);
+    }
 
     $assistance = Assistance::query()->first();
 

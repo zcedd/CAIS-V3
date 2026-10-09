@@ -867,9 +867,6 @@ export default function UserProgramShow({
                                     transferProgramOptions={
                                         resolvedAssistanceTable.transfer_program_options
                                     }
-                                    staffOptions={
-                                        resolvedAssistanceTable.staff_options
-                                    }
                                     canTransferAssistance={
                                         canTransferAssistance
                                     }

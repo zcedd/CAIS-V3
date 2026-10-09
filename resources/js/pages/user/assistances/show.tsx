@@ -1097,8 +1097,7 @@ export default function UserAssistanceShow({
                         />
                         {assistance.can_advance === false ? (
                             <p className="text-sm text-muted-foreground">
-                                Only the assignee for this stage can update the
-                                status.
+                                Only the assignee can update the status.
                             </p>
                         ) : null}
                         {staff_options.length > 0 &&
