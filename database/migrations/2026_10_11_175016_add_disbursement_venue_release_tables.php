@@ -106,7 +106,9 @@ return new class extends Migration
         if (! Schema::hasTable('disbursement_acknowledgment_receipts')) {
             Schema::create('disbursement_acknowledgment_receipts', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('disbursement_transaction_id')->constrained()->restrictOnDelete();
+                $table->foreignId('disbursement_transaction_id')
+                    ->constrained(indexName: 'disbursement_receipt_transaction_fk')
+                    ->restrictOnDelete();
                 $table->string('receipt_number')->unique();
                 $table->string('verification_token', 80)->unique();
                 $table->timestamp('issued_at');
@@ -133,7 +135,7 @@ return new class extends Migration
             $table->foreignId('disbursement_transaction_id')
                 ->nullable()
                 ->after('disbursement_batch_item_line_id')
-                ->constrained()
+                ->constrained(indexName: 'disbursement_release_transaction_fk')
                 ->nullOnDelete();
         });
     }
@@ -189,7 +191,7 @@ return new class extends Migration
 
         if (! Schema::hasForeignKey($tableName, ['disbursement_transaction_id'])) {
             Schema::table($tableName, function (Blueprint $table) {
-                $table->foreign('disbursement_transaction_id')
+                $table->foreign('disbursement_transaction_id', 'disbursement_receipt_transaction_fk')
                     ->references('id')
                     ->on('disbursement_transactions')
                     ->restrictOnDelete();
