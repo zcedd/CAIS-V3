@@ -28,16 +28,22 @@ class DisbursementBatch extends Model
         'description',
         'scheduled_at',
         'venue',
+        'venue_details',
+        'venue_latitude',
+        'venue_longitude',
         'approval_mode',
         'status',
         'revision',
         'lock_version',
         'finalization_scope',
         'created_by',
+        'updated_by',
         'submitted_at',
         'approved_at',
+        'opened_at',
         'locked_at',
         'completed_at',
+        'closed_at',
         'cancelled_at',
         'cancellation_reason',
         'notes',
@@ -57,8 +63,12 @@ class DisbursementBatch extends Model
             'scheduled_at' => 'datetime',
             'submitted_at' => 'datetime',
             'approved_at' => 'datetime',
+            'opened_at' => 'datetime',
             'locked_at' => 'datetime',
             'completed_at' => 'datetime',
+            'closed_at' => 'datetime',
+            'venue_latitude' => 'decimal:7',
+            'venue_longitude' => 'decimal:7',
             'cancelled_at' => 'datetime',
             'approval_mode' => DisbursementApprovalMode::class,
             'status' => DisbursementBatchStatus::class,
@@ -116,6 +126,21 @@ class DisbursementBatch extends Model
     public function documents(): HasMany
     {
         return $this->hasMany(DisbursementBatchDocument::class);
+    }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(DisbursementBatchAssignment::class);
+    }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(DisbursementTransaction::class);
+    }
+
+    public function editor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'updated_by');
     }
 
     public function isEditable(): bool

@@ -32,6 +32,7 @@ import {
     reopen,
     schedule,
     show as disbursementShow,
+    venue,
     start,
     submit,
     validate,
@@ -150,6 +151,7 @@ type Batch = {
         unserved_beneficiaries: number;
         approved_cash: string;
         actual_cash: string;
+        remaining_cash: string;
         ready_to_complete: boolean;
     };
 };
@@ -224,6 +226,14 @@ export default function DisbursementShow({
                         label="Approved cash"
                         value={batch.approved_cash_total}
                     />
+                    <Summary
+                        label="Released cash"
+                        value={batch.reconciliation.actual_cash}
+                    />
+                    <Summary
+                        label="Remaining cash"
+                        value={batch.reconciliation.remaining_cash}
+                    />
                 </div>
 
                 {batch.finalization_label && (
@@ -256,10 +266,11 @@ export default function DisbursementShow({
                     )}
                     {batch.status === 'approved' && (
                         <ScheduleForm
-                            onSubmit={(scheduledAt, venue) =>
+                            onSubmit={(scheduledAt, venueName, details) =>
                                 post(schedule.url(args), {
                                     scheduled_at: scheduledAt,
-                                    venue,
+                                    venue: venueName,
+                                    venue_details: details,
                                     lock_version: batch.lock_version,
                                 })
                             }
@@ -287,6 +298,12 @@ export default function DisbursementShow({
                     {batch.status === 'scheduled' && (
                         <Button onClick={() => post(start.url(args))}>
                             Start disbursement
+                        </Button>
+                    )}
+                    {(batch.status === 'scheduled' ||
+                        batch.status === 'in_progress') && (
+                        <Button variant="outline" asChild>
+                            <Link href={venue.url(args)}>Venue desk</Link>
                         </Button>
                     )}
                     {batch.status === 'in_progress' && (
@@ -789,10 +806,6 @@ function ReleaseForm({
     item: Item;
     onSubmit: (payload: VisitData) => void;
 }) {
-    const line = item.lines[0];
-    const [outcome, setOutcome] = useState('served');
-    const [identityVerified, setIdentityVerified] = useState(false);
-
     return (
         <form
             className="mt-2 grid gap-2"
@@ -801,45 +814,17 @@ function ReleaseForm({
                 const form = new FormData(event.currentTarget);
                 onSubmit({
                     disbursement_batch_item_id: item.id,
-                    disbursement_batch_item_line_id: line?.id,
-                    outcome,
-                    actual_quantity:
-                        String(form.get('actual_quantity') ?? '') || null,
-                    actual_amount:
-                        String(form.get('actual_amount') ?? '') || null,
-                    receipt_reference: String(
-                        form.get('receipt_reference') ?? '',
-                    ),
-                    identity_verified: identityVerified,
+                    outcome: 'absent',
                     remarks: String(form.get('remarks') ?? ''),
                 });
             }}
         >
-            <Select value={outcome} onValueChange={setOutcome}>
-                <SelectTrigger className="w-full">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="served">Served</SelectItem>
-                    <SelectItem value="partial">Partial</SelectItem>
-                    <SelectItem value="absent">Absent</SelectItem>
-                </SelectContent>
-            </Select>
-            <Input name="actual_quantity" placeholder="Quantity" />
-            <Input name="actual_amount" placeholder="Cash amount" />
-            <Input name="receipt_reference" placeholder="Receipt reference" />
-            <label className="flex items-center gap-2 text-sm">
-                <Checkbox
-                    checked={identityVerified}
-                    onCheckedChange={(checked) =>
-                        setIdentityVerified(checked === true)
-                    }
-                />
-                Identity verified
-            </label>
-            <Input name="remarks" placeholder="Remarks" />
-            <Button type="submit" size="sm">
-                Record release
+            <p className="text-xs text-muted-foreground">
+                Served and partial releases are recorded at the venue desk.
+            </p>
+            <Input name="remarks" placeholder="Absence reason" />
+            <Button type="submit" size="sm" variant="outline">
+                Mark absent
             </Button>
         </form>
     );
@@ -848,7 +833,7 @@ function ReleaseForm({
 function ScheduleForm({
     onSubmit,
 }: {
-    onSubmit: (scheduledAt: string, venue: string) => void;
+    onSubmit: (scheduledAt: string, venue: string, details: string) => void;
 }) {
     return (
         <form
@@ -859,11 +844,13 @@ function ScheduleForm({
                 onSubmit(
                     String(form.get('scheduled_at')),
                     String(form.get('venue') ?? ''),
+                    String(form.get('venue_details') ?? ''),
                 );
             }}
         >
             <Input type="datetime-local" name="scheduled_at" required />
             <Input name="venue" placeholder="Venue" />
+            <Input name="venue_details" placeholder="Venue details" />
             <Button type="submit">Schedule</Button>
         </form>
     );

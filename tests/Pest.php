@@ -4,7 +4,11 @@ use App\Enums\RequestStatusCode;
 use App\Enums\RequestSubStatusCode;
 use App\Enums\RoleName;
 use App\Enums\StockMovementType;
+use App\Models\Assistance;
+use App\Models\AssistanceItem;
 use App\Models\Department;
+use App\Models\DisbursementBatch;
+use App\Models\Individual;
 use App\Models\Item;
 use App\Models\Program;
 use App\Models\User;
@@ -228,6 +232,98 @@ function withoutResourceRoles(User $user): User
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
     return $user->fresh() ?? $user;
+}
+
+/**
+ * @return array<string, mixed>
+ */
+function disbursementFixture(string $kind = 'cash', int $requests = 1): array
+{
+    $department = Department::create(['name' => 'Social Welfare '.uniqid()]);
+    $creator = User::factory()->create(['department_id' => $department->id]);
+    $creator->syncRoles([RoleName::Program->value]);
+    $governor = User::factory()->create(['department_id' => null]);
+    $governor->syncRoles([RoleName::Executive->value]);
+    $head = User::factory()->create(['department_id' => $department->id]);
+    $head->syncRoles([RoleName::DepartmentHead->value]);
+    $officer = User::factory()->create(['department_id' => $department->id]);
+    $officer->syncRoles([RoleName::ReleasingOfficer->value]);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    $program = Program::factory()->forDepartment($department)->create();
+    $item = Item::factory()->forDepartment($department)->when(
+        $kind === 'cash',
+        fn ($factory) => $factory->cash(),
+        fn ($factory) => $factory,
+    )->create(['name' => $kind === 'cash' ? 'Cash aid' : 'Rice']);
+    $program->item()->attach($item->id);
+
+    $assistances = [];
+
+    for ($index = 0; $index < $requests; $index++) {
+        $individual = Individual::factory()->create();
+        $assistance = Assistance::query()->create([
+            'program_id' => $program->id,
+            'beneficiary_id' => $individual->beneficiaryRecord->id,
+            'date_requested' => now()->toDateString(),
+            'user_id' => $creator->id,
+            'current_request_sub_status_id' => catalogReasonId(RequestSubStatusCode::Verified),
+        ]);
+        AssistanceItem::query()->create([
+            'assistance_id' => $assistance->id,
+            'item_id' => $item->id,
+            'quantity' => $kind === 'cash' ? 500 + ($index * 100) : 4,
+            'requested_quantity' => $kind === 'cash' ? 500 + ($index * 100) : 4,
+        ]);
+        $assistances[] = $assistance;
+    }
+
+    return compact('department', 'creator', 'governor', 'head', 'officer', 'program', 'item', 'assistances');
+}
+
+/**
+ * @param  array<string, mixed>  $fixture
+ * @return array<string, mixed>
+ */
+function disbursementPayload(array $fixture, string $mode = 'batch'): array
+{
+    return [
+        'program_id' => $fixture['program']->id,
+        'title' => 'Barangay release',
+        'description' => 'Scheduled payout',
+        'scheduled_at' => now()->addDays(3)->format('Y-m-d H:i:s'),
+        'venue' => 'Covered court',
+        'approval_mode' => $mode,
+        'assistance_ids' => collect($fixture['assistances'])->pluck('id')->all(),
+    ];
+}
+
+/**
+ * @param  array<string, mixed>  $fixture
+ */
+function storeDisbursement(array $fixture, string $mode = 'batch'): DisbursementBatch
+{
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.disbursements.store', $fixture['department']), disbursementPayload($fixture, $mode))
+        ->assertRedirect();
+
+    return DisbursementBatch::query()->latest('id')->firstOrFail();
+}
+
+/**
+ * @param  array<string, mixed>  $fixture
+ */
+function submitDisbursement(array $fixture, DisbursementBatch $batch): void
+{
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.disbursements.validate', [$fixture['department'], $batch]))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.disbursements.submit', [$fixture['department'], $batch]))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
 }
 
 function assignSuperAdminRole(User $user): User

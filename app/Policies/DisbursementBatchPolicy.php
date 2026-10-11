@@ -91,6 +91,42 @@ class DisbursementBatchPolicy
         return $this->allows($user, PermissionName::DisbursementExecute, $this->inDepartment($user, $batch));
     }
 
+    public function viewEvidence(User $user, DisbursementBatch $batch): bool
+    {
+        return $this->allows($user, PermissionName::DisbursementViewEvidence, $this->inDepartment($user, $batch));
+    }
+
+    public function downloadEvidence(User $user, DisbursementBatch $batch): bool
+    {
+        return $this->allows($user, PermissionName::DisbursementDownloadEvidence, $this->inDepartment($user, $batch));
+    }
+
+    public function issueReceipt(User $user, DisbursementBatch $batch): bool
+    {
+        return $this->execute($user, $batch)
+            && $user->can(PermissionName::DisbursementIssueReceipt->value);
+    }
+
+    public function reprintReceipt(User $user, DisbursementBatch $batch): bool
+    {
+        return $this->allows($user, PermissionName::DisbursementReprintReceipt, $this->inDepartment($user, $batch));
+    }
+
+    public function voidTransaction(User $user, DisbursementBatch $batch): bool
+    {
+        return $this->allows($user, PermissionName::DisbursementVoidTransaction, $this->inDepartment($user, $batch));
+    }
+
+    public function assignPersonnel(User $user, DisbursementBatch $batch): bool
+    {
+        return $this->allows($user, PermissionName::DisbursementAssignPersonnel, $this->inDepartment($user, $batch));
+    }
+
+    public function waiveLivePhoto(User $user, DisbursementBatch $batch): bool
+    {
+        return $this->allows($user, PermissionName::DisbursementWaiveLivePhoto, $this->inDepartment($user, $batch));
+    }
+
     public function reconcile(User $user, DisbursementBatch $batch): bool
     {
         return $this->allows($user, PermissionName::DisbursementReconcile, $this->inDepartment($user, $batch))

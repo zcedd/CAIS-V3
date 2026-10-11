@@ -11,6 +11,7 @@ class DisbursementReleaseRecord extends Model
     protected $fillable = [
         'disbursement_batch_item_id',
         'disbursement_batch_item_line_id',
+        'disbursement_transaction_id',
         'assistance_item_id',
         'outcome',
         'actual_quantity',
@@ -44,6 +45,11 @@ class DisbursementReleaseRecord extends Model
     public function line(): BelongsTo
     {
         return $this->belongsTo(DisbursementBatchItemLine::class, 'disbursement_batch_item_line_id');
+    }
+
+    public function transaction(): BelongsTo
+    {
+        return $this->belongsTo(DisbursementTransaction::class, 'disbursement_transaction_id');
     }
 
     public function assistanceItem(): BelongsTo

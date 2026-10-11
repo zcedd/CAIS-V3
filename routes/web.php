@@ -14,6 +14,7 @@ use App\Http\Controllers\User\AssistanceReceiptController as UserAssistanceRecei
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\DisbursementBatchController as UserDisbursementBatchController;
+use App\Http\Controllers\User\DisbursementVenueController as UserDisbursementVenueController;
 use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ItemStockController as UserItemStockController;
@@ -119,6 +120,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('disbursements/{disbursementBatch}/documents', [UserDisbursementBatchController::class, 'storeDocument'])->name('user.disbursements.documents.store');
         Route::get('disbursements/{disbursementBatch}/documents/{disbursementDocument}', [UserDisbursementBatchController::class, 'document'])->name('user.disbursements.documents.show');
         Route::get('disbursements/{disbursementBatch}/exports/{report}', [UserDisbursementBatchController::class, 'export'])->name('user.disbursements.report');
+        Route::get('disbursements/{disbursementBatch}/venue', [UserDisbursementVenueController::class, 'show'])->name('user.disbursements.venue');
+        Route::post('disbursements/{disbursementBatch}/personnel', [UserDisbursementVenueController::class, 'assign'])->name('user.disbursements.personnel.store');
+        Route::post('disbursements/{disbursementBatch}/items/{item}/transactions', [UserDisbursementVenueController::class, 'start'])->name('user.disbursements.transactions.store');
+        Route::post('disbursements/{disbursementBatch}/transactions/{transaction}/evidence', [UserDisbursementVenueController::class, 'evidence'])->name('user.disbursements.transactions.evidence.store');
+        Route::get('disbursements/{disbursementBatch}/transactions/{transaction}/evidence/{evidence}', [UserDisbursementVenueController::class, 'showEvidence'])->name('user.disbursements.transactions.evidence.show');
+        Route::post('disbursements/{disbursementBatch}/transactions/{transaction}/finalize', [UserDisbursementVenueController::class, 'finalize'])->name('user.disbursements.transactions.finalize');
+        Route::post('disbursements/{disbursementBatch}/transactions/{transaction}/void', [UserDisbursementVenueController::class, 'void'])->name('user.disbursements.transactions.void');
+        Route::get('disbursements/{disbursementBatch}/transactions/{transaction}/receipt', [UserDisbursementVenueController::class, 'receipt'])->name('user.disbursements.transactions.receipt');
+        Route::get('disbursements/{disbursementBatch}/transactions/{transaction}/receipt/pdf', [UserDisbursementVenueController::class, 'receiptPdf'])->name('user.disbursements.transactions.receipt.pdf');
+        Route::post('disbursements/{disbursementBatch}/receipts/{receipt}/reprint', [UserDisbursementVenueController::class, 'reprint'])->name('user.disbursements.receipts.reprint');
+        Route::post('disbursements/{disbursementBatch}/receipts/{receipt}/supersede', [UserDisbursementVenueController::class, 'supersede'])->name('user.disbursements.receipts.supersede');
 
         Route::get('unspsc-codes', [UserUnspscCodeController::class, 'search'])->name('user.unspsc-codes.search');
 

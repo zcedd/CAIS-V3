@@ -20,7 +20,9 @@ class StartDisbursementBatch
     {
         return DB::transaction(function () use ($batch, $actor): DisbursementBatch {
             $batch = DisbursementBatch::query()->whereKey($batch->id)->lockForUpdate()->firstOrFail();
-            $updated = $this->workflow->move($batch, DisbursementBatchStatus::InProgress, $actor);
+            $updated = $this->workflow->move($batch, DisbursementBatchStatus::InProgress, $actor, [
+                'opened_at' => $batch->opened_at ?? now(),
+            ]);
             $this->audit->record($actor, $updated, 'started', [
                 'revision' => $updated->revision,
             ]);

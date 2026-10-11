@@ -73,6 +73,18 @@ class DisbursementBatchController extends Controller
             ->when($request->filled('created_by'), fn ($query) => $query->where('created_by', $request->integer('created_by')))
             ->when($request->filled('scheduled_from'), fn ($query) => $query->whereDate('scheduled_at', '>=', $request->string('scheduled_from')->toString()))
             ->when($request->filled('scheduled_to'), fn ($query) => $query->whereDate('scheduled_at', '<=', $request->string('scheduled_to')->toString()))
+            ->when($request->filled('venue'), fn ($query) => $query->where('venue', 'like', '%'.$request->string('venue')->trim()->toString().'%'))
+            ->when($request->filled('personnel_id'), fn ($query) => $query->whereHas(
+                'assignments',
+                fn ($assignments) => $assignments->where('user_id', $request->integer('personnel_id')),
+            ))
+            ->when($request->filled('beneficiary'), function ($query) use ($request): void {
+                $search = '%'.$request->string('beneficiary')->trim()->toString().'%';
+                $query->whereHas('items.beneficiary', function ($beneficiary) use ($search): void {
+                    $beneficiary->where('name', 'like', $search)
+                        ->orWhere('cais_number', 'like', $search);
+                });
+            })
             ->when($request->filled('approver_id'), function ($query) use ($request): void {
                 $query->whereHas('decisions', fn ($decisions) => $decisions->where('actor_id', $request->integer('approver_id')));
             })
@@ -100,6 +112,7 @@ class DisbursementBatchController extends Controller
             'filters' => $request->only([
                 'search', 'program_id', 'status', 'approval_mode', 'created_by',
                 'scheduled_from', 'scheduled_to', 'approver_id', 'sort', 'direction',
+                'venue', 'personnel_id', 'beneficiary',
             ]),
             'statuses' => collect(DisbursementBatchStatus::cases())->map(fn (DisbursementBatchStatus $status): array => [
                 'value' => $status->value,

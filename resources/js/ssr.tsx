@@ -19,6 +19,8 @@ createServer((page) =>
         layout: (name) => {
             switch (true) {
                 case name === 'welcome':
+                case name === 'user/assistances/receipt':
+                case name === 'user/disbursements/receipt':
                     return null;
                 case name.startsWith('auth/'):
                     return AuthLayout;

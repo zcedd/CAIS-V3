@@ -70,6 +70,14 @@ enum PermissionName: string
     case DisbursementComplete = 'disbursement.complete';
     case DisbursementCancel = 'disbursement.cancel';
     case DisbursementPolicyManage = 'disbursement.policy.manage';
+    case DisbursementViewEvidence = 'disbursement.viewEvidence';
+    case DisbursementDownloadEvidence = 'disbursement.downloadEvidence';
+    case DisbursementIssueReceipt = 'disbursement.issueReceipt';
+    case DisbursementReprintReceipt = 'disbursement.reprintReceipt';
+    case DisbursementVoidTransaction = 'disbursement.voidTransaction';
+    case DisbursementViewAudit = 'disbursement.viewAudit';
+    case DisbursementAssignPersonnel = 'disbursement.assignPersonnel';
+    case DisbursementWaiveLivePhoto = 'disbursement.waiveLivePhoto';
 
     case DepartmentSupervise = 'department.supervise';
 
@@ -168,6 +176,14 @@ enum PermissionName: string
             self::DisbursementComplete => 'Complete a disbursement',
             self::DisbursementCancel => 'Cancel a disbursement',
             self::DisbursementPolicyManage => 'Manage disbursement approval policies',
+            self::DisbursementViewEvidence => 'View disbursement evidence',
+            self::DisbursementDownloadEvidence => 'Download disbursement evidence',
+            self::DisbursementIssueReceipt => 'Issue a disbursement acknowledgment receipt',
+            self::DisbursementReprintReceipt => 'Reprint a disbursement receipt',
+            self::DisbursementVoidTransaction => 'Void a disbursement release',
+            self::DisbursementViewAudit => 'View the disbursement audit log',
+            self::DisbursementAssignPersonnel => 'Assign disbursement personnel',
+            self::DisbursementWaiveLivePhoto => 'Waive live photo evidence',
             self::DepartmentSupervise => 'Supervise the department',
         };
     }
@@ -189,6 +205,7 @@ enum PermissionName: string
             self::FundView,
             self::DisbursementViewAny,
             self::DisbursementView,
+            self::DisbursementViewAudit,
             self::DisbursementApprove,
             self::DisbursementReturn,
             self::DisbursementReject,
@@ -243,6 +260,12 @@ enum PermissionName: string
             self::DisbursementSchedule,
             self::DisbursementCancel,
             self::DisbursementReconcile,
+            self::DisbursementViewEvidence,
+            self::DisbursementDownloadEvidence,
+            self::DisbursementViewAudit,
+            self::DisbursementAssignPersonnel,
+            self::DisbursementVoidTransaction,
+            self::DisbursementReprintReceipt,
         ];
     }
 
@@ -272,6 +295,10 @@ enum PermissionName: string
             self::DisbursementExecute,
             self::DisbursementReconcile,
             self::DisbursementComplete,
+            self::DisbursementViewEvidence,
+            self::DisbursementDownloadEvidence,
+            self::DisbursementIssueReceipt,
+            self::DisbursementReprintReceipt,
         ];
     }
 
@@ -291,6 +318,8 @@ enum PermissionName: string
             self::DisbursementSubmit,
             self::DisbursementSchedule,
             self::DisbursementCancel,
+            self::DisbursementAssignPersonnel,
+            self::DisbursementViewAudit,
         ];
     }
 

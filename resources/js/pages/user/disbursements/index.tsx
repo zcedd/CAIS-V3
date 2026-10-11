@@ -134,6 +134,22 @@ export default function DisbursementsIndex({
 
                 <div className="grid gap-3 md:grid-cols-4">
                     <Input
+                        defaultValue={filters.venue ?? ''}
+                        placeholder="Venue"
+                        aria-label="Venue"
+                        onBlur={(event) =>
+                            applyFilters({ venue: event.target.value })
+                        }
+                    />
+                    <Input
+                        defaultValue={filters.beneficiary ?? ''}
+                        placeholder="Beneficiary name or control number"
+                        aria-label="Beneficiary"
+                        onBlur={(event) =>
+                            applyFilters({ beneficiary: event.target.value })
+                        }
+                    />
+                    <Input
                         value={search}
                         onChange={(event) => setSearch(event.target.value)}
                         onKeyDown={(event) => {

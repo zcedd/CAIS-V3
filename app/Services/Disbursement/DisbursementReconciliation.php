@@ -4,9 +4,11 @@ namespace App\Services\Disbursement;
 
 use App\Enums\DisbursementItemApprovalStatus;
 use App\Enums\DisbursementReleaseOutcome;
+use App\Enums\DisbursementTransactionStatus;
 use App\Models\DisbursementBatch;
 use App\Models\DisbursementBatchItem;
 use App\Models\DisbursementReleaseRecord;
+use App\Models\DisbursementTransaction;
 use App\Support\DecimalAmount;
 
 class DisbursementReconciliation
@@ -94,6 +96,11 @@ class DisbursementReconciliation
             'unserved_beneficiaries' => $outstanding,
             'approved_cash' => $approvedCash,
             'actual_cash' => $actualCash,
+            'remaining_cash' => DecimalAmount::sub($approvedCash, $actualCash),
+            'voided_transactions' => DisbursementTransaction::query()
+                ->where('disbursement_batch_id', $batch->id)
+                ->where('status', DisbursementTransactionStatus::Voided)
+                ->count(),
             'items' => array_values($quantities),
             'outstanding_count' => $outstanding,
             'ready_to_complete' => $outstanding === 0 && $approvedBeneficiaries > 0,

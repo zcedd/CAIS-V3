@@ -67,4 +67,9 @@ class DisbursementBatchItem extends Model
     {
         return $this->hasMany(DisbursementReleaseRecord::class);
     }
+
+    public function transactions(): HasMany
+    {
+        return $this->hasMany(DisbursementTransaction::class);
+    }
 }

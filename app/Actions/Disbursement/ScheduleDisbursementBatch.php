@@ -25,7 +25,15 @@ class ScheduleDisbursementBatch
     ) {}
 
     /**
-     * @param  array{scheduled_at: string, venue?: string|null, reason?: string|null, lock_version?: int|null}  $data
+     * @param  array{
+     *     scheduled_at: string,
+     *     venue?: string|null,
+     *     venue_details?: string|null,
+     *     venue_latitude?: string|float|null,
+     *     venue_longitude?: string|float|null,
+     *     reason?: string|null,
+     *     lock_version?: int|null
+     * }  $data
      */
     public function __invoke(DisbursementBatch $batch, User $actor, array $data): DisbursementBatch
     {
@@ -65,6 +73,7 @@ class ScheduleDisbursementBatch
                 $batch->revision = ((int) $batch->revision) + 1;
                 $batch->scheduled_at = $data['scheduled_at'];
                 $batch->venue = $venue;
+                $this->fillVenue($batch, $data);
                 $batch->approved_at = null;
                 $batch->finalization_scope = null;
                 $batch->save();
@@ -100,6 +109,7 @@ class ScheduleDisbursementBatch
                 'scheduled_at' => $data['scheduled_at'],
                 'venue' => $venue,
             ];
+            $this->fillVenueAttributes($attributes, $data);
 
             if ($batch->status === DisbursementBatchStatus::Scheduled) {
                 $batch->fill($attributes);
@@ -133,5 +143,36 @@ class ScheduleDisbursementBatch
 
             return $updated->refresh();
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function fillVenue(DisbursementBatch $batch, array $data): void
+    {
+        if (array_key_exists('venue_details', $data)) {
+            $batch->venue_details = $data['venue_details'];
+        }
+
+        if (array_key_exists('venue_latitude', $data)) {
+            $batch->venue_latitude = $data['venue_latitude'];
+        }
+
+        if (array_key_exists('venue_longitude', $data)) {
+            $batch->venue_longitude = $data['venue_longitude'];
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, mixed>  $data
+     */
+    private function fillVenueAttributes(array &$attributes, array $data): void
+    {
+        foreach (['venue_details', 'venue_latitude', 'venue_longitude'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $attributes[$field] = $data[$field];
+            }
+        }
     }
 }

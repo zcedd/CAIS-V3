@@ -8,102 +8,18 @@ use App\Enums\DisbursementItemApprovalStatus;
 use App\Enums\RequestSubStatusCode;
 use App\Enums\RoleName;
 use App\Enums\StockMovementType;
-use App\Models\Assistance;
-use App\Models\AssistanceItem;
 use App\Models\Department;
 use App\Models\DisbursementApprovalDecision;
-use App\Models\DisbursementBatch;
 use App\Models\DisbursementBatchItem;
-use App\Models\Individual;
-use App\Models\Item;
-use App\Models\Program;
+use App\Models\DisbursementTransaction;
 use App\Models\User;
 use App\Notifications\DisbursementBatchNotification;
 use App\Services\Disbursement\DisbursementNotifier;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
-
-/**
- * @return array<string, mixed>
- */
-function disbursementFixture(string $kind = 'cash', int $requests = 1): array
-{
-    $department = Department::create(['name' => 'Social Welfare '.uniqid()]);
-    $creator = User::factory()->create(['department_id' => $department->id]);
-    $creator->syncRoles([RoleName::Program->value]);
-    $governor = User::factory()->create(['department_id' => null]);
-    $governor->syncRoles([RoleName::Executive->value]);
-    $head = User::factory()->create(['department_id' => $department->id]);
-    $head->syncRoles([RoleName::DepartmentHead->value]);
-    $officer = User::factory()->create(['department_id' => $department->id]);
-    $officer->syncRoles([RoleName::ReleasingOfficer->value]);
-    app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-    $program = Program::factory()->forDepartment($department)->create();
-    $item = Item::factory()->forDepartment($department)->when(
-        $kind === 'cash',
-        fn ($factory) => $factory->cash(),
-        fn ($factory) => $factory,
-    )->create(['name' => $kind === 'cash' ? 'Cash aid' : 'Rice']);
-    $program->item()->attach($item->id);
-
-    $assistances = [];
-
-    for ($index = 0; $index < $requests; $index++) {
-        $individual = Individual::factory()->create();
-        $assistance = Assistance::query()->create([
-            'program_id' => $program->id,
-            'beneficiary_id' => $individual->beneficiaryRecord->id,
-            'date_requested' => now()->toDateString(),
-            'user_id' => $creator->id,
-            'current_request_sub_status_id' => catalogReasonId(RequestSubStatusCode::Verified),
-        ]);
-        AssistanceItem::query()->create([
-            'assistance_id' => $assistance->id,
-            'item_id' => $item->id,
-            'quantity' => $kind === 'cash' ? 500 + ($index * 100) : 4,
-            'requested_quantity' => $kind === 'cash' ? 500 + ($index * 100) : 4,
-        ]);
-        $assistances[] = $assistance;
-    }
-
-    return compact('department', 'creator', 'governor', 'head', 'officer', 'program', 'item', 'assistances');
-}
-
-function disbursementPayload(array $fixture, string $mode = 'batch'): array
-{
-    return [
-        'program_id' => $fixture['program']->id,
-        'title' => 'Barangay release',
-        'description' => 'Scheduled payout',
-        'scheduled_at' => now()->addDays(3)->format('Y-m-d H:i:s'),
-        'venue' => 'Covered court',
-        'approval_mode' => $mode,
-        'assistance_ids' => collect($fixture['assistances'])->pluck('id')->all(),
-    ];
-}
-
-function storeDisbursement(array $fixture, string $mode = 'batch'): DisbursementBatch
-{
-    test()->actingAs($fixture['creator'])
-        ->post(route('user.disbursements.store', $fixture['department']), disbursementPayload($fixture, $mode))
-        ->assertRedirect();
-
-    return DisbursementBatch::query()->latest('id')->firstOrFail();
-}
-
-function submitDisbursement(array $fixture, DisbursementBatch $batch): void
-{
-    test()->actingAs($fixture['creator'])
-        ->post(route('user.disbursements.validate', [$fixture['department'], $batch]))
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
-
-    test()->actingAs($fixture['creator'])
-        ->post(route('user.disbursements.submit', [$fixture['department'], $batch]))
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
-}
 
 test('authorized staff can create a disbursement batch', function () {
     $fixture = disbursementFixture();
@@ -517,6 +433,8 @@ test('releases record absence partial service and stock movement', function () {
         ])
         ->assertRedirect();
 
+    Storage::fake('local');
+
     test()->actingAs($fixture['officer'])
         ->post(route('user.disbursements.releases.store', [$fixture['department'], $batch]), [
             'disbursement_batch_item_id' => $items[1]->id,
@@ -527,7 +445,49 @@ test('releases record absence partial service and stock movement', function () {
             'receipt_reference' => 'ACK-1',
             'remarks' => 'Only one sack was on hand for this person.',
         ])
+        ->assertSessionHasErrors('outcome');
+
+    $key = (string) Str::uuid();
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.disbursements.transactions.store', [$fixture['department'], $batch, $items[1]]), [
+            'idempotency_key' => $key,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $transaction = DisbursementTransaction::query()->where('idempotency_key', $key)->firstOrFail();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.disbursements.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
+            'file' => UploadedFile::fake()->image('live.jpg'),
+            'evidence_type' => 'live_photo',
+            'capture_source' => 'camera',
+        ])
         ->assertRedirect();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.disbursements.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
+            'file' => UploadedFile::fake()->image('sign.png'),
+            'evidence_type' => 'signature',
+        ])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.disbursements.transactions.finalize', [$fixture['department'], $batch, $transaction]), [
+            'received_by_type' => 'beneficiary',
+            'received_by_name' => 'Recipient Example',
+            'verification_method' => 'control_number',
+            'identity_verified' => true,
+            'acknowledgment_mode' => 'signature',
+            'privacy_acknowledged' => true,
+            'notes' => 'Only one sack was on hand for this person.',
+            'lines' => [[
+                'id' => $items[1]->lines->first()->id,
+                'actual_quantity' => '1',
+            ]],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
 
     test()->actingAs($fixture['officer'])
         ->post(route('user.disbursements.releases.store', [$fixture['department'], $batch]), [
@@ -538,7 +498,7 @@ test('releases record absence partial service and stock movement', function () {
             'identity_verified' => true,
             'receipt_reference' => 'ACK-1',
         ])
-        ->assertSessionHasErrors();
+        ->assertSessionHasErrors('outcome');
 
     expect($batch->refresh()->items()->find($items[0]->id)->releases)->toHaveCount(1);
 

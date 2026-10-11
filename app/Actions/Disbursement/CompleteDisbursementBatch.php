@@ -40,6 +40,7 @@ class CompleteDisbursementBatch
 
             $updated = $this->workflow->move($batch, DisbursementBatchStatus::Completed, $actor, [
                 'completed_at' => now(),
+                'closed_at' => now(),
             ]);
 
             $this->audit->record($actor, $updated, 'completed', [
