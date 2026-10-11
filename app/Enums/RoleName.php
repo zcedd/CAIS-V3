@@ -5,7 +5,7 @@ namespace App\Enums;
 enum RoleName: string
 {
     case SuperAdmin = 'super-admin';
-    case Governor = 'governor';
+    case Executive = 'executive';
     case DepartmentHead = 'department-head';
     case ReleasingOfficer = 'releasing-officer';
     case Assistance = 'assistance';
@@ -55,7 +55,7 @@ enum RoleName: string
     {
         return [
             self::SuperAdmin,
-            self::Governor,
+            self::Executive,
             self::DepartmentHead,
             self::ReleasingOfficer,
         ];
@@ -73,7 +73,7 @@ enum RoleName: string
     {
         return match ($this) {
             self::SuperAdmin => 'Super admin',
-            self::Governor => 'Executive',
+            self::Executive => 'Executive',
             self::DepartmentHead => 'Department head',
             self::ReleasingOfficer => 'Releasing officer',
             self::Assistance => 'Assistance',
@@ -91,7 +91,7 @@ enum RoleName: string
     {
         return match ($this) {
             self::SuperAdmin => 'Supreme',
-            self::Governor => 'Executive',
+            self::Executive => 'Executive',
             self::DepartmentHead => 'Dept head',
             self::ReleasingOfficer => 'Field op',
             default => 'Staff',
@@ -102,7 +102,7 @@ enum RoleName: string
     {
         return match ($this) {
             self::SuperAdmin => 'Highest authority in the system. Full access across modules, overrides, and user clearances.',
-            self::Governor => 'Reviews endorsed programs and their verified beneficiaries, then approves them for release.',
+            self::Executive => 'Reviews endorsed programs and their verified beneficiaries, then approves them for release.',
             self::DepartmentHead => 'Formulates assistance programs and endorses verified beneficiaries for executive approval.',
             self::ReleasingOfficer => 'Enrolls beneficiaries and releases assistance after the executive approves it.',
             default => $this->label(),

@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Services\Disbursement;
+
+use App\Enums\DisbursementBatchStatus;
+use App\Models\DisbursementBatch;
+use App\Models\User;
+use Illuminate\Validation\ValidationException;
+
+class DisbursementBatchWorkflow
+{
+    public function __construct(private DisbursementAudit $audit) {}
+
+    public function assertLock(DisbursementBatch $batch, ?int $expected): void
+    {
+        if ($expected === null) {
+            return;
+        }
+
+        if ((int) $batch->lock_version !== $expected) {
+            throw ValidationException::withMessages([
+                'lock_version' => 'This disbursement batch was updated by someone else. Refresh and try again.',
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function move(DisbursementBatch $batch, DisbursementBatchStatus $to, User $actor, array $attributes = []): DisbursementBatch
+    {
+        $from = $batch->status;
+
+        if (! $from instanceof DisbursementBatchStatus || ! $from->canTransitionTo($to)) {
+            throw ValidationException::withMessages([
+                'status' => sprintf(
+                    'A %s disbursement batch cannot move to %s.',
+                    $from?->value ?? 'unknown',
+                    $to->value,
+                ),
+            ]);
+        }
+
+        $batch->fill($attributes);
+        $batch->status = $to;
+        $batch->lock_version = ((int) $batch->lock_version) + 1;
+        $batch->save();
+
+        $this->audit->record($actor, $batch, 'status_changed', [
+            'revision' => $batch->revision,
+            'before' => ['status' => $from->value],
+            'after' => ['status' => $to->value],
+        ]);
+
+        return $batch;
+    }
+}

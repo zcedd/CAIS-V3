@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\Admin\DispersalApprovalPolicyController as AdminDispersalApprovalPolicyController;
+use App\Http\Controllers\Admin\DisbursementApprovalPolicyController as AdminDisbursementApprovalPolicyController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
 use App\Http\Controllers\Executive\DashboardController as ExecutiveDashboardController;
-use App\Http\Controllers\Executive\DispersalApprovalController;
+use App\Http\Controllers\Executive\DisbursementApprovalController;
 use App\Http\Controllers\Executive\ProgramController as ExecutiveProgramController;
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
@@ -13,7 +13,7 @@ use App\Http\Controllers\User\AssistanceQueueController as UserAssistanceQueueCo
 use App\Http\Controllers\User\AssistanceReceiptController as UserAssistanceReceiptController;
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
-use App\Http\Controllers\User\DispersalBatchController as UserDispersalBatchController;
+use App\Http\Controllers\User\DisbursementBatchController as UserDisbursementBatchController;
 use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ItemStockController as UserItemStockController;
@@ -41,12 +41,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('programs/{program}', [ExecutiveProgramController::class, 'show'])->name('programs.show');
         Route::post('programs/{program}/approve', [ExecutiveProgramController::class, 'approve'])->name('programs.approve');
         Route::post('programs/{program}/return', [ExecutiveProgramController::class, 'returnToDepartment'])->name('programs.return');
-        Route::get('dispersals', [DispersalApprovalController::class, 'index'])->name('dispersals.index');
-        Route::get('dispersals/{dispersalBatch}', [DispersalApprovalController::class, 'show'])->name('dispersals.show');
-        Route::post('dispersals/{dispersalBatch}/decide', [DispersalApprovalController::class, 'decide'])->name('dispersals.decide');
-        Route::post('dispersals/{dispersalBatch}/items/bulk-decide', [DispersalApprovalController::class, 'bulkDecide'])->name('dispersals.items.bulk-decide');
-        Route::post('dispersals/{dispersalBatch}/items/{item}/decide', [DispersalApprovalController::class, 'decideItem'])->name('dispersals.items.decide');
-        Route::post('dispersals/{dispersalBatch}/finalize', [DispersalApprovalController::class, 'finalize'])->name('dispersals.finalize');
+        Route::get('disbursements', [DisbursementApprovalController::class, 'index'])->name('disbursements.index');
+        Route::get('disbursements/{disbursementBatch}', [DisbursementApprovalController::class, 'show'])->name('disbursements.show');
+        Route::post('disbursements/{disbursementBatch}/decide', [DisbursementApprovalController::class, 'decide'])->name('disbursements.decide');
+        Route::post('disbursements/{disbursementBatch}/items/bulk-decide', [DisbursementApprovalController::class, 'bulkDecide'])->name('disbursements.items.bulk-decide');
+        Route::post('disbursements/{disbursementBatch}/items/{item}/decide', [DisbursementApprovalController::class, 'decideItem'])->name('disbursements.items.decide');
+        Route::post('disbursements/{disbursementBatch}/finalize', [DisbursementApprovalController::class, 'finalize'])->name('disbursements.finalize');
     });
 
     Route::middleware('super-admin')->prefix('admin')->name('admin.')->group(function () {
@@ -72,9 +72,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('workflows/{workflow}/assistances/{assistance}/reassign', [AdminWorkflowController::class, 'reassignTask'])->name('workflows.tasks.reassign');
         Route::post('workflows/{workflow}/assistances/{assistance}/override', [AdminWorkflowController::class, 'overrideTask'])->name('workflows.tasks.override');
 
-        Route::get('dispersal-policies', [AdminDispersalApprovalPolicyController::class, 'index'])->name('dispersal-policies.index');
-        Route::post('dispersal-policies', [AdminDispersalApprovalPolicyController::class, 'store'])->name('dispersal-policies.store');
-        Route::put('dispersal-policies/{policy}', [AdminDispersalApprovalPolicyController::class, 'update'])->name('dispersal-policies.update');
+        Route::get('disbursement-policies', [AdminDisbursementApprovalPolicyController::class, 'index'])->name('disbursement-policies.index');
+        Route::post('disbursement-policies', [AdminDisbursementApprovalPolicyController::class, 'store'])->name('disbursement-policies.store');
+        Route::put('disbursement-policies/{policy}', [AdminDisbursementApprovalPolicyController::class, 'update'])->name('disbursement-policies.update');
     });
 
     Route::prefix('{department}')->middleware(EnsureUserBelongsToDepartment::class)->group(function () {
@@ -97,28 +97,28 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('notifications/{notification}', [UserNotificationController::class, 'show'])->name('user.notifications.show');
         Route::patch('notifications/{notification}/read', [UserNotificationController::class, 'markAsRead'])->name('user.notifications.read');
 
-        Route::get('dispersals', [UserDispersalBatchController::class, 'index'])->name('user.dispersals.index');
-        Route::get('dispersals/calendar', [UserDispersalBatchController::class, 'calendar'])->name('user.dispersals.calendar');
-        Route::get('dispersals/create', [UserDispersalBatchController::class, 'create'])->name('user.dispersals.create');
-        Route::post('dispersals', [UserDispersalBatchController::class, 'store'])->name('user.dispersals.store');
-        Route::get('dispersals/{dispersalBatch}', [UserDispersalBatchController::class, 'show'])->name('user.dispersals.show');
-        Route::get('dispersals/{dispersalBatch}/edit', [UserDispersalBatchController::class, 'edit'])->name('user.dispersals.edit');
-        Route::put('dispersals/{dispersalBatch}', [UserDispersalBatchController::class, 'update'])->name('user.dispersals.update');
-        Route::post('dispersals/{dispersalBatch}/validate', [UserDispersalBatchController::class, 'validateBatch'])->name('user.dispersals.validate');
-        Route::post('dispersals/{dispersalBatch}/submit', [UserDispersalBatchController::class, 'submit'])->name('user.dispersals.submit');
-        Route::post('dispersals/{dispersalBatch}/decide', [UserDispersalBatchController::class, 'decide'])->name('user.dispersals.decide');
-        Route::post('dispersals/{dispersalBatch}/items/bulk-decide', [UserDispersalBatchController::class, 'bulkDecide'])->name('user.dispersals.items.bulk-decide');
-        Route::post('dispersals/{dispersalBatch}/items/{item}/decide', [UserDispersalBatchController::class, 'decideItem'])->name('user.dispersals.items.decide');
-        Route::post('dispersals/{dispersalBatch}/finalize', [UserDispersalBatchController::class, 'finalize'])->name('user.dispersals.finalize');
-        Route::post('dispersals/{dispersalBatch}/schedule', [UserDispersalBatchController::class, 'schedule'])->name('user.dispersals.schedule');
-        Route::post('dispersals/{dispersalBatch}/cancel', [UserDispersalBatchController::class, 'cancel'])->name('user.dispersals.cancel');
-        Route::post('dispersals/{dispersalBatch}/reopen', [UserDispersalBatchController::class, 'reopen'])->name('user.dispersals.reopen');
-        Route::post('dispersals/{dispersalBatch}/start', [UserDispersalBatchController::class, 'start'])->name('user.dispersals.start');
-        Route::post('dispersals/{dispersalBatch}/releases', [UserDispersalBatchController::class, 'release'])->name('user.dispersals.releases.store');
-        Route::post('dispersals/{dispersalBatch}/complete', [UserDispersalBatchController::class, 'complete'])->name('user.dispersals.complete');
-        Route::post('dispersals/{dispersalBatch}/documents', [UserDispersalBatchController::class, 'storeDocument'])->name('user.dispersals.documents.store');
-        Route::get('dispersals/{dispersalBatch}/documents/{dispersalDocument}', [UserDispersalBatchController::class, 'document'])->name('user.dispersals.documents.show');
-        Route::get('dispersals/{dispersalBatch}/exports/{report}', [UserDispersalBatchController::class, 'export'])->name('user.dispersals.report');
+        Route::get('disbursements', [UserDisbursementBatchController::class, 'index'])->name('user.disbursements.index');
+        Route::get('disbursements/calendar', [UserDisbursementBatchController::class, 'calendar'])->name('user.disbursements.calendar');
+        Route::get('disbursements/create', [UserDisbursementBatchController::class, 'create'])->name('user.disbursements.create');
+        Route::post('disbursements', [UserDisbursementBatchController::class, 'store'])->name('user.disbursements.store');
+        Route::get('disbursements/{disbursementBatch}', [UserDisbursementBatchController::class, 'show'])->name('user.disbursements.show');
+        Route::get('disbursements/{disbursementBatch}/edit', [UserDisbursementBatchController::class, 'edit'])->name('user.disbursements.edit');
+        Route::put('disbursements/{disbursementBatch}', [UserDisbursementBatchController::class, 'update'])->name('user.disbursements.update');
+        Route::post('disbursements/{disbursementBatch}/validate', [UserDisbursementBatchController::class, 'validateBatch'])->name('user.disbursements.validate');
+        Route::post('disbursements/{disbursementBatch}/submit', [UserDisbursementBatchController::class, 'submit'])->name('user.disbursements.submit');
+        Route::post('disbursements/{disbursementBatch}/decide', [UserDisbursementBatchController::class, 'decide'])->name('user.disbursements.decide');
+        Route::post('disbursements/{disbursementBatch}/items/bulk-decide', [UserDisbursementBatchController::class, 'bulkDecide'])->name('user.disbursements.items.bulk-decide');
+        Route::post('disbursements/{disbursementBatch}/items/{item}/decide', [UserDisbursementBatchController::class, 'decideItem'])->name('user.disbursements.items.decide');
+        Route::post('disbursements/{disbursementBatch}/finalize', [UserDisbursementBatchController::class, 'finalize'])->name('user.disbursements.finalize');
+        Route::post('disbursements/{disbursementBatch}/schedule', [UserDisbursementBatchController::class, 'schedule'])->name('user.disbursements.schedule');
+        Route::post('disbursements/{disbursementBatch}/cancel', [UserDisbursementBatchController::class, 'cancel'])->name('user.disbursements.cancel');
+        Route::post('disbursements/{disbursementBatch}/reopen', [UserDisbursementBatchController::class, 'reopen'])->name('user.disbursements.reopen');
+        Route::post('disbursements/{disbursementBatch}/start', [UserDisbursementBatchController::class, 'start'])->name('user.disbursements.start');
+        Route::post('disbursements/{disbursementBatch}/releases', [UserDisbursementBatchController::class, 'release'])->name('user.disbursements.releases.store');
+        Route::post('disbursements/{disbursementBatch}/complete', [UserDisbursementBatchController::class, 'complete'])->name('user.disbursements.complete');
+        Route::post('disbursements/{disbursementBatch}/documents', [UserDisbursementBatchController::class, 'storeDocument'])->name('user.disbursements.documents.store');
+        Route::get('disbursements/{disbursementBatch}/documents/{disbursementDocument}', [UserDisbursementBatchController::class, 'document'])->name('user.disbursements.documents.show');
+        Route::get('disbursements/{disbursementBatch}/exports/{report}', [UserDisbursementBatchController::class, 'export'])->name('user.disbursements.report');
 
         Route::get('unspsc-codes', [UserUnspscCodeController::class, 'search'])->name('user.unspsc-codes.search');
 

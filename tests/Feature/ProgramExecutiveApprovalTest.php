@@ -20,7 +20,7 @@ use Spatie\Permission\Models\Role;
 test('the seeder grants office roles only their permissions', function () {
     $this->seed(RolePermissionSeeder::class);
 
-    $governor = Role::findByName(RoleName::Governor->value);
+    $governor = Role::findByName(RoleName::Executive->value);
     $head = Role::findByName(RoleName::DepartmentHead->value);
     $officer = Role::findByName(RoleName::ReleasingOfficer->value);
 
@@ -39,7 +39,7 @@ test('the seeder grants office roles only their permissions', function () {
 
 test('the executive program list uses the department program cards', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     $program->update(['approval_status' => ProgramApprovalStatus::AwaitingGovernor]);
     $other = Department::create(['name' => 'Provincial Veterinary Office']);
@@ -81,7 +81,7 @@ test('a department head cannot submit a program without a verified beneficiary',
     expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft);
 });
 
-test('a department head submits verified beneficiaries for governor approval', function () {
+test('a department head submits verified beneficiaries for executive approval', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
     $program = draftProgram($department);
@@ -94,10 +94,10 @@ test('a department head submits verified beneficiaries for governor approval', f
     expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor);
 });
 
-test('governor approval marks only verified requests ready for release', function () {
+test('executive approval marks only verified requests ready for release', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     $verified = verifiedAssistance($program, $head, 'CAIS-100', 'Verified Person');
     $pending = verifiedAssistance($program, $head, 'CAIS-101', 'Pending Person', RequestSubStatusCode::AwaitingReview);
@@ -122,7 +122,7 @@ test('governor approval marks only verified requests ready for release', functio
 test('returning a program leaves beneficiary statuses unchanged', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     $verified = verifiedAssistance($program, $head, 'CAIS-100', 'Verified Person');
 
@@ -142,10 +142,10 @@ test('returning a program leaves beneficiary statuses unchanged', function () {
         ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
 });
 
-test('a governor can see another department program and its beneficiaries', function () {
+test('an executive can see another department program and its beneficiaries', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     verifiedAssistance($program, $head, 'CAIS-100', 'Juan Dela Cruz');
 
@@ -193,7 +193,7 @@ test('a releasing officer cannot submit a program for approval', function () {
 test('each batch is submitted and approved separately', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $scheme = Program::factory()->scheme()->create([
         'name' => 'Relief Scheme',
         'department_id' => $department->id,

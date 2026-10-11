@@ -35,11 +35,11 @@ import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
 import { dashboard } from '@/routes';
 import { dashboard as executiveDashboard } from '@/routes/executive';
-import { index as executiveDispersalsIndex } from '@/routes/executive/dispersals';
+import { index as executiveDisbursementsIndex } from '@/routes/executive/disbursements';
 import { index as executiveProgramsIndex } from '@/routes/executive/programs';
 import { index as adminUsersIndex } from '@/routes/admin/users';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
-import { index as departmentDispersalsIndex } from '@/routes/user/dispersals';
+import { index as departmentDisbursementsIndex } from '@/routes/user/disbursements';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
 import { index as departmentNotificationsIndex } from '@/routes/user/notifications';
@@ -93,7 +93,7 @@ export function AppSidebar() {
         const items: NavItem[] = [];
 
         if (
-            props.auth.office_roles?.includes('governor') ||
+            props.auth.office_roles?.includes('executive') ||
             can(Permission.ProgramApprove)
         ) {
             items.push(
@@ -108,8 +108,8 @@ export function AppSidebar() {
                     icon: Stamp,
                 },
                 {
-                    title: 'Dispersals',
-                    href: executiveDispersalsIndex(),
+                    title: 'Disbursements',
+                    href: executiveDisbursementsIndex(),
                     icon: CalendarDays,
                 },
             );
@@ -138,10 +138,10 @@ export function AppSidebar() {
                     permission: Permission.ProgramViewAny,
                 },
                 {
-                    title: 'Dispersals',
-                    href: departmentDispersalsIndex(slug),
+                    title: 'Disbursements',
+                    href: departmentDisbursementsIndex(slug),
                     icon: CalendarDays,
-                    permission: Permission.DispersalViewAny,
+                    permission: Permission.DisbursementViewAny,
                 },
                 {
                     title: 'Queue',

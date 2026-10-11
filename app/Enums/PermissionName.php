@@ -53,23 +53,23 @@ enum PermissionName: string
     case WorkflowTaskReassign = 'workflow.task.reassign';
     case WorkflowTaskOverride = 'workflow.task.override';
 
-    case DispersalViewAny = 'dispersal.viewAny';
-    case DispersalView = 'dispersal.view';
-    case DispersalCreate = 'dispersal.create';
-    case DispersalUpdate = 'dispersal.update';
-    case DispersalValidate = 'dispersal.validate';
-    case DispersalSubmit = 'dispersal.submit';
-    case DispersalApprove = 'dispersal.approve';
-    case DispersalReturn = 'dispersal.return';
-    case DispersalReject = 'dispersal.reject';
-    case DispersalModifyBeneficiary = 'dispersal.modifyBeneficiary';
-    case DispersalFinalize = 'dispersal.finalize';
-    case DispersalSchedule = 'dispersal.schedule';
-    case DispersalExecute = 'dispersal.execute';
-    case DispersalReconcile = 'dispersal.reconcile';
-    case DispersalComplete = 'dispersal.complete';
-    case DispersalCancel = 'dispersal.cancel';
-    case DispersalPolicyManage = 'dispersal.policy.manage';
+    case DisbursementViewAny = 'disbursement.viewAny';
+    case DisbursementView = 'disbursement.view';
+    case DisbursementCreate = 'disbursement.create';
+    case DisbursementUpdate = 'disbursement.update';
+    case DisbursementValidate = 'disbursement.validate';
+    case DisbursementSubmit = 'disbursement.submit';
+    case DisbursementApprove = 'disbursement.approve';
+    case DisbursementReturn = 'disbursement.return';
+    case DisbursementReject = 'disbursement.reject';
+    case DisbursementModifyBeneficiary = 'disbursement.modifyBeneficiary';
+    case DisbursementFinalize = 'disbursement.finalize';
+    case DisbursementSchedule = 'disbursement.schedule';
+    case DisbursementExecute = 'disbursement.execute';
+    case DisbursementReconcile = 'disbursement.reconcile';
+    case DisbursementComplete = 'disbursement.complete';
+    case DisbursementCancel = 'disbursement.cancel';
+    case DisbursementPolicyManage = 'disbursement.policy.manage';
 
     case DepartmentSupervise = 'department.supervise';
 
@@ -90,7 +90,7 @@ enum PermissionName: string
             RoleName::Assistance => self::forResource('assistance'),
             RoleName::Program => array_merge(
                 self::programResourcePermissions(),
-                self::dispersalStaffPermissions(),
+                self::disbursementStaffPermissions(),
             ),
             RoleName::Beneficiary => self::forResource('beneficiary'),
             RoleName::Item => self::forResource('item'),
@@ -99,7 +99,7 @@ enum PermissionName: string
             RoleName::Supervisor => [self::DepartmentSupervise],
             RoleName::Head => self::cases(),
             RoleName::SuperAdmin => self::cases(),
-            RoleName::Governor => self::governorPermissions(),
+            RoleName::Executive => self::executivePermissions(),
             RoleName::DepartmentHead => self::departmentHeadPermissions(),
             RoleName::ReleasingOfficer => self::releasingOfficerPermissions(),
         };
@@ -151,23 +151,23 @@ enum PermissionName: string
             self::WorkflowTaskAssign => 'Assign workflow tasks',
             self::WorkflowTaskReassign => 'Reassign workflow tasks',
             self::WorkflowTaskOverride => 'Override workflow tasks',
-            self::DispersalViewAny => 'View dispersal batches',
-            self::DispersalView => 'View a dispersal batch',
-            self::DispersalCreate => 'Create dispersal batches',
-            self::DispersalUpdate => 'Update dispersal batches',
-            self::DispersalValidate => 'Validate dispersal batches',
-            self::DispersalSubmit => 'Submit dispersal batches',
-            self::DispersalApprove => 'Approve a dispersal batch',
-            self::DispersalReturn => 'Return a dispersal batch',
-            self::DispersalReject => 'Reject a dispersal batch',
-            self::DispersalModifyBeneficiary => 'Modify a dispersal beneficiary amount',
-            self::DispersalFinalize => 'Finalize dispersal approval',
-            self::DispersalSchedule => 'Schedule a dispersal',
-            self::DispersalExecute => 'Record dispersal releases',
-            self::DispersalReconcile => 'Reconcile a dispersal',
-            self::DispersalComplete => 'Complete a dispersal',
-            self::DispersalCancel => 'Cancel a dispersal',
-            self::DispersalPolicyManage => 'Manage dispersal approval policies',
+            self::DisbursementViewAny => 'View disbursement batches',
+            self::DisbursementView => 'View a disbursement batch',
+            self::DisbursementCreate => 'Create disbursement batches',
+            self::DisbursementUpdate => 'Update disbursement batches',
+            self::DisbursementValidate => 'Validate disbursement batches',
+            self::DisbursementSubmit => 'Submit disbursement batches',
+            self::DisbursementApprove => 'Approve a disbursement batch',
+            self::DisbursementReturn => 'Return a disbursement batch',
+            self::DisbursementReject => 'Reject a disbursement batch',
+            self::DisbursementModifyBeneficiary => 'Modify a disbursement beneficiary amount',
+            self::DisbursementFinalize => 'Finalize disbursement approval',
+            self::DisbursementSchedule => 'Schedule a disbursement',
+            self::DisbursementExecute => 'Record disbursement releases',
+            self::DisbursementReconcile => 'Reconcile a disbursement',
+            self::DisbursementComplete => 'Complete a disbursement',
+            self::DisbursementCancel => 'Cancel a disbursement',
+            self::DisbursementPolicyManage => 'Manage disbursement approval policies',
             self::DepartmentSupervise => 'Supervise the department',
         };
     }
@@ -175,7 +175,7 @@ enum PermissionName: string
     /**
      * @return list<self>
      */
-    public static function governorPermissions(): array
+    public static function executivePermissions(): array
     {
         return [
             self::ProgramViewAny,
@@ -187,13 +187,13 @@ enum PermissionName: string
             self::AssistanceView,
             self::FundViewAny,
             self::FundView,
-            self::DispersalViewAny,
-            self::DispersalView,
-            self::DispersalApprove,
-            self::DispersalReturn,
-            self::DispersalReject,
-            self::DispersalFinalize,
-            self::DispersalModifyBeneficiary,
+            self::DisbursementViewAny,
+            self::DisbursementView,
+            self::DisbursementApprove,
+            self::DisbursementReturn,
+            self::DisbursementReject,
+            self::DisbursementFinalize,
+            self::DisbursementModifyBeneficiary,
         ];
     }
 
@@ -230,19 +230,19 @@ enum PermissionName: string
             self::WorkflowViewAny,
             self::WorkflowView,
             self::WorkflowTaskView,
-            self::DispersalViewAny,
-            self::DispersalView,
-            self::DispersalCreate,
-            self::DispersalUpdate,
-            self::DispersalValidate,
-            self::DispersalSubmit,
-            self::DispersalApprove,
-            self::DispersalReturn,
-            self::DispersalReject,
-            self::DispersalFinalize,
-            self::DispersalSchedule,
-            self::DispersalCancel,
-            self::DispersalReconcile,
+            self::DisbursementViewAny,
+            self::DisbursementView,
+            self::DisbursementCreate,
+            self::DisbursementUpdate,
+            self::DisbursementValidate,
+            self::DisbursementSubmit,
+            self::DisbursementApprove,
+            self::DisbursementReturn,
+            self::DisbursementReject,
+            self::DisbursementFinalize,
+            self::DisbursementSchedule,
+            self::DisbursementCancel,
+            self::DisbursementReconcile,
         ];
     }
 
@@ -267,30 +267,30 @@ enum PermissionName: string
             self::BeneficiaryUpdate,
             self::ItemViewAny,
             self::ItemView,
-            self::DispersalViewAny,
-            self::DispersalView,
-            self::DispersalExecute,
-            self::DispersalReconcile,
-            self::DispersalComplete,
+            self::DisbursementViewAny,
+            self::DisbursementView,
+            self::DisbursementExecute,
+            self::DisbursementReconcile,
+            self::DisbursementComplete,
         ];
     }
 
     /**
-     * Department staff who prepare a dispersal, without approval authority.
+     * Department staff who prepare a disbursement, without approval authority.
      *
      * @return list<self>
      */
-    public static function dispersalStaffPermissions(): array
+    public static function disbursementStaffPermissions(): array
     {
         return [
-            self::DispersalViewAny,
-            self::DispersalView,
-            self::DispersalCreate,
-            self::DispersalUpdate,
-            self::DispersalValidate,
-            self::DispersalSubmit,
-            self::DispersalSchedule,
-            self::DispersalCancel,
+            self::DisbursementViewAny,
+            self::DisbursementView,
+            self::DisbursementCreate,
+            self::DisbursementUpdate,
+            self::DisbursementValidate,
+            self::DisbursementSubmit,
+            self::DisbursementSchedule,
+            self::DisbursementCancel,
         ];
     }
 

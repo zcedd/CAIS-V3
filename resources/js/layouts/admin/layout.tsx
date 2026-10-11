@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { cn, toUrl } from '@/lib/utils';
-import { index as adminDispersalPoliciesIndex } from '@/routes/admin/dispersal-policies';
+import { index as adminDisbursementPoliciesIndex } from '@/routes/admin/disbursement-policies';
 import { index as adminUsersIndex } from '@/routes/admin/users';
 import { index as adminWorkflowsIndex } from '@/routes/admin/workflows';
 import type { NavItem } from '@/types';
@@ -22,8 +22,8 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
-        title: 'Dispersal policies',
-        href: adminDispersalPoliciesIndex(),
+        title: 'Disbursement policies',
+        href: adminDisbursementPoliciesIndex(),
         icon: null,
     },
 ];
@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: PropsWithChildren) {
         <div className="px-4 py-6">
             <Heading
                 title="Administration"
-                description="Manage users, roles, workflows, and dispersal approval policies."
+                description="Manage users, roles, workflows, and disbursement approval policies."
             />
 
             <div className="flex flex-col lg:flex-row lg:space-x-12">
