@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DocumentRequirementMilestone;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -9,6 +10,7 @@ use App\Models\Individual;
 use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
+use App\Models\ProgramDocumentRequirement;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -82,7 +84,8 @@ test('authenticated users can view a program in their department', function () {
         ->where('program.name', 'Alpha Program')
         ->where('program.descriptions', 'Full description')
         ->where('department.id', $department->id)
-        ->where('department.slug', $department->slug));
+        ->where('department.slug', $department->slug)
+        ->where('document_requirements', []));
 
     getProgramShowPartial($user, $department->slug, $program->id, ['summary', 'assistances'])
         ->assertOk()
@@ -91,6 +94,38 @@ test('authenticated users can view a program in their department', function () {
         ->assertJsonPath('props.summary.in_progress_requests', 0)
         ->assertJsonPath('props.summary.total_delivered_items', 0)
         ->assertJsonCount(0, 'props.assistances.data');
+});
+
+test('program show page includes required documents for status warnings', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Full description',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+    $requirement = ProgramDocumentRequirement::factory()->create([
+        'program_id' => $program->id,
+        'is_required' => true,
+        'required_before' => DocumentRequirementMilestone::Verified,
+        'sort_order' => 0,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('document_requirements.0.id', $requirement->id)
+            ->where('document_requirements.0.document_type_id', $requirement->document_type_id)
+            ->where('document_requirements.0.is_required', true)
+            ->where('document_requirements.0.required_before', DocumentRequirementMilestone::Verified->value));
 });
 
 test('program show page summary reflects assistances for the program only', function () {

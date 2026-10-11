@@ -54,6 +54,26 @@ export const DOCUMENT_REQUIREMENT_MILESTONES: {
     { value: 'delivered', label: 'Before Delivered' },
 ];
 
+export function programRequiresDocumentsBefore(
+    requirements: ProgramDocumentRequirementInput[] | undefined,
+    milestone: DocumentRequirementMilestone,
+): boolean {
+    return (requirements ?? []).some((requirement) => {
+        if (!requirement.is_required || requirement.document_type_id === null) {
+            return false;
+        }
+
+        if (milestone === 'delivered') {
+            return (
+                requirement.required_before === 'verified' ||
+                requirement.required_before === 'delivered'
+            );
+        }
+
+        return requirement.required_before === 'verified';
+    });
+}
+
 export function createEmptyDocumentRequirement(
     sortOrder = 0,
     documentTypeId: number | null = null,
