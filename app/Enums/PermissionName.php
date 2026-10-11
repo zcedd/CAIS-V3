@@ -53,6 +53,24 @@ enum PermissionName: string
     case WorkflowTaskReassign = 'workflow.task.reassign';
     case WorkflowTaskOverride = 'workflow.task.override';
 
+    case DispersalViewAny = 'dispersal.viewAny';
+    case DispersalView = 'dispersal.view';
+    case DispersalCreate = 'dispersal.create';
+    case DispersalUpdate = 'dispersal.update';
+    case DispersalValidate = 'dispersal.validate';
+    case DispersalSubmit = 'dispersal.submit';
+    case DispersalApprove = 'dispersal.approve';
+    case DispersalReturn = 'dispersal.return';
+    case DispersalReject = 'dispersal.reject';
+    case DispersalModifyBeneficiary = 'dispersal.modifyBeneficiary';
+    case DispersalFinalize = 'dispersal.finalize';
+    case DispersalSchedule = 'dispersal.schedule';
+    case DispersalExecute = 'dispersal.execute';
+    case DispersalReconcile = 'dispersal.reconcile';
+    case DispersalComplete = 'dispersal.complete';
+    case DispersalCancel = 'dispersal.cancel';
+    case DispersalPolicyManage = 'dispersal.policy.manage';
+
     case DepartmentSupervise = 'department.supervise';
 
     /**
@@ -70,7 +88,10 @@ enum PermissionName: string
     {
         return match ($role) {
             RoleName::Assistance => self::forResource('assistance'),
-            RoleName::Program => self::programResourcePermissions(),
+            RoleName::Program => array_merge(
+                self::programResourcePermissions(),
+                self::dispersalStaffPermissions(),
+            ),
             RoleName::Beneficiary => self::forResource('beneficiary'),
             RoleName::Item => self::forResource('item'),
             RoleName::Fund => self::forResource('fund'),
@@ -130,6 +151,23 @@ enum PermissionName: string
             self::WorkflowTaskAssign => 'Assign workflow tasks',
             self::WorkflowTaskReassign => 'Reassign workflow tasks',
             self::WorkflowTaskOverride => 'Override workflow tasks',
+            self::DispersalViewAny => 'View dispersal batches',
+            self::DispersalView => 'View a dispersal batch',
+            self::DispersalCreate => 'Create dispersal batches',
+            self::DispersalUpdate => 'Update dispersal batches',
+            self::DispersalValidate => 'Validate dispersal batches',
+            self::DispersalSubmit => 'Submit dispersal batches',
+            self::DispersalApprove => 'Approve a dispersal batch',
+            self::DispersalReturn => 'Return a dispersal batch',
+            self::DispersalReject => 'Reject a dispersal batch',
+            self::DispersalModifyBeneficiary => 'Modify a dispersal beneficiary amount',
+            self::DispersalFinalize => 'Finalize dispersal approval',
+            self::DispersalSchedule => 'Schedule a dispersal',
+            self::DispersalExecute => 'Record dispersal releases',
+            self::DispersalReconcile => 'Reconcile a dispersal',
+            self::DispersalComplete => 'Complete a dispersal',
+            self::DispersalCancel => 'Cancel a dispersal',
+            self::DispersalPolicyManage => 'Manage dispersal approval policies',
             self::DepartmentSupervise => 'Supervise the department',
         };
     }
@@ -149,6 +187,13 @@ enum PermissionName: string
             self::AssistanceView,
             self::FundViewAny,
             self::FundView,
+            self::DispersalViewAny,
+            self::DispersalView,
+            self::DispersalApprove,
+            self::DispersalReturn,
+            self::DispersalReject,
+            self::DispersalFinalize,
+            self::DispersalModifyBeneficiary,
         ];
     }
 
@@ -185,6 +230,19 @@ enum PermissionName: string
             self::WorkflowViewAny,
             self::WorkflowView,
             self::WorkflowTaskView,
+            self::DispersalViewAny,
+            self::DispersalView,
+            self::DispersalCreate,
+            self::DispersalUpdate,
+            self::DispersalValidate,
+            self::DispersalSubmit,
+            self::DispersalApprove,
+            self::DispersalReturn,
+            self::DispersalReject,
+            self::DispersalFinalize,
+            self::DispersalSchedule,
+            self::DispersalCancel,
+            self::DispersalReconcile,
         ];
     }
 
@@ -209,6 +267,30 @@ enum PermissionName: string
             self::BeneficiaryUpdate,
             self::ItemViewAny,
             self::ItemView,
+            self::DispersalViewAny,
+            self::DispersalView,
+            self::DispersalExecute,
+            self::DispersalReconcile,
+            self::DispersalComplete,
+        ];
+    }
+
+    /**
+     * Department staff who prepare a dispersal, without approval authority.
+     *
+     * @return list<self>
+     */
+    public static function dispersalStaffPermissions(): array
+    {
+        return [
+            self::DispersalViewAny,
+            self::DispersalView,
+            self::DispersalCreate,
+            self::DispersalUpdate,
+            self::DispersalValidate,
+            self::DispersalSubmit,
+            self::DispersalSchedule,
+            self::DispersalCancel,
         ];
     }
 

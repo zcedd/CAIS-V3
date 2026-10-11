@@ -6,6 +6,7 @@ export const Permission = {
     BeneficiaryViewAny: 'beneficiary.viewAny',
     ItemViewAny: 'item.viewAny',
     FundViewAny: 'fund.viewAny',
+    DispersalViewAny: 'dispersal.viewAny',
     WorkflowViewAny: 'workflow.viewAny',
     WorkflowCreate: 'workflow.create',
     WorkflowUpdate: 'workflow.update',

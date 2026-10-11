@@ -144,6 +144,11 @@ class Program extends Model
         return $this->belongsTo(Workflow::class);
     }
 
+    public function dispersals(): HasMany
+    {
+        return $this->hasMany(DispersalBatch::class);
+    }
+
     public function resolvedWorkflow(): Workflow
     {
         $this->loadMissing(['workflow.steps.transitions', 'parent.workflow.steps.transitions', 'department']);
