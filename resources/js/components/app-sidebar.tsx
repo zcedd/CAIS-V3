@@ -5,6 +5,7 @@ import {
     Inbox,
     Landmark,
     LayoutGrid,
+    CalendarDays,
     Package,
     Shield,
     Stamp,
@@ -34,9 +35,11 @@ import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
 import { dashboard } from '@/routes';
 import { dashboard as executiveDashboard } from '@/routes/executive';
+import { index as executiveDistributionsIndex } from '@/routes/executive/distributions';
 import { index as executiveProgramsIndex } from '@/routes/executive/programs';
 import { index as adminUsersIndex } from '@/routes/admin/users';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
+import { index as departmentDistributionsIndex } from '@/routes/user/distributions';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
 import { index as departmentNotificationsIndex } from '@/routes/user/notifications';
@@ -90,7 +93,7 @@ export function AppSidebar() {
         const items: NavItem[] = [];
 
         if (
-            props.auth.office_roles?.includes('governor') ||
+            props.auth.office_roles?.includes('executive') ||
             can(Permission.ProgramApprove)
         ) {
             items.push(
@@ -103,6 +106,11 @@ export function AppSidebar() {
                     title: 'Programs',
                     href: executiveProgramsIndex(),
                     icon: Stamp,
+                },
+                {
+                    title: 'Distributions',
+                    href: executiveDistributionsIndex(),
+                    icon: CalendarDays,
                 },
             );
         }
@@ -128,6 +136,12 @@ export function AppSidebar() {
                     href: departmentProgramsIndex(slug),
                     icon: FolderKanban,
                     permission: Permission.ProgramViewAny,
+                },
+                {
+                    title: 'Distributions',
+                    href: departmentDistributionsIndex(slug),
+                    icon: CalendarDays,
+                    permission: Permission.DistributionViewAny,
                 },
                 {
                     title: 'Queue',

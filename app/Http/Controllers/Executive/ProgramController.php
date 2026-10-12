@@ -10,13 +10,17 @@ use App\Http\Requests\Executive\Program\ShowRequest;
 use App\Models\Program;
 use App\Models\User;
 use App\Services\User\ProgramApprovalService;
+use App\Services\User\ProgramService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProgramController extends Controller
 {
-    public function __construct(private ProgramApprovalService $approvals) {}
+    public function __construct(
+        private ProgramApprovalService $approvals,
+        private ProgramService $programs,
+    ) {}
 
     public function index(IndexRequest $request): Response
     {
@@ -43,8 +47,10 @@ class ProgramController extends Controller
     public function show(ShowRequest $request, Program $program): Response
     {
         return Inertia::render('executive/programs/show', [
-            'program' => $this->approvals->showPayload($program),
-            'beneficiaries' => $this->approvals->paginateBeneficiaries($program),
+            'program' => [
+                ...$this->approvals->showPayload($program),
+                ...$this->programs->executiveReviewPayload($program),
+            ],
         ]);
     }
 
@@ -60,7 +66,7 @@ class ProgramController extends Controller
 
         return redirect()
             ->route('executive.programs.show', $program)
-            ->with('success', 'Program approved. Verified requests are ready for release.');
+            ->with('success', 'Program approved.');
     }
 
     public function returnToDepartment(ReturnRequest $request, Program $program): RedirectResponse

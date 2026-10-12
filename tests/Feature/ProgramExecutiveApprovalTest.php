@@ -3,15 +3,19 @@
 use App\Enums\PermissionName;
 use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
-use App\Enums\RequestStatusCode;
 use App\Enums\RequestSubStatusCode;
 use App\Enums\RoleName;
 use App\Models\Assistance;
 use App\Models\AssistanceRequestSubStatus;
 use App\Models\Beneficiary;
 use App\Models\Department;
+use App\Models\DocumentType;
+use App\Models\Fund;
+use App\Models\Item;
 use App\Models\ModeOfRequest;
 use App\Models\Program;
+use App\Models\ProgramDocumentRequirement;
+use App\Models\ProgramField;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -20,7 +24,7 @@ use Spatie\Permission\Models\Role;
 test('the seeder grants office roles only their permissions', function () {
     $this->seed(RolePermissionSeeder::class);
 
-    $governor = Role::findByName(RoleName::Governor->value);
+    $governor = Role::findByName(RoleName::Executive->value);
     $head = Role::findByName(RoleName::DepartmentHead->value);
     $officer = Role::findByName(RoleName::ReleasingOfficer->value);
 
@@ -39,7 +43,7 @@ test('the seeder grants office roles only their permissions', function () {
 
 test('the executive program list uses the department program cards', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     $program->update(['approval_status' => ProgramApprovalStatus::AwaitingGovernor]);
     $other = Department::create(['name' => 'Provincial Veterinary Office']);
@@ -67,21 +71,19 @@ test('the executive program list uses the department program cards', function ()
             ->where('programs.data.0.is_closed', false));
 });
 
-test('a department head cannot submit a program without a verified beneficiary', function () {
+test('a department head submits a program without beneficiaries', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
     $program = draftProgram($department);
 
     $this->actingAs($head)
-        ->from(route('user.programs.show', [$department, $program]))
         ->post(route('user.programs.approval.store', [$department, $program]))
-        ->assertRedirect()
-        ->assertSessionHasErrors('program');
+        ->assertRedirect(route('user.programs.show', [$department, $program]));
 
-    expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft);
+    expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor);
 });
 
-test('a department head submits verified beneficiaries for governor approval', function () {
+test('a department head submits a program that already has beneficiaries', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
     $program = draftProgram($department);
@@ -94,10 +96,10 @@ test('a department head submits verified beneficiaries for governor approval', f
     expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor);
 });
 
-test('governor approval marks only verified requests ready for release', function () {
+test('executive approval leaves beneficiary statuses unchanged', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     $verified = verifiedAssistance($program, $head, 'CAIS-100', 'Verified Person');
     $pending = verifiedAssistance($program, $head, 'CAIS-101', 'Pending Person', RequestSubStatusCode::AwaitingReview);
@@ -110,19 +112,18 @@ test('governor approval marks only verified requests ready for release', functio
         ->post(route('executive.programs.approve', $program))
         ->assertRedirect(route('executive.programs.show', $program));
 
-    $verified->refresh()->load('currentRequestSubStatus.requestStatus');
-    $pending->refresh()->load('currentRequestSubStatus.requestStatus');
+    $verified->refresh()->load('currentRequestSubStatus');
+    $pending->refresh()->load('currentRequestSubStatus');
 
     expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::Approved)
-        ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ReadyForRelease)
-        ->and($verified->currentRequestSubStatus?->requestStatus?->code)->toBe(RequestStatusCode::Approved)
+        ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified)
         ->and($pending->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::AwaitingReview);
 });
 
 test('returning a program leaves beneficiary statuses unchanged', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     $verified = verifiedAssistance($program, $head, 'CAIS-100', 'Verified Person');
 
@@ -142,12 +143,39 @@ test('returning a program leaves beneficiary statuses unchanged', function () {
         ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
 });
 
-test('a governor can see another department program and its beneficiaries', function () {
+test('an executive sees program details without beneficiaries', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $program = draftProgram($department);
     verifiedAssistance($program, $head, 'CAIS-100', 'Juan Dela Cruz');
+    $fund = Fund::factory()->create([
+        'name' => 'Calamity Fund',
+        'year' => '2026',
+        'department_id' => $department->id,
+    ]);
+    $item = Item::factory()->forDepartment($department)->create([
+        'name' => 'Rice',
+    ]);
+    $program->fund()->attach($fund);
+    $program->item()->attach($item);
+    ProgramField::factory()->forProgram($program)->create([
+        'label' => 'Household size',
+        'is_required' => true,
+    ]);
+    $documentType = DocumentType::factory()->create([
+        'name' => 'Barangay certificate',
+    ]);
+    ProgramDocumentRequirement::factory()->forProgram($program)->create([
+        'document_type_id' => $documentType->id,
+    ]);
+    $program->eligibilityRule()->create([
+        'cooldown_days' => 30,
+        'require_pwd' => true,
+        'require_4ps' => false,
+        'require_solo_parent' => false,
+        'require_indigenous' => false,
+    ]);
 
     $this->actingAs($governor)
         ->get(route('executive.programs.show', $program))
@@ -155,8 +183,18 @@ test('a governor can see another department program and its beneficiaries', func
         ->assertInertia(fn (Assert $page) => $page
             ->component('executive/programs/show')
             ->where('program.name', 'Relief Program')
-            ->where('beneficiaries.data.0.beneficiary_name', 'Juan Dela Cruz')
-            ->where('program.department.name', $department->name));
+            ->where('program.descriptions', 'Household relief')
+            ->where('program.start_at', now()->format('M d, Y'))
+            ->where('program.funds.0.name', 'Calamity Fund')
+            ->where('program.items.0.name', 'Rice')
+            ->where('program.fields.0.label', 'Household size')
+            ->where('program.fields.0.is_required', true)
+            ->where('program.document_requirements.0.name', 'Barangay certificate')
+            ->where('program.document_requirements.0.required_before_label', 'Before verification')
+            ->where('program.eligibility.cooldown_days', 30)
+            ->where('program.eligibility.requirements.0', 'PWD only')
+            ->where('program.department.name', $department->name)
+            ->missing('beneficiaries'));
 });
 
 test('a releasing officer and a department head cannot approve a program', function (RoleName $role) {
@@ -193,7 +231,7 @@ test('a releasing officer cannot submit a program for approval', function () {
 test('each batch is submitted and approved separately', function () {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Governor, Department::create(['name' => 'Office Of The Governor']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
     $scheme = Program::factory()->scheme()->create([
         'name' => 'Relief Scheme',
         'department_id' => $department->id,
@@ -229,7 +267,7 @@ test('each batch is submitted and approved separately', function () {
 
     expect($batch->refresh()->approval_status)->toBe(ProgramApprovalStatus::Approved)
         ->and($otherBatch->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft)
-        ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ReadyForRelease)
+        ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified)
         ->and($otherVerified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
 });
 

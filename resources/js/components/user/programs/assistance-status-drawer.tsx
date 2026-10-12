@@ -29,6 +29,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { slaLabel } from '@/components/user/sla-badge';
+import {
+    formatDateTimeForSubmit,
+    parseAppDateTime,
+} from '@/lib/app-datetime';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceItem } from '@/pages/user/programs/assistance-columns';
 import {
@@ -39,6 +43,10 @@ import {
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { update as updateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
 import { formatItemQuantity } from '@/types/assistance-item';
+import {
+    programRequiresDocumentsBefore,
+    type ProgramDocumentRequirementInput,
+} from '@/types/document';
 import { itemQuantityFieldLabel, tracksInventory } from '@/types/item';
 import { Form, Link } from '@inertiajs/react';
 import {
@@ -125,21 +133,6 @@ function substitutedAssistanceItemIds(extraItems: ExtraItemDraft[]): string[] {
         .map((draft) => draft.substitutedForId);
 }
 
-function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
-    if (!date) {
-        return undefined;
-    }
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
 function formatTimeForInput(date: Date): string {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -168,7 +161,7 @@ function parseRecordedAt(value: string | null): Date | undefined {
         return undefined;
     }
 
-    const recorded = new Date(value);
+    const recorded = parseAppDateTime(value);
 
     if (Number.isNaN(recorded.getTime())) {
         return undefined;
@@ -207,6 +200,7 @@ type AssistanceStatusDrawerProps = {
     slaState?: string | null;
     canAdvance?: boolean;
     allowedRequestStatusIds?: number[];
+    documentRequirements?: ProgramDocumentRequirementInput[];
     onUpdated?: () => void;
 };
 
@@ -226,6 +220,7 @@ export function AssistanceStatusDrawer({
     slaState = null,
     canAdvance = true,
     allowedRequestStatusIds,
+    documentRequirements = [],
     onUpdated,
 }: AssistanceStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -256,7 +251,11 @@ export function AssistanceStatusDrawer({
         selectedSubStatus?.request_status_code === 'delivered' ||
         selectedSubStatus?.request_status === 'Delivered';
     const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
-    const requiresDocuments = isVerifiedStatus || isDeliveredStatus;
+    const requiresDocuments = isDeliveredStatus
+        ? programRequiresDocumentsBefore(documentRequirements, 'delivered')
+        : isVerifiedStatus
+          ? programRequiresDocumentsBefore(documentRequirements, 'verified')
+          : false;
     const undeliveredItems = useMemo(
         () =>
             assistanceItems.filter(

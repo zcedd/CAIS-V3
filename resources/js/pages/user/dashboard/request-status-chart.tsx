@@ -8,7 +8,10 @@ import {
 import type { ChartConfig } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
 import { DashboardChartFrame } from '@/pages/user/dashboard/dashboard-chart-frame';
-import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
+import {
+    DashboardSectionCard,
+    dashboardProgressClass,
+} from '@/pages/user/dashboard/dashboard-stat-card';
 import type { RequestStatusChartPoint } from '@/types/dashboard';
 
 const CHART_COLORS = [
@@ -124,7 +127,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
                                 </div>
                                 <Progress
                                     value={entry.percent}
-                                    className="h-1.5"
+                                    className={dashboardProgressClass}
                                 />
                             </li>
                         ))}

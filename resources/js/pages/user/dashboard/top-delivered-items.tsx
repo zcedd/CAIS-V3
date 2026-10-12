@@ -1,6 +1,11 @@
 import { Package } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
+import { cn } from '@/lib/utils';
+import {
+    DashboardSectionCard,
+    dashboardProgressClass,
+    dashboardSurfaceClass,
+} from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DeliveredItemsChartPoint } from '@/types/dashboard';
 
 type TopDeliveredItemsProps = {
@@ -18,6 +23,7 @@ export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
             title="Top delivered items"
             description="Sorted by quantity received, using the filters above"
             icon={Package}
+            tone="success"
             data-tour="dashboard-top-delivered-items"
         >
             {data.length === 0 ? (
@@ -58,7 +64,10 @@ export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
                                         </p>
                                     </div>
                                 </div>
-                                <Progress value={percent} />
+                                <Progress
+                                    value={percent}
+                                    className={dashboardProgressClass}
+                                />
                             </li>
                         );
                     })}
@@ -71,7 +80,7 @@ export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
 export function TopDeliveredItemsSkeleton() {
     return (
         <div
-            className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
+            className={cn('overflow-hidden', dashboardSurfaceClass)}
             aria-busy="true"
             aria-label="Loading top delivered items"
         >

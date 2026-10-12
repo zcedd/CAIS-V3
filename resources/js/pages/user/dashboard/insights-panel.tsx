@@ -8,10 +8,13 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 import {
     DashboardSectionCard,
     DashboardStatCard,
     DashboardStatCardSkeleton,
+    dashboardProgressClass,
+    dashboardSurfaceClass,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type {
     DashboardInsights,
@@ -56,12 +59,15 @@ function BreakdownList({
                                     <span className="truncate font-medium">
                                         {row.label}
                                     </span>
-                                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                                    <span className="shrink-0 text-muted-foreground tabular-nums">
                                         {row.count.toLocaleString()} (
                                         {percent.toFixed(1)}%)
                                     </span>
                                 </div>
-                                <Progress value={percent} className="h-1.5" />
+                                <Progress
+                                    value={percent}
+                                    className={dashboardProgressClass}
+                                />
                             </li>
                         );
                     })}
@@ -98,24 +104,28 @@ export function InsightsPanel({
                     value={insights.pending_items.toLocaleString()}
                     description="Not yet marked received"
                     icon={PackageX}
+                    tone="warning"
                 />
                 <DashboardStatCard
                     label="Received items"
                     value={insights.received_items.toLocaleString()}
                     description={`${receivedRate.toFixed(1)}% of item lines`}
                     icon={PackageCheck}
+                    tone="success"
                 />
                 <DashboardStatCard
                     label="Open backlog"
                     value={backlogTotal.toLocaleString()}
                     description="In-progress requests"
                     icon={Clock3}
+                    tone="warning"
                 />
                 <DashboardStatCard
                     label="Barangays reached"
                     value={insights.distinct_barangays.toLocaleString()}
                     description="Distinct addresses in this filter"
                     icon={MapPin}
+                    tone="info"
                 />
             </div>
 
@@ -163,7 +173,7 @@ export function InsightsPanelSkeleton() {
                 {Array.from({ length: 3 }).map((_, index) => (
                     <div
                         key={index}
-                        className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
+                        className={cn('overflow-hidden', dashboardSurfaceClass)}
                     >
                         <div className="flex items-start justify-between gap-2 px-6 pt-6">
                             <div className="space-y-2">

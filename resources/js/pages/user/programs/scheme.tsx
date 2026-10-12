@@ -430,7 +430,7 @@ export default function UserProgramScheme({
                 </section>
             </div>
 
-            {canEdit && department && editOpen ? (
+            {canEdit && department ? (
                 <Suspense fallback={null}>
                     <ProgramEditDrawer
                         open={editOpen}

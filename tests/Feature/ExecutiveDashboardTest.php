@@ -17,7 +17,7 @@ test('the executive dashboard totals every department and can filter to one', fu
     $departmentA = Department::create(['name' => 'Department A']);
     $departmentB = Department::create(['name' => 'Department B']);
     $executive = User::factory()->create(['department_id' => $departmentA->id]);
-    $executive->syncRoles([RoleName::Governor->value]);
+    $executive->syncRoles([RoleName::Executive->value]);
 
     $programA = Program::create([
         'name' => 'Alpha Program',

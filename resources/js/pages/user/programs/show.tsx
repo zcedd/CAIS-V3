@@ -248,6 +248,7 @@ export default function UserProgramShow({
     transfer_program_options,
     staff_options,
     document_types = [],
+    document_requirements = [],
     workflow_options = [],
 }: {
     program: ProgramDetail;
@@ -277,6 +278,7 @@ export default function UserProgramShow({
     staff_options?: DepartmentStaffOption[];
     transfer_program_options?: AssistanceTransferProgramOption[];
     document_types?: DocumentTypeOption[];
+    document_requirements?: ProgramDocumentRequirementInput[];
     workflow_options?: WorkflowOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
@@ -870,6 +872,9 @@ export default function UserProgramShow({
                                     canTransferAssistance={
                                         canTransferAssistance
                                     }
+                                    documentRequirements={
+                                        document_requirements
+                                    }
                                     onVisitTable={visitTable}
                                 />
                             </Suspense>
@@ -886,10 +891,9 @@ export default function UserProgramShow({
                 </section>
             </div>
 
-            {canEdit && department && editOpen ? (
+            {canEdit && department ? (
                 <Suspense fallback={null}>
                     <ProgramEditDrawer
-                        key={editFormKey}
                         open={editOpen}
                         onOpenChange={setEditOpen}
                         program={program}

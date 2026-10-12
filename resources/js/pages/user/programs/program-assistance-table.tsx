@@ -17,6 +17,7 @@ import {
     type StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { AssistanceBulkActionsBar } from '@/pages/user/programs/assistance-bulk-actions-bar';
+import type { ProgramDocumentRequirementInput } from '@/types/document';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { useMemo } from 'react';
 
@@ -161,6 +162,7 @@ type ProgramAssistanceTableProps = {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
+    documentRequirements: ProgramDocumentRequirementInput[];
     onVisitTable: (
         overrides: Partial<
             AssistanceTableFilters & {
@@ -191,6 +193,7 @@ type ProgramAssistanceTableSectionProps = {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
+    documentRequirements: ProgramDocumentRequirementInput[];
     onVisitTable: ProgramAssistanceTableProps['onVisitTable'];
 };
 
@@ -213,6 +216,7 @@ function ProgramAssistanceTable({
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
+    documentRequirements,
     onVisitTable,
 }: ProgramAssistanceTableProps) {
     return (
@@ -260,6 +264,7 @@ function ProgramAssistanceTable({
                     requestSubStatusOptions={requestSubStatusOptions}
                     transferProgramOptions={transferProgramOptions}
                     canTransferAssistance={canTransferAssistance}
+                    documentRequirements={documentRequirements}
                     onBulkStatusUpdated={() => onVisitTable({})}
                 />
             )}
@@ -310,6 +315,7 @@ export function ProgramAssistanceTableSection({
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
+    documentRequirements,
     onVisitTable,
 }: ProgramAssistanceTableSectionProps) {
     const assistanceColumns = useMemo(
@@ -325,6 +331,7 @@ export function ProgramAssistanceTableSection({
                 requestSubStatusOptions,
                 transferProgramOptions,
                 canTransferAssistance,
+                documentRequirements,
                 onAssistanceUpdated: () => onVisitTable({ page: 1 }),
             }),
         [
@@ -338,6 +345,7 @@ export function ProgramAssistanceTableSection({
             requestSubStatusOptions,
             transferProgramOptions,
             canTransferAssistance,
+            documentRequirements,
             onVisitTable,
         ],
     );
@@ -363,6 +371,7 @@ export function ProgramAssistanceTableSection({
                 requestSubStatusOptions={requestSubStatusOptions}
                 transferProgramOptions={transferProgramOptions}
                 canTransferAssistance={canTransferAssistance}
+                documentRequirements={documentRequirements}
                 onVisitTable={onVisitTable}
             />
         </div>

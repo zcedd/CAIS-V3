@@ -4,7 +4,9 @@ namespace Database\Seeders;
 
 use App\Enums\PermissionName;
 use App\Enums\RoleName;
+use App\Models\DistributionApprovalStage;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -68,7 +70,7 @@ class RolePermissionSeeder extends Seeder
         $head = Role::findOrCreate(RoleName::Head->value, 'web');
         $head->syncPermissions(PermissionName::values());
 
-        foreach ([RoleName::Governor, RoleName::DepartmentHead, RoleName::ReleasingOfficer] as $roleName) {
+        foreach ([RoleName::Executive, RoleName::DepartmentHead, RoleName::ReleasingOfficer] as $roleName) {
             $role = Role::findOrCreate($roleName->value, 'web');
             $role->syncPermissions(
                 array_map(
@@ -78,6 +80,11 @@ class RolePermissionSeeder extends Seeder
             );
         }
 
+        $this->migrateLegacyRole(
+            'governor',
+            Role::findByName(RoleName::Executive->value, 'web'),
+        );
+        $this->renameDistributionStageRole('governor', RoleName::Executive->value);
         $this->migrateLegacyAdminUsers($superAdmin);
         $this->deleteLegacyRoles();
         $this->deleteLegacyPermissions();
@@ -88,22 +95,38 @@ class RolePermissionSeeder extends Seeder
     private function migrateLegacyAdminUsers(Role $superAdmin): void
     {
         foreach (self::LEGACY_ADMIN_ROLES as $legacyName) {
-            $legacy = Role::query()
-                ->where('name', $legacyName)
-                ->where('guard_name', 'web')
-                ->first();
-
-            if ($legacy === null || $legacy->id === $superAdmin->id) {
-                continue;
-            }
-
-            foreach ($legacy->users()->with('roles')->get() as $user) {
-                $user->assignRole($superAdmin);
-                $user->removeRole($legacy);
-            }
-
-            $legacy->delete();
+            $this->migrateLegacyRole($legacyName, $superAdmin);
         }
+    }
+
+    private function migrateLegacyRole(string $legacyName, Role $replacement): void
+    {
+        $legacy = Role::query()
+            ->where('name', $legacyName)
+            ->where('guard_name', 'web')
+            ->first();
+
+        if ($legacy === null || $legacy->id === $replacement->id) {
+            return;
+        }
+
+        foreach ($legacy->users()->with('roles')->get() as $user) {
+            $user->assignRole($replacement);
+            $user->removeRole($legacy);
+        }
+
+        $legacy->delete();
+    }
+
+    private function renameDistributionStageRole(string $from, string $to): void
+    {
+        if (! Schema::hasTable('distribution_approval_stages')) {
+            return;
+        }
+
+        DistributionApprovalStage::query()
+            ->where('role_name', $from)
+            ->update(['role_name' => $to]);
     }
 
     private function deleteLegacyRoles(): void
@@ -118,7 +141,10 @@ class RolePermissionSeeder extends Seeder
     {
         Permission::query()
             ->where('guard_name', 'web')
-            ->whereIn('name', self::LEGACY_PERMISSIONS)
+            ->where(function ($query): void {
+                $query->whereIn('name', self::LEGACY_PERMISSIONS)
+                    ->orWhere('name', 'like', 'dispersal.%');
+            })
             ->delete();
     }
 }

@@ -48,6 +48,8 @@ class Assistance extends Model
     {
         return [
             'current_status_recorded_at' => 'datetime',
+            'date_requested' => 'datetime',
+            'date_delivered' => 'datetime',
             'assigned_at' => 'datetime',
             'sla_due_at' => 'datetime',
             'sla_paused_at' => 'datetime',

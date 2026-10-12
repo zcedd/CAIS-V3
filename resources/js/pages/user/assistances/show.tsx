@@ -14,6 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { parseAppDateTime } from '@/lib/app-datetime';
 import { cn } from '@/lib/utils';
 import { EMPTY_CELL } from '@/lib/empty-cell';
 import { AssistanceDocumentsSection } from '@/pages/user/assistances/assistance-documents';
@@ -89,6 +90,7 @@ type AssistanceProfile = {
     beneficiary_type: string | null;
     status: string;
     current_sub_status: string | null;
+    current_sub_status_on_task: boolean;
     mode_of_request: string;
     encoder_name?: string | null;
     assigned_to_id?: number | null;
@@ -107,6 +109,7 @@ type AssistanceProfile = {
         step_code: string | null;
         status: string;
         status_label: string;
+        remarks: string | null;
         priority: string;
         assigned_to_id: number | null;
         assigned_to_name: string | null;
@@ -151,18 +154,21 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
     Denied: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300',
 };
 
-function formatDate(value: string | null | undefined): string {
+function formatDateTime(value: string | null | undefined): string {
     if (!value) {
         return EMPTY_CELL;
     }
 
-    const parsed = new Date(value);
+    const parsed = parseAppDateTime(value);
 
     if (Number.isNaN(parsed.getTime())) {
         return EMPTY_CELL;
     }
 
-    return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
+    return parsed.toLocaleString(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    });
 }
 
 const ORIGIN_BADGE_CLASSES: Record<string, string> = {
@@ -643,26 +649,26 @@ export default function UserAssistanceShow({
                                     <dl className="grid gap-4 sm:grid-cols-2">
                                         <DetailItem
                                             label="Requested"
-                                            value={formatDate(
+                                            value={formatDateTime(
                                                 assistance.date_requested,
                                             )}
                                         />
                                         <DetailItem
                                             label="Verified"
-                                            value={formatDate(
+                                            value={formatDateTime(
                                                 assistance.date_verified,
                                             )}
                                         />
                                         <DetailItem
                                             label="Delivered"
-                                            value={formatDate(
+                                            value={formatDateTime(
                                                 assistance.date_delivered,
                                             )}
                                         />
                                         {assistance.date_denied ? (
                                             <DetailItem
                                                 label="Denied"
-                                                value={formatDate(
+                                                value={formatDateTime(
                                                     assistance.date_denied,
                                                 )}
                                             />
@@ -889,7 +895,7 @@ export default function UserAssistanceShow({
                                                                         : 'text-muted-foreground/60',
                                                                 )}
                                                             >
-                                                                {formatDate(
+                                                                {formatDateTime(
                                                                     entry.value,
                                                                 )}
                                                             </p>
@@ -979,6 +985,15 @@ export default function UserAssistanceShow({
                                 {assistance.current_task?.status_label ??
                                     'None'}
                             </p>
+                            {assistance.current_sub_status_on_task &&
+                            assistance.current_sub_status ? (
+                                <p className="sm:col-span-2">
+                                    <span className="text-muted-foreground">
+                                        Request status:{' '}
+                                    </span>
+                                    {assistance.current_sub_status}
+                                </p>
+                            ) : null}
                             <p>
                                 <span className="text-muted-foreground">
                                     Assignee:{' '}

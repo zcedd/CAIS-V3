@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import { DashboardFiltersBar } from '@/pages/user/dashboard/dashboard-filters';
 import { DashboardFiltersSkeleton } from '@/pages/user/dashboard/dashboard-filters-skeleton';
 import {
@@ -30,7 +31,18 @@ import {
     DeliverySnapshot,
     DeliverySnapshotSkeleton,
 } from '@/pages/user/dashboard/dashboard-highlights';
-import { DashboardStatCard } from '@/pages/user/dashboard/dashboard-stat-card';
+import {
+    DashboardIconWell,
+    DashboardStatCard,
+    dashboardHeadingClass,
+    dashboardMutedClass,
+    dashboardPageClass,
+    dashboardSubheadingClass,
+    dashboardSurfaceClass,
+    dashboardTabListClass,
+    dashboardTabTriggerClass,
+    dashboardTitleClass,
+} from '@/pages/user/dashboard/dashboard-stat-card';
 import { DemographicsPanelSkeleton } from '@/pages/user/dashboard/demographics-panel';
 import { InsightsPanelSkeleton } from '@/pages/user/dashboard/insights-panel';
 import { KpiCards, KpiCardsSkeleton } from '@/pages/user/dashboard/kpi-cards';
@@ -137,22 +149,27 @@ function OverviewHero({
     deliveredItemsChart: DeliveredItemsChartPoint[];
 }) {
     return (
-        <Card className="gap-4" data-tour="dashboard-assistance-overview">
+        <Card
+            className={cn(dashboardSurfaceClass, 'gap-4')}
+            data-tour="dashboard-assistance-overview"
+        >
             <CardHeader className="flex flex-row items-start justify-between gap-2">
                 <div className="min-w-0 space-y-1">
-                    <CardTitle>Assistance overview</CardTitle>
-                    <CardDescription>
+                    <CardTitle className={dashboardTitleClass}>
+                        Assistance overview
+                    </CardTitle>
+                    <CardDescription className={dashboardMutedClass}>
                         Request counts and the items handed over most often,
                         using the filters above.
                     </CardDescription>
                 </div>
-                <LayoutDashboard className="size-5 shrink-0 text-muted-foreground" />
+                <DashboardIconWell icon={LayoutDashboard} tone="info" />
             </CardHeader>
             <CardContent className="space-y-4">
                 <KpiCards summary={summary} variant="strip" />
                 <Separator />
                 <div className="min-w-0">
-                    <p className="mb-3 text-sm font-medium">
+                    <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-foreground">
                         Top delivered items
                     </p>
                     <Suspense fallback={<ChartSkeleton />}>
@@ -167,7 +184,7 @@ function OverviewHero({
 function OverviewHeroSkeleton() {
     return (
         <Card
-            className="gap-4"
+            className={cn(dashboardSurfaceClass, 'gap-4')}
             aria-busy="true"
             aria-label="Loading assistance overview"
         >
@@ -176,7 +193,7 @@ function OverviewHeroSkeleton() {
                     <div className="h-5 w-40 animate-pulse rounded bg-muted" />
                     <div className="h-4 w-64 animate-pulse rounded bg-muted" />
                 </div>
-                <div className="size-5 animate-pulse rounded bg-muted" />
+                <div className="size-9 animate-pulse rounded-lg bg-slate-100 dark:bg-muted" />
             </CardHeader>
             <CardContent className="space-y-6">
                 <KpiCardsSkeleton variant="strip" />
@@ -221,14 +238,11 @@ export default function UserDashboardIndex({
     return (
         <>
             <Head title={`Dashboard: ${department.name}`} />
-            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+            <div className={dashboardPageClass}>
                 <div className="flex flex-col gap-1">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                        Dashboard
-                    </h1>
-                    <p className="text-sm text-muted-foreground">
-                        Requests, deliveries, and programs for{' '}
-                        {department.name}
+                    <h1 className={dashboardHeadingClass}>Dashboard</h1>
+                    <p className={dashboardSubheadingClass}>
+                        Requests, deliveries, and programs for {department.name}
                     </p>
                 </div>
 
@@ -252,17 +266,38 @@ export default function UserDashboardIndex({
                     <div className="-mb-1 w-full overflow-x-auto pb-1">
                         <TabsList
                             variant="line"
-                            className="w-full min-w-max justify-start"
+                            className={dashboardTabListClass}
                         >
-                            <TabsTrigger value="overview">Overview</TabsTrigger>
-                            <TabsTrigger value="insights">Insights</TabsTrigger>
-                            <TabsTrigger value="beneficiaries">
+                            <TabsTrigger
+                                value="overview"
+                                className={dashboardTabTriggerClass}
+                            >
+                                Overview
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="insights"
+                                className={dashboardTabTriggerClass}
+                            >
+                                Insights
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="beneficiaries"
+                                className={dashboardTabTriggerClass}
+                            >
                                 Beneficiaries
                             </TabsTrigger>
-                            <TabsTrigger value="demographics">
+                            <TabsTrigger
+                                value="demographics"
+                                className={dashboardTabTriggerClass}
+                            >
                                 Demographics
                             </TabsTrigger>
-                            <TabsTrigger value="programs">Programs</TabsTrigger>
+                            <TabsTrigger
+                                value="programs"
+                                className={dashboardTabTriggerClass}
+                            >
+                                Programs
+                            </TabsTrigger>
                         </TabsList>
                     </div>
 
@@ -296,7 +331,9 @@ export default function UserDashboardIndex({
                                     fallback={<DashboardHighlightsSkeleton />}
                                 >
                                     {summary ? (
-                                        <DashboardHighlights summary={summary} />
+                                        <DashboardHighlights
+                                            summary={summary}
+                                        />
                                     ) : (
                                         <DashboardHighlightsSkeleton />
                                     )}
@@ -352,12 +389,14 @@ export default function UserDashboardIndex({
                             buffer={200}
                             fallback={<ChartSkeleton />}
                         >
-                            <Card>
+                            <Card className={dashboardSurfaceClass}>
                                 <CardHeader>
-                                    <CardTitle>
+                                    <CardTitle className={dashboardTitleClass}>
                                         Released by UNSPSC segment
                                     </CardTitle>
-                                    <CardDescription>
+                                    <CardDescription
+                                        className={dashboardMutedClass}
+                                    >
                                         Quantity released, classified for
                                         PhilGEPS, COA, and donors. Spend
                                         reporting waits on item cost.
@@ -408,6 +447,7 @@ export default function UserDashboardIndex({
                                         label="Unique beneficiaries"
                                         value={summary.unique_beneficiaries.toLocaleString()}
                                         icon={Users}
+                                        tone="info"
                                         valueClassName="text-3xl"
                                     />
                                     <DashboardStatCard
@@ -415,12 +455,14 @@ export default function UserDashboardIndex({
                                         value={summary.repeat_beneficiaries.toLocaleString()}
                                         description="More than one request"
                                         icon={Repeat}
+                                        tone="info"
                                         valueClassName="text-3xl"
                                     />
                                     <DashboardStatCard
                                         label="One-time beneficiaries"
                                         value={summary.one_time_beneficiaries.toLocaleString()}
                                         icon={UserRound}
+                                        tone="info"
                                         valueClassName="text-3xl"
                                     />
                                     <DashboardStatCard
@@ -429,6 +471,7 @@ export default function UserDashboardIndex({
                                             2,
                                         )}
                                         icon={ClipboardList}
+                                        tone="info"
                                         valueClassName="text-3xl"
                                     />
                                 </div>
@@ -493,24 +536,28 @@ export default function UserDashboardIndex({
                                         label="Active programs"
                                         value={summary.active_programs.toLocaleString()}
                                         icon={FolderKanban}
+                                        tone="success"
                                         valueClassName="text-3xl"
                                     />
                                     <DashboardStatCard
                                         label="Closed programs"
                                         value={summary.closed_programs.toLocaleString()}
                                         icon={FolderLock}
+                                        tone="info"
                                         valueClassName="text-3xl"
                                     />
                                     <DashboardStatCard
                                         label="Delivered items"
                                         value={summary.total_delivered_items.toLocaleString()}
                                         icon={Package}
+                                        tone="success"
                                         valueClassName="text-3xl"
                                     />
                                     <DashboardStatCard
                                         label="Denied requests"
                                         value={summary.denied_requests.toLocaleString()}
                                         icon={Ban}
+                                        tone="danger"
                                         valueClassName="text-3xl"
                                     />
                                 </div>

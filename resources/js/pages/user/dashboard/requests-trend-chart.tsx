@@ -16,7 +16,14 @@ import {
 } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { cn } from '@/lib/utils';
 import { DashboardChartFrame } from '@/pages/user/dashboard/dashboard-chart-frame';
+import {
+    DashboardIconWell,
+    dashboardMutedClass,
+    dashboardSurfaceClass,
+    dashboardTitleClass,
+} from '@/pages/user/dashboard/dashboard-stat-card';
 import { aggregateRequestsTrend } from '@/types/dashboard';
 import type { RequestsTrendPoint, TrendPeriod } from '@/types/dashboard';
 
@@ -40,11 +47,16 @@ export function RequestsTrendChart({ data }: RequestsTrendChartProps) {
     );
 
     return (
-        <Card className="gap-4" data-tour="dashboard-requests-trend">
+        <Card
+            className={cn(dashboardSurfaceClass, 'gap-4')}
+            data-tour="dashboard-requests-trend"
+        >
             <CardHeader className="flex flex-row items-start justify-between gap-2">
                 <div className="min-w-0 space-y-1">
-                    <CardTitle>Requests over time</CardTitle>
-                    <CardDescription>
+                    <CardTitle className={dashboardTitleClass}>
+                        Requests over time
+                    </CardTitle>
+                    <CardDescription className={dashboardMutedClass}>
                         Assistance request volume by{' '}
                         {period === 'day'
                             ? 'day'
@@ -78,7 +90,11 @@ export function RequestsTrendChart({ data }: RequestsTrendChartProps) {
                             </ToggleGroupItem>
                         </ToggleGroup>
                     </CardAction>
-                    <ChartLine className="hidden size-5 text-muted-foreground sm:block" />
+                    <DashboardIconWell
+                        icon={ChartLine}
+                        tone="info"
+                        className="hidden sm:flex"
+                    />
                 </div>
             </CardHeader>
             <CardContent>

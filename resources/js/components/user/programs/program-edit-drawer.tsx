@@ -230,8 +230,8 @@ export function ProgramEditDrawer({
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
-            <DrawerContent className="data-[vaul-drawer-direction=right]:sm:max-w-3xl">
-                <DrawerHeader>
+            <DrawerContent className="max-h-dvh overflow-hidden data-[vaul-drawer-direction=right]:sm:max-w-3xl">
+                <DrawerHeader className="shrink-0">
                     <DrawerTitle>Edit program</DrawerTitle>
                     <DrawerDescription>
                         Change the details for {department.name}.
@@ -239,10 +239,11 @@ export function ProgramEditDrawer({
                 </DrawerHeader>
                 <Form
                     key={formKey}
-                    {...updateProgram.form.put({
+                    action={updateProgram.url({
                         department: department.slug,
                         program: program.id,
                     })}
+                    method="put"
                     disableWhileProcessing
                     options={{
                         preserveScroll: true,
@@ -300,7 +301,7 @@ export function ProgramEditDrawer({
                             'Could not save the program. Check the form for errors.',
                         );
                     }}
-                    className="flex flex-1 flex-col gap-4 overflow-y-auto px-4"
+                    className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4"
                 >
                     {({ errors, processing }) => {
                         const isEditDataReady = programEdit !== undefined;
