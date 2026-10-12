@@ -28,7 +28,6 @@ class UpdateDistributionBatch
      *     description?: string|null,
      *     scheduled_at: string,
      *     venue: string,
-     *     approval_mode: string,
      *     notes?: string|null,
      *     assistance_ids: list<int>,
      *     lock_version?: int|null
@@ -71,7 +70,6 @@ class UpdateDistributionBatch
                 'description' => $data['description'] ?? null,
                 'scheduled_at' => $data['scheduled_at'],
                 'venue' => $data['venue'],
-                'approval_mode' => $data['approval_mode'],
                 'notes' => $data['notes'] ?? null,
             ])->save();
 

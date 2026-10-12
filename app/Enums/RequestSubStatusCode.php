@@ -19,6 +19,15 @@ enum RequestSubStatusCode: string
     case Duplicate = 'duplicate';
     case Closed = 'closed';
     case AwaitingInformation = 'awaiting_information';
+    case DistributionDraft = 'distribution_draft';
+    case ForDistributionValidation = 'for_distribution_validation';
+    case ForDistributionApproval = 'for_distribution_approval';
+    case DistributionReturned = 'distribution_returned';
+    case DistributionRejected = 'distribution_rejected';
+    case ScheduledForRelease = 'scheduled_for_release';
+    case ReleaseInProgress = 'release_in_progress';
+    case DistributionCancelled = 'distribution_cancelled';
+    case Absent = 'absent';
 
     /**
      * @return list<string>
@@ -44,7 +53,62 @@ enum RequestSubStatusCode: string
             self::Duplicate => 'Duplicate',
             self::Closed => 'Closed',
             self::AwaitingInformation => 'Awaiting Information',
+            self::DistributionDraft => 'Distribution draft',
+            self::ForDistributionValidation => 'For distribution validation',
+            self::ForDistributionApproval => 'For distribution approval',
+            self::DistributionReturned => 'Distribution returned',
+            self::DistributionRejected => 'Distribution rejected',
+            self::ScheduledForRelease => 'Scheduled for release',
+            self::ReleaseInProgress => 'Release in progress',
+            self::DistributionCancelled => 'Distribution cancelled',
+            self::Absent => 'Absent',
         };
+    }
+
+    /**
+     * Statuses written from a distribution batch, other than delivery itself.
+     *
+     * @return list<self>
+     */
+    public static function distributionProgress(): array
+    {
+        return [
+            self::DistributionDraft,
+            self::ForDistributionValidation,
+            self::ForDistributionApproval,
+            self::DistributionReturned,
+            self::DistributionRejected,
+            self::ScheduledForRelease,
+            self::ReleaseInProgress,
+            self::DistributionCancelled,
+            self::Absent,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function distributionProgressValues(): array
+    {
+        return array_map(
+            static fn (self $code): string => $code->value,
+            self::distributionProgress(),
+        );
+    }
+
+    public function isDistributionProgress(): bool
+    {
+        return in_array($this, self::distributionProgress(), true);
+    }
+
+    public function reflectsOnTask(): bool
+    {
+        return $this->isDistributionProgress()
+            || in_array($this, [
+                self::ReadyForRelease,
+                self::Delivered,
+                self::PartiallyDelivered,
+            ], true);
     }
 
     public function matches(?RequestSubStatus $subStatus): bool
@@ -71,11 +135,21 @@ enum RequestSubStatusCode: string
             self::SavedForLater => RequestStatusCode::Draft,
             self::AwaitingReview => RequestStatusCode::Submitted,
             self::UnderReview, self::PendingDocumentation, self::Verified => RequestStatusCode::Review,
-            self::Approved, self::ReadyForRelease => RequestStatusCode::Approved,
+            self::Approved,
+            self::ReadyForRelease,
+            self::ForDistributionApproval,
+            self::ScheduledForRelease,
+            self::ReleaseInProgress,
+            self::Absent => RequestStatusCode::Approved,
             self::Delivered, self::PartiallyDelivered => RequestStatusCode::Delivered,
             self::Denied, self::Duplicate => RequestStatusCode::Denied,
             self::Closed => RequestStatusCode::Closed,
             self::AwaitingInformation => RequestStatusCode::OnHold,
+            self::DistributionDraft,
+            self::ForDistributionValidation,
+            self::DistributionReturned,
+            self::DistributionRejected,
+            self::DistributionCancelled => RequestStatusCode::Review,
         };
     }
 }

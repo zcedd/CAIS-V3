@@ -179,6 +179,79 @@ test('updating assistance status preserves the recorded at time', function () {
         ->and(Carbon::parse($latestSubStatus->recorded_at)->toDateTimeString())->toBe('2026-05-10 14:30:00');
 });
 
+test('updating assistance status keeps the instant of an offset recorded time', function () {
+    $statuses = seedProgramAssistanceStatusCatalog();
+    $department = Department::create(['name' => 'Department A']);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+
+    $beneficiary = Beneficiary::create([
+        'cais_number' => 'CAIS-OFFSET',
+        'name' => 'Ana Reyes',
+        'beneficiable_type' => 'App\\Models\\Individual',
+        'beneficiable_id' => 3,
+    ]);
+
+    $mode = ModeOfRequest::create(['name' => 'Walk In']);
+
+    $assistance = Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => '2026-05-01',
+        'remark' => null,
+        'user_id' => $user->id,
+        'assigned_to_id' => $user->id,
+        'assigned_at' => now(),
+    ]);
+
+    AssistanceRequestSubStatus::query()->create([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => $statuses['in_progress'],
+        'remark' => null,
+        'recorded_at' => '2026-05-01 00:00:00',
+    ]);
+
+    $recordedAt = Carbon::parse('2026-05-10T06:30:00Z');
+
+    $this->actingAs($user)->from(route('user.programs.show', [
+        'department' => $department->slug,
+        'program' => $program->id,
+    ]))->patch(
+        route('user.programs.assistances.status.update', [
+            'department' => $department->slug,
+            'program' => $program->id,
+            'assistance' => $assistance->id,
+        ]),
+        [
+            'request_sub_status_id' => $statuses['verified'],
+            'recorded_at' => $recordedAt->toIso8601String(),
+            'remark' => 'Verified from an offset time',
+        ],
+    )->assertRedirect();
+
+    $latestSubStatus = AssistanceRequestSubStatus::query()
+        ->where('assistance_id', $assistance->id)
+        ->where('request_sub_status_id', $statuses['verified'])
+        ->latest('recorded_at')
+        ->first();
+
+    expect($latestSubStatus)->not->toBeNull()
+        ->and(Carbon::parse($latestSubStatus->recorded_at)->equalTo($recordedAt))->toBeTrue();
+});
+
 test('updating to delivered status requires and marks the selected assistance items as received', function () {
     $statuses = seedProgramAssistanceStatusCatalog();
     $department = Department::create(['name' => 'Department A']);
@@ -269,7 +342,7 @@ test('updating to delivered status requires and marks the selected assistance it
         ]),
         [
             'request_sub_status_id' => $statuses['delivered'],
-            'recorded_at' => '2026-05-15',
+            'recorded_at' => '2026-05-15 11:45:00',
             'remark' => 'Handed over to beneficiary',
             'delivered_items' => [
                 [
@@ -310,7 +383,7 @@ test('updating to delivered status requires and marks the selected assistance it
         ->and($deliveredMilkItem->requested_quantity)->toBe(3)
         ->and($deliveredMilkItem->origin)->toBe(AssistanceItemOrigin::Requested)
         ->and($deliveredMilkItem->specification)->toBe('Powdered')
-        ->and($assistance->date_delivered)->toBe('2026-05-15')
+        ->and($assistance->date_delivered?->toDateTimeString())->toBe('2026-05-15 11:45:00')
         ->and((bool) $assistance->was_delivered)->toBeTrue()
         ->and($assistance->current_request_sub_status_id)->toBe($statuses['delivered']);
 });

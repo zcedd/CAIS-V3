@@ -2,11 +2,9 @@
 
 namespace App\Http\Requests\User\Distribution;
 
-use App\Enums\DistributionApprovalMode;
 use App\Models\Department;
 use App\Models\DistributionBatch;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
 
 class StoreDistributionBatchRequest extends FormRequest
 {
@@ -29,7 +27,6 @@ class StoreDistributionBatchRequest extends FormRequest
             'description' => ['nullable', 'string'],
             'scheduled_at' => ['required', 'date'],
             'venue' => ['required', 'string', 'max:255'],
-            'approval_mode' => ['required', Rule::enum(DistributionApprovalMode::class)],
             'notes' => ['nullable', 'string'],
             'assistance_ids' => ['required', 'array', 'min:1'],
             'assistance_ids.*' => ['integer', 'distinct', 'exists:assistances,id'],

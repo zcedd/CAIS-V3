@@ -413,7 +413,8 @@ class DistributionVenueController extends Controller
                 return [
                     'id' => $line->id,
                     'name' => $line->item?->name,
-                    'unit' => $line->item?->unitMeasurement?->name,
+                    'kind' => $line->item?->kind?->value,
+                    'unit' => $line->item?->kind?->isCash() ? null : $line->item?->unitMeasurement?->name,
                     'approved_quantity' => $line->approved_quantity,
                     'approved_amount' => $line->approved_amount,
                     'released_quantity' => $releasedQuantity,

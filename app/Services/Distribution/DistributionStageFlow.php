@@ -2,14 +2,11 @@
 
 namespace App\Services\Distribution;
 
-use App\Actions\Distribution\RecordDistributionAssistanceStatus;
 use App\Enums\DistributionApprovalStrategy;
 use App\Enums\DistributionApprovalTaskStatus;
 use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionFinalizationScope;
-use App\Enums\DistributionItemApprovalStatus;
 use App\Enums\RoleName;
-use App\Models\Assistance;
 use App\Models\DistributionApprovalPolicy;
 use App\Models\DistributionApprovalStage;
 use App\Models\DistributionApprovalTask;
@@ -25,7 +22,6 @@ class DistributionStageFlow
         private DistributionBatchWorkflow $workflow,
         private DistributionNotifier $notifier,
         private DistributionAuthorizer $authorizer,
-        private RecordDistributionAssistanceStatus $assistanceStatus,
     ) {}
 
     public function assignTasks(DistributionBatch $batch, DistributionApprovalPolicy $policy): void
@@ -156,20 +152,6 @@ class DistributionStageFlow
                 'Distribution batch approved',
                 sprintf('%s was approved.', $updated->batch_code),
             );
-        }
-
-        $updated->load('items.assistance');
-
-        foreach ($updated->items as $item) {
-            if ($item->approval_status !== DistributionItemApprovalStatus::Approved) {
-                continue;
-            }
-
-            $assistance = $item->assistance;
-
-            if ($assistance instanceof Assistance) {
-                $this->assistanceStatus->recordApproval($assistance, $actor);
-            }
         }
 
         return $updated;

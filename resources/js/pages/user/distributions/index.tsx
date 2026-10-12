@@ -1,5 +1,7 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { DistributionOfferSummary } from '@/components/distribution/composition';
+import type { DistributionOffer } from '@/components/distribution/composition';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -40,10 +42,10 @@ type BatchRow = {
     scheduled_at: string | null;
     status: string;
     status_label: string;
-    approval_mode: string;
     beneficiary_count: number;
     approved_beneficiary_count: number;
     approved_cash_total: string;
+    offer: DistributionOffer;
     creator: string | null;
 };
 
@@ -206,30 +208,6 @@ export default function DistributionsIndex({
                             ))}
                         </SelectContent>
                     </Select>
-                    <Select
-                        value={filters.approval_mode || 'all'}
-                        onValueChange={(value) =>
-                            applyFilters({
-                                approval_mode: value === 'all' ? '' : value,
-                            })
-                        }
-                    >
-                        <SelectTrigger
-                            aria-label="Approval mode"
-                            className="w-full"
-                        >
-                            <SelectValue placeholder="All approval modes" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">
-                                All approval modes
-                            </SelectItem>
-                            <SelectItem value="batch">Whole batch</SelectItem>
-                            <SelectItem value="beneficiary">
-                                Individual beneficiary
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
                 </div>
 
                 <Card>
@@ -241,7 +219,7 @@ export default function DistributionsIndex({
                                     <TableHead>Program</TableHead>
                                     <TableHead>Scheduled</TableHead>
                                     <TableHead>Beneficiaries</TableHead>
-                                    <TableHead>Approved cash</TableHead>
+                                    <TableHead>Assistance</TableHead>
                                     <TableHead>Status</TableHead>
                                 </TableRow>
                             </TableHeader>
@@ -263,8 +241,7 @@ export default function DistributionsIndex({
                                             <Link
                                                 href={distributionShow.url({
                                                     department: department.slug,
-                                                    distributionBatch:
-                                                        batch.id,
+                                                    distributionBatch: batch.id,
                                                 })}
                                                 className="font-medium underline-offset-4 hover:underline"
                                             >
@@ -282,8 +259,10 @@ export default function DistributionsIndex({
                                             {batch.approved_beneficiary_count}/
                                             {batch.beneficiary_count}
                                         </TableCell>
-                                        <TableCell>
-                                            {batch.approved_cash_total}
+                                        <TableCell className="whitespace-normal">
+                                            <DistributionOfferSummary
+                                                offer={batch.offer}
+                                            />
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline">

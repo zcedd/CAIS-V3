@@ -81,7 +81,7 @@ class SubmitDistributionBatch
                     '0.00',
                 );
 
-            $policy = $this->policies->resolve($batch->program, $batch->approval_mode, $amount);
+            $policy = $this->policies->resolve($batch->program, $amount);
             $snapshot = $this->snapshot($batch);
 
             $batch->forceFill([

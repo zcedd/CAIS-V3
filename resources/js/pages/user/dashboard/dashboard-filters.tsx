@@ -32,6 +32,13 @@ import {
 } from '@/components/ui/popover';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import {
+    dashboardActivePillClass,
+    dashboardFilterInputActiveClass,
+    dashboardFilterInputClass,
+    dashboardSurfaceClass,
+    dashboardWarningPillClass,
+} from '@/pages/user/dashboard/dashboard-stat-card';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import {
     buildDashboardQuery,
@@ -107,7 +114,7 @@ function FilterSelect({
 
     return (
         <div className={cn('min-w-0 space-y-1.5', className)}>
-            <label className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <label className="text-xs font-semibold tracking-wide text-slate-500 uppercase dark:text-muted-foreground">
                 {label}
             </label>
             <Popover>
@@ -115,9 +122,8 @@ function FilterSelect({
                     <Button
                         variant="outline"
                         className={cn(
-                            'h-10 w-full justify-between gap-2 px-3 font-normal',
-                            hasSelection &&
-                                'border-primary/40 bg-primary/5 text-foreground',
+                            dashboardFilterInputClass,
+                            hasSelection && dashboardFilterInputActiveClass,
                         )}
                     >
                         <span className="truncate text-left">{summary}</span>
@@ -269,14 +275,22 @@ export function DashboardFiltersBar({
         <Collapsible
             open={panelOpen}
             onOpenChange={setPanelOpen}
-            className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
+            className={cn(
+                dashboardSurfaceClass,
+                'overflow-hidden',
+                activeChips.length > 0 && 'border-amber-200',
+            )}
             id="filter-bar"
             data-tour="dashboard-filters"
         >
             <div
                 className={cn(
                     'flex flex-wrap items-center justify-between gap-3 px-4 py-3',
-                    panelOpen && 'border-b border-border/60',
+                    activeChips.length > 0 && 'bg-amber-50/80',
+                    panelOpen &&
+                        (activeChips.length > 0
+                            ? 'border-b border-amber-100'
+                            : 'border-b border-slate-200 dark:border-border'),
                 )}
             >
                 <CollapsibleTrigger asChild>
@@ -284,22 +298,31 @@ export function DashboardFiltersBar({
                         type="button"
                         className="flex min-w-0 flex-1 items-center gap-2 rounded-lg text-left outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
-                            <Filter className="size-4 text-muted-foreground" />
+                        <div
+                            className={cn(
+                                'flex size-8 shrink-0 items-center justify-center rounded-lg border',
+                                activeChips.length > 0
+                                    ? 'border-amber-200 bg-white text-amber-700'
+                                    : 'border-slate-200 bg-slate-50 text-slate-600',
+                            )}
+                        >
+                            <Filter className="size-4" />
                         </div>
                         <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-medium">Filters</p>
+                                <p className="text-sm font-semibold text-slate-900 dark:text-foreground">
+                                    Filters
+                                </p>
                                 {activeChips.length > 0 && (
                                     <Badge
-                                        variant="secondary"
-                                        className="rounded-md px-1.5 font-normal"
+                                        variant="outline"
+                                        className={dashboardWarningPillClass}
                                     >
                                         {activeChips.length} active
                                     </Badge>
                                 )}
                             </div>
-                            <p className="truncate text-xs text-muted-foreground">
+                            <p className="truncate text-xs text-slate-500 dark:text-muted-foreground">
                                 {panelOpen
                                     ? 'Change what the numbers cover'
                                     : activeChips.length > 0
@@ -372,8 +395,10 @@ export function DashboardFiltersBar({
                                         Beneficiary details
                                         {demographicActiveCount > 0 && (
                                             <Badge
-                                                variant="secondary"
-                                                className="rounded-md px-1.5 font-normal"
+                                                variant="outline"
+                                                className={
+                                                    dashboardWarningPillClass
+                                                }
                                             >
                                                 {demographicActiveCount}
                                             </Badge>
@@ -413,22 +438,25 @@ export function DashboardFiltersBar({
                         <>
                             <Separator />
                             <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-medium text-muted-foreground">
+                                <span className="text-xs font-semibold text-slate-500 dark:text-muted-foreground">
                                     Active
                                 </span>
                                 {activeChips.map((chip) => (
                                     <Badge
                                         key={`${chip.key}-${chip.value}`}
-                                        variant="secondary"
-                                        className="gap-1 rounded-lg py-1 pr-1 pl-2 font-normal"
+                                        variant="outline"
+                                        className={cn(
+                                            dashboardActivePillClass,
+                                            'gap-1 pr-1',
+                                        )}
                                     >
-                                        <span className="text-muted-foreground">
+                                        <span className="text-emerald-700/80">
                                             {chip.fieldLabel}:
                                         </span>
                                         {chip.label}
                                         <button
                                             type="button"
-                                            className="rounded-md p-0.5 hover:bg-muted-foreground/15"
+                                            className="rounded-full p-0.5 hover:bg-emerald-100"
                                             aria-label={`Remove ${chip.fieldLabel} ${chip.label}`}
                                             onClick={() =>
                                                 clearChip(chip.key, chip.value)

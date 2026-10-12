@@ -85,7 +85,7 @@ class AssistanceService
                 ->lockForUpdate()
                 ->findOrFail($validated['beneficiary_id']);
 
-            $recordedAt = Carbon::parse($validated['recorded_at']);
+            $recordedAt = Carbon::parse($validated['recorded_at'])->timezone(config('app.timezone'));
             $overrideReason = $this->nullableOverrideReason($validated['eligibility_override_reason'] ?? null);
 
             $this->guardAssistanceEligibility->assert(
@@ -101,7 +101,7 @@ class AssistanceService
                 'workflow_id' => $program->resolvedWorkflow()->id,
                 'beneficiary_id' => $beneficiary->id,
                 'mode_of_request_id' => $validated['mode_of_request_id'],
-                'date_requested' => $recordedAt->toDateString(),
+                'date_requested' => $recordedAt,
                 'remark' => $validated['remark'] ?? null,
                 'eligibility_override_reason' => $overrideReason,
                 'user_id' => $user->id,
@@ -239,12 +239,12 @@ class AssistanceService
             ->paginate($perPage)
             ->withQueryString()
             ->through(function (Assistance $assistance) use ($programFieldService, $viewer): array {
-                $formatDate = static function ($value): ?string {
+                $formatDateTime = static function ($value): ?string {
                     if ($value === null) {
                         return null;
                     }
 
-                    return Carbon::parse($value)->toDateString();
+                    return Carbon::parse($value)->toIso8601String();
                 };
 
                 $requestSubStatusId = $assistance->request_sub_status_id;
@@ -307,8 +307,8 @@ class AssistanceService
                     'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
                     'sla_paused_at' => $assistance->sla_paused_at?->toIso8601String(),
                     'sla_state' => $assistance->slaState(),
-                    'date_requested' => $formatDate($assistance->date_requested),
-                    'date_delivered' => $formatDate($assistance->date_delivered),
+                    'date_requested' => $formatDateTime($assistance->date_requested),
+                    'date_delivered' => $formatDateTime($assistance->date_delivered),
                     'request_status' => $requestStatus,
                     'request_sub_status_id' => $requestSubStatusId !== null
                         ? (int) $requestSubStatusId

@@ -41,6 +41,15 @@ class RequestStatusCatalog
         'duplicate' => ['Duplicate', 'Duplicate Request'],
         'closed' => ['Closed', 'Closed after Resolution'],
         'awaiting_information' => ['Awaiting Information', 'Waiting for Additional Information'],
+        'distribution_draft' => ['Distribution draft'],
+        'for_distribution_validation' => ['For distribution validation'],
+        'for_distribution_approval' => ['For distribution approval'],
+        'distribution_returned' => ['Distribution returned'],
+        'distribution_rejected' => ['Distribution rejected'],
+        'scheduled_for_release' => ['Scheduled for release'],
+        'release_in_progress' => ['Release in progress'],
+        'distribution_cancelled' => ['Distribution cancelled'],
+        'absent' => ['Absent'],
     ];
 
     /**

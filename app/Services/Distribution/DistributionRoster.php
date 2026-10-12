@@ -38,7 +38,7 @@ class DistributionRoster
 
         $batch->loadMissing('program');
         $assistanceIds = array_values(array_unique(array_map(static fn (mixed $id): int => (int) $id, $assistanceIds)));
-        $policy = $this->policies->resolve($batch->program, $batch->approval_mode, '0.00');
+        $policy = $this->policies->resolve($batch->program, '0.00');
         $existing = $batch->items()->pluck('assistance_id')->map(static fn (mixed $id): int => (int) $id)->all();
         $removed = array_values(array_diff($existing, $assistanceIds));
 
@@ -234,6 +234,7 @@ class DistributionRoster
             RequestSubStatusCode::Verified,
             RequestSubStatusCode::Approved,
             RequestSubStatusCode::ReadyForRelease,
+            ...RequestSubStatusCode::distributionProgress(),
         ] as $code) {
             if ($code->matches($assistance->currentRequestSubStatus)) {
                 return true;

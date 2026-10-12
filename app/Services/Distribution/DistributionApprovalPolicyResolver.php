@@ -2,7 +2,6 @@
 
 namespace App\Services\Distribution;
 
-use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionApprovalStrategy;
 use App\Enums\RoleName;
 use App\Models\DistributionApprovalPolicy;
@@ -12,9 +11,9 @@ use Illuminate\Support\Collection;
 
 class DistributionApprovalPolicyResolver
 {
-    public function resolve(Program $program, DistributionApprovalMode $mode, string $amount): DistributionApprovalPolicy
+    public function resolve(Program $program, string $amount): DistributionApprovalPolicy
     {
-        $match = $this->candidates($program, $mode, $amount)->first();
+        $match = $this->candidates($program, $amount)->first();
 
         if ($match instanceof DistributionApprovalPolicy) {
             return $match->load('stages');
@@ -26,7 +25,7 @@ class DistributionApprovalPolicyResolver
     /**
      * @return Collection<int, DistributionApprovalPolicy>
      */
-    private function candidates(Program $program, DistributionApprovalMode $mode, string $amount): Collection
+    private function candidates(Program $program, string $amount): Collection
     {
         return DistributionApprovalPolicy::query()
             ->with('stages')
@@ -38,10 +37,6 @@ class DistributionApprovalPolicyResolver
             ->where(function ($query) use ($program): void {
                 $query->whereNull('program_id')
                     ->orWhere('program_id', $program->id);
-            })
-            ->where(function ($query) use ($mode): void {
-                $query->whereNull('approval_mode')
-                    ->orWhere('approval_mode', $mode->value);
             })
             ->get()
             ->filter(function (DistributionApprovalPolicy $policy) use ($amount): bool {

@@ -17,6 +17,7 @@ import { formatItemQuantity } from '@/types/assistance-item';
 import type { ProgramDocumentRequirementInput } from '@/types/document';
 import type { ItemKind } from '@/types/item';
 import type { ProgramFieldOption } from '@/types/program-field';
+import { parseAppDateTime } from '@/lib/app-datetime';
 import { Link } from '@inertiajs/react';
 import { ColumnDef } from '@tanstack/react-table';
 import { EMPTY_CELL } from '@/lib/empty-cell';
@@ -82,12 +83,12 @@ export type UserProgramAssistanceRow = {
     field_values: Record<string, string | null>;
 };
 
-function formatRequestSubStatusRecordedAt(value: string | null): string {
+function formatDateTime(value: string | null): string {
     if (!value) {
         return EMPTY_CELL;
     }
 
-    const recorded = new Date(value);
+    const recorded = parseAppDateTime(value);
 
     if (Number.isNaN(recorded.getTime())) {
         return EMPTY_CELL;
@@ -351,7 +352,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
-                        {formatRequestSubStatusRecordedAt(value)}
+                        {formatDateTime(value)}
                     </span>
                 );
             },
@@ -416,7 +417,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
-                        {value ?? EMPTY_CELL}
+                        {formatDateTime(value)}
                     </span>
                 );
             },
@@ -432,7 +433,7 @@ export function createUserProgramAssistanceColumns({
 
                 return (
                     <span className="text-muted-foreground tabular-nums">
-                        {value ?? EMPTY_CELL}
+                        {formatDateTime(value)}
                     </span>
                 );
             },

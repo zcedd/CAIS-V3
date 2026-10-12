@@ -1,7 +1,10 @@
+import { cn } from '@/lib/utils';
+import { dashboardSurfaceClass } from '@/pages/user/dashboard/dashboard-stat-card';
+
 export function DashboardFiltersSkeleton() {
     return (
         <div
-            className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
+            className={cn('overflow-hidden', dashboardSurfaceClass)}
             id="filter-bar"
             aria-busy="true"
             aria-label="Loading filters"

@@ -3,13 +3,17 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Enums\DocumentRequirementMilestone;
 use App\Enums\ProgramApprovalStatus;
+use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Item;
 use App\Models\Program;
+use App\Models\ProgramDocumentRequirement;
 use App\Models\ProgramEligibilityRule;
+use App\Models\ProgramField;
 use App\Models\ProgramItemCap;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -241,6 +245,99 @@ class ProgramService
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Program configuration the executive reviews, without beneficiaries.
+     *
+     * @return array{
+     *     start_at: string|null,
+     *     end_at: string|null,
+     *     is_closed: bool,
+     *     is_organization: bool,
+     *     public_intake: bool,
+     *     kind_label: string|null,
+     *     batch_name: string|null,
+     *     parent: array{id: int, name: string}|null,
+     *     funds: list<array{id: int, name: string, year: string|null, amount: float|null}>,
+     *     items: list<array{id: int, name: string, unit: string|null}>,
+     *     fields: list<array{id: int, label: string, type_label: string, is_required: bool, options: list<string>|null}>,
+     *     document_requirements: list<array{id: int, name: string, is_required: bool, required_before_label: string}>,
+     *     eligibility: array{
+     *         cooldown_days: int|null,
+     *         requirements: list<string>,
+     *         item_caps: list<array{item_id: int, item_name: string, max_released_per_year: int}>,
+     *         source_name: string|null
+     *     }
+     * }
+     */
+    public function executiveReviewPayload(Program $program): array
+    {
+        $program->loadMissing([
+            'parent:id,name',
+            'item.unitMeasurement:id,name',
+            'fields',
+            'documentRequirements.documentType:id,name',
+        ]);
+
+        $parent = $program->parent;
+        $kind = $program->kind;
+
+        return [
+            'start_at' => $this->programDateLabel($program->getRawOriginal('start_at')),
+            'end_at' => $this->programDateLabel($program->getRawOriginal('end_at')),
+            'is_closed' => (bool) $program->is_closed,
+            'is_organization' => (bool) $program->is_organization,
+            'public_intake' => (bool) $program->public_intake,
+            'kind_label' => $kind instanceof ProgramKind ? $kind->label() : null,
+            'batch_name' => $program->batch_name,
+            'parent' => $parent instanceof Program
+                ? [
+                    'id' => $parent->id,
+                    'name' => $parent->name,
+                ]
+                : null,
+            'funds' => $this->programFundsForDisplay($program),
+            'items' => $program->item
+                ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values()
+                ->map(static fn (Item $item): array => [
+                    'id' => $item->id,
+                    'name' => $item->name,
+                    'unit' => $item->unitMeasurement?->name,
+                ])
+                ->all(),
+            'fields' => $program->fields
+                ->map(static function (ProgramField $field): array {
+                    $type = $field->type;
+
+                    return [
+                        'id' => $field->id,
+                        'label' => $field->label,
+                        'type_label' => $type instanceof ProgramFieldType ? $type->name : (string) $type,
+                        'is_required' => (bool) $field->is_required,
+                        'options' => $field->options,
+                    ];
+                })
+                ->values()
+                ->all(),
+            'document_requirements' => $program->documentRequirements
+                ->map(static function (ProgramDocumentRequirement $requirement): array {
+                    return [
+                        'id' => $requirement->id,
+                        'name' => $requirement->documentType?->name ?? 'Document',
+                        'is_required' => (bool) $requirement->is_required,
+                        'required_before_label' => match ($requirement->required_before) {
+                            DocumentRequirementMilestone::Verified => 'Before verification',
+                            DocumentRequirementMilestone::Delivered => 'Before delivery',
+                            default => 'Not set',
+                        },
+                    ];
+                })
+                ->values()
+                ->all(),
+            'eligibility' => $this->executiveEligibility($program),
+        ];
     }
 
     /**
@@ -488,6 +585,54 @@ class ProgramService
     /**
      * @return array{
      *     cooldown_days: int|null,
+     *     requirements: list<string>,
+     *     item_caps: list<array{item_id: int, item_name: string, max_released_per_year: int}>,
+     *     source_name: string|null
+     * }
+     */
+    private function executiveEligibility(Program $program): array
+    {
+        $source = $program->eligibilityProgram();
+        $source->loadMissing(['eligibilityRule', 'itemCaps.item:id,name']);
+        $rule = $source->eligibilityRule;
+        $requirements = [];
+
+        if ($rule instanceof ProgramEligibilityRule) {
+            if ($rule->require_pwd) {
+                $requirements[] = 'PWD only';
+            }
+
+            if ($rule->require_4ps) {
+                $requirements[] = '4Ps only';
+            }
+
+            if ($rule->require_solo_parent) {
+                $requirements[] = 'Solo parent only';
+            }
+
+            if ($rule->require_indigenous) {
+                $requirements[] = 'Indigenous peoples only';
+            }
+        }
+
+        return [
+            'cooldown_days' => $rule instanceof ProgramEligibilityRule ? $rule->cooldown_days : null,
+            'requirements' => $requirements,
+            'item_caps' => $source->itemCaps
+                ->map(static fn (ProgramItemCap $cap): array => [
+                    'item_id' => $cap->item_id,
+                    'item_name' => $cap->item?->name ?? 'Item',
+                    'max_released_per_year' => $cap->max_released_per_year,
+                ])
+                ->values()
+                ->all(),
+            'source_name' => $source->is($program) ? null : $source->name,
+        ];
+    }
+
+    /**
+     * @return array{
+     *     cooldown_days: int|null,
      *     require_pwd: bool,
      *     require_4ps: bool,
      *     require_solo_parent: bool,
@@ -695,5 +840,14 @@ class ProgramService
         }
 
         return Carbon::parse($value)->toDateString();
+    }
+
+    private function programDateLabel(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        return Carbon::parse($value)->format('M d, Y');
     }
 }

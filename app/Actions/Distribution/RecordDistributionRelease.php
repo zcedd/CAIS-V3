@@ -5,6 +5,7 @@ namespace App\Actions\Distribution;
 use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionItemApprovalStatus;
 use App\Enums\DistributionReleaseOutcome;
+use App\Models\Assistance;
 use App\Models\DistributionBatch;
 use App\Models\DistributionBatchItem;
 use App\Models\DistributionReleaseRecord;
@@ -15,7 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class RecordDistributionRelease
 {
-    public function __construct(private DistributionAudit $audit) {}
+    public function __construct(
+        private DistributionAudit $audit,
+        private RecordDistributionAssistanceStatus $assistanceStatus,
+    ) {}
 
     /**
      * @param  array{
@@ -88,6 +92,12 @@ class RecordDistributionRelease
                 }
 
                 $record = $this->store($item, null, $outcome, null, null, $actor, $data, $remarks);
+                $item->loadMissing('assistance');
+
+                if ($item->assistance instanceof Assistance) {
+                    $this->assistanceStatus->recordAbsent($item->assistance, $actor, $remarks);
+                }
+
                 $this->audit->record($actor, $batch, 'release_recorded', [
                     'revision' => $batch->revision,
                     'distribution_batch_item_id' => $item->id,

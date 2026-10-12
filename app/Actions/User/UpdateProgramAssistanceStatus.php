@@ -55,7 +55,7 @@ class UpdateProgramAssistanceStatus
 
         $this->assistanceDocumentService->assertCompleteForSubStatus($assistance, $subStatus);
 
-        $recordedAt = Carbon::parse($validated['recorded_at']);
+        $recordedAt = Carbon::parse($validated['recorded_at'])->timezone(config('app.timezone'));
         $user = Auth::user();
         $assistance->load('program');
 

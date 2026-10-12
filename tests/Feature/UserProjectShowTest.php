@@ -378,8 +378,8 @@ test('program show page accepts sort direction and per page query parameters', f
         ->assertJsonPath('props.direction', 'asc')
         ->assertJsonPath('props.per_page', 10)
         ->assertJsonPath('props.assistances.per_page', 10)
-        ->assertJsonPath('props.assistances.data.0.date_requested', '2024-01-01')
-        ->assertJsonPath('props.assistances.data.1.date_requested', '2024-06-01');
+        ->assertJsonPath('props.assistances.data.0.date_requested', '2024-01-01T00:00:00+00:00')
+        ->assertJsonPath('props.assistances.data.1.date_requested', '2024-06-01T00:00:00+00:00');
 });
 
 test('program show page uses latest request sub status for assistance status', function () {

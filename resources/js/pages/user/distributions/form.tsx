@@ -12,6 +12,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { formatPeso } from '@/lib/format-peso';
 import {
     create,
     edit,
@@ -40,7 +41,6 @@ type BatchForm = {
     description: string | null;
     scheduled_at: string | null;
     venue: string | null;
-    approval_mode: string;
     notes: string | null;
     lock_version: number;
     assistance_ids: number[];
@@ -59,9 +59,6 @@ export default function DistributionForm({
 }) {
     const [programId, setProgramId] = useState(
         String(batch?.program_id ?? programs[0]?.id ?? ''),
-    );
-    const [approvalMode, setApprovalMode] = useState(
-        batch?.approval_mode ?? 'batch',
     );
     const [selected, setSelected] = useState<number[]>(
         batch?.assistance_ids ?? [],
@@ -111,7 +108,6 @@ export default function DistributionForm({
                         description: String(form.get('description') ?? ''),
                         scheduled_at: String(form.get('scheduled_at') ?? ''),
                         venue: String(form.get('venue') ?? ''),
-                        approval_mode: approvalMode,
                         notes: String(form.get('notes') ?? ''),
                         assistance_ids: selected,
                         lock_version: batch?.lock_version,
@@ -134,7 +130,9 @@ export default function DistributionForm({
             >
                 <div>
                     <h1 className="text-2xl font-semibold">
-                        {batch ? 'Edit distribution batch' : 'New distribution batch'}
+                        {batch
+                            ? 'Edit distribution batch'
+                            : 'New distribution batch'}
                     </h1>
                     <p className="text-sm text-muted-foreground">
                         {department.name}
@@ -143,10 +141,7 @@ export default function DistributionForm({
 
                 <div className="grid gap-2">
                     <Label htmlFor="program_id">Program</Label>
-                    <Select
-                        value={programId}
-                        onValueChange={loadProgram}
-                    >
+                    <Select value={programId} onValueChange={loadProgram}>
                         <SelectTrigger id="program_id" className="w-full">
                             <SelectValue placeholder="Select a program" />
                         </SelectTrigger>
@@ -204,21 +199,6 @@ export default function DistributionForm({
                     </div>
                 </div>
 
-                <div className="grid gap-2">
-                    <Label htmlFor="approval_mode">Approval mode</Label>
-                    <Select value={approvalMode} onValueChange={setApprovalMode}>
-                        <SelectTrigger id="approval_mode" className="w-full">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="batch">Whole batch</SelectItem>
-                            <SelectItem value="beneficiary">
-                                Individual beneficiary
-                            </SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
                 <fieldset className="grid gap-2">
                     <legend className="text-sm font-medium">
                         Eligible requests
@@ -254,14 +234,7 @@ export default function DistributionForm({
                                 <span className="ml-2 text-muted-foreground">
                                     {request.cais_number} · {request.status}
                                 </span>
-                                <span className="block text-muted-foreground">
-                                    {request.lines
-                                        .map(
-                                            (line) =>
-                                                `${line.name ?? 'Item'} × ${line.quantity ?? 0}`,
-                                        )
-                                        .join(', ')}
-                                </span>
+                                <RequestLines lines={request.lines} />
                             </span>
                         </label>
                     ))}
@@ -281,5 +254,43 @@ export default function DistributionForm({
                 </Button>
             </form>
         </>
+    );
+}
+
+function RequestLines({ lines }: { lines: RequestRow['lines'] }) {
+    const groups = (
+        [
+            { kind: 'goods', label: 'Goods' },
+            { kind: 'service', label: 'Services' },
+            { kind: 'cash', label: 'Cash' },
+        ] as const
+    )
+        .map((group) => ({
+            ...group,
+            lines: lines.filter(
+                (line) => (line.kind ?? 'goods') === group.kind,
+            ),
+        }))
+        .filter((group) => group.lines.length > 0);
+
+    if (groups.length === 0) {
+        return null;
+    }
+
+    return (
+        <span className="mt-1 flex flex-col gap-1 text-muted-foreground">
+            {groups.map((group) => (
+                <span key={group.kind}>
+                    {group.label}:{' '}
+                    {group.lines
+                        .map((line) =>
+                            group.kind === 'cash'
+                                ? `${line.name ?? 'Cash'} ${formatPeso(line.quantity ?? 0)}`
+                                : `${line.name ?? 'Item'} × ${line.quantity ?? 0}`,
+                        )
+                        .join(', ')}
+                </span>
+            ))}
+        </span>
     );
 }

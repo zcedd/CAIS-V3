@@ -8,6 +8,7 @@ use App\Actions\User\BulkUpdateProgramAssistanceStatus;
 use App\Actions\User\TransferProgramAssistance;
 use App\Actions\User\UpdateProgramAssistance;
 use App\Actions\User\UpdateProgramAssistanceStatus;
+use App\Enums\RequestSubStatusCode;
 use App\Exports\User\ProgramAssistancesExport;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Assistance\AssignRequest;
@@ -359,12 +360,12 @@ class AssistanceController extends Controller
             'currentRequestSubStatus.requestStatus:id,name',
         ]);
 
-        $formatDate = static function ($value): ?string {
+        $formatDateTime = static function ($value): ?string {
             if ($value === null) {
                 return null;
             }
 
-            return Carbon::parse($value)->toDateString();
+            return Carbon::parse($value)->toIso8601String();
         };
 
         $beneficiaryName = $assistance->beneficiary?->name ?? EmptyCell::VALUE;
@@ -402,6 +403,8 @@ class AssistanceController extends Controller
                     : null,
                 'status' => $status,
                 'current_sub_status' => $latestSubStatus?->name,
+                'current_sub_status_on_task' => $latestSubStatus?->code instanceof RequestSubStatusCode
+                    && $latestSubStatus->code->reflectsOnTask(),
                 'mode_of_request' => $assistance->modeOfRequest?->name ?? EmptyCell::VALUE,
                 'encoder_name' => $assistance->user_id === null
                     ? 'Public intake'
@@ -422,16 +425,16 @@ class AssistanceController extends Controller
                     : [],
                 'sla_due_at' => $assistance->sla_due_at?->toIso8601String(),
                 'sla_state' => $assistance->slaState(),
-                'date_requested' => $formatDate($assistance->date_requested),
-                'date_verified' => $formatDate(
+                'date_requested' => $formatDateTime($assistance->date_requested),
+                'date_verified' => $formatDateTime(
                     $statusHistory
                         ->first(static fn ($subStatus): bool => $subStatus->name === 'Verified'
                             || $subStatus->code?->value === 'verified')
                         ?->pivot
                         ?->recorded_at,
                 ),
-                'date_delivered' => $formatDate($assistance->date_delivered),
-                'date_denied' => $formatDate(
+                'date_delivered' => $formatDateTime($assistance->date_delivered),
+                'date_denied' => $formatDateTime(
                     $statusHistory
                         ->first(static fn ($subStatus): bool => $subStatus->requestStatus?->name === 'Denied')
                         ?->pivot
@@ -447,7 +450,7 @@ class AssistanceController extends Controller
                         'name' => $subStatus->name,
                         'parent_status' => $subStatus->requestStatus?->name,
                         'remark' => $subStatus->pivot->remark,
-                        'recorded_at' => Carbon::parse($subStatus->pivot->recorded_at)->toDateTimeString(),
+                        'recorded_at' => Carbon::parse($subStatus->pivot->recorded_at)->toIso8601String(),
                     ])
                     ->values()
                     ->all(),
@@ -463,7 +466,7 @@ class AssistanceController extends Controller
                             ? trim($assignment->assignedBy->firstName.' '.$assignment->assignedBy->lastName)
                             : EmptyCell::VALUE,
                         'remark' => $assignment->remark,
-                        'recorded_at' => $assignment->created_at?->toDateTimeString(),
+                        'recorded_at' => $assignment->created_at?->toIso8601String(),
                     ])
                     ->all(),
             ],

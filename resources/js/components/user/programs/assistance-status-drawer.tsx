@@ -29,6 +29,10 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { slaLabel } from '@/components/user/sla-badge';
+import {
+    formatDateTimeForSubmit,
+    parseAppDateTime,
+} from '@/lib/app-datetime';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceItem } from '@/pages/user/programs/assistance-columns';
 import {
@@ -129,21 +133,6 @@ function substitutedAssistanceItemIds(extraItems: ExtraItemDraft[]): string[] {
         .map((draft) => draft.substitutedForId);
 }
 
-function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
-    if (!date) {
-        return undefined;
-    }
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
 function formatTimeForInput(date: Date): string {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
@@ -172,7 +161,7 @@ function parseRecordedAt(value: string | null): Date | undefined {
         return undefined;
     }
 
-    const recorded = new Date(value);
+    const recorded = parseAppDateTime(value);
 
     if (Number.isNaN(recorded.getTime())) {
         return undefined;

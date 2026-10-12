@@ -8,13 +8,19 @@ use App\Enums\DistributionItemApprovalStatus;
 use App\Enums\RequestSubStatusCode;
 use App\Enums\RoleName;
 use App\Enums\StockMovementType;
+use App\Enums\WorkflowStepType;
+use App\Enums\WorkflowTaskStatus;
+use App\Models\AssistanceItem;
 use App\Models\Department;
 use App\Models\DistributionApprovalDecision;
 use App\Models\DistributionBatchItem;
 use App\Models\DistributionTransaction;
+use App\Models\Item;
 use App\Models\User;
 use App\Notifications\DistributionBatchNotification;
+use App\Services\Distribution\DistributionBatchDetails;
 use App\Services\Distribution\DistributionNotifier;
+use App\Services\Workflow\WorkflowEngine;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -62,6 +68,57 @@ test('a request that is not eligible cannot join a batch', function () {
     test()->actingAs($fixture['creator'])
         ->post(route('user.distributions.store', $fixture['department']), distributionPayload($fixture))
         ->assertSessionHasErrors('assistance_ids');
+});
+
+test('distribution status is copied onto the request and its workflow task', function () {
+    $fixture = distributionFixture();
+    $assistance = $fixture['assistances'][0];
+    $engine = app(WorkflowEngine::class);
+    $engine->start($assistance, $fixture['creator'], false);
+
+    $batch = storeDistribution($fixture);
+    submitDistribution($fixture, $batch);
+
+    $assistance->refresh();
+
+    expect($assistance->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ForDistributionApproval)
+        ->and($engine->currentTask($assistance)?->step?->step_type)->toBe(WorkflowStepType::Approval);
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $assistance->refresh();
+
+    expect($assistance->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ReadyForRelease)
+        ->and($engine->currentTask($assistance)?->step?->step_type)->toBe(WorkflowStepType::Preparation);
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
+            'scheduled_at' => now()->addDay()->format('Y-m-d H:i:s'),
+            'venue' => 'Covered court',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $assistance->refresh();
+    $scheduledTask = $engine->currentTask($assistance);
+
+    expect($assistance->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ScheduledForRelease)
+        ->and($scheduledTask?->step?->step_type)->toBe(WorkflowStepType::Preparation)
+        ->and($scheduledTask?->remarks)->toBe('The assistance request is scheduled for release.');
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $assistance->refresh();
+
+    expect($assistance->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ReleaseInProgress)
+        ->and($engine->currentTask($assistance)?->status)->toBe(WorkflowTaskStatus::InProgress)
+        ->and($engine->currentTask($assistance)?->step?->step_type)->toBe(WorkflowStepType::Preparation);
 });
 
 test('an executive can approve a whole batch', function () {
@@ -113,13 +170,38 @@ test('an executive can return or reject a whole batch', function () {
         ->assertRedirect();
 
     expect($rejected->refresh()->status)->toBe(DistributionBatchStatus::Rejected)
-        ->and($second['assistances'][0]->refresh()->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
+        ->and($second['assistances'][0]->refresh()->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::DistributionRejected);
 
     test()->actingAs($second['creator'])
         ->post(route('user.distributions.reopen', [$second['department'], $rejected]), [
             'reason' => 'Try again',
         ])
         ->assertSessionHasErrors('status');
+});
+
+test('an approver can approve one beneficiary or the whole batch', function () {
+    $fixture = distributionFixture(requests: 2);
+    $batch = storeDistribution($fixture);
+    submitDistribution($fixture, $batch);
+    $first = $batch->items()->orderBy('id')->firstOrFail();
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.items.decide', [$batch, $first]), [
+            'decision' => 'approved',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($first->refresh()->approval_status)->toBe(DistributionItemApprovalStatus::Approved)
+        ->and($batch->refresh()->status)->toBe(DistributionBatchStatus::ForApproval);
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($batch->refresh()->status)->toBe(DistributionBatchStatus::Approved)
+        ->and($batch->items()->where('approval_status', 'approved')->count())->toBe(2);
 });
 
 test('beneficiary review can approve return and exclude', function () {
@@ -214,7 +296,7 @@ test('finalization waits for every beneficiary unless partial approval is enable
         ->assertSessionHasErrors('roster');
 
     expect($batch->refresh()->status)->toBe(DistributionBatchStatus::ForApproval)
-        ->and($fixture['assistances'][0]->refresh()->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
+        ->and($fixture['assistances'][0]->refresh()->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ForDistributionApproval);
 
     $partialFixture = distributionFixture(requests: 2);
     app(SaveDistributionApprovalPolicy::class)($partialFixture['governor'], [
@@ -276,7 +358,7 @@ test('sequential stages block later approvers and parallel stages need every app
         ->assertRedirect();
 
     expect($batch->refresh()->status)->toBe(DistributionBatchStatus::ForApproval)
-        ->and($fixture['assistances'][0]->refresh()->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
+        ->and($fixture['assistances'][0]->refresh()->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ForDistributionApproval);
 
     test()->actingAs($fixture['governor'])
         ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
@@ -440,6 +522,9 @@ test('releases record absence partial service and stock movement', function () {
         ])
         ->assertRedirect();
 
+    expect($fixture['assistances'][0]->refresh()->currentRequestSubStatus?->code)
+        ->toBe(RequestSubStatusCode::Absent);
+
     Storage::fake('local');
 
     test()->actingAs($fixture['officer'])
@@ -519,7 +604,16 @@ test('releases record absence partial service and stock movement', function () {
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
-    expect($batch->refresh()->status)->toBe(DistributionBatchStatus::Completed);
+    $batch->refresh();
+    $absent = $fixture['assistances'][0]->refresh();
+    $partial = $fixture['assistances'][1]->refresh();
+    $engine = app(WorkflowEngine::class);
+
+    expect($batch->status)->toBe(DistributionBatchStatus::Completed)
+        ->and($absent->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Closed)
+        ->and($partial->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Closed)
+        ->and($engine->currentTask($absent))->toBeNull()
+        ->and($engine->currentTask($partial))->toBeNull();
 });
 
 test('approval notices are not sent twice for the same event', function () {
@@ -620,4 +714,39 @@ test('super admin can save an approval policy without becoming the approver', fu
     test()->actingAs($admin)
         ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
         ->assertForbidden();
+});
+
+test('a distribution separates goods, services, and cash', function () {
+    $fixture = distributionFixture();
+    $goods = Item::factory()->forDepartment($fixture['department'])->create(['name' => 'Rice']);
+    $service = Item::factory()->forDepartment($fixture['department'])->service()->create(['name' => 'Checkup']);
+    AssistanceItem::query()->create([
+        'assistance_id' => $fixture['assistances'][0]->id,
+        'item_id' => $goods->id,
+        'quantity' => 3,
+        'requested_quantity' => 3,
+    ]);
+    AssistanceItem::query()->create([
+        'assistance_id' => $fixture['assistances'][0]->id,
+        'item_id' => $service->id,
+        'quantity' => 1,
+        'requested_quantity' => 1,
+    ]);
+
+    $batch = storeDistribution($fixture);
+
+    test()->actingAs($fixture['creator'])
+        ->get(route('user.distributions.show', [$fixture['department'], $batch]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('batch.reconciliation.composition.cash.proposed_amount', '500.00')
+            ->where('batch.reconciliation.composition.goods.lines.0.name', 'Rice')
+            ->where('batch.reconciliation.composition.service.lines.0.name', 'Checkup')
+            ->where('batch.reconciliation.composition.cash.lines.0.name', 'Cash aid'));
+
+    $offer = app(DistributionBatchDetails::class)->payload($batch)['reconciliation']['composition'];
+
+    expect($offer['goods']['lines'][0]['proposed_quantity'])->toBe('3.00')
+        ->and($offer['service']['lines'][0]['proposed_quantity'])->toBe('1.00')
+        ->and($offer['cash']['approved_amount'])->toBe('0.00');
 });

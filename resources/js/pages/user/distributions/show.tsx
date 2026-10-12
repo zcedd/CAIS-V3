@@ -1,18 +1,27 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
+import { AssistanceLines } from '@/components/distribution/assistance-lines';
+import { DistributionComposition } from '@/components/distribution/composition';
+import type { DistributionCompositionData } from '@/components/distribution/composition';
+import { DistributionDecisionDialog } from '@/components/distribution/decision-dialog';
+import {
+    ConfirmActionButton,
+    StatusDialog,
+} from '@/components/distribution/status-dialog';
+import type { VisitCallbacks } from '@/components/distribution/status-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Field,
+    FieldDescription,
+    FieldError,
+    FieldGroup,
+    FieldLabel,
+} from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -21,6 +30,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Textarea } from '@/components/ui/textarea';
 import {
     cancel,
     complete,
@@ -65,6 +75,7 @@ type Line = {
     id: number;
     item_name: string | null;
     kind: string | null;
+    unit?: string | null;
     proposed_quantity: string | null;
     approved_quantity: string | null;
     proposed_amount: string | null;
@@ -101,8 +112,6 @@ type Batch = {
     description: string | null;
     venue: string | null;
     scheduled_at: string | null;
-    approval_mode: string;
-    approval_mode_label: string;
     status: string;
     status_label: string;
     revision: number;
@@ -153,6 +162,7 @@ type Batch = {
         actual_cash: string;
         remaining_cash: string;
         ready_to_complete: boolean;
+        composition: DistributionCompositionData;
     };
 };
 
@@ -188,8 +198,12 @@ export default function DistributionShow({
         });
     }, [batch.batch_code, batch.id, department.slug]);
 
-    function post(url: string, data: VisitData = {}): void {
-        router.post(url, data, { preserveScroll: true });
+    function post(
+        url: string,
+        data: VisitData = {},
+        visit: VisitCallbacks = {},
+    ): void {
+        router.post(url, data, { preserveScroll: true, ...visit });
     }
 
     return (
@@ -212,29 +226,15 @@ export default function DistributionShow({
                     <Badge variant="outline">{batch.status_label}</Badge>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <Summary label="Mode" value={batch.approval_mode_label} />
+                <div className="grid gap-3 sm:grid-cols-2">
                     <Summary
                         label="Beneficiaries"
                         value={`${batch.approved_beneficiary_count} approved / ${batch.beneficiary_count}`}
                     />
-                    <Summary
-                        label="Proposed cash"
-                        value={batch.proposed_cash_total}
-                    />
-                    <Summary
-                        label="Approved cash"
-                        value={batch.approved_cash_total}
-                    />
-                    <Summary
-                        label="Released cash"
-                        value={batch.reconciliation.actual_cash}
-                    />
-                    <Summary
-                        label="Remaining cash"
-                        value={batch.reconciliation.remaining_cash}
-                    />
                 </div>
+                <DistributionComposition
+                    composition={batch.reconciliation.composition}
+                />
 
                 {batch.finalization_label && (
                     <p className="text-sm">{batch.finalization_label}</p>
@@ -255,50 +255,72 @@ export default function DistributionShow({
                         </Button>
                     )}
                     {['draft', 'returned'].includes(batch.status) && (
-                        <Button onClick={() => post(validate.url(args))}>
-                            Validate
-                        </Button>
+                        <ConfirmActionButton
+                            label="Validate"
+                            title="Validate this batch?"
+                            description="The roster is checked before it can be submitted for approval."
+                            status="For validation"
+                            onConfirm={(visit) =>
+                                post(validate.url(args), {}, visit)
+                            }
+                        />
                     )}
                     {batch.status === 'for_validation' && (
-                        <Button onClick={() => post(submit.url(args))}>
-                            Submit for approval
-                        </Button>
+                        <ConfirmActionButton
+                            label="Submit for approval"
+                            title="Submit this batch for approval?"
+                            description="Reviewers will receive the current roster."
+                            status="For approval"
+                            onConfirm={(visit) =>
+                                post(submit.url(args), {}, visit)
+                            }
+                        />
                     )}
                     {batch.status === 'approved' && (
                         <ScheduleForm
-                            onSubmit={(scheduledAt, venueName, details) =>
-                                post(schedule.url(args), {
-                                    scheduled_at: scheduledAt,
-                                    venue: venueName,
-                                    venue_details: details,
-                                    lock_version: batch.lock_version,
-                                })
+                            onSubmit={(
+                                scheduledAt,
+                                venueName,
+                                details,
+                                visit,
+                            ) =>
+                                post(
+                                    schedule.url(args),
+                                    {
+                                        scheduled_at: scheduledAt,
+                                        venue: venueName,
+                                        venue_details: details,
+                                        lock_version: batch.lock_version,
+                                    },
+                                    visit,
+                                )
                             }
                         />
                     )}
                     {batch.status === 'rejected' &&
                         batch.policy?.allow_resubmit_after_reject && (
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    if (
-                                        !window.confirm(
-                                            'Reopen this rejected batch as a new draft?',
-                                        )
-                                    ) {
-                                        return;
-                                    }
-
-                                    post(reopen.url(args));
-                                }}
-                            >
-                                Reopen as draft
-                            </Button>
+                            <ConfirmActionButton
+                                label="Reopen as draft"
+                                buttonVariant="outline"
+                                title="Reopen this batch?"
+                                description="The rejected batch becomes a new draft. Earlier decisions stay in the history."
+                                status="Draft"
+                                statusVariant="secondary"
+                                onConfirm={(visit) =>
+                                    post(reopen.url(args), {}, visit)
+                                }
+                            />
                         )}
                     {batch.status === 'scheduled' && (
-                        <Button onClick={() => post(start.url(args))}>
-                            Start distribution
-                        </Button>
+                        <ConfirmActionButton
+                            label="Start distribution"
+                            title="Start this distribution?"
+                            description="Officers can record releases after the batch is in progress."
+                            status="In progress"
+                            onConfirm={(visit) =>
+                                post(start.url(args), {}, visit)
+                            }
+                        />
                     )}
                     {(batch.status === 'scheduled' ||
                         batch.status === 'in_progress') && (
@@ -307,12 +329,17 @@ export default function DistributionShow({
                         </Button>
                     )}
                     {batch.status === 'in_progress' && (
-                        <Button
+                        <ConfirmActionButton
+                            label="Complete"
+                            title="Complete this distribution?"
+                            description="The batch closes after every approved beneficiary has a release outcome."
+                            status="Completed"
+                            statusVariant="default"
                             disabled={!batch.reconciliation.ready_to_complete}
-                            onClick={() => post(complete.url(args))}
-                        >
-                            Complete
-                        </Button>
+                            onConfirm={(visit) =>
+                                post(complete.url(args), {}, visit)
+                            }
+                        />
                     )}
                     {![
                         'completed',
@@ -321,57 +348,81 @@ export default function DistributionShow({
                         'in_progress',
                     ].includes(batch.status) && (
                         <CancelForm
-                            onSubmit={(reason) =>
-                                post(cancel.url(args), {
-                                    reason,
-                                    lock_version: batch.lock_version,
-                                })
+                            onSubmit={(reason, visit) =>
+                                post(
+                                    cancel.url(args),
+                                    {
+                                        reason,
+                                        lock_version: batch.lock_version,
+                                    },
+                                    visit,
+                                )
                             }
                         />
                     )}
                 </div>
 
-                {batch.status === 'for_approval' &&
-                    batch.approval_mode === 'batch' && (
-                        <DecisionForm
-                            onSubmit={(decision, remarks) =>
-                                post(decide.url(args), {
-                                    decision,
-                                    remarks,
-                                    lock_version: batch.lock_version,
-                                })
+                {batch.status === 'for_approval' && (
+                    <div className="flex flex-wrap gap-2">
+                        <DistributionDecisionDialog
+                            triggerLabel="Approve whole batch"
+                            title="Approve the whole batch"
+                            description="Approve, return, or reject every beneficiary still on this batch."
+                            choices={[
+                                { value: 'approved', label: 'Approve' },
+                                { value: 'returned', label: 'Return' },
+                                { value: 'rejected', label: 'Reject' },
+                            ]}
+                            reasonRequired={['returned', 'rejected']}
+                            onDecide={(payload, visit) =>
+                                post(
+                                    decide.url(args),
+                                    {
+                                        decision: payload.decision,
+                                        remarks: payload.remarks,
+                                        lock_version: batch.lock_version,
+                                    },
+                                    visit,
+                                )
                             }
                         />
-                    )}
-
-                {batch.status === 'for_approval' &&
-                    batch.approval_mode === 'beneficiary' && (
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                variant="outline"
-                                disabled={selected.length === 0}
-                                onClick={() => {
-                                    if (
-                                        !window.confirm(
-                                            `Approve ${selected.length} selected beneficiaries?`,
-                                        )
-                                    ) {
-                                        return;
-                                    }
-
-                                    post(bulkDecide.url(args), {
+                        <ConfirmActionButton
+                            label="Approve selected"
+                            buttonVariant="outline"
+                            title="Approve selected beneficiaries?"
+                            description={`Approve ${selected.length} selected ${selected.length === 1 ? 'beneficiary' : 'beneficiaries'}.`}
+                            status="Approved"
+                            statusVariant="default"
+                            disabled={selected.length === 0}
+                            onConfirm={(visit) =>
+                                post(
+                                    bulkDecide.url(args),
+                                    {
                                         item_ids: selected,
                                         decision: 'approved',
-                                    });
-                                }}
-                            >
-                                Approve selected
-                            </Button>
-                            <Button onClick={() => post(finalize.url(args))}>
-                                Finalize review
-                            </Button>
-                        </div>
-                    )}
+                                    },
+                                    {
+                                        ...visit,
+                                        onSuccess: () => {
+                                            visit.onSuccess?.();
+                                            setSelected([]);
+                                        },
+                                    },
+                                )
+                            }
+                        />
+                        <ConfirmActionButton
+                            label="Finalize review"
+                            title="Finalize this review?"
+                            description="Lock in the individual beneficiary decisions."
+                            status="Finalized"
+                            statusVariant="default"
+                            onConfirm={(visit) =>
+                                post(finalize.url(args), {}, visit)
+                            }
+                        />
+                    </div>
+                )}
 
                 <Card>
                     <CardContent>
@@ -385,127 +436,175 @@ export default function DistributionShow({
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                            {batch.items.map((item) => (
-                                <TableRow key={item.id} className="align-top">
-                                    <TableCell className="whitespace-normal">
-                                        {batch.approval_mode ===
-                                            'beneficiary' &&
-                                            item.approval_status ===
-                                                'pending' && (
-                                                <Checkbox
-                                                    className="mr-2"
-                                                    checked={selected.includes(
-                                                        item.id,
-                                                    )}
-                                                    onCheckedChange={(
-                                                        checked,
-                                                    ) =>
-                                                        setSelected(
-                                                            (current) =>
-                                                                checked ===
-                                                                true
-                                                                    ? [
-                                                                          ...current,
-                                                                          item.id,
-                                                                      ]
-                                                                    : current.filter(
-                                                                          (
-                                                                              id,
-                                                                          ) =>
-                                                                              id !==
+                                {batch.items.map((item) => (
+                                    <TableRow
+                                        key={item.id}
+                                        className="align-top"
+                                    >
+                                        <TableCell className="whitespace-normal">
+                                            {batch.status ===
+                                                'for_approval' &&
+                                                item.approval_status ===
+                                                    'pending' && (
+                                                    <Checkbox
+                                                        className="mr-2"
+                                                        checked={selected.includes(
+                                                            item.id,
+                                                        )}
+                                                        onCheckedChange={(
+                                                            checked,
+                                                        ) =>
+                                                            setSelected(
+                                                                (current) =>
+                                                                    checked ===
+                                                                    true
+                                                                        ? [
+                                                                              ...current,
                                                                               item.id,
-                                                                      ),
-                                                        )
-                                                    }
-                                                    aria-label={`Select ${item.beneficiary.name}`}
-                                                />
+                                                                          ]
+                                                                        : current.filter(
+                                                                              (
+                                                                                  id,
+                                                                              ) =>
+                                                                                  id !==
+                                                                                  item.id,
+                                                                          ),
+                                                            )
+                                                        }
+                                                        aria-label={`Select ${item.beneficiary.name}`}
+                                                    />
+                                                )}
+                                            <div className="font-medium">
+                                                {item.beneficiary.name}
+                                            </div>
+                                            <div className="text-muted-foreground">
+                                                {item.beneficiary.cais_number}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="whitespace-normal">
+                                            <AssistanceLines
+                                                lines={item.lines}
+                                            />
+                                            {item.warnings.map((warning) => (
+                                                <div
+                                                    key={warning}
+                                                    className="text-amber-700"
+                                                >
+                                                    {warning}
+                                                </div>
+                                            ))}
+                                        </TableCell>
+                                        <TableCell className="whitespace-normal">
+                                            <Badge variant="outline">
+                                                {item.approval_label}
+                                            </Badge>
+                                            {item.exclusion_reason && (
+                                                <div>
+                                                    {item.exclusion_reason}
+                                                </div>
                                             )}
-                                        <div className="font-medium">
-                                            {item.beneficiary.name}
-                                        </div>
-                                        <div className="text-muted-foreground">
-                                            {item.beneficiary.cais_number}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="whitespace-normal">
-                                        {item.lines.map((line) => (
-                                            <div key={line.id}>
-                                                {line.item_name}: proposed{' '}
-                                                {line.proposed_amount ??
-                                                    line.proposed_quantity}
-                                                {line.approved_amount ||
-                                                line.approved_quantity
-                                                    ? ` / approved ${line.approved_amount ?? line.approved_quantity}`
-                                                    : ''}
-                                            </div>
-                                        ))}
-                                        {item.warnings.map((warning) => (
-                                            <div
-                                                key={warning}
-                                                className="text-amber-700"
-                                            >
-                                                {warning}
-                                            </div>
-                                        ))}
-                                    </TableCell>
-                                    <TableCell className="whitespace-normal">
-                                        <Badge variant="outline">
-                                            {item.approval_label}
-                                        </Badge>
-                                        {item.exclusion_reason && (
-                                            <div>{item.exclusion_reason}</div>
-                                        )}
-                                        {batch.status === 'for_approval' &&
-                                            batch.approval_mode ===
-                                                'beneficiary' &&
-                                            item.approval_status ===
-                                                'pending' && (
-                                                <ItemActions
-                                                    item={item}
-                                                    allowAmount={
-                                                        batch.policy
-                                                            ?.allow_amount_modification ??
-                                                        false
-                                                    }
-                                                    onDecide={(payload) =>
-                                                        post(
-                                                            decideItem.url({
-                                                                ...args,
-                                                                item: item.id,
-                                                            }),
+                                            {batch.status === 'for_approval' &&
+                                                item.approval_status ===
+                                                    'pending' && (
+                                                    <DistributionDecisionDialog
+                                                        triggerLabel="Record decision"
+                                                        triggerVariant="outline"
+                                                        triggerSize="sm"
+                                                        title={`Decide ${item.beneficiary.name ?? 'beneficiary'}`}
+                                                        description="This decision applies only to this beneficiary."
+                                                        choices={[
+                                                            {
+                                                                value: 'approved',
+                                                                label: 'Approve',
+                                                            },
+                                                            {
+                                                                value: 'returned',
+                                                                label: 'Return',
+                                                            },
+                                                            {
+                                                                value: 'excluded',
+                                                                label: 'Exclude',
+                                                            },
+                                                        ]}
+                                                        reasonRequired={[
+                                                            'returned',
+                                                            'excluded',
+                                                        ]}
+                                                        lines={
+                                                            batch.policy
+                                                                ?.allow_amount_modification
+                                                                ? item.lines.map(
+                                                                      (
+                                                                          line,
+                                                                      ) => ({
+                                                                          id: line.id,
+                                                                          label:
+                                                                              line.item_name ??
+                                                                              'Line',
+                                                                          kind:
+                                                                              line.kind ===
+                                                                              'cash'
+                                                                                  ? 'amount'
+                                                                                  : 'quantity',
+                                                                      }),
+                                                                  )
+                                                                : []
+                                                        }
+                                                        onDecide={(
                                                             payload,
-                                                        )
-                                                    }
-                                                />
-                                            )}
-                                    </TableCell>
-                                    <TableCell className="whitespace-normal">
-                                        {item.releases.map((release) => (
-                                            <div key={release.id}>
-                                                {release.outcome}
-                                                {release.receipt_reference
-                                                    ? ` · ${release.receipt_reference}`
-                                                    : ''}
-                                            </div>
-                                        ))}
-                                        {batch.status === 'in_progress' &&
-                                            item.distributable &&
-                                            item.releases.length === 0 && (
-                                                <ReleaseForm
-                                                    item={item}
-                                                    onSubmit={(payload) =>
-                                                        post(
-                                                            storeRelease.url(
-                                                                args,
-                                                            ),
+                                                            visit,
+                                                        ) =>
+                                                            post(
+                                                                decideItem.url({
+                                                                    ...args,
+                                                                    item: item.id,
+                                                                }),
+                                                                {
+                                                                    decision:
+                                                                        payload.decision,
+                                                                    remarks:
+                                                                        payload.remarks,
+                                                                    exclusion_reason:
+                                                                        payload.remarks,
+                                                                    lines: payload.lines,
+                                                                },
+                                                                visit,
+                                                            )
+                                                        }
+                                                    />
+                                                )}
+                                        </TableCell>
+                                        <TableCell className="whitespace-normal">
+                                            {item.releases.map((release) => (
+                                                <div key={release.id}>
+                                                    {release.outcome}
+                                                    {release.receipt_reference
+                                                        ? ` · ${release.receipt_reference}`
+                                                        : ''}
+                                                </div>
+                                            ))}
+                                            {batch.status === 'in_progress' &&
+                                                item.distributable &&
+                                                item.releases.length === 0 && (
+                                                    <ReleaseForm
+                                                        item={item}
+                                                        onSubmit={(
                                                             payload,
-                                                        )
-                                                    }
-                                                />
-                                            )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                            visit,
+                                                        ) =>
+                                                            post(
+                                                                storeRelease.url(
+                                                                    args,
+                                                                ),
+                                                                payload,
+                                                                visit,
+                                                            )
+                                                        }
+                                                    />
+                                                )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -517,85 +616,90 @@ export default function DistributionShow({
                             <CardTitle>Reconciliation</CardTitle>
                         </CardHeader>
                         <CardContent>
-                        <ul className="mt-2 text-sm">
-                            <li>
-                                Approved{' '}
-                                {batch.reconciliation.approved_beneficiaries}
-                            </li>
-                            <li>
-                                Served{' '}
-                                {batch.reconciliation.served_beneficiaries}
-                            </li>
-                            <li>
-                                Partial{' '}
-                                {batch.reconciliation.partial_beneficiaries}
-                            </li>
-                            <li>
-                                Absent{' '}
-                                {batch.reconciliation.absent_beneficiaries}
-                            </li>
-                            <li>
-                                Excluded{' '}
-                                {batch.reconciliation.excluded_beneficiaries}
-                            </li>
-                            <li>
-                                Unserved{' '}
-                                {batch.reconciliation.unserved_beneficiaries}
-                            </li>
-                            <li>
-                                Approved cash{' '}
-                                {batch.reconciliation.approved_cash} / actual{' '}
-                                {batch.reconciliation.actual_cash}
-                            </li>
-                        </ul>
-                    </CardContent>
+                            <ul className="mt-2 text-sm">
+                                <li>
+                                    Approved{' '}
+                                    {
+                                        batch.reconciliation
+                                            .approved_beneficiaries
+                                    }
+                                </li>
+                                <li>
+                                    Served{' '}
+                                    {batch.reconciliation.served_beneficiaries}
+                                </li>
+                                <li>
+                                    Partial{' '}
+                                    {batch.reconciliation.partial_beneficiaries}
+                                </li>
+                                <li>
+                                    Absent{' '}
+                                    {batch.reconciliation.absent_beneficiaries}
+                                </li>
+                                <li>
+                                    Excluded{' '}
+                                    {
+                                        batch.reconciliation
+                                            .excluded_beneficiaries
+                                    }
+                                </li>
+                                <li>
+                                    Unserved{' '}
+                                    {
+                                        batch.reconciliation
+                                            .unserved_beneficiaries
+                                    }
+                                </li>
+                            </ul>
+                        </CardContent>
                     </Card>
                     <Card>
                         <CardHeader>
                             <CardTitle>Approval history</CardTitle>
                         </CardHeader>
                         <CardContent>
-                        <ul className="mt-2 space-y-2">
-                            {batch.decisions.map((decision) => (
-                                <li key={decision.id}>
-                                    Rev {decision.revision}: {decision.decision}{' '}
-                                    by {decision.actor}
-                                    {decision.remarks
-                                        ? ` — ${decision.remarks}`
-                                        : ''}
-                                </li>
-                            ))}
-                            {batch.tasks
-                                .filter(
-                                    (task) => task.revision === batch.revision,
-                                )
-                                .map((task) => (
-                                    <li key={task.id}>
-                                        {task.stage}: {task.status}
+                            <ul className="mt-2 space-y-2">
+                                {batch.decisions.map((decision) => (
+                                    <li key={decision.id}>
+                                        Rev {decision.revision}:{' '}
+                                        {decision.decision} by {decision.actor}
+                                        {decision.remarks
+                                            ? ` — ${decision.remarks}`
+                                            : ''}
                                     </li>
                                 ))}
-                        </ul>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            {[
-                                'roster',
-                                'acknowledgements',
-                                'history',
-                                'releases',
-                                'reconciliation',
-                            ].map((report) => (
-                                <a
-                                    key={report}
-                                    className="underline"
-                                    href={exportReport.url({
-                                        ...args,
-                                        report,
-                                    })}
-                                >
-                                    {report}
-                                </a>
-                            ))}
-                        </div>
-                    </CardContent>
+                                {batch.tasks
+                                    .filter(
+                                        (task) =>
+                                            task.revision === batch.revision,
+                                    )
+                                    .map((task) => (
+                                        <li key={task.id}>
+                                            {task.stage}: {task.status}
+                                        </li>
+                                    ))}
+                            </ul>
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {[
+                                    'roster',
+                                    'acknowledgements',
+                                    'history',
+                                    'releases',
+                                    'reconciliation',
+                                ].map((report) => (
+                                    <a
+                                        key={report}
+                                        className="underline"
+                                        href={exportReport.url({
+                                            ...args,
+                                            report,
+                                        })}
+                                    >
+                                        {report}
+                                    </a>
+                                ))}
+                            </div>
+                        </CardContent>
                     </Card>
                 </section>
 
@@ -656,220 +760,231 @@ function Summary({ label, value }: { label: string; value: string }) {
     );
 }
 
-function DecisionForm({
-    onSubmit,
-}: {
-    onSubmit: (decision: string, remarks: string) => void;
-}) {
-    const [decision, setDecision] = useState('approved');
-    const [remarks, setRemarks] = useState('');
-
-    return (
-        <form
-            className="flex flex-wrap items-end gap-2"
-            onSubmit={(event) => {
-                event.preventDefault();
-
-                if (
-                    (decision === 'returned' || decision === 'rejected') &&
-                    remarks.trim() === ''
-                ) {
-                    window.alert('A reason is required for this decision.');
-
-                    return;
-                }
-
-                if (
-                    !window.confirm(
-                        `Record a ${decision} decision for the whole batch?`,
-                    )
-                ) {
-                    return;
-                }
-
-                onSubmit(decision, remarks);
-            }}
-        >
-            <div className="grid gap-2">
-                <Label>Whole-batch decision</Label>
-                <Select value={decision} onValueChange={setDecision}>
-                    <SelectTrigger className="w-48">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="approved">Approve</SelectItem>
-                        <SelectItem value="returned">Return</SelectItem>
-                        <SelectItem value="rejected">Reject</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="grid gap-2">
-                <Label htmlFor="batch-remarks">Reason</Label>
-                <Input
-                    id="batch-remarks"
-                    value={remarks}
-                    onChange={(event) => setRemarks(event.target.value)}
-                />
-            </div>
-            <Button type="submit">Record decision</Button>
-        </form>
-    );
-}
-
-function ItemActions({
-    item,
-    allowAmount,
-    onDecide,
-}: {
-    item: Item;
-    allowAmount: boolean;
-    onDecide: (payload: VisitData) => void;
-}) {
-    const [decision, setDecision] = useState('approved');
-
-    return (
-        <form
-            className="mt-2 grid gap-2"
-            onSubmit={(event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                const remarks = String(form.get('remarks') ?? '');
-
-                if (
-                    (decision === 'returned' || decision === 'excluded') &&
-                    remarks.trim() === ''
-                ) {
-                    window.alert('A reason is required for this decision.');
-
-                    return;
-                }
-
-                if (
-                    !window.confirm(`Record this beneficiary as ${decision}?`)
-                ) {
-                    return;
-                }
-
-                onDecide({
-                    decision,
-                    remarks,
-                    exclusion_reason: remarks,
-                    lines: allowAmount
-                        ? item.lines.map((line) => ({
-                              id: line.id,
-                              approved_amount:
-                                  String(form.get(`amount-${line.id}`) ?? '') ||
-                                  null,
-                              approved_quantity:
-                                  String(
-                                      form.get(`quantity-${line.id}`) ?? '',
-                                  ) || null,
-                          }))
-                        : [],
-                });
-            }}
-        >
-            <Select value={decision} onValueChange={setDecision}>
-                <SelectTrigger className="w-full">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="approved">Approve</SelectItem>
-                    <SelectItem value="returned">Return</SelectItem>
-                    <SelectItem value="excluded">Exclude</SelectItem>
-                </SelectContent>
-            </Select>
-            {allowAmount &&
-                item.lines.map((line) => (
-                    <Input
-                        key={line.id}
-                        name={
-                            line.proposed_amount !== null
-                                ? `amount-${line.id}`
-                                : `quantity-${line.id}`
-                        }
-                        placeholder="Approved value"
-                    />
-                ))}
-            <Input name="remarks" placeholder="Reason, if required" />
-            <Button type="submit" size="sm" variant="outline">
-                Save
-            </Button>
-        </form>
-    );
-}
-
 function ReleaseForm({
     item,
     onSubmit,
 }: {
     item: Item;
-    onSubmit: (payload: VisitData) => void;
+    onSubmit: (payload: VisitData, visit: VisitCallbacks) => void;
 }) {
+    const remarksId = useId();
+    const [open, setOpen] = useState(false);
+    const [pending, setPending] = useState(false);
+    const [remarks, setRemarks] = useState('');
+
     return (
-        <form
-            className="mt-2 grid gap-2"
-            onSubmit={(event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                onSubmit({
-                    distribution_batch_item_id: item.id,
-                    outcome: 'absent',
-                    remarks: String(form.get('remarks') ?? ''),
-                });
-            }}
-        >
-            <p className="text-xs text-muted-foreground">
-                Served and partial releases are recorded at the venue desk.
-            </p>
-            <Input name="remarks" placeholder="Absence reason" />
-            <Button type="submit" size="sm" variant="outline">
+        <>
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setOpen(true)}
+            >
                 Mark absent
             </Button>
-        </form>
+            <StatusDialog
+                open={open}
+                onOpenChange={setOpen}
+                title="Mark this beneficiary absent?"
+                description="Served and partial releases are recorded at the venue desk."
+                status="Absent"
+                statusVariant="secondary"
+                confirmLabel="Mark absent"
+                pending={pending}
+                onConfirm={() =>
+                    onSubmit(
+                        {
+                            distribution_batch_item_id: item.id,
+                            outcome: 'absent',
+                            remarks,
+                        },
+                        {
+                            onStart: () => setPending(true),
+                            onSuccess: () => {
+                                setOpen(false);
+                                setRemarks('');
+                            },
+                            onFinish: () => setPending(false),
+                        },
+                    )
+                }
+            >
+                <FieldGroup className="gap-4">
+                    <Field>
+                        <FieldLabel htmlFor={remarksId}>
+                            Absence reason
+                        </FieldLabel>
+                        <Textarea
+                            id={remarksId}
+                            value={remarks}
+                            onChange={(event) => setRemarks(event.target.value)}
+                        />
+                        <FieldDescription>
+                            Optional note for the release record.
+                        </FieldDescription>
+                    </Field>
+                </FieldGroup>
+            </StatusDialog>
+        </>
     );
 }
 
 function ScheduleForm({
     onSubmit,
 }: {
-    onSubmit: (scheduledAt: string, venue: string, details: string) => void;
+    onSubmit: (
+        scheduledAt: string,
+        venue: string,
+        details: string,
+        visit: VisitCallbacks,
+    ) => void;
 }) {
+    const scheduleId = useId();
+    const [open, setOpen] = useState(false);
+    const [pending, setPending] = useState(false);
+    const [scheduledAt, setScheduledAt] = useState('');
+    const [venueName, setVenueName] = useState('');
+    const [details, setDetails] = useState('');
+    const [notice, setNotice] = useState<string | null>(null);
+
     return (
-        <form
-            className="flex flex-wrap items-end gap-2"
-            onSubmit={(event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                onSubmit(
-                    String(form.get('scheduled_at')),
-                    String(form.get('venue') ?? ''),
-                    String(form.get('venue_details') ?? ''),
-                );
-            }}
-        >
-            <Input type="datetime-local" name="scheduled_at" required />
-            <Input name="venue" placeholder="Venue" />
-            <Input name="venue_details" placeholder="Venue details" />
-            <Button type="submit">Schedule</Button>
-        </form>
+        <>
+            <Button type="button" onClick={() => setOpen(true)}>
+                Schedule
+            </Button>
+            <StatusDialog
+                open={open}
+                onOpenChange={setOpen}
+                title="Schedule this distribution?"
+                description="Set when and where the batch will be released."
+                status="Scheduled"
+                statusVariant="default"
+                confirmLabel="Schedule"
+                pending={pending}
+                onConfirm={() => {
+                    if (scheduledAt.trim() === '') {
+                        setNotice('A schedule time is required.');
+
+                        return;
+                    }
+
+                    onSubmit(scheduledAt, venueName, details, {
+                        onStart: () => setPending(true),
+                        onSuccess: () => setOpen(false),
+                        onFinish: () => setPending(false),
+                    });
+                }}
+            >
+                <FieldGroup className="gap-4">
+                    <Field data-invalid={notice ? true : undefined}>
+                        <FieldLabel htmlFor={scheduleId}>
+                            Scheduled time
+                        </FieldLabel>
+                        <Input
+                            id={scheduleId}
+                            type="datetime-local"
+                            value={scheduledAt}
+                            aria-invalid={notice ? true : undefined}
+                            onChange={(event) => {
+                                setScheduledAt(event.target.value);
+                                setNotice(null);
+                            }}
+                        />
+                        {notice ? <FieldError>{notice}</FieldError> : null}
+                    </Field>
+                    <Field>
+                        <FieldLabel htmlFor={`${scheduleId}-venue`}>
+                            Venue
+                        </FieldLabel>
+                        <Input
+                            id={`${scheduleId}-venue`}
+                            value={venueName}
+                            onChange={(event) =>
+                                setVenueName(event.target.value)
+                            }
+                        />
+                    </Field>
+                    <Field>
+                        <FieldLabel htmlFor={`${scheduleId}-details`}>
+                            Venue details
+                        </FieldLabel>
+                        <Textarea
+                            id={`${scheduleId}-details`}
+                            value={details}
+                            onChange={(event) => setDetails(event.target.value)}
+                        />
+                    </Field>
+                </FieldGroup>
+            </StatusDialog>
+        </>
     );
 }
 
-function CancelForm({ onSubmit }: { onSubmit: (reason: string) => void }) {
+function CancelForm({
+    onSubmit,
+}: {
+    onSubmit: (reason: string, visit: VisitCallbacks) => void;
+}) {
+    const reasonId = useId();
+    const [open, setOpen] = useState(false);
+    const [pending, setPending] = useState(false);
+    const [reason, setReason] = useState('');
+    const [notice, setNotice] = useState<string | null>(null);
+
     return (
-        <form
-            className="flex flex-wrap items-end gap-2"
-            onSubmit={(event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                onSubmit(String(form.get('reason') ?? ''));
-            }}
-        >
-            <Input name="reason" required placeholder="Cancellation reason" />
-            <Button type="submit" variant="destructive">
+        <>
+            <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                    setNotice(null);
+                    setOpen(true);
+                }}
+            >
                 Cancel batch
             </Button>
-        </form>
+            <StatusDialog
+                open={open}
+                onOpenChange={setOpen}
+                title="Cancel this batch?"
+                description="The batch stops here. Give the reason that should stay on the record."
+                status="Cancelled"
+                statusVariant="destructive"
+                confirmLabel="Cancel batch"
+                confirmVariant="destructive"
+                pending={pending}
+                onConfirm={() => {
+                    if (reason.trim() === '') {
+                        setNotice('A cancellation reason is required.');
+
+                        return;
+                    }
+
+                    onSubmit(reason, {
+                        onStart: () => setPending(true),
+                        onSuccess: () => setOpen(false),
+                        onFinish: () => setPending(false),
+                    });
+                }}
+            >
+                <FieldGroup className="gap-4">
+                    <Field data-invalid={notice ? true : undefined}>
+                        <FieldLabel htmlFor={reasonId}>
+                            Cancellation reason
+                        </FieldLabel>
+                        <Textarea
+                            id={reasonId}
+                            value={reason}
+                            aria-invalid={notice ? true : undefined}
+                            onChange={(event) => {
+                                setReason(event.target.value);
+                                setNotice(null);
+                            }}
+                        />
+                        {notice ? <FieldError>{notice}</FieldError> : null}
+                    </Field>
+                </FieldGroup>
+            </StatusDialog>
+        </>
     );
 }

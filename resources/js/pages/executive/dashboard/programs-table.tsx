@@ -9,7 +9,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
+import {
+    DashboardSectionCard,
+    dashboardActivePillClass,
+    dashboardInfoPillClass,
+} from '@/pages/user/dashboard/dashboard-stat-card';
 import { show as executiveProgramShow } from '@/routes/executive/programs';
 import type { DashboardProgramRow } from '@/types/dashboard';
 
@@ -78,7 +82,10 @@ export function ProgramsTable({ data }: ProgramsTableProps) {
                                     {row.department_name ?? '—'}
                                 </TableCell>
                                 <TableCell>
-                                    <Badge variant="outline">
+                                    <Badge
+                                        variant="outline"
+                                        className={dashboardInfoPillClass}
+                                    >
                                         {row.type === 'organization'
                                             ? 'Organization'
                                             : 'Individual'}
@@ -86,10 +93,11 @@ export function ProgramsTable({ data }: ProgramsTableProps) {
                                 </TableCell>
                                 <TableCell>
                                     <Badge
-                                        variant={
+                                        variant="outline"
+                                        className={
                                             row.status === 'open'
-                                                ? 'default'
-                                                : 'secondary'
+                                                ? dashboardActivePillClass
+                                                : dashboardInfoPillClass
                                         }
                                     >
                                         {row.status === 'open'

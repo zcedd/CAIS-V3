@@ -9,7 +9,12 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
+import { cn } from '@/lib/utils';
+import {
+    DashboardSectionCard,
+    dashboardProgressClass,
+    dashboardSurfaceClass,
+} from '@/pages/user/dashboard/dashboard-stat-card';
 import type {
     BeneficiaryTypeChartPoint,
     DashboardDemographics,
@@ -51,12 +56,15 @@ function BreakdownList({
                                     <span className="font-medium">
                                         {row.label}
                                     </span>
-                                    <span className="tabular-nums text-muted-foreground">
+                                    <span className="text-muted-foreground tabular-nums">
                                         {row.count.toLocaleString()} (
                                         {percent.toFixed(1)}%)
                                     </span>
                                 </div>
-                                <Progress value={percent} className="h-1.5" />
+                                <Progress
+                                    value={percent}
+                                    className={dashboardProgressClass}
+                                />
                             </li>
                         );
                     })}
@@ -152,7 +160,7 @@ export function DemographicsPanelSkeleton() {
             {Array.from({ length: 7 }).map((_, index) => (
                 <div
                     key={index}
-                    className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
+                    className={cn('overflow-hidden', dashboardSurfaceClass)}
                 >
                     <div className="flex items-start justify-between gap-2 px-6 pt-6">
                         <div className="space-y-2">

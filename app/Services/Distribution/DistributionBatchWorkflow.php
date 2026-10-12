@@ -2,6 +2,7 @@
 
 namespace App\Services\Distribution;
 
+use App\Actions\Distribution\RecordDistributionAssistanceStatus;
 use App\Enums\DistributionBatchStatus;
 use App\Models\DistributionBatch;
 use App\Models\User;
@@ -9,7 +10,10 @@ use Illuminate\Validation\ValidationException;
 
 class DistributionBatchWorkflow
 {
-    public function __construct(private DistributionAudit $audit) {}
+    public function __construct(
+        private DistributionAudit $audit,
+        private RecordDistributionAssistanceStatus $assistanceStatus,
+    ) {}
 
     public function assertLock(DistributionBatch $batch, ?int $expected): void
     {
@@ -51,6 +55,8 @@ class DistributionBatchWorkflow
             'before' => ['status' => $from->value],
             'after' => ['status' => $to->value],
         ]);
+
+        $this->assistanceStatus->reflect($batch, $actor);
 
         return $batch;
     }

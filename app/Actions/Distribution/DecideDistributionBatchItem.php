@@ -2,7 +2,6 @@
 
 namespace App\Actions\Distribution;
 
-use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionDecisionAction;
 use App\Enums\DistributionItemApprovalStatus;
@@ -191,12 +190,6 @@ class DecideDistributionBatchItem
         if ((int) $item->distribution_batch_id !== (int) $batch->id) {
             throw ValidationException::withMessages([
                 'item' => 'That beneficiary is not on this distribution batch.',
-            ]);
-        }
-
-        if ($batch->approval_mode !== DistributionApprovalMode::Beneficiary) {
-            throw ValidationException::withMessages([
-                'decision' => 'This batch is approved as a whole. Review beneficiaries only when the approval mode is individual.',
             ]);
         }
 

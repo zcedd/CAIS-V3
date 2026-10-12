@@ -1,5 +1,7 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { useEffect } from 'react';
+import { DistributionOfferSummary } from '@/components/distribution/composition';
+import type { DistributionOffer } from '@/components/distribution/composition';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -20,10 +22,10 @@ type TaskRow = {
     title: string | null;
     program: string | null;
     department: string | null;
-    approval_mode: string | null;
     scheduled_at: string | null;
     beneficiary_count: number | null;
     proposed_cash_total: string | null;
+    offer: DistributionOffer | null;
 };
 
 export default function ExecutiveDistributionsIndex({
@@ -57,7 +59,7 @@ export default function ExecutiveDistributionsIndex({
                                     <TableHead>Department</TableHead>
                                     <TableHead>Stage</TableHead>
                                     <TableHead>Beneficiaries</TableHead>
-                                    <TableHead>Proposed cash</TableHead>
+                                    <TableHead>Assistance</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -95,18 +97,18 @@ export default function ExecutiveDistributionsIndex({
                                             <Badge variant="outline">
                                                 {task.stage}
                                             </Badge>
-                                            <div className="text-muted-foreground">
-                                                {task.approval_mode ===
-                                                'beneficiary'
-                                                    ? 'Individual review'
-                                                    : 'Whole batch'}
-                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             {task.beneficiary_count}
                                         </TableCell>
-                                        <TableCell>
-                                            {task.proposed_cash_total}
+                                        <TableCell className="whitespace-normal">
+                                            {task.offer ? (
+                                                <DistributionOfferSummary
+                                                    offer={task.offer}
+                                                />
+                                            ) : (
+                                                'None'
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}

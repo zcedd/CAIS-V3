@@ -499,6 +499,7 @@ test('apply dashboard filters use date ranges for selected years and quarters', 
     ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
 
     createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Male']), $item, dateRequested: '2024-02-15');
+    createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Female']), $item, dateRequested: '2024-03-31 18:30:00');
     createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Female']), $item, dateRequested: '2024-07-15');
     createAssistanceForIndividual($program, Individual::factory()->create(['sex' => 'Male']), $item, dateRequested: '2025-02-15');
 
@@ -507,7 +508,7 @@ test('apply dashboard filters use date ranges for selected years and quarters', 
         'quarter' => ['1'],
     ]);
 
-    expect($summary['total_requests'])->toBe(1);
+    expect($summary['total_requests'])->toBe(2);
 });
 
 test('top barangays returns an empty list when the department has no requests', function () {

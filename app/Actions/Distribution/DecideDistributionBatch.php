@@ -2,7 +2,6 @@
 
 namespace App\Actions\Distribution;
 
-use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionDecisionAction;
 use App\Enums\DistributionItemApprovalStatus;
@@ -46,12 +45,6 @@ class DecideDistributionBatch
             $remarks = trim((string) ($data['remarks'] ?? ''));
             $task = $this->stages->actionableTask($batch, $actor);
             $this->authorizer->assertCanDecide($actor, $batch, $task);
-
-            if ($decision === DistributionDecisionAction::Approved && $batch->approval_mode !== DistributionApprovalMode::Batch) {
-                throw ValidationException::withMessages([
-                    'decision' => 'This batch uses individual beneficiary approval. Finalize it after each beneficiary is reviewed.',
-                ]);
-            }
 
             if (in_array($decision, [DistributionDecisionAction::Returned, DistributionDecisionAction::Rejected], true) && $remarks === '') {
                 throw ValidationException::withMessages([

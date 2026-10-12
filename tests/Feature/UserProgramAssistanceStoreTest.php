@@ -206,7 +206,7 @@ test('creating assistance preserves the recorded at time', function () {
     $assistance = Assistance::query()->first();
 
     expect($assistance)->not->toBeNull()
-        ->and(Carbon::parse($assistance->date_requested)->toDateString())->toBe('2026-05-20');
+        ->and($assistance->date_requested?->toDateTimeString())->toBe('2026-05-20 14:30:00');
 
     $subStatus = AssistanceRequestSubStatus::query()
         ->where('assistance_id', $assistance->id)

@@ -128,7 +128,7 @@ class PublicIntakeService
                 'workflow_id' => $program->resolvedWorkflow()->id,
                 'beneficiary_id' => $beneficiary->id,
                 'mode_of_request_id' => $this->onlineModeOfRequestId(),
-                'date_requested' => now()->toDateString(),
+                'date_requested' => now(),
                 'remark' => $validated['remark'] ?? null,
                 'user_id' => null,
             ]);
@@ -136,7 +136,7 @@ class PublicIntakeService
             if ($draft instanceof Assistance) {
                 $assistance->update([
                     'remark' => $validated['remark'] ?? $assistance->remark,
-                    'date_requested' => now()->toDateString(),
+                    'date_requested' => now(),
                     'workflow_id' => $assistance->workflow_id ?? $program->resolvedWorkflow()->id,
                 ]);
                 $assistance->assistanceItem()->delete();

@@ -29,7 +29,6 @@ class CreateDistributionBatch
      *     description?: string|null,
      *     scheduled_at: string,
      *     venue: string,
-     *     approval_mode: string,
      *     notes?: string|null,
      *     assistance_ids: list<int>
      * }  $data
@@ -53,7 +52,7 @@ class CreateDistributionBatch
                 'description' => $data['description'] ?? null,
                 'scheduled_at' => $data['scheduled_at'],
                 'venue' => $data['venue'],
-                'approval_mode' => DistributionApprovalMode::from($data['approval_mode']),
+                'approval_mode' => DistributionApprovalMode::Batch,
                 'status' => DistributionBatchStatus::Draft,
                 'revision' => 1,
                 'created_by' => $actor->id,

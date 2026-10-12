@@ -102,8 +102,8 @@ enum RoleName: string
     {
         return match ($this) {
             self::SuperAdmin => 'Highest authority in the system. Full access across modules, overrides, and user clearances.',
-            self::Executive => 'Reviews endorsed programs and their verified beneficiaries, then approves them for release.',
-            self::DepartmentHead => 'Formulates assistance programs and endorses verified beneficiaries for executive approval.',
+            self::Executive => 'Reviews program details and approves the program.',
+            self::DepartmentHead => 'Formulates assistance programs and submits them for executive approval.',
             self::ReleasingOfficer => 'Enrolls beneficiaries and releases assistance after the executive approves it.',
             default => $this->label(),
         };

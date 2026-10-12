@@ -7,13 +7,16 @@ import {
     Users,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { EMPTY_CELL } from '@/lib/empty-cell';
+import { cn } from '@/lib/utils';
 import {
     DashboardSectionCard,
     DashboardStatCard,
     DashboardStatCardSkeleton,
+    dashboardProgressClass,
+    dashboardSurfaceClass,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DashboardSummary } from '@/types/dashboard';
-import { EMPTY_CELL } from '@/lib/empty-cell';
 
 type DashboardHighlightsProps = {
     summary: DashboardSummary;
@@ -58,7 +61,7 @@ function RadialRate({
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="6"
-                        className="text-muted"
+                        className="text-slate-200 dark:text-muted"
                     />
                     <circle
                         cx="40"
@@ -70,16 +73,20 @@ function RadialRate({
                         strokeDasharray={circumference}
                         strokeDashoffset={offset}
                         strokeLinecap="round"
-                        className="text-primary transition-all"
+                        className="text-emerald-500 transition-all"
                     />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums">
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-900 tabular-nums dark:text-foreground">
                     {display}
                 </span>
             </div>
             <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-medium">{label}</p>
-                <p className="text-xs text-muted-foreground">{description}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-foreground">
+                    {label}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-muted-foreground">
+                    {description}
+                </p>
             </div>
         </div>
     );
@@ -95,14 +102,18 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
                 value={formatPercent(rate)}
                 description={`${summary.delivered_requests.toLocaleString()} of ${summary.total_requests.toLocaleString()} requests`}
                 icon={TrendingUp}
+                tone="success"
                 valueClassName="text-3xl"
-                footer={<Progress value={rate} />}
+                footer={
+                    <Progress value={rate} className={dashboardProgressClass} />
+                }
             />
             <DashboardStatCard
                 label="In progress"
                 value={summary.in_progress_requests.toLocaleString()}
                 description={`${summary.denied_requests.toLocaleString()} denied · ${summary.unique_beneficiaries.toLocaleString()} beneficiaries`}
                 icon={Activity}
+                tone="warning"
                 valueClassName="text-3xl"
             />
             <DashboardStatCard
@@ -121,17 +132,14 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
                     </>
                 }
                 icon={Clock3}
+                tone="info"
                 valueClassName="text-3xl"
             />
         </div>
     );
 }
 
-export function DeliverySnapshot({
-    summary,
-}: {
-    summary: DashboardSummary;
-}) {
+export function DeliverySnapshot({ summary }: { summary: DashboardSummary }) {
     const rate = deliveryRate(summary);
     const avgItems =
         summary.delivered_requests > 0
@@ -144,55 +152,56 @@ export function DeliverySnapshot({
             title="Delivery snapshot"
             description="How much of the filtered work is done"
             icon={Package}
+            tone="success"
             data-tour="dashboard-delivery-snapshot"
             contentClassName="space-y-6"
         >
             <div className="grid gap-3">
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">
+                    <span className="text-slate-500 dark:text-muted-foreground">
                         Delivered requests
                     </span>
-                    <span className="font-medium tabular-nums">
+                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
                         {summary.delivered_requests.toLocaleString()}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">
+                    <span className="text-slate-500 dark:text-muted-foreground">
                         Delivered items
                     </span>
-                    <span className="font-medium tabular-nums">
+                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
                         {summary.total_delivered_items.toLocaleString()}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-muted-foreground">
+                    <span className="text-slate-500 dark:text-muted-foreground">
                         Active programs
                     </span>
-                    <span className="font-medium tabular-nums">
+                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
                         {summary.active_programs.toLocaleString()}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-slate-500 dark:text-muted-foreground">
                         <Users className="size-3.5" />
                         Requests / beneficiary
                     </span>
-                    <span className="font-medium tabular-nums">
+                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
                         {summary.avg_requests_per_beneficiary.toFixed(2)}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-slate-500 dark:text-muted-foreground">
                         <Repeat className="size-3.5" />
                         Repeat beneficiaries
                     </span>
-                    <span className="font-medium tabular-nums">
+                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
                         {summary.repeat_beneficiaries.toLocaleString()}
                     </span>
                 </div>
             </div>
 
-            <div className="space-y-4 border-t pt-4">
+            <div className="space-y-4 border-t border-slate-200 pt-4 dark:border-border">
                 <RadialRate
                     label="% Delivered"
                     display={formatPercent(rate)}
@@ -231,7 +240,7 @@ export function DashboardHighlightsSkeleton() {
 export function DeliverySnapshotSkeleton() {
     return (
         <div
-            className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
+            className={cn('overflow-hidden', dashboardSurfaceClass)}
             aria-busy="true"
             aria-label="Loading snapshot"
         >

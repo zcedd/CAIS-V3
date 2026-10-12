@@ -4,8 +4,10 @@ namespace App\Services\Workflow;
 
 use App\Actions\User\RecalculateAssistanceSla;
 use App\Enums\RequestStatusCode;
+use App\Enums\RequestSubStatusCode;
 use App\Enums\WorkflowInstanceStatus;
 use App\Enums\WorkflowStatus;
+use App\Enums\WorkflowStepType;
 use App\Enums\WorkflowTaskHistoryAction;
 use App\Enums\WorkflowTaskPriority;
 use App\Enums\WorkflowTaskStatus;
@@ -209,6 +211,49 @@ class WorkflowEngine
     }
 
     /**
+     * Write a distribution outcome onto the request and move its open task.
+     * Distribution officers are not the workflow assignee, so this does not
+     * require a configured transition.
+     */
+    public function recordDistributionStatus(
+        Assistance $assistance,
+        RequestSubStatus $target,
+        User $actor,
+        string $remark,
+        bool $finishTask = false,
+        bool $markInProgress = false,
+    ): Assistance {
+        $assistance->loadMissing(['currentRequestSubStatus', 'workflowInstance']);
+        $current = $assistance->currentRequestSubStatus?->code;
+        $targetCode = $target->code;
+
+        if ($current instanceof RequestSubStatusCode
+            && $targetCode instanceof RequestSubStatusCode
+            && $current->parent()->isTerminal()
+            && ! $targetCode->parent()->isTerminal()) {
+            return $assistance;
+        }
+
+        if ($assistance->workflowInstance === null) {
+            $this->ensureStarted($assistance, $actor);
+            $assistance = $assistance->refresh();
+        }
+
+        if ($current !== $targetCode) {
+            $this->recordStatus($assistance, $target, $actor, ['remark' => $remark]);
+            $assistance = $assistance->refresh();
+        }
+
+        $destination = $this->distributionStep($assistance, $target);
+
+        if ($destination instanceof WorkflowStep) {
+            $this->placeDistributionTask($assistance, $destination, $actor, $remark, $finishTask, $markInProgress);
+        }
+
+        return $assistance->refresh();
+    }
+
+    /**
      * @param  array<string, mixed>  $payload
      */
     public function executeTransition(
@@ -403,7 +448,136 @@ class WorkflowEngine
                 : null,
             'assigned_at' => $task->assigned_at?->toIso8601String(),
             'due_at' => $task->due_at?->toIso8601String(),
+            'remarks' => $task->remarks,
         ];
+    }
+
+    private function distributionStep(Assistance $assistance, RequestSubStatus $target): ?WorkflowStep
+    {
+        $workflow = $assistance->resolvedWorkflow();
+        $workflow->loadMissing('steps.requestStatus');
+        $statusId = (int) $target->request_status_id;
+        $matches = $workflow->steps
+            ->filter(static fn (WorkflowStep $step): bool => (int) $step->request_status_id === $statusId)
+            ->values();
+
+        if ($matches->isEmpty()) {
+            return null;
+        }
+
+        $preferred = match ($target->code) {
+            RequestSubStatusCode::Closed => WorkflowStepType::Completion,
+            RequestSubStatusCode::Delivered, RequestSubStatusCode::PartiallyDelivered => WorkflowStepType::Release,
+            RequestSubStatusCode::ReadyForRelease,
+            RequestSubStatusCode::ScheduledForRelease,
+            RequestSubStatusCode::ReleaseInProgress,
+            RequestSubStatusCode::Absent => WorkflowStepType::Preparation,
+            RequestSubStatusCode::ForDistributionApproval => WorkflowStepType::Approval,
+            default => WorkflowStepType::Verification,
+        };
+
+        $preferredStep = $matches->first(function (WorkflowStep $step) use ($preferred): bool {
+            $type = $step->step_type instanceof WorkflowStepType
+                ? $step->step_type
+                : WorkflowStepType::tryFrom((string) $step->step_type);
+
+            return $type === $preferred;
+        });
+
+        return $preferredStep instanceof WorkflowStep ? $preferredStep : $matches->first();
+    }
+
+    private function placeDistributionTask(
+        Assistance $assistance,
+        WorkflowStep $destination,
+        User $actor,
+        string $remark,
+        bool $finishTask,
+        bool $markInProgress,
+    ): void {
+        $instance = $this->ensureStarted($assistance, $actor);
+        $currentStepId = (int) $instance->current_step_id;
+        $moving = $currentStepId !== (int) $destination->id;
+
+        if ($finishTask || $moving) {
+            $this->finishOpenTasks($assistance, $actor, $remark);
+        }
+
+        if ($moving) {
+            $this->moveInstance($assistance, $destination, $actor);
+
+            if (! $finishTask) {
+                $this->openNextTask($assistance->refresh(), $destination, $actor);
+            }
+        }
+
+        if ($finishTask) {
+            return;
+        }
+
+        $assistance->unsetRelation('workflowInstance');
+        $task = $this->currentTask($assistance->refresh());
+
+        if (! $task instanceof WorkflowTask) {
+            return;
+        }
+
+        $from = $task->status instanceof WorkflowTaskStatus
+            ? $task->status
+            : WorkflowTaskStatus::Pending;
+        $to = $markInProgress && $from === WorkflowTaskStatus::Pending
+            ? WorkflowTaskStatus::InProgress
+            : $from;
+
+        $task->forceFill([
+            'status' => $to,
+            'started_at' => $to === WorkflowTaskStatus::InProgress ? ($task->started_at ?? now()) : $task->started_at,
+            'remarks' => $remark,
+        ])->save();
+
+        if ($to !== $from) {
+            $this->assigner->recordHistory(
+                $task,
+                WorkflowTaskHistoryAction::Started,
+                $from,
+                $to,
+                $actor,
+                $remark,
+            );
+        }
+    }
+
+    private function finishOpenTasks(Assistance $assistance, User $actor, string $remark): void
+    {
+        $instance = $this->instance($assistance);
+
+        if (! $instance instanceof AssistanceWorkflow) {
+            return;
+        }
+
+        WorkflowTask::query()
+            ->where('assistance_workflow_id', $instance->id)
+            ->open()
+            ->lockForUpdate()
+            ->get()
+            ->each(function (WorkflowTask $task) use ($actor, $remark): void {
+                $from = $task->status instanceof WorkflowTaskStatus
+                    ? $task->status
+                    : WorkflowTaskStatus::Pending;
+                $task->forceFill([
+                    'status' => WorkflowTaskStatus::Completed,
+                    'completed_at' => now(),
+                    'remarks' => $remark,
+                ])->save();
+                $this->assigner->recordHistory(
+                    $task,
+                    WorkflowTaskHistoryAction::Completed,
+                    $from,
+                    WorkflowTaskStatus::Completed,
+                    $actor,
+                    $remark,
+                );
+            });
     }
 
     private function ensureStarted(Assistance $assistance, ?User $actor): AssistanceWorkflow
@@ -667,7 +841,7 @@ class WorkflowEngine
             'request_sub_status_id' => $target->id,
             'remark' => $payload['remark'] ?? $payload['remarks'] ?? null,
             'recorded_at' => isset($payload['recorded_at'])
-                ? Carbon::parse((string) $payload['recorded_at'])
+                ? Carbon::parse((string) $payload['recorded_at'])->timezone(config('app.timezone'))
                 : now(),
             'recorded_by' => $user->id,
         ]);
@@ -720,6 +894,7 @@ class WorkflowEngine
         ?WorkflowStepTransition $transition = null,
     ): void {
         $instance = $this->ensureStarted($assistance, $user);
+        $destination->loadMissing('requestStatus');
         $isEnd = $destination->is_end
             || RequestStatusCode::matchesAny($destination->requestStatus, [
                 RequestStatusCode::Closed,

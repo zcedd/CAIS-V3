@@ -60,7 +60,7 @@ class SyncAssistanceCurrentStatus
             ->value('assistance_request_sub_status.recorded_at');
 
         return $recordedAt !== null
-            ? Carbon::parse($recordedAt)->toDateString()
+            ? Carbon::parse($recordedAt)->toDateTimeString()
             : null;
     }
 

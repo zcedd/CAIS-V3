@@ -2,7 +2,6 @@
 
 namespace App\Actions\Distribution;
 
-use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionFinalizationScope;
 use App\Enums\DistributionItemApprovalStatus;
@@ -28,12 +27,6 @@ class FinalizeDistributionBatch
         return DB::transaction(function () use ($batch, $actor): DistributionBatch {
             $batch = DistributionBatch::query()->whereKey($batch->id)->lockForUpdate()->firstOrFail();
             $batch->load(['items', 'policy']);
-
-            if ($batch->approval_mode !== DistributionApprovalMode::Beneficiary) {
-                throw ValidationException::withMessages([
-                    'status' => 'Whole-batch approval is finished by approving the batch.',
-                ]);
-            }
 
             if ($batch->status !== DistributionBatchStatus::ForApproval) {
                 throw ValidationException::withMessages([

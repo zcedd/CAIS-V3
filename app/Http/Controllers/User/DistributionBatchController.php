@@ -48,7 +48,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DistributionBatchController extends Controller
 {
-    public function index(Request $request, Department $department): Response
+    public function index(Request $request, Department $department, DistributionReconciliation $reconciliation): Response
     {
         Gate::authorize('viewAny', [DistributionBatch::class, $department]);
 
@@ -58,7 +58,11 @@ class DistributionBatchController extends Controller
         $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
 
         $batches = DistributionBatch::query()
-            ->with(['program:id,name', 'creator:id,firstName,lastName'])
+            ->with([
+                'program:id,name',
+                'creator:id,firstName,lastName',
+                'items.lines.item.unitMeasurement',
+            ])
             ->where('department_id', $department->id)
             ->when($request->filled('search'), function ($query) use ($request): void {
                 $search = '%'.$request->string('search')->trim()->toString().'%';
@@ -69,7 +73,6 @@ class DistributionBatchController extends Controller
             })
             ->when($request->filled('program_id'), fn ($query) => $query->where('program_id', $request->integer('program_id')))
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
-            ->when($request->filled('approval_mode'), fn ($query) => $query->where('approval_mode', $request->string('approval_mode')->toString()))
             ->when($request->filled('created_by'), fn ($query) => $query->where('created_by', $request->integer('created_by')))
             ->when($request->filled('scheduled_from'), fn ($query) => $query->whereDate('scheduled_at', '>=', $request->string('scheduled_from')->toString()))
             ->when($request->filled('scheduled_to'), fn ($query) => $query->whereDate('scheduled_at', '<=', $request->string('scheduled_to')->toString()))
@@ -99,10 +102,10 @@ class DistributionBatchController extends Controller
                 'scheduled_at' => $batch->scheduled_at?->toIso8601String(),
                 'status' => $batch->status->value,
                 'status_label' => $batch->status->label(),
-                'approval_mode' => $batch->approval_mode->value,
                 'beneficiary_count' => $batch->beneficiary_count,
                 'approved_beneficiary_count' => $batch->approved_beneficiary_count,
                 'approved_cash_total' => $batch->approved_cash_total,
+                'offer' => $reconciliation->offer($batch),
                 'creator' => $batch->creator?->name,
             ]);
 
@@ -110,7 +113,7 @@ class DistributionBatchController extends Controller
             'department' => $department->only(['id', 'name', 'slug']),
             'batches' => $batches,
             'filters' => $request->only([
-                'search', 'program_id', 'status', 'approval_mode', 'created_by',
+                'search', 'program_id', 'status', 'created_by',
                 'scheduled_from', 'scheduled_to', 'approver_id', 'sort', 'direction',
                 'venue', 'personnel_id', 'beneficiary',
             ]),
@@ -204,7 +207,6 @@ class DistributionBatchController extends Controller
                 'description' => $distributionBatch->description,
                 'scheduled_at' => $distributionBatch->scheduled_at?->format('Y-m-d\TH:i'),
                 'venue' => $distributionBatch->venue,
-                'approval_mode' => $distributionBatch->approval_mode->value,
                 'notes' => $distributionBatch->notes,
                 'lock_version' => $distributionBatch->lock_version,
                 'assistance_ids' => $distributionBatch->items->pluck('assistance_id')->all(),
@@ -429,14 +431,43 @@ class DistributionBatchController extends Controller
                     'cais_number' => $item['beneficiary']['cais_number'],
                     'beneficiary' => $item['beneficiary']['name'],
                     'status' => $item['approval_label'],
-                    'approved_cash' => collect($item['lines'])->sum(fn (array $line): float => (float) ($line['approved_amount'] ?? 0)),
-                    'approved_quantity' => collect($item['lines'])->sum(fn (array $line): float => (float) ($line['approved_quantity'] ?? 0)),
+                    'goods' => $this->linesForKind($item['lines'], 'goods'),
+                    'services' => $this->linesForKind($item['lines'], 'service'),
+                    'cash' => $this->linesForKind($item['lines'], 'cash'),
                 ]),
-                ['cais_number', 'beneficiary', 'status', 'approved_cash', 'approved_quantity'],
+                ['cais_number', 'beneficiary', 'status', 'goods', 'services', 'cash'],
             ),
         };
 
         return Excel::download($export, $distributionBatch->batch_code.'-'.$report.'.xlsx');
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $lines
+     */
+    private function linesForKind(array $lines, string $kind): string
+    {
+        $parts = [];
+
+        foreach ($lines as $line) {
+            if (($line['kind'] ?? 'goods') !== $kind) {
+                continue;
+            }
+
+            $name = (string) ($line['item_name'] ?? 'Item');
+
+            if ($kind === 'cash') {
+                $parts[] = $name.' '.($line['approved_amount'] ?? $line['proposed_amount'] ?? '0');
+
+                continue;
+            }
+
+            $quantity = $line['approved_quantity'] ?? $line['proposed_quantity'] ?? '0';
+            $unit = $line['unit'] ?? null;
+            $parts[] = trim($name.' '.$quantity.(filled($unit) ? ' '.$unit : ''));
+        }
+
+        return implode('; ', $parts);
     }
 
     private function scoped(Department $department, DistributionBatch $batch): void

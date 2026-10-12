@@ -1,17 +1,14 @@
 import { Head, router, setLayoutProps } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { AssistanceLines } from '@/components/distribution/assistance-lines';
+import { DistributionComposition } from '@/components/distribution/composition';
+import type { DistributionCompositionData } from '@/components/distribution/composition';
+import { DistributionDecisionDialog } from '@/components/distribution/decision-dialog';
+import { ConfirmActionButton } from '@/components/distribution/status-dialog';
+import type { VisitCallbacks } from '@/components/distribution/status-dialog';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
 import {
     Table,
     TableBody,
@@ -20,7 +17,12 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { decide, finalize, index, show } from '@/routes/executive/distributions';
+import {
+    decide,
+    finalize,
+    index,
+    show,
+} from '@/routes/executive/distributions';
 import {
     bulkDecide,
     decide as decideItem,
@@ -41,6 +43,8 @@ type VisitData = {
 type Line = {
     id: number;
     item_name: string | null;
+    kind: string | null;
+    unit?: string | null;
     proposed_quantity: string | null;
     approved_quantity: string | null;
     proposed_amount: string | null;
@@ -65,8 +69,6 @@ type Batch = {
     title: string;
     venue: string | null;
     scheduled_at: string | null;
-    approval_mode: string;
-    approval_mode_label: string;
     status: string;
     status_label: string;
     revision: number;
@@ -100,11 +102,13 @@ type Batch = {
         actor: string | null;
         revision: number;
     }[];
+    reconciliation: {
+        composition: DistributionCompositionData;
+    };
 };
 
 export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
     const [selected, setSelected] = useState<number[]>([]);
-    const [decision, setDecision] = useState('approved');
 
     useEffect(() => {
         setLayoutProps({
@@ -115,8 +119,12 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
         });
     }, [batch.batch_code, batch.id]);
 
-    function post(url: string, data: VisitData = {}): void {
-        router.post(url, data, { preserveScroll: true });
+    function post(
+        url: string,
+        data: VisitData = {},
+        visit: VisitCallbacks = {},
+    ): void {
+        router.post(url, data, { preserveScroll: true, ...visit });
     }
 
     return (
@@ -139,21 +147,15 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                     <Badge variant="outline">{batch.status_label}</Badge>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-4">
-                    <Summary label="Mode" value={batch.approval_mode_label} />
+                <div className="grid gap-3 sm:grid-cols-2">
                     <Summary
                         label="Beneficiaries"
                         value={`${batch.approved_beneficiary_count} / ${batch.beneficiary_count}`}
                     />
-                    <Summary
-                        label="Proposed cash"
-                        value={batch.proposed_cash_total}
-                    />
-                    <Summary
-                        label="Approved cash"
-                        value={batch.approved_cash_total}
-                    />
                 </div>
+                <DistributionComposition
+                    composition={batch.reconciliation.composition}
+                />
 
                 {batch.policy && (
                     <p className="text-sm text-muted-foreground">
@@ -173,115 +175,67 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                     </p>
                 ))}
 
-                {batch.status === 'for_approval' &&
-                    batch.approval_mode === 'batch' && (
-                        <form
-                            className="flex flex-wrap items-end gap-2"
-                            onSubmit={(event) => {
-                                event.preventDefault();
-                                const form = new FormData(event.currentTarget);
-                                const remarks = String(
-                                    form.get('remarks') ?? '',
-                                );
-
-                                if (
-                                    (decision === 'returned' ||
-                                        decision === 'rejected') &&
-                                    remarks.trim() === ''
-                                ) {
-                                    window.alert(
-                                        'A reason is required for this decision.',
-                                    );
-
-                                    return;
-                                }
-
-                                if (
-                                    !window.confirm(
-                                        `Record a ${decision} decision for the whole batch?`,
-                                    )
-                                ) {
-                                    return;
-                                }
-
-                                post(decide.url(batch.id), {
-                                    decision,
-                                    remarks,
-                                    lock_version: batch.lock_version,
-                                });
-                            }}
-                        >
-                            <Select
-                                value={decision}
-                                onValueChange={setDecision}
-                            >
-                                <SelectTrigger
-                                    className="w-44"
-                                    aria-label="Decision"
-                                >
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="approved">
-                                        Approve
-                                    </SelectItem>
-                                    <SelectItem value="returned">
-                                        Return
-                                    </SelectItem>
-                                    <SelectItem value="rejected">
-                                        Reject
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Input
-                                name="remarks"
-                                placeholder="Reason, if required"
-                                className="w-64"
-                            />
-                            <Button type="submit">Record decision</Button>
-                        </form>
-                    )}
-
-                {batch.status === 'for_approval' &&
-                    batch.approval_mode === 'beneficiary' && (
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                variant="outline"
-                                disabled={selected.length === 0}
-                                onClick={() => {
-                                    if (
-                                        !window.confirm(
-                                            `Approve ${selected.length} selected beneficiaries?`,
-                                        )
-                                    ) {
-                                        return;
-                                    }
-
-                                    post(bulkDecide.url(batch.id), {
+                {batch.status === 'for_approval' && (
+                    <div className="flex flex-wrap gap-2">
+                        <DistributionDecisionDialog
+                            triggerLabel="Approve whole batch"
+                            title="Approve the whole batch"
+                            description="Approve, return, or reject every beneficiary still on this batch."
+                            choices={[
+                                { value: 'approved', label: 'Approve' },
+                                { value: 'returned', label: 'Return' },
+                                { value: 'rejected', label: 'Reject' },
+                            ]}
+                            reasonRequired={['returned', 'rejected']}
+                            onDecide={(payload, visit) =>
+                                post(
+                                    decide.url(batch.id),
+                                    {
+                                        decision: payload.decision,
+                                        remarks: payload.remarks,
+                                        lock_version: batch.lock_version,
+                                    },
+                                    visit,
+                                )
+                            }
+                        />
+                        <ConfirmActionButton
+                            label="Approve selected"
+                            buttonVariant="outline"
+                            title="Approve selected beneficiaries?"
+                            description={`Approve ${selected.length} selected ${selected.length === 1 ? 'beneficiary' : 'beneficiaries'}.`}
+                            status="Approved"
+                            statusVariant="default"
+                            disabled={selected.length === 0}
+                            onConfirm={(visit) =>
+                                post(
+                                    bulkDecide.url(batch.id),
+                                    {
                                         item_ids: selected,
                                         decision: 'approved',
-                                    });
-                                }}
-                            >
-                                Approve selected
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    if (
-                                        !window.confirm(
-                                            'Finalize this review with the current decisions?',
-                                        )
-                                    ) {
-                                        return;
-                                    }
-
-                                    post(finalize.url(batch.id));
-                                }}
-                            >
-                                Finalize review
-                            </Button>
-                        </div>
-                    )}
+                                    },
+                                    {
+                                        ...visit,
+                                        onSuccess: () => {
+                                            visit.onSuccess?.();
+                                            setSelected([]);
+                                        },
+                                    },
+                                )
+                            }
+                        />
+                        <ConfirmActionButton
+                            label="Finalize review"
+                            title="Finalize this review?"
+                            description="Lock in the individual beneficiary decisions."
+                            status="Finalized"
+                            statusVariant="default"
+                            onConfirm={(visit) =>
+                                post(finalize.url(batch.id), {}, visit)
+                            }
+                        />
+                    </div>
+                )}
 
                 <Card>
                     <CardContent>
@@ -294,99 +248,148 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                            {batch.items.map((item) => (
-                                <TableRow key={item.id} className="align-top">
-                                    <TableCell className="whitespace-normal">
-                                        {item.approval_status === 'pending' &&
-                                            batch.approval_mode ===
-                                                'beneficiary' && (
-                                                <Checkbox
-                                                    className="mr-2"
-                                                    checked={selected.includes(
-                                                        item.id,
-                                                    )}
-                                                    aria-label={`Select ${item.beneficiary.name}`}
-                                                    onCheckedChange={(
-                                                        checked,
-                                                    ) =>
-                                                        setSelected(
-                                                            (current) =>
-                                                                checked ===
-                                                                true
-                                                                    ? [
-                                                                          ...current,
-                                                                          item.id,
-                                                                      ]
-                                                                    : current.filter(
-                                                                          (
-                                                                              id,
-                                                                          ) =>
-                                                                              id !==
+                                {batch.items.map((item) => (
+                                    <TableRow
+                                        key={item.id}
+                                        className="align-top"
+                                    >
+                                        <TableCell className="whitespace-normal">
+                                            {item.approval_status ===
+                                                'pending' &&
+                                                batch.status ===
+                                                    'for_approval' && (
+                                                    <Checkbox
+                                                        className="mr-2"
+                                                        checked={selected.includes(
+                                                            item.id,
+                                                        )}
+                                                        aria-label={`Select ${item.beneficiary.name}`}
+                                                        onCheckedChange={(
+                                                            checked,
+                                                        ) =>
+                                                            setSelected(
+                                                                (current) =>
+                                                                    checked ===
+                                                                    true
+                                                                        ? [
+                                                                              ...current,
                                                                               item.id,
-                                                                      ),
-                                                        )
-                                                    }
-                                                />
+                                                                          ]
+                                                                        : current.filter(
+                                                                              (
+                                                                                  id,
+                                                                              ) =>
+                                                                                  id !==
+                                                                                  item.id,
+                                                                          ),
+                                                            )
+                                                        }
+                                                    />
+                                                )}
+                                            <div className="font-medium">
+                                                {item.beneficiary.name}
+                                            </div>
+                                            <div className="text-muted-foreground">
+                                                {item.beneficiary.cais_number} ·{' '}
+                                                {item.request_status}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="whitespace-normal">
+                                            <AssistanceLines
+                                                lines={item.lines}
+                                            />
+                                            {item.warnings.map((warning) => (
+                                                <div
+                                                    key={warning}
+                                                    className="text-amber-700"
+                                                >
+                                                    {warning}
+                                                </div>
+                                            ))}
+                                        </TableCell>
+                                        <TableCell className="whitespace-normal">
+                                            <Badge variant="outline">
+                                                {item.approval_label}
+                                            </Badge>
+                                            {item.exclusion_reason && (
+                                                <div>
+                                                    {item.exclusion_reason}
+                                                </div>
                                             )}
-                                        <div className="font-medium">
-                                            {item.beneficiary.name}
-                                        </div>
-                                        <div className="text-muted-foreground">
-                                            {item.beneficiary.cais_number} ·{' '}
-                                            {item.request_status}
-                                        </div>
-                                    </TableCell>
-                                    <TableCell className="whitespace-normal">
-                                        {item.lines.map((line) => (
-                                            <div key={line.id}>
-                                                {line.item_name}: proposed{' '}
-                                                {line.proposed_amount ??
-                                                    line.proposed_quantity}
-                                            </div>
-                                        ))}
-                                        {item.warnings.map((warning) => (
-                                            <div
-                                                key={warning}
-                                                className="text-amber-700"
-                                            >
-                                                {warning}
-                                            </div>
-                                        ))}
-                                    </TableCell>
-                                    <TableCell className="whitespace-normal">
-                                        <Badge variant="outline">
-                                            {item.approval_label}
-                                        </Badge>
-                                        {item.exclusion_reason && (
-                                            <div>{item.exclusion_reason}</div>
-                                        )}
-                                        {batch.status === 'for_approval' &&
-                                            batch.approval_mode ===
-                                                'beneficiary' &&
-                                            item.approval_status ===
-                                                'pending' && (
-                                                <BeneficiaryDecision
-                                                    item={item}
-                                                    allowAmount={
-                                                        batch.policy
-                                                            ?.allow_amount_modification ??
-                                                        false
-                                                    }
-                                                    onDecide={(payload) =>
-                                                        post(
-                                                            decideItem.url({
-                                                                distributionBatch:
-                                                                    batch.id,
-                                                                item: item.id,
-                                                            }),
+                                            {batch.status === 'for_approval' &&
+                                                item.approval_status ===
+                                                    'pending' && (
+                                                    <DistributionDecisionDialog
+                                                        triggerLabel="Record decision"
+                                                        triggerVariant="outline"
+                                                        triggerSize="sm"
+                                                        title={`Decide ${item.beneficiary.name ?? 'beneficiary'}`}
+                                                        description="This decision applies only to this beneficiary."
+                                                        choices={[
+                                                            {
+                                                                value: 'approved',
+                                                                label: 'Approve',
+                                                            },
+                                                            {
+                                                                value: 'returned',
+                                                                label: 'Return',
+                                                            },
+                                                            {
+                                                                value: 'excluded',
+                                                                label: 'Exclude',
+                                                            },
+                                                        ]}
+                                                        reasonRequired={[
+                                                            'returned',
+                                                            'excluded',
+                                                        ]}
+                                                        lines={
+                                                            batch.policy
+                                                                ?.allow_amount_modification
+                                                                ? item.lines.map(
+                                                                      (
+                                                                          line,
+                                                                      ) => ({
+                                                                          id: line.id,
+                                                                          label:
+                                                                              line.item_name ??
+                                                                              'Line',
+                                                                          kind:
+                                                                              line.kind ===
+                                                                              'cash'
+                                                                                  ? 'amount'
+                                                                                  : 'quantity',
+                                                                      }),
+                                                                  )
+                                                                : []
+                                                        }
+                                                        onDecide={(
                                                             payload,
-                                                        )
-                                                    }
-                                                />
-                                            )}
-                                    </TableCell>
-                                </TableRow>
-                            ))}
+                                                            visit,
+                                                        ) =>
+                                                            post(
+                                                                decideItem.url({
+                                                                    distributionBatch:
+                                                                        batch.id,
+                                                                    item: item.id,
+                                                                }),
+                                                                {
+                                                                    decision:
+                                                                        payload.decision,
+                                                                    remarks:
+                                                                        payload.remarks,
+                                                                    exclusion_reason:
+                                                                        payload.remarks,
+                                                                    lines: payload.lines,
+                                                                },
+                                                                visit,
+                                                            )
+                                                        }
+                                                    />
+                                                )}
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -397,24 +400,26 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                         <CardTitle>History</CardTitle>
                     </CardHeader>
                     <CardContent>
-                    <ul className="space-y-1 text-sm">
-                        {batch.tasks
-                            .filter((task) => task.revision === batch.revision)
-                            .map((task) => (
-                                <li key={task.id}>
-                                    {task.stage}: {task.status}
+                        <ul className="space-y-1 text-sm">
+                            {batch.tasks
+                                .filter(
+                                    (task) => task.revision === batch.revision,
+                                )
+                                .map((task) => (
+                                    <li key={task.id}>
+                                        {task.stage}: {task.status}
+                                    </li>
+                                ))}
+                            {batch.decisions.map((decision) => (
+                                <li key={decision.id}>
+                                    Rev {decision.revision}: {decision.decision}{' '}
+                                    by {decision.actor}
+                                    {decision.remarks
+                                        ? ` — ${decision.remarks}`
+                                        : ''}
                                 </li>
                             ))}
-                        {batch.decisions.map((decision) => (
-                            <li key={decision.id}>
-                                Rev {decision.revision}: {decision.decision} by{' '}
-                                {decision.actor}
-                                {decision.remarks
-                                    ? ` — ${decision.remarks}`
-                                    : ''}
-                            </li>
-                        ))}
-                    </ul>
+                        </ul>
                     </CardContent>
                 </Card>
             </div>
@@ -432,88 +437,5 @@ function Summary({ label, value }: { label: string; value: string }) {
                 <div className="font-medium">{value}</div>
             </CardContent>
         </Card>
-    );
-}
-
-function BeneficiaryDecision({
-    item,
-    allowAmount,
-    onDecide,
-}: {
-    item: Item;
-    allowAmount: boolean;
-    onDecide: (payload: VisitData) => void;
-}) {
-    const [decision, setDecision] = useState('approved');
-
-    return (
-        <form
-            className="mt-2 grid gap-2"
-            onSubmit={(event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                const remarks = String(form.get('remarks') ?? '');
-
-                if (
-                    (decision === 'returned' || decision === 'excluded') &&
-                    remarks.trim() === ''
-                ) {
-                    window.alert('A reason is required for this decision.');
-
-                    return;
-                }
-
-                if (
-                    !window.confirm(`Record this beneficiary as ${decision}?`)
-                ) {
-                    return;
-                }
-
-                onDecide({
-                    decision,
-                    remarks,
-                    exclusion_reason: remarks,
-                    lines: allowAmount
-                        ? item.lines.map((line) => ({
-                              id: line.id,
-                              approved_amount:
-                                  String(form.get(`amount-${line.id}`) ?? '') ||
-                                  null,
-                              approved_quantity:
-                                  String(
-                                      form.get(`quantity-${line.id}`) ?? '',
-                                  ) || null,
-                          }))
-                        : [],
-                });
-            }}
-        >
-            <Select value={decision} onValueChange={setDecision}>
-                <SelectTrigger className="w-full">
-                    <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                    <SelectItem value="approved">Approve</SelectItem>
-                    <SelectItem value="returned">Return</SelectItem>
-                    <SelectItem value="excluded">Exclude</SelectItem>
-                </SelectContent>
-            </Select>
-            {allowAmount &&
-                item.lines.map((line) => (
-                    <Input
-                        key={line.id}
-                        name={
-                            line.proposed_amount !== null
-                                ? `amount-${line.id}`
-                                : `quantity-${line.id}`
-                        }
-                        placeholder="Approved value"
-                    />
-                ))}
-            <Input name="remarks" placeholder="Reason, if required" />
-            <Button type="submit" size="sm" variant="outline">
-                Save
-            </Button>
-        </form>
     );
 }

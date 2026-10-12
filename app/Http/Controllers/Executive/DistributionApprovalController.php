@@ -16,6 +16,7 @@ use App\Models\DistributionBatch;
 use App\Models\DistributionBatchItem;
 use App\Services\Distribution\DistributionAuthorizer;
 use App\Services\Distribution\DistributionBatchDetails;
+use App\Services\Distribution\DistributionReconciliation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,12 +25,17 @@ use Inertia\Response;
 
 class DistributionApprovalController extends Controller
 {
-    public function index(Request $request, DistributionAuthorizer $authorizer): Response
+    public function index(Request $request, DistributionAuthorizer $authorizer, DistributionReconciliation $reconciliation): Response
     {
         abort_unless($request->user()?->can(PermissionName::DistributionApprove->value), 403);
 
         $tasks = DistributionApprovalTask::query()
-            ->with(['stage', 'batch.program:id,name', 'batch.department:id,name,slug'])
+            ->with([
+                'stage',
+                'batch.program:id,name',
+                'batch.department:id,name,slug',
+                'batch.items.lines.item.unitMeasurement',
+            ])
             ->where('status', DistributionApprovalTaskStatus::Pending)
             ->whereHas('batch', fn ($query) => $query->whereColumn('distribution_batches.revision', 'distribution_approval_tasks.revision'))
             ->latest('id')
@@ -46,10 +52,10 @@ class DistributionApprovalController extends Controller
                 'program' => $task->batch?->program?->name,
                 'department' => $task->batch?->department?->name,
                 'department_slug' => $task->batch?->department?->slug,
-                'approval_mode' => $task->batch?->approval_mode?->value,
                 'scheduled_at' => $task->batch?->scheduled_at?->toIso8601String(),
                 'beneficiary_count' => $task->batch?->beneficiary_count,
                 'proposed_cash_total' => $task->batch?->proposed_cash_total,
+                'offer' => $task->batch === null ? null : $reconciliation->offer($task->batch),
             ])
             ->values();
 
