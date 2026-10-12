@@ -7,7 +7,7 @@ use App\Enums\StockMovementType;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Department;
-use App\Models\DisbursementBatch;
+use App\Models\DistributionBatch;
 use App\Models\Individual;
 use App\Models\Item;
 use App\Models\Program;
@@ -237,7 +237,7 @@ function withoutResourceRoles(User $user): User
 /**
  * @return array<string, mixed>
  */
-function disbursementFixture(string $kind = 'cash', int $requests = 1): array
+function distributionFixture(string $kind = 'cash', int $requests = 1): array
 {
     $department = Department::create(['name' => 'Social Welfare '.uniqid()]);
     $creator = User::factory()->create(['department_id' => $department->id]);
@@ -285,7 +285,7 @@ function disbursementFixture(string $kind = 'cash', int $requests = 1): array
  * @param  array<string, mixed>  $fixture
  * @return array<string, mixed>
  */
-function disbursementPayload(array $fixture, string $mode = 'batch'): array
+function distributionPayload(array $fixture, string $mode = 'batch'): array
 {
     return [
         'program_id' => $fixture['program']->id,
@@ -301,27 +301,27 @@ function disbursementPayload(array $fixture, string $mode = 'batch'): array
 /**
  * @param  array<string, mixed>  $fixture
  */
-function storeDisbursement(array $fixture, string $mode = 'batch'): DisbursementBatch
+function storeDistribution(array $fixture, string $mode = 'batch'): DistributionBatch
 {
     test()->actingAs($fixture['creator'])
-        ->post(route('user.disbursements.store', $fixture['department']), disbursementPayload($fixture, $mode))
+        ->post(route('user.distributions.store', $fixture['department']), distributionPayload($fixture, $mode))
         ->assertRedirect();
 
-    return DisbursementBatch::query()->latest('id')->firstOrFail();
+    return DistributionBatch::query()->latest('id')->firstOrFail();
 }
 
 /**
  * @param  array<string, mixed>  $fixture
  */
-function submitDisbursement(array $fixture, DisbursementBatch $batch): void
+function submitDistribution(array $fixture, DistributionBatch $batch): void
 {
     test()->actingAs($fixture['creator'])
-        ->post(route('user.disbursements.validate', [$fixture['department'], $batch]))
+        ->post(route('user.distributions.validate', [$fixture['department'], $batch]))
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 
     test()->actingAs($fixture['creator'])
-        ->post(route('user.disbursements.submit', [$fixture['department'], $batch]))
+        ->post(route('user.distributions.submit', [$fixture['department'], $batch]))
         ->assertRedirect()
         ->assertSessionHasNoErrors();
 }

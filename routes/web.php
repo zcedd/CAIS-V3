@@ -1,10 +1,10 @@
 <?php
 
-use App\Http\Controllers\Admin\DisbursementApprovalPolicyController as AdminDisbursementApprovalPolicyController;
+use App\Http\Controllers\Admin\DistributionApprovalPolicyController as AdminDistributionApprovalPolicyController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
 use App\Http\Controllers\Executive\DashboardController as ExecutiveDashboardController;
-use App\Http\Controllers\Executive\DisbursementApprovalController;
+use App\Http\Controllers\Executive\DistributionApprovalController;
 use App\Http\Controllers\Executive\ProgramController as ExecutiveProgramController;
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
@@ -13,8 +13,8 @@ use App\Http\Controllers\User\AssistanceQueueController as UserAssistanceQueueCo
 use App\Http\Controllers\User\AssistanceReceiptController as UserAssistanceReceiptController;
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
-use App\Http\Controllers\User\DisbursementBatchController as UserDisbursementBatchController;
-use App\Http\Controllers\User\DisbursementVenueController as UserDisbursementVenueController;
+use App\Http\Controllers\User\DistributionBatchController as UserDistributionBatchController;
+use App\Http\Controllers\User\DistributionVenueController as UserDistributionVenueController;
 use App\Http\Controllers\User\FundController as UserFundController;
 use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ItemStockController as UserItemStockController;
@@ -42,12 +42,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('programs/{program}', [ExecutiveProgramController::class, 'show'])->name('programs.show');
         Route::post('programs/{program}/approve', [ExecutiveProgramController::class, 'approve'])->name('programs.approve');
         Route::post('programs/{program}/return', [ExecutiveProgramController::class, 'returnToDepartment'])->name('programs.return');
-        Route::get('disbursements', [DisbursementApprovalController::class, 'index'])->name('disbursements.index');
-        Route::get('disbursements/{disbursementBatch}', [DisbursementApprovalController::class, 'show'])->name('disbursements.show');
-        Route::post('disbursements/{disbursementBatch}/decide', [DisbursementApprovalController::class, 'decide'])->name('disbursements.decide');
-        Route::post('disbursements/{disbursementBatch}/items/bulk-decide', [DisbursementApprovalController::class, 'bulkDecide'])->name('disbursements.items.bulk-decide');
-        Route::post('disbursements/{disbursementBatch}/items/{item}/decide', [DisbursementApprovalController::class, 'decideItem'])->name('disbursements.items.decide');
-        Route::post('disbursements/{disbursementBatch}/finalize', [DisbursementApprovalController::class, 'finalize'])->name('disbursements.finalize');
+        Route::get('distributions', [DistributionApprovalController::class, 'index'])->name('distributions.index');
+        Route::get('distributions/{distributionBatch}', [DistributionApprovalController::class, 'show'])->name('distributions.show');
+        Route::post('distributions/{distributionBatch}/decide', [DistributionApprovalController::class, 'decide'])->name('distributions.decide');
+        Route::post('distributions/{distributionBatch}/items/bulk-decide', [DistributionApprovalController::class, 'bulkDecide'])->name('distributions.items.bulk-decide');
+        Route::post('distributions/{distributionBatch}/items/{item}/decide', [DistributionApprovalController::class, 'decideItem'])->name('distributions.items.decide');
+        Route::post('distributions/{distributionBatch}/finalize', [DistributionApprovalController::class, 'finalize'])->name('distributions.finalize');
     });
 
     Route::middleware('super-admin')->prefix('admin')->name('admin.')->group(function () {
@@ -73,9 +73,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('workflows/{workflow}/assistances/{assistance}/reassign', [AdminWorkflowController::class, 'reassignTask'])->name('workflows.tasks.reassign');
         Route::post('workflows/{workflow}/assistances/{assistance}/override', [AdminWorkflowController::class, 'overrideTask'])->name('workflows.tasks.override');
 
-        Route::get('disbursement-policies', [AdminDisbursementApprovalPolicyController::class, 'index'])->name('disbursement-policies.index');
-        Route::post('disbursement-policies', [AdminDisbursementApprovalPolicyController::class, 'store'])->name('disbursement-policies.store');
-        Route::put('disbursement-policies/{policy}', [AdminDisbursementApprovalPolicyController::class, 'update'])->name('disbursement-policies.update');
+        Route::get('distribution-policies', [AdminDistributionApprovalPolicyController::class, 'index'])->name('distribution-policies.index');
+        Route::post('distribution-policies', [AdminDistributionApprovalPolicyController::class, 'store'])->name('distribution-policies.store');
+        Route::put('distribution-policies/{policy}', [AdminDistributionApprovalPolicyController::class, 'update'])->name('distribution-policies.update');
     });
 
     Route::prefix('{department}')->middleware(EnsureUserBelongsToDepartment::class)->group(function () {
@@ -98,39 +98,39 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('notifications/{notification}', [UserNotificationController::class, 'show'])->name('user.notifications.show');
         Route::patch('notifications/{notification}/read', [UserNotificationController::class, 'markAsRead'])->name('user.notifications.read');
 
-        Route::get('disbursements', [UserDisbursementBatchController::class, 'index'])->name('user.disbursements.index');
-        Route::get('disbursements/calendar', [UserDisbursementBatchController::class, 'calendar'])->name('user.disbursements.calendar');
-        Route::get('disbursements/create', [UserDisbursementBatchController::class, 'create'])->name('user.disbursements.create');
-        Route::post('disbursements', [UserDisbursementBatchController::class, 'store'])->name('user.disbursements.store');
-        Route::get('disbursements/{disbursementBatch}', [UserDisbursementBatchController::class, 'show'])->name('user.disbursements.show');
-        Route::get('disbursements/{disbursementBatch}/edit', [UserDisbursementBatchController::class, 'edit'])->name('user.disbursements.edit');
-        Route::put('disbursements/{disbursementBatch}', [UserDisbursementBatchController::class, 'update'])->name('user.disbursements.update');
-        Route::post('disbursements/{disbursementBatch}/validate', [UserDisbursementBatchController::class, 'validateBatch'])->name('user.disbursements.validate');
-        Route::post('disbursements/{disbursementBatch}/submit', [UserDisbursementBatchController::class, 'submit'])->name('user.disbursements.submit');
-        Route::post('disbursements/{disbursementBatch}/decide', [UserDisbursementBatchController::class, 'decide'])->name('user.disbursements.decide');
-        Route::post('disbursements/{disbursementBatch}/items/bulk-decide', [UserDisbursementBatchController::class, 'bulkDecide'])->name('user.disbursements.items.bulk-decide');
-        Route::post('disbursements/{disbursementBatch}/items/{item}/decide', [UserDisbursementBatchController::class, 'decideItem'])->name('user.disbursements.items.decide');
-        Route::post('disbursements/{disbursementBatch}/finalize', [UserDisbursementBatchController::class, 'finalize'])->name('user.disbursements.finalize');
-        Route::post('disbursements/{disbursementBatch}/schedule', [UserDisbursementBatchController::class, 'schedule'])->name('user.disbursements.schedule');
-        Route::post('disbursements/{disbursementBatch}/cancel', [UserDisbursementBatchController::class, 'cancel'])->name('user.disbursements.cancel');
-        Route::post('disbursements/{disbursementBatch}/reopen', [UserDisbursementBatchController::class, 'reopen'])->name('user.disbursements.reopen');
-        Route::post('disbursements/{disbursementBatch}/start', [UserDisbursementBatchController::class, 'start'])->name('user.disbursements.start');
-        Route::post('disbursements/{disbursementBatch}/releases', [UserDisbursementBatchController::class, 'release'])->name('user.disbursements.releases.store');
-        Route::post('disbursements/{disbursementBatch}/complete', [UserDisbursementBatchController::class, 'complete'])->name('user.disbursements.complete');
-        Route::post('disbursements/{disbursementBatch}/documents', [UserDisbursementBatchController::class, 'storeDocument'])->name('user.disbursements.documents.store');
-        Route::get('disbursements/{disbursementBatch}/documents/{disbursementDocument}', [UserDisbursementBatchController::class, 'document'])->name('user.disbursements.documents.show');
-        Route::get('disbursements/{disbursementBatch}/exports/{report}', [UserDisbursementBatchController::class, 'export'])->name('user.disbursements.report');
-        Route::get('disbursements/{disbursementBatch}/venue', [UserDisbursementVenueController::class, 'show'])->name('user.disbursements.venue');
-        Route::post('disbursements/{disbursementBatch}/personnel', [UserDisbursementVenueController::class, 'assign'])->name('user.disbursements.personnel.store');
-        Route::post('disbursements/{disbursementBatch}/items/{item}/transactions', [UserDisbursementVenueController::class, 'start'])->name('user.disbursements.transactions.store');
-        Route::post('disbursements/{disbursementBatch}/transactions/{transaction}/evidence', [UserDisbursementVenueController::class, 'evidence'])->name('user.disbursements.transactions.evidence.store');
-        Route::get('disbursements/{disbursementBatch}/transactions/{transaction}/evidence/{evidence}', [UserDisbursementVenueController::class, 'showEvidence'])->name('user.disbursements.transactions.evidence.show');
-        Route::post('disbursements/{disbursementBatch}/transactions/{transaction}/finalize', [UserDisbursementVenueController::class, 'finalize'])->name('user.disbursements.transactions.finalize');
-        Route::post('disbursements/{disbursementBatch}/transactions/{transaction}/void', [UserDisbursementVenueController::class, 'void'])->name('user.disbursements.transactions.void');
-        Route::get('disbursements/{disbursementBatch}/transactions/{transaction}/receipt', [UserDisbursementVenueController::class, 'receipt'])->name('user.disbursements.transactions.receipt');
-        Route::get('disbursements/{disbursementBatch}/transactions/{transaction}/receipt/pdf', [UserDisbursementVenueController::class, 'receiptPdf'])->name('user.disbursements.transactions.receipt.pdf');
-        Route::post('disbursements/{disbursementBatch}/receipts/{receipt}/reprint', [UserDisbursementVenueController::class, 'reprint'])->name('user.disbursements.receipts.reprint');
-        Route::post('disbursements/{disbursementBatch}/receipts/{receipt}/supersede', [UserDisbursementVenueController::class, 'supersede'])->name('user.disbursements.receipts.supersede');
+        Route::get('distributions', [UserDistributionBatchController::class, 'index'])->name('user.distributions.index');
+        Route::get('distributions/calendar', [UserDistributionBatchController::class, 'calendar'])->name('user.distributions.calendar');
+        Route::get('distributions/create', [UserDistributionBatchController::class, 'create'])->name('user.distributions.create');
+        Route::post('distributions', [UserDistributionBatchController::class, 'store'])->name('user.distributions.store');
+        Route::get('distributions/{distributionBatch}', [UserDistributionBatchController::class, 'show'])->name('user.distributions.show');
+        Route::get('distributions/{distributionBatch}/edit', [UserDistributionBatchController::class, 'edit'])->name('user.distributions.edit');
+        Route::put('distributions/{distributionBatch}', [UserDistributionBatchController::class, 'update'])->name('user.distributions.update');
+        Route::post('distributions/{distributionBatch}/validate', [UserDistributionBatchController::class, 'validateBatch'])->name('user.distributions.validate');
+        Route::post('distributions/{distributionBatch}/submit', [UserDistributionBatchController::class, 'submit'])->name('user.distributions.submit');
+        Route::post('distributions/{distributionBatch}/decide', [UserDistributionBatchController::class, 'decide'])->name('user.distributions.decide');
+        Route::post('distributions/{distributionBatch}/items/bulk-decide', [UserDistributionBatchController::class, 'bulkDecide'])->name('user.distributions.items.bulk-decide');
+        Route::post('distributions/{distributionBatch}/items/{item}/decide', [UserDistributionBatchController::class, 'decideItem'])->name('user.distributions.items.decide');
+        Route::post('distributions/{distributionBatch}/finalize', [UserDistributionBatchController::class, 'finalize'])->name('user.distributions.finalize');
+        Route::post('distributions/{distributionBatch}/schedule', [UserDistributionBatchController::class, 'schedule'])->name('user.distributions.schedule');
+        Route::post('distributions/{distributionBatch}/cancel', [UserDistributionBatchController::class, 'cancel'])->name('user.distributions.cancel');
+        Route::post('distributions/{distributionBatch}/reopen', [UserDistributionBatchController::class, 'reopen'])->name('user.distributions.reopen');
+        Route::post('distributions/{distributionBatch}/start', [UserDistributionBatchController::class, 'start'])->name('user.distributions.start');
+        Route::post('distributions/{distributionBatch}/releases', [UserDistributionBatchController::class, 'release'])->name('user.distributions.releases.store');
+        Route::post('distributions/{distributionBatch}/complete', [UserDistributionBatchController::class, 'complete'])->name('user.distributions.complete');
+        Route::post('distributions/{distributionBatch}/documents', [UserDistributionBatchController::class, 'storeDocument'])->name('user.distributions.documents.store');
+        Route::get('distributions/{distributionBatch}/documents/{distributionDocument}', [UserDistributionBatchController::class, 'document'])->name('user.distributions.documents.show');
+        Route::get('distributions/{distributionBatch}/exports/{report}', [UserDistributionBatchController::class, 'export'])->name('user.distributions.report');
+        Route::get('distributions/{distributionBatch}/venue', [UserDistributionVenueController::class, 'show'])->name('user.distributions.venue');
+        Route::post('distributions/{distributionBatch}/personnel', [UserDistributionVenueController::class, 'assign'])->name('user.distributions.personnel.store');
+        Route::post('distributions/{distributionBatch}/items/{item}/transactions', [UserDistributionVenueController::class, 'start'])->name('user.distributions.transactions.store');
+        Route::post('distributions/{distributionBatch}/transactions/{transaction}/evidence', [UserDistributionVenueController::class, 'evidence'])->name('user.distributions.transactions.evidence.store');
+        Route::get('distributions/{distributionBatch}/transactions/{transaction}/evidence/{evidence}', [UserDistributionVenueController::class, 'showEvidence'])->name('user.distributions.transactions.evidence.show');
+        Route::post('distributions/{distributionBatch}/transactions/{transaction}/finalize', [UserDistributionVenueController::class, 'finalize'])->name('user.distributions.transactions.finalize');
+        Route::post('distributions/{distributionBatch}/transactions/{transaction}/void', [UserDistributionVenueController::class, 'void'])->name('user.distributions.transactions.void');
+        Route::get('distributions/{distributionBatch}/transactions/{transaction}/receipt', [UserDistributionVenueController::class, 'receipt'])->name('user.distributions.transactions.receipt');
+        Route::get('distributions/{distributionBatch}/transactions/{transaction}/receipt/pdf', [UserDistributionVenueController::class, 'receiptPdf'])->name('user.distributions.transactions.receipt.pdf');
+        Route::post('distributions/{distributionBatch}/receipts/{receipt}/reprint', [UserDistributionVenueController::class, 'reprint'])->name('user.distributions.receipts.reprint');
+        Route::post('distributions/{distributionBatch}/receipts/{receipt}/supersede', [UserDistributionVenueController::class, 'supersede'])->name('user.distributions.receipts.supersede');
 
         Route::get('unspsc-codes', [UserUnspscCodeController::class, 'search'])->name('user.unspsc-codes.search');
 

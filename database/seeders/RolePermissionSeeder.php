@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\PermissionName;
 use App\Enums\RoleName;
-use App\Models\DisbursementApprovalStage;
+use App\Models\DistributionApprovalStage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
 use Spatie\Permission\Models\Permission;
@@ -84,7 +84,7 @@ class RolePermissionSeeder extends Seeder
             'governor',
             Role::findByName(RoleName::Executive->value, 'web'),
         );
-        $this->renameDisbursementStageRole('governor', RoleName::Executive->value);
+        $this->renameDistributionStageRole('governor', RoleName::Executive->value);
         $this->migrateLegacyAdminUsers($superAdmin);
         $this->deleteLegacyRoles();
         $this->deleteLegacyPermissions();
@@ -118,13 +118,13 @@ class RolePermissionSeeder extends Seeder
         $legacy->delete();
     }
 
-    private function renameDisbursementStageRole(string $from, string $to): void
+    private function renameDistributionStageRole(string $from, string $to): void
     {
-        if (! Schema::hasTable('disbursement_approval_stages')) {
+        if (! Schema::hasTable('distribution_approval_stages')) {
             return;
         }
 
-        DisbursementApprovalStage::query()
+        DistributionApprovalStage::query()
             ->where('role_name', $from)
             ->update(['role_name' => $to]);
     }

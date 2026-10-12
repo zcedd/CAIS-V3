@@ -1,0 +1,500 @@
+<?php
+
+use App\Enums\DistributionReceiptStatus;
+use App\Enums\DistributionTransactionStatus;
+use App\Enums\RequestSubStatusCode;
+use App\Enums\RoleName;
+use App\Models\DistributionAcknowledgmentReceipt;
+use App\Models\DistributionBatch;
+use App\Models\DistributionEvidence;
+use App\Models\DistributionReleaseRecord;
+use App\Models\DistributionTransaction;
+use App\Models\User;
+use App\Services\Distribution\DistributionEvidenceService;
+use App\Services\Distribution\DistributionReconciliation;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Spatie\Permission\PermissionRegistrar;
+
+function openCashDistribution(array $fixture): DistributionBatch
+{
+    $batch = storeDistribution($fixture);
+    submitDistribution($fixture, $batch);
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
+            'scheduled_at' => now()->addDay()->format('Y-m-d H:i:s'),
+            'venue' => 'Covered court',
+            'venue_details' => 'Main hall',
+        ])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))
+        ->assertRedirect();
+
+    return $batch->refresh();
+}
+
+/**
+ * @param  array<string, mixed>  $overrides
+ */
+function finalizeVenueRelease(array $fixture, DistributionBatch $batch, int $itemId, array $overrides = []): DistributionTransaction
+{
+    $key = (string) Str::uuid();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch, $itemId]), [
+            'idempotency_key' => $key,
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $transaction = DistributionTransaction::query()->where('idempotency_key', $key)->firstOrFail();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
+            'file' => UploadedFile::fake()->image('live.jpg'),
+            'evidence_type' => 'live_photo',
+            'capture_source' => 'camera',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    if (($overrides['acknowledgment_mode'] ?? 'signature') === 'signature') {
+        test()->actingAs($fixture['officer'])
+            ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
+                'file' => UploadedFile::fake()->image('sign.png'),
+                'evidence_type' => 'signature',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+    }
+
+    $line = $batch->items()->findOrFail($itemId)->lines()->firstOrFail();
+    $payload = array_merge([
+        'received_by_type' => 'beneficiary',
+        'received_by_name' => 'Recipient Example',
+        'verification_method' => 'control_number',
+        'identity_verified' => true,
+        'acknowledgment_mode' => 'signature',
+        'privacy_acknowledged' => true,
+        'lines' => [[
+            'id' => $line->id,
+            'actual_amount' => '500',
+        ]],
+    ], $overrides);
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.finalize', [$fixture['department'], $batch, $transaction]), $payload)
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    return $transaction->refresh();
+}
+
+test('an officer can finalize a release with live photo evidence and a signature', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->firstOrFail();
+
+    $transaction = finalizeVenueRelease($fixture, $batch, $item->id);
+
+    expect($transaction->status)->toBe(DistributionTransactionStatus::Finalized)
+        ->and($transaction->releases)->toHaveCount(1)
+        ->and($transaction->currentReceipt)->not->toBeNull()
+        ->and($transaction->currentReceipt->receipt_number)->toStartWith('AR-')
+        ->and($fixture['assistances'][0]->refresh()->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Delivered);
+
+    $evidence = DistributionEvidence::query()->where('evidence_type', 'live_photo')->firstOrFail();
+    expect(app(DistributionEvidenceService::class)->assertHash($evidence))->toBeTrue()
+        ->and(Storage::disk('local')->exists($evidence->path))->toBeTrue()
+        ->and(Storage::disk('public')->exists($evidence->path))->toBeFalse();
+
+    test()->actingAs($fixture['officer'])
+        ->get(route('user.distributions.transactions.evidence.show', [$fixture['department'], $batch, $transaction, $evidence]))
+        ->assertOk();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'distribution',
+        'event' => 'evidence_viewed',
+    ]);
+
+    test()->actingAs($fixture['officer'])
+        ->get(route('user.distributions.venue', [
+            'department' => $fixture['department'],
+            'distributionBatch' => $batch,
+            'item' => $item->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->component('user/distributions/venue'));
+});
+
+test('finalizing the same transaction again does not release the assistance twice', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->firstOrFail();
+    $transaction = finalizeVenueRelease($fixture, $batch, $item->id);
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.finalize', [$fixture['department'], $batch, $transaction]), [
+            'received_by_type' => 'beneficiary',
+            'received_by_name' => 'Recipient Example',
+            'verification_method' => 'control_number',
+            'identity_verified' => true,
+            'acknowledgment_mode' => 'signature',
+            'privacy_acknowledged' => true,
+            'lines' => [[
+                'id' => $item->lines()->firstOrFail()->id,
+                'actual_amount' => '500',
+            ]],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(DistributionReleaseRecord::query()->count())->toBe(1)
+        ->and(DistributionAcknowledgmentReceipt::query()->count())->toBe(1);
+});
+
+test('a release without live photo evidence stays a draft', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->firstOrFail();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch, $item]), [
+            'idempotency_key' => (string) Str::uuid(),
+        ])
+        ->assertRedirect();
+
+    $transaction = DistributionTransaction::query()->firstOrFail();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.finalize', [$fixture['department'], $batch, $transaction]), [
+            'received_by_type' => 'beneficiary',
+            'received_by_name' => 'Recipient Example',
+            'verification_method' => 'control_number',
+            'identity_verified' => true,
+            'acknowledgment_mode' => 'alternative',
+            'alternative_reason' => 'Recipient cannot sign.',
+            'privacy_acknowledged' => true,
+            'lines' => [[
+                'id' => $item->lines()->firstOrFail()->id,
+                'actual_amount' => '500',
+            ]],
+        ])
+        ->assertSessionHasErrors('live_photo');
+
+    expect($transaction->refresh()->status)->toBe(DistributionTransactionStatus::Draft)
+        ->and(DistributionReleaseRecord::query()->count())->toBe(0);
+});
+
+test('an officer cannot waive the live photo', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->firstOrFail();
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch, $item]), [
+            'idempotency_key' => (string) Str::uuid(),
+        ]);
+    $transaction = DistributionTransaction::query()->firstOrFail();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.finalize', [$fixture['department'], $batch, $transaction]), [
+            'received_by_type' => 'beneficiary',
+            'received_by_name' => 'Recipient Example',
+            'verification_method' => 'control_number',
+            'identity_verified' => true,
+            'acknowledgment_mode' => 'alternative',
+            'alternative_reason' => 'Thumbprint on the logbook.',
+            'privacy_acknowledged' => true,
+            'camera_waiver_reason' => 'Camera battery failed.',
+            'lines' => [[
+                'id' => $item->lines()->firstOrFail()->id,
+                'actual_amount' => '500',
+            ]],
+        ])
+        ->assertSessionHasErrors('camera_waiver_reason');
+});
+
+test('unsupported and oversized evidence files are rejected', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->firstOrFail();
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch, $item]), [
+            'idempotency_key' => (string) Str::uuid(),
+        ]);
+    $transaction = DistributionTransaction::query()->firstOrFail();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
+            'file' => UploadedFile::fake()->create('notes.pdf', 20, 'application/pdf'),
+            'evidence_type' => 'live_photo',
+            'capture_source' => 'camera',
+        ])
+        ->assertSessionHasErrors('file');
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
+            'file' => UploadedFile::fake()->image('huge.jpg')->size(6000),
+            'evidence_type' => 'live_photo',
+            'capture_source' => 'camera',
+        ])
+        ->assertSessionHasErrors('file');
+
+    expect(DistributionEvidence::query()->count())->toBe(0);
+});
+
+test('a gallery upload is not accepted as a live photo', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->firstOrFail();
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch, $item]), [
+            'idempotency_key' => (string) Str::uuid(),
+        ]);
+    $transaction = DistributionTransaction::query()->firstOrFail();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
+            'file' => UploadedFile::fake()->image('gallery.jpg'),
+            'evidence_type' => 'live_photo',
+            'capture_source' => 'gallery',
+        ])
+        ->assertSessionHasErrors('capture_source');
+});
+
+test('an excessive release is rejected and a partial release keeps the balance', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture(kind: 'goods');
+    seedProgramStock($fixture['program'], $fixture['item'], 20, $fixture['officer']);
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->with('lines')->firstOrFail();
+
+    finalizeVenueRelease($fixture, $batch, $item->id, [
+        'notes' => 'Only part of the allocation was on hand.',
+        'lines' => [[
+            'id' => $item->lines->first()->id,
+            'actual_quantity' => '1',
+        ]],
+    ]);
+
+    $summary = app(DistributionReconciliation::class)->summarize($batch->refresh());
+    expect($summary['partial_beneficiaries'])->toBe(1)
+        ->and($summary['served_beneficiaries'])->toBe(0);
+
+    expect($fixture['assistances'][0]->refresh()->currentRequestSubStatus?->code)
+        ->toBe(RequestSubStatusCode::PartiallyDelivered);
+
+    $secondKey = (string) Str::uuid();
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch, $item]), [
+            'idempotency_key' => $secondKey,
+        ])
+        ->assertRedirect();
+    $second = DistributionTransaction::query()->where('idempotency_key', $secondKey)->firstOrFail();
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $second]), [
+            'file' => UploadedFile::fake()->image('live.jpg'),
+            'evidence_type' => 'live_photo',
+            'capture_source' => 'camera',
+        ]);
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $second]), [
+            'file' => UploadedFile::fake()->image('sign.png'),
+            'evidence_type' => 'signature',
+        ]);
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.finalize', [$fixture['department'], $batch, $second]), [
+            'received_by_type' => 'beneficiary',
+            'received_by_name' => 'Recipient Example',
+            'verification_method' => 'control_number',
+            'identity_verified' => true,
+            'acknowledgment_mode' => 'signature',
+            'privacy_acknowledged' => true,
+            'lines' => [[
+                'id' => $item->lines->first()->id,
+                'actual_quantity' => '4',
+            ]],
+        ])
+        ->assertSessionHasErrors('lines');
+
+    expect(DistributionReleaseRecord::query()->count())->toBe(1);
+});
+
+test('unauthorized users cannot view evidence', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $transaction = finalizeVenueRelease($fixture, $batch, $batch->items()->firstOrFail()->id);
+    $evidence = DistributionEvidence::query()->firstOrFail();
+    $stranger = User::factory()->create(['department_id' => $fixture['department']->id]);
+    $stranger->syncRoles([RoleName::Beneficiary->value]);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    test()->actingAs($stranger)
+        ->get(route('user.distributions.transactions.evidence.show', [$fixture['department'], $batch, $transaction, $evidence]))
+        ->assertForbidden();
+});
+
+test('a receipt can be reprinted and superseded without another release', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $transaction = finalizeVenueRelease($fixture, $batch, $batch->items()->firstOrFail()->id);
+    $receipt = $transaction->currentReceipt;
+    expect($receipt)->not->toBeNull();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.receipts.reprint', [$fixture['department'], $batch, $receipt]))
+        ->assertRedirect();
+
+    expect($receipt->refresh()->reprint_count)->toBe(1)
+        ->and(DistributionReleaseRecord::query()->count())->toBe(1);
+
+    test()->actingAs($fixture['head'])
+        ->post(route('user.distributions.receipts.supersede', [$fixture['department'], $batch, $receipt]), [
+            'reason' => 'Correct the printed recipient name.',
+            'recipient_name' => 'Corrected Recipient',
+        ])
+        ->assertRedirect();
+
+    $receipt->refresh();
+    $replacement = DistributionAcknowledgmentReceipt::query()->where('status', DistributionReceiptStatus::Issued)->firstOrFail();
+
+    expect($receipt->status)->toBe(DistributionReceiptStatus::Superseded)
+        ->and($replacement->version)->toBe(2)
+        ->and($replacement->snapshot['recipient_name'])->toBe('Corrected Recipient')
+        ->and(DistributionReleaseRecord::query()->count())->toBe(1);
+
+    test()->actingAs($fixture['officer'])
+        ->get(route('user.distributions.transactions.receipt.pdf', [$fixture['department'], $batch, $transaction]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});
+
+test('public receipt verification hides personal evidence', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $item = $batch->items()->with('beneficiary')->firstOrFail();
+    $transaction = finalizeVenueRelease($fixture, $batch, $item->id);
+    $receipt = $transaction->currentReceipt;
+
+    $this->get(route('public.distribution-receipts.verify', ['token' => $receipt->verification_token]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('public/distributions/verify')
+            ->where('receipt.receipt_number', $receipt->receipt_number)
+            ->missing('receipt.snapshot')
+            ->missing('receipt.beneficiary_reference'))
+        ->assertDontSee($item->beneficiary->cais_number);
+});
+
+test('voiding a release requires authority and keeps the audit record', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $transaction = finalizeVenueRelease($fixture, $batch, $batch->items()->firstOrFail()->id);
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.void', [$fixture['department'], $batch, $transaction]), [
+            'reason' => 'Wrong person.',
+        ])
+        ->assertForbidden();
+
+    test()->actingAs($fixture['head'])
+        ->post(route('user.distributions.transactions.void', [$fixture['department'], $batch, $transaction]), [
+            'reason' => 'Wrong person was recorded.',
+        ])
+        ->assertRedirect();
+
+    expect($transaction->refresh()->status)->toBe(DistributionTransactionStatus::Voided)
+        ->and($transaction->currentReceipt->status)->toBe(DistributionReceiptStatus::Voided)
+        ->and(DistributionReleaseRecord::query()->count())->toBe(1);
+
+    $this->assertDatabaseHas('activity_log', [
+        'event' => 'transaction_voided',
+        'subject_id' => $batch->id,
+    ]);
+});
+
+test('a cancelled batch cannot start a venue release', function () {
+    $fixture = distributionFixture();
+    $batch = storeDistribution($fixture);
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.distributions.cancel', [$fixture['department'], $batch]), [
+            'reason' => 'Schedule was withdrawn.',
+        ])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch->refresh(), $batch->items()->firstOrFail()]), [
+            'idempotency_key' => (string) Str::uuid(),
+        ])
+        ->assertSessionHasErrors('status');
+});
+
+test('reconciliation separates excluded beneficiaries from releases', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture(requests: 2);
+    $batch = storeDistribution($fixture, 'beneficiary');
+    submitDistribution($fixture, $batch);
+    $items = $batch->items()->orderBy('id')->get();
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.items.decide', [$batch, $items[0]]), [
+            'decision' => 'excluded',
+            'remarks' => 'Did not meet the program rule.',
+        ])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.items.decide', [$batch->refresh(), $items[1]]), [
+            'decision' => 'approved',
+        ])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.finalize', $batch->refresh()))
+        ->assertRedirect();
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
+            'scheduled_at' => now()->addDay()->format('Y-m-d H:i:s'),
+            'venue' => 'Covered court',
+        ])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))
+        ->assertRedirect();
+
+    finalizeVenueRelease($fixture, $batch->refresh(), $items[1]->id, [
+        'lines' => [[
+            'id' => $items[1]->lines()->firstOrFail()->id,
+            'actual_amount' => '600',
+        ]],
+    ]);
+
+    $summary = app(DistributionReconciliation::class)->summarize($batch->refresh());
+
+    expect($summary['excluded_beneficiaries'])->toBe(1)
+        ->and($summary['served_beneficiaries'])->toBe(1)
+        ->and($summary['approved_cash'])->toBe('600.00')
+        ->and($summary['actual_cash'])->toBe('600.00');
+});

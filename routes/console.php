@@ -16,6 +16,6 @@ Schedule::command('workflow-tasks:notify-due')
     ->daily()
     ->withoutOverlapping();
 
-Schedule::command('disbursement:notify-upcoming')
+Schedule::command('distribution:notify-upcoming')
     ->daily()
     ->withoutOverlapping();
