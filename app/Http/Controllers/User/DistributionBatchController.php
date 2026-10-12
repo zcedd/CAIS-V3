@@ -17,6 +17,7 @@ use App\Actions\Distribution\SubmitDistributionBatch;
 use App\Actions\Distribution\UpdateDistributionBatch;
 use App\Actions\Distribution\ValidateDistributionBatch;
 use App\Enums\DistributionBatchStatus;
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\RequestSubStatusCode;
 use App\Exports\User\DistributionBatchExport;
 use App\Http\Controllers\Controller;
@@ -36,6 +37,7 @@ use App\Models\DistributionBatchItem;
 use App\Models\Program;
 use App\Services\Distribution\DistributionBatchDetails;
 use App\Services\Distribution\DistributionReconciliation;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -211,10 +213,11 @@ class DistributionBatchController extends Controller
                 'lock_version' => $distributionBatch->lock_version,
                 'assistance_ids' => $distributionBatch->items->pluck('assistance_id')->all(),
             ],
-            'programs' => $this->programs($department),
+            'programs' => $this->programs($department, (int) $distributionBatch->program_id),
             'requests' => $this->eligibleRequests(
                 $department,
                 $request->integer('program_id') ?: (int) $distributionBatch->program_id,
+                (int) $distributionBatch->program_id,
             ),
         ]);
     }
@@ -478,11 +481,18 @@ class DistributionBatchController extends Controller
     /**
      * @return list<array{id: int, name: string}>
      */
-    private function programs(Department $department): array
+    private function programs(Department $department, ?int $includeProgramId = null): array
     {
         return Program::query()
             ->where('department_id', $department->id)
             ->encodable()
+            ->where(function (Builder $query) use ($includeProgramId): void {
+                $query->approved();
+
+                if ($includeProgramId !== null) {
+                    $query->orWhere('id', $includeProgramId);
+                }
+            })
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(fn (Program $program): array => ['id' => $program->id, 'name' => $program->name])
@@ -492,7 +502,7 @@ class DistributionBatchController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
-    private function eligibleRequests(Department $department, int $programId): array
+    private function eligibleRequests(Department $department, int $programId, ?int $retainedProgramId = null): array
     {
         if ($programId < 1) {
             return [];
@@ -501,6 +511,12 @@ class DistributionBatchController extends Controller
         $program = Program::query()->where('department_id', $department->id)->whereKey($programId)->first();
 
         if (! $program instanceof Program) {
+            return [];
+        }
+
+        $keepsCurrentProgram = $retainedProgramId !== null && (int) $program->id === $retainedProgramId;
+
+        if ($program->approval_status !== ProgramApprovalStatus::Approved && ! $keepsCurrentProgram) {
             return [];
         }
 

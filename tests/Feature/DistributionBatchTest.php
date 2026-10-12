@@ -5,6 +5,7 @@ use App\Enums\DistributionApprovalStrategy;
 use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionDecisionAction;
 use App\Enums\DistributionItemApprovalStatus;
+use App\Enums\ProgramApprovalStatus;
 use App\Enums\RequestSubStatusCode;
 use App\Enums\RoleName;
 use App\Enums\StockMovementType;
@@ -13,9 +14,11 @@ use App\Enums\WorkflowTaskStatus;
 use App\Models\AssistanceItem;
 use App\Models\Department;
 use App\Models\DistributionApprovalDecision;
+use App\Models\DistributionBatch;
 use App\Models\DistributionBatchItem;
 use App\Models\DistributionTransaction;
 use App\Models\Item;
+use App\Models\Program;
 use App\Models\User;
 use App\Notifications\DistributionBatchNotification;
 use App\Services\Distribution\DistributionBatchDetails;
@@ -43,6 +46,39 @@ test('authorized staff can create a distribution batch', function () {
         ->assertInertia(fn ($page) => $page
             ->component('user/distributions/index')
             ->has('batches.data', 1));
+});
+
+test('the create form lists only approved programs', function () {
+    $fixture = distributionFixture();
+    $draft = Program::factory()->forDepartment($fixture['department'])->create([
+        'name' => 'Draft relief',
+        'approval_status' => ProgramApprovalStatus::Draft,
+    ]);
+
+    test()->actingAs($fixture['creator'])
+        ->get(route('user.distributions.create', [
+            'department' => $fixture['department'],
+            'program_id' => $draft->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('user/distributions/form')
+            ->has('programs', 1)
+            ->where('programs.0.id', $fixture['program']->id)
+            ->where('requests', []));
+});
+
+test('a distribution batch cannot be created for an unapproved program', function () {
+    $fixture = distributionFixture();
+    $fixture['program']->update(['approval_status' => ProgramApprovalStatus::AwaitingGovernor]);
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.distributions.store', $fixture['department']), distributionPayload($fixture))
+        ->assertSessionHasErrors([
+            'program_id' => 'Choose an approved program.',
+        ]);
+
+    expect(DistributionBatch::query()->count())->toBe(0);
 });
 
 test('the same assistance request cannot be added twice', function () {

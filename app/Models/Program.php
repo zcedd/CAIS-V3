@@ -200,6 +200,15 @@ class Program extends Model
      * @param  Builder<Program>  $query
      * @return Builder<Program>
      */
+    public function scopeApproved(Builder $query): Builder
+    {
+        return $query->where('approval_status', ProgramApprovalStatus::Approved->value);
+    }
+
+    /**
+     * @param  Builder<Program>  $query
+     * @return Builder<Program>
+     */
     public function scopeTransferTargetsFor(Builder $query, Program $program): Builder
     {
         $query
