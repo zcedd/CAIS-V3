@@ -891,10 +891,9 @@ export default function UserProgramShow({
                 </section>
             </div>
 
-            {canEdit && department && editOpen ? (
+            {canEdit && department ? (
                 <Suspense fallback={null}>
                     <ProgramEditDrawer
-                        key={editFormKey}
                         open={editOpen}
                         onOpenChange={setEditOpen}
                         program={program}

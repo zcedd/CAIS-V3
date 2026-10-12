@@ -12,6 +12,7 @@ use App\Models\DistributionTransaction;
 use App\Models\User;
 use App\Services\Distribution\DistributionEvidenceService;
 use App\Services\Distribution\DistributionReconciliation;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -291,7 +292,14 @@ test('an excessive release is rejected and a partial release keeps the balance',
         ]],
     ]);
 
-    $summary = app(DistributionReconciliation::class)->summarize($batch->refresh());
+    Model::preventLazyLoading(true);
+
+    try {
+        $summary = app(DistributionReconciliation::class)->summarize($batch->refresh());
+    } finally {
+        Model::preventLazyLoading(false);
+    }
+
     expect($summary['partial_beneficiaries'])->toBe(1)
         ->and($summary['served_beneficiaries'])->toBe(0);
 

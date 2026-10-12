@@ -66,11 +66,8 @@ class DistributionReconciliation
             foreach ($item->releases as $release) {
                 $actualCash = DecimalAmount::add($actualCash, $release->actual_amount);
 
-                if ($release->line?->item_id === null && $release->distribution_batch_item_line_id !== null) {
-                    $release->loadMissing('line');
-                }
-
-                $releasedItemId = (int) ($release->line?->item_id ?? 0);
+                $releasedLine = $item->lines->firstWhere('id', $release->distribution_batch_item_line_id);
+                $releasedItemId = (int) ($releasedLine?->item_id ?? 0);
 
                 if ($releasedItemId > 0) {
                     $quantities[$releasedItemId]['name'] = $quantities[$releasedItemId]['name'] ?? 'Item';
