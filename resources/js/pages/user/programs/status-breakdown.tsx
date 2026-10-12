@@ -31,13 +31,14 @@ function colorForStatus(status: string, index: number): string {
 
 export function ProgramStatusBreakdown({
     breakdown,
-}: ProgramStatusBreakdownProps) {
+    className,
+}: ProgramStatusBreakdownProps & { className?: string }) {
     const total = breakdown.reduce((sum, point) => sum + point.count, 0);
 
     return (
         <section
             data-tour="program-status-breakdown"
-            className="rounded-xl border border-border bg-card"
+            className={cn('h-full rounded-xl border border-border bg-card', className)}
         >
             <div className="flex flex-col gap-3 p-4">
                 <div className="space-y-1">

@@ -3,6 +3,7 @@
 namespace App\Services\User;
 
 use App\Actions\User\JoinAssistanceTableRelations;
+use App\Enums\ItemKind;
 use App\Enums\NameSuffix;
 use App\Models\AddressCity;
 use App\Models\AddressProvince;
@@ -15,6 +16,7 @@ use App\Models\Organization;
 use App\Models\Program;
 use App\Support\EmptyCell;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -39,8 +41,11 @@ class BeneficiaryService
         string $search,
         array $types,
         int $perPage = self::BENEFICIARIES_PER_PAGE,
+        ?int $cityId = null,
+        ?string $sector = null,
+        string $sort = 'name',
     ): LengthAwarePaginator {
-        return Beneficiary::query()
+        $paginator = Beneficiary::query()
             ->when($search !== '', function ($query) use ($search): void {
                 $needle = '%'.$search.'%';
                 $query->where(function ($builder) use ($needle): void {
@@ -57,43 +62,261 @@ class BeneficiaryService
                 count($types) === 1 && in_array('organization', $types, true),
                 fn ($query) => $query->where('beneficiable_type', Organization::class),
             )
+            ->when($cityId !== null, function ($query) use ($cityId): void {
+                $query->whereHasMorph(
+                    'beneficiable',
+                    [Individual::class, Organization::class],
+                    function ($morph) use ($cityId): void {
+                        $morph->whereHas(
+                            'address',
+                            fn ($address) => $address->where('address_city_id', $cityId),
+                        );
+                    },
+                );
+            })
+            ->when($sector !== null, function ($query) use ($sector): void {
+                $query
+                    ->where('beneficiable_type', Individual::class)
+                    ->whereIn('beneficiable_id', $this->individualsInSector($sector)->select('individuals.id'));
+            })
             ->with(['beneficiable' => function (MorphTo $morphTo): void {
                 $morphTo->morphWith([
-                    Individual::class => ['address.city'],
+                    Individual::class => ['address.city', 'civilStatus', 'beneficiaryIdentification.identification'],
                     Organization::class => ['address.city'],
                 ]);
             }])
             ->withCount('assistances')
+            ->withCount([
+                'assistances as delivered_count' => fn ($query) => $query->where('was_delivered', true),
+            ])
             ->withMax('assistances as last_assisted_at', 'date_requested')
-            ->orderBy('name')
+            ->when(
+                $sort === 'newest',
+                fn ($query) => $query->orderByDesc('beneficiaries.created_at'),
+                fn ($query) => $sort === 'most_assisted'
+                    ? $query->orderByDesc('assistances_count')->orderBy('name')
+                    : $query->orderBy('name'),
+            )
             ->paginate($perPage)
-            ->withQueryString()
-            ->through(static function (Beneficiary $beneficiary): array {
-                $beneficiable = $beneficiary->beneficiable;
-                $barangay = $beneficiable?->address;
+            ->withQueryString();
 
-                $address = $barangay === null
-                    ? null
-                    : collect([$barangay->name, $barangay->city?->name])
-                        ->filter(static fn (?string $part): bool => $part !== null && trim($part) !== '')
-                        ->implode(', ');
+        $released = $this->releasedTotals(
+            collect($paginator->items())->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+        );
 
-                return [
-                    'id' => $beneficiary->id,
-                    'cais_number' => $beneficiary->cais_number,
-                    'name' => $beneficiary->name,
-                    'type' => $beneficiary->beneficiable_type === Organization::class
-                        ? 'organization'
-                        : 'individual',
-                    'address' => $address !== '' ? $address : null,
-                    'contact' => $beneficiable?->mobile_number ?: null,
-                    'assistances_count' => (int) $beneficiary->assistances_count,
-                    'last_assisted_at' => $beneficiary->last_assisted_at
-                        ? Carbon::parse($beneficiary->last_assisted_at)->toDateString()
-                        : null,
-                    'registered_at' => $beneficiary->created_at?->toIso8601String(),
-                ];
-            });
+        return $paginator->through(function (Beneficiary $beneficiary) use ($released): array {
+            $beneficiable = $beneficiary->beneficiable;
+            $barangay = $beneficiable?->address;
+
+            $address = $barangay === null
+                ? null
+                : collect([$barangay->name, $barangay->city?->name])
+                    ->filter(static fn (?string $part): bool => $part !== null && trim($part) !== '')
+                    ->implode(', ');
+
+            $individual = $beneficiable instanceof Individual ? $beneficiable : null;
+            $age = $individual?->birthday !== null
+                ? (int) Carbon::parse($individual->birthday)->age
+                : null;
+            $identification = $individual?->beneficiaryIdentification->first();
+            $totals = $released[$beneficiary->id] ?? ['cash' => 0, 'goods' => 0];
+
+            return [
+                'id' => $beneficiary->id,
+                'cais_number' => $beneficiary->cais_number,
+                'name' => $beneficiary->name,
+                'type' => $beneficiary->beneficiable_type === Organization::class
+                    ? 'organization'
+                    : 'individual',
+                'address' => $address !== '' ? $address : null,
+                'city' => $barangay?->city?->name,
+                'barangay' => $barangay?->name,
+                'other_address' => $beneficiable?->other_address ?: null,
+                'contact' => $beneficiable?->mobile_number ?: null,
+                'age' => $age,
+                'sex' => $individual?->sex,
+                'civil_status' => $individual?->civilStatus?->name,
+                'sectors' => $this->sectorLabels($individual, $age),
+                'primary_id' => $identification === null ? null : [
+                    'type' => $identification->identification?->name,
+                    'number' => $identification->number,
+                ],
+                'assistances_count' => (int) $beneficiary->assistances_count,
+                'delivered_count' => (int) $beneficiary->delivered_count,
+                'cash_received' => $totals['cash'],
+                'goods_received' => $totals['goods'],
+                'last_assisted_at' => $beneficiary->last_assisted_at
+                    ? Carbon::parse($beneficiary->last_assisted_at)->toDateString()
+                    : null,
+                'registered_at' => $beneficiary->created_at?->toIso8601String(),
+            ];
+        });
+    }
+
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    public function cityOptions(): array
+    {
+        $barangayIds = DB::table('individuals')
+            ->whereNotNull('address_barangay_id')
+            ->whereNull('deleted_at')
+            ->select('address_barangay_id')
+            ->union(
+                DB::table('organizations')
+                    ->whereNotNull('address_barangay_id')
+                    ->whereNull('deleted_at')
+                    ->select('address_barangay_id'),
+            );
+
+        return AddressCity::query()
+            ->whereIn('id', function ($query) use ($barangayIds): void {
+                $query->from('address_barangays')
+                    ->whereIn('id', $barangayIds)
+                    ->select('address_city_id');
+            })
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(static fn (AddressCity $city): array => [
+                'value' => (string) $city->id,
+                'label' => $city->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array{
+     *     id: int,
+     *     individual_id: int|null,
+     *     organization_id: int|null,
+     *     cais_number: string,
+     *     name: string,
+     *     label: string,
+     *     sex: string|null,
+     *     age: int|null,
+     *     barangay: string|null,
+     *     city: string|null,
+     *     sectors: list<string>,
+     * }
+     */
+    public function searchOption(Beneficiary $beneficiary): array
+    {
+        $beneficiable = $beneficiary->beneficiable;
+        $individual = $beneficiable instanceof Individual ? $beneficiable : null;
+        $barangay = $beneficiable?->address;
+        $age = $individual?->birthday !== null
+            ? (int) Carbon::parse($individual->birthday)->age
+            : null;
+
+        return [
+            'id' => $beneficiary->id,
+            'individual_id' => $beneficiary->beneficiable_type === Individual::class
+                ? $beneficiary->beneficiable_id
+                : null,
+            'organization_id' => $beneficiary->beneficiable_type === Organization::class
+                ? $beneficiary->beneficiable_id
+                : null,
+            'cais_number' => $beneficiary->cais_number,
+            'name' => $beneficiary->name,
+            'label' => trim("{$beneficiary->cais_number} — {$beneficiary->name}"),
+            'sex' => $individual?->sex,
+            'age' => $age,
+            'barangay' => $barangay?->name,
+            'city' => $barangay?->city?->name,
+            'sectors' => $this->sectorLabels($individual, $age),
+        ];
+    }
+
+    /**
+     * @return Builder<Individual>
+     */
+    private function individualsInSector(string $sector): Builder
+    {
+        $query = Individual::query();
+
+        return match ($sector) {
+            'pwd' => $query->where('pwd', true),
+            'solo_parent' => $query->where('is_solo_parent', true),
+            'four_ps' => $query->where('is_4ps_beneficiary', true),
+            'indigenous' => $query->where('indigenous', true),
+            'senior' => $query->whereDate('birthday', '<=', now()->subYears(60)->toDateString()),
+            default => $query->whereRaw('1 = 0'),
+        };
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function sectorLabels(?Individual $individual, ?int $age): array
+    {
+        if (! $individual instanceof Individual) {
+            return [];
+        }
+
+        $labels = [];
+
+        if ($individual->pwd) {
+            $labels[] = 'PWD';
+        }
+
+        if ($individual->is_solo_parent) {
+            $labels[] = 'Solo Parent';
+        }
+
+        if ($individual->is_4ps_beneficiary) {
+            $labels[] = '4Ps';
+        }
+
+        if ($individual->indigenous) {
+            $labels[] = 'Indigenous';
+        }
+
+        if ($age !== null && $age >= 60) {
+            $labels[] = 'Senior';
+        }
+
+        return $labels;
+    }
+
+    /**
+     * @param  list<int>  $beneficiaryIds
+     * @return array<int, array{cash: int, goods: int}>
+     */
+    private function releasedTotals(array $beneficiaryIds): array
+    {
+        if ($beneficiaryIds === []) {
+            return [];
+        }
+
+        $rows = DB::table('assistance_item as ai')
+            ->join('assistances', 'assistances.id', '=', 'ai.assistance_id')
+            ->join('items', 'items.id', '=', 'ai.item_id')
+            ->whereIn('assistances.beneficiary_id', $beneficiaryIds)
+            ->where('assistances.was_delivered', true)
+            ->where('ai.is_received', true)
+            ->whereNull('assistances.deleted_at')
+            ->whereNull('ai.deleted_at')
+            ->select('assistances.beneficiary_id', 'items.kind')
+            ->selectRaw('SUM(ai.quantity) as total')
+            ->groupBy('assistances.beneficiary_id', 'items.kind')
+            ->get();
+
+        $totals = [];
+
+        foreach ($rows as $row) {
+            $id = (int) $row->beneficiary_id;
+            $totals[$id] ??= ['cash' => 0, 'goods' => 0];
+
+            if ($row->kind === ItemKind::Cash->value) {
+                $totals[$id]['cash'] = (int) $row->total;
+            }
+
+            if ($row->kind === ItemKind::Goods->value) {
+                $totals[$id]['goods'] = (int) $row->total;
+            }
+        }
+
+        return $totals;
     }
 
     /**

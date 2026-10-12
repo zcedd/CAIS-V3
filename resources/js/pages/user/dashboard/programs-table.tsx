@@ -9,11 +9,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import {
-    DashboardSectionCard,
-    dashboardActivePillClass,
-    dashboardInfoPillClass,
-} from '@/pages/user/dashboard/dashboard-stat-card';
+import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
 import { show as departmentProgramShow } from '@/routes/user/programs';
 import type { DashboardProgramRow, DepartmentSummary } from '@/types/dashboard';
 
@@ -78,10 +74,7 @@ export function ProgramsTable({ department, data }: ProgramsTableProps) {
                                     ) : null}
                                 </TableCell>
                                 <TableCell>
-                                    <Badge
-                                        variant="outline"
-                                        className={dashboardInfoPillClass}
-                                    >
+                                    <Badge variant="outline">
                                         {row.type === 'organization'
                                             ? 'Organization'
                                             : 'Individual'}
@@ -89,11 +82,10 @@ export function ProgramsTable({ department, data }: ProgramsTableProps) {
                                 </TableCell>
                                 <TableCell>
                                     <Badge
-                                        variant="outline"
-                                        className={
+                                        variant={
                                             row.status === 'open'
-                                                ? dashboardActivePillClass
-                                                : dashboardInfoPillClass
+                                                ? 'default'
+                                                : 'secondary'
                                         }
                                     >
                                         {row.status === 'open'

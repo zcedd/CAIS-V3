@@ -1,10 +1,9 @@
 import { Package } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     DashboardSectionCard,
-    dashboardProgressClass,
-    dashboardSurfaceClass,
+    SectionCardSkeleton,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DeliveredItemsChartPoint } from '@/types/dashboard';
 
@@ -13,6 +12,13 @@ type TopDeliveredItemsProps = {
 };
 
 export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
+    const ranked = [...data]
+        .sort(
+            (left, right) =>
+                (right.quantity ?? right.count) -
+                (left.quantity ?? left.count),
+        )
+        .slice(0, 5);
     const totalQuantity = data.reduce(
         (sum, point) => sum + (point.quantity ?? point.count),
         0,
@@ -23,16 +29,16 @@ export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
             title="Top delivered items"
             description="Sorted by quantity received, using the filters above"
             icon={Package}
-            tone="success"
+            className="h-full"
             data-tour="dashboard-top-delivered-items"
         >
-            {data.length === 0 ? (
+            {ranked.length === 0 ? (
                 <p className="py-8 text-center text-sm text-muted-foreground">
                     No delivered items with these filters.
                 </p>
             ) : (
-                <ul className="space-y-4">
-                    {data.map((point) => {
+                <ul className="flex flex-col gap-2">
+                    {ranked.map((point) => {
                         const quantity = point.quantity ?? point.count;
                         const percent =
                             totalQuantity > 0
@@ -42,32 +48,20 @@ export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
                         return (
                             <li
                                 key={`${point.item}-${point.unit}`}
-                                className="space-y-2"
+                                className="flex flex-col gap-1"
                             >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="truncate text-sm font-medium">
-                                            {point.item}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground">
-                                            {point.unit} ·{' '}
-                                            {point.count.toLocaleString()}{' '}
-                                            deliveries
-                                        </p>
-                                    </div>
-                                    <div className="shrink-0 text-right">
-                                        <p className="text-sm font-medium tabular-nums">
-                                            {quantity.toLocaleString()}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground tabular-nums">
+                                <div className="flex items-baseline justify-between gap-3">
+                                    <p className="min-w-0 truncate text-sm font-medium">
+                                        {point.item}
+                                    </p>
+                                    <p className="shrink-0 text-sm tabular-nums">
+                                        {quantity.toLocaleString()}
+                                        <span className="ml-2 text-xs text-muted-foreground">
                                             {percent.toFixed(1)}%
-                                        </p>
-                                    </div>
+                                        </span>
+                                    </p>
                                 </div>
-                                <Progress
-                                    value={percent}
-                                    className={dashboardProgressClass}
-                                />
+                                <Progress value={percent} />
                             </li>
                         );
                     })}
@@ -79,29 +73,23 @@ export function TopDeliveredItems({ data }: TopDeliveredItemsProps) {
 
 export function TopDeliveredItemsSkeleton() {
     return (
-        <div
-            className={cn('overflow-hidden', dashboardSurfaceClass)}
-            aria-busy="true"
-            aria-label="Loading top delivered items"
+        <SectionCardSkeleton
+            label="Loading top delivered items"
+            titleClassName="w-40"
+            descriptionClassName="w-56"
+            className="h-full"
         >
-            <div className="flex items-start justify-between gap-2 px-6 pt-6">
-                <div className="space-y-2">
-                    <div className="h-5 w-40 animate-pulse rounded bg-muted" />
-                    <div className="h-4 w-56 animate-pulse rounded bg-muted" />
-                </div>
-                <div className="size-5 animate-pulse rounded bg-muted" />
-            </div>
-            <div className="space-y-4 px-6 py-6">
+            <div className="space-y-4">
                 {Array.from({ length: 5 }).map((_, index) => (
                     <div key={index} className="space-y-2">
                         <div className="flex justify-between gap-3">
-                            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-                            <div className="h-4 w-12 animate-pulse rounded bg-muted" />
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-4 w-12" />
                         </div>
-                        <div className="h-2 w-full animate-pulse rounded bg-muted" />
+                        <Skeleton className="h-2 w-full rounded-full" />
                     </div>
                 ))}
             </div>
-        </div>
+        </SectionCardSkeleton>
     );
 }

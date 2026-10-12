@@ -1,6 +1,11 @@
 'use client';
 
+import { Head, Link } from '@inertiajs/react';
+import { Printer } from 'lucide-react';
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { EMPTY_CELL } from '@/lib/empty-cell';
+import { formatPeso } from '@/lib/format-peso';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import {
     ASSISTANCE_ITEM_ORIGIN_LABELS,
@@ -11,15 +16,17 @@ import type {
     AssistanceReleasedItem,
     AssistanceRequestedItem,
 } from '@/types/assistance-item';
-import { Head, Link } from '@inertiajs/react';
-import { EMPTY_CELL } from '@/lib/empty-cell';
-import { Printer } from 'lucide-react';
-import { useEffect } from 'react';
 
 type ReceiptPayload = {
     assistance_id: number;
     cais_number: string;
     beneficiary_name: string;
+    beneficiary_address: string | null;
+    beneficiary_id_number: string | null;
+    program_name: string;
+    department_name: string;
+    cash_total: number;
+    released_by: string | null;
     date_requested: string | null;
     date_delivered: string | null;
     printed_at: string;
@@ -197,89 +204,111 @@ export default function UserAssistanceReceipt({
             <style>{`
                 @media print {
                     .receipt-actions { display: none !important; }
-                    body { background: #fff !important; }
+                    html, body { background: #fff !important; color: #000 !important; }
+                    .receipt-document { background: #fff !important; color: #000 !important; box-shadow: none !important; }
                 }
             `}</style>
-            <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 bg-background p-6 text-foreground print:max-w-none print:p-0">
-                <div className="receipt-actions flex flex-wrap items-center justify-between gap-3 print:hidden">
-                    <Button variant="outline" asChild>
-                        <Link
-                            href={assistanceShow.url({
-                                department: department.slug,
-                                program: program.id,
-                                assistance: receipt.assistance_id,
-                            })}
-                        >
-                            Back to assistance
-                        </Link>
-                    </Button>
-                    <Button type="button" onClick={() => window.print()}>
-                        <Printer className="size-4" />
-                        Print
-                    </Button>
+            <div className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 bg-muted/40 p-6 print:max-w-none print:bg-white print:p-0">
+                <div className="receipt-actions flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 print:hidden">
+                    <div>
+                        <p className="text-sm font-medium">
+                            Official Acknowledgment Receipt
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {receipt.department_name}
+                        </p>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="outline" asChild>
+                            <Link
+                                href={assistanceShow.url({
+                                    department: department.slug,
+                                    program: program.id,
+                                    assistance: receipt.assistance_id,
+                                })}
+                            >
+                                Back
+                            </Link>
+                        </Button>
+                        <Button type="button" onClick={() => window.print()}>
+                            <Printer className="size-4" />
+                            Print
+                        </Button>
+                    </div>
                 </div>
 
-                <header className="flex flex-wrap items-start justify-between gap-6 border-b border-border pb-4">
-                    <div className="space-y-1">
-                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Centralized Assistance Information System
-                        </p>
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                            Acknowledgment receipt
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {department.name} · {program.name}
-                        </p>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                        <div
-                            className="size-28 [&_svg]:size-full"
-                            dangerouslySetInnerHTML={{ __html: receipt.qr_svg }}
-                        />
-                        <p className="text-[10px] text-muted-foreground">
-                            Scan to open assistance profile
-                        </p>
-                    </div>
+                <article className="receipt-document space-y-6 rounded-xl border border-border bg-card p-6 text-card-foreground print:border-0 print:bg-white print:text-black">
+                <header className="space-y-2 text-center">
+                    <p className="text-[11px] tracking-wide uppercase">
+                        Republic of the Philippines
+                    </p>
+                    <p className="text-sm font-medium">
+                        {receipt.department_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground print:text-black">
+                        Centralized Assistance Information System
+                    </p>
+                    <p className="mx-auto w-fit rounded-full border border-border px-3 py-1 font-mono text-[10px] tracking-wide uppercase">
+                        Acknowledgment receipt (AR)
+                    </p>
                 </header>
 
-                <dl className="grid gap-4 sm:grid-cols-2">
+                <dl className="grid gap-3 border border-border p-3 text-sm sm:grid-cols-2">
                     <div>
-                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            CAIS number
+                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                            Receipt number
                         </dt>
-                        <dd className="mt-1 font-mono text-sm font-medium">
-                            {receipt.cais_number}
-                        </dd>
+                        <dd className="font-mono">{receipt.cais_number}</dd>
                     </div>
                     <div>
-                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Beneficiary
+                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                            Date released
                         </dt>
-                        <dd className="mt-1 text-sm font-medium">
-                            {receipt.beneficiary_name}
-                        </dd>
+                        <dd>{formatDate(receipt.date_delivered)}</dd>
                     </div>
                     <div>
-                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Date requested
+                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                            Program
                         </dt>
-                        <dd className="mt-1 text-sm tabular-nums">
-                            {formatDate(receipt.date_requested)}
-                        </dd>
+                        <dd>{receipt.program_name}</dd>
                     </div>
                     <div>
-                        <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                            Date delivered
+                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                            Department
                         </dt>
-                        <dd className="mt-1 text-sm tabular-nums">
-                            {formatDate(receipt.date_delivered)}
-                        </dd>
+                        <dd>{receipt.department_name}</dd>
                     </div>
                 </dl>
 
-                <RequestedItemsTable items={receipt.requested_items} />
+                <section className="grid gap-4 sm:grid-cols-[1fr_7rem]">
+                    <div className="space-y-1 text-sm">
+                        <h2 className="text-xs font-semibold tracking-wide uppercase">
+                            I. Beneficiary & receiver
+                        </h2>
+                        <p className="font-medium">{receipt.beneficiary_name}</p>
+                        <p className="font-mono text-xs">
+                            {receipt.beneficiary_id_number ?? receipt.cais_number}
+                        </p>
+                        <p className="text-xs text-muted-foreground print:text-black">
+                            {receipt.beneficiary_address ?? 'No address on file'}
+                        </p>
+                    </div>
+                    <div
+                        className="size-28 [&_svg]:size-full"
+                        dangerouslySetInnerHTML={{ __html: receipt.qr_svg }}
+                    />
+                </section>
+
+                <section className="space-y-2">
+                    <h2 className="text-xs font-semibold tracking-wide uppercase">
+                        II. Particulars of assistance released
+                    </h2>
 
                 <ReleasedItemsTable items={receipt.released_items} />
+                <p className="text-right font-mono text-sm tabular-nums">
+                    Cash total {formatPeso(receipt.cash_total)}
+                </p>
+                <RequestedItemsTable items={receipt.requested_items} />
 
                 {receipt.item_variance.has_variance ? (
                     <p className="text-xs text-muted-foreground">
@@ -300,34 +329,39 @@ export default function UserAssistanceReceipt({
                         .
                     </p>
                 ) : null}
+                </section>
 
-                <section className="grid gap-8 pt-8 sm:grid-cols-2">
-                    <div className="space-y-10">
-                        <p className="text-sm font-medium">Received by</p>
-                        <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
-                            Signature over printed name
-                        </div>
-                        <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
-                            Date
+                <p className="text-sm italic">
+                    I acknowledge that I received the assistance listed above
+                    from {receipt.department_name}.
+                </p>
+
+                <section className="grid gap-8 pt-6 sm:grid-cols-2">
+                    <div className="space-y-8">
+                        <p className="text-xs font-medium tracking-wide uppercase">
+                            Beneficiary
+                        </p>
+                        <div className="border-t border-foreground/40 pt-2 text-sm print:border-black">
+                            {receipt.beneficiary_name}
                         </div>
                     </div>
-                    <div className="space-y-10">
-                        <p className="text-sm font-medium">Released by</p>
-                        <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
-                            Signature over printed name
-                        </div>
-                        <div className="border-t border-foreground/40 pt-2 text-xs text-muted-foreground">
-                            Date
+                    <div className="space-y-8">
+                        <p className="text-xs font-medium tracking-wide uppercase">
+                            Releasing officer
+                        </p>
+                        <div className="border-t border-foreground/40 pt-2 text-sm print:border-black">
+                            {receipt.released_by ?? 'Releasing officer'}
                         </div>
                     </div>
                 </section>
 
-                <p className="text-[10px] break-all text-muted-foreground">
+                <p className="text-[10px] break-all text-muted-foreground print:text-black">
                     Assistance profile: {receipt.profile_url}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground print:text-black">
                     Printed {formatDate(receipt.printed_at)}
                 </p>
+                </article>
             </div>
         </>
     );

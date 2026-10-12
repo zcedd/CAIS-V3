@@ -1,25 +1,5 @@
 'use client';
 
-import { DataTable } from '@/components/data-table';
-import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { createBeneficiaryColumns } from '@/pages/user/beneficiaries/beneficiary-columns';
-import {
-    BeneficiaryDataTableToolbar,
-    type BeneficiaryTableFilters,
-} from '@/pages/user/beneficiaries/beneficiary-toolbar';
-import {
-    create as beneficiariesCreate,
-    index as beneficiariesIndex,
-} from '@/routes/user/beneficiaries';
-import type {
-    BeneficiaryRegistryStats,
-    DepartmentSummary,
-    PaginatedBeneficiaries,
-} from '@/types/beneficiary';
-import type { BreadcrumbItem } from '@/types';
 import {
     Head,
     Link,
@@ -33,16 +13,40 @@ import {
     Plus,
     UserRound,
     Users,
-    type LucideIcon,
 } from 'lucide-react';
+import type {LucideIcon} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
+import { createBeneficiaryColumns } from '@/pages/user/beneficiaries/beneficiary-columns';
+import {
+    BeneficiaryDataTableToolbar
+    
+} from '@/pages/user/beneficiaries/beneficiary-toolbar';
+import type {BeneficiaryTableFilters} from '@/pages/user/beneficiaries/beneficiary-toolbar';
+import {
+    create as beneficiariesCreate,
+    index as beneficiariesIndex,
+} from '@/routes/user/beneficiaries';
+import type { BreadcrumbItem } from '@/types';
+import type {
+    BeneficiaryRegistryStats,
+    DepartmentSummary,
+    PaginatedBeneficiaries,
+} from '@/types/beneficiary';
 
 const BENEFICIARIES_TABLE_PARTIAL_PROPS = [
     'beneficiaries',
     'search',
     'type',
+    'city',
+    'sector',
+    'sort',
 ] as const;
-const BENEFICIARIES_TABLE_SKELETON_COLUMNS = 7;
+const BENEFICIARIES_TABLE_SKELETON_COLUMNS = 8;
 const DEFAULT_PER_PAGE = 25;
 
 type BeneficiaryListFilters = BeneficiaryTableFilters & {
@@ -62,6 +66,18 @@ function buildBeneficiariesQuery(
 
     if (filters.type.length > 0) {
         query.type = filters.type;
+    }
+
+    if (filters.city !== '') {
+        query.city = filters.city;
+    }
+
+    if (filters.sector !== '') {
+        query.sector = filters.sector;
+    }
+
+    if (filters.sort !== '' && filters.sort !== 'name') {
+        query.sort = filters.sort;
     }
 
     if (filters.page > 1) {
@@ -127,29 +143,15 @@ function RegistryStatCards({ stats }: { stats: BeneficiaryRegistryStats }) {
             className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
             data-tour="beneficiaries-stats"
         >
-            {registryStatCards.map((card) => {
-                const Icon = card.icon;
-
-                return (
-                    <div
-                        key={card.key}
-                        className="rounded-xl border border-border bg-card p-4"
-                    >
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs text-muted-foreground">
-                                {card.label}
-                            </p>
-                            <Icon className="size-4 shrink-0 text-muted-foreground" />
-                        </div>
-                        <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">
-                            {stats[card.key].toLocaleString()}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            {descriptionFor(card.key)}
-                        </p>
-                    </div>
-                );
-            })}
+            {registryStatCards.map((card) => (
+                <StatCard
+                    key={card.key}
+                    label={card.label}
+                    value={stats[card.key].toLocaleString()}
+                    description={descriptionFor(card.key)}
+                    icon={card.icon}
+                />
+            ))}
         </div>
     );
 }
@@ -163,17 +165,7 @@ function RegistryStatCardsSkeleton() {
             aria-label="Loading beneficiary statistics"
         >
             {registryStatCards.map((card) => (
-                <div
-                    key={card.key}
-                    className="rounded-xl border border-border bg-card p-4"
-                >
-                    <div className="flex items-center justify-between gap-2">
-                        <Skeleton className="h-3 w-24 rounded-sm" />
-                        <Skeleton className="size-4 rounded-sm" />
-                    </div>
-                    <Skeleton className="mt-2 h-8 w-16 rounded-sm" />
-                    <Skeleton className="mt-2 h-3 w-32 rounded-sm" />
-                </div>
+                <StatCardSkeleton key={card.key} />
             ))}
         </div>
     );
@@ -184,17 +176,28 @@ export default function UserBeneficiariesIndex({
     department,
     search: initialSearch,
     type: initialType,
+    city: initialCity = '',
+    sector: initialSector = '',
+    sort: initialSort = 'name',
+    city_options: cityOptions = [],
     stats,
 }: {
     beneficiaries: PaginatedBeneficiaries;
     department: DepartmentSummary;
     search: string;
     type: string[];
+    city?: string;
+    sector?: string;
+    sort?: string;
+    city_options?: { value: string; label: string }[];
     stats?: BeneficiaryRegistryStats;
 }) {
     const [tableState, setTableState] = useState({
         search: initialSearch,
         type: initialType,
+        city: initialCity,
+        sector: initialSector,
+        sort: initialSort,
         per_page: beneficiaries.per_page,
     });
     const [isTableReloading, setIsTableReloading] = useState(false);
@@ -209,9 +212,19 @@ export default function UserBeneficiariesIndex({
             ...previous,
             search: initialSearch,
             type: initialType,
+            city: initialCity,
+            sector: initialSector,
+            sort: initialSort,
             per_page: beneficiaries.per_page,
         }));
-    }, [initialSearch, initialType, beneficiaries.per_page]);
+    }, [
+        initialSearch,
+        initialType,
+        initialCity,
+        initialSector,
+        initialSort,
+        beneficiaries.per_page,
+    ]);
 
     useEffect(() => {
         setLayoutProps({
@@ -253,6 +266,9 @@ export default function UserBeneficiariesIndex({
             const next: BeneficiaryListFilters = {
                 search: overrides.search ?? tableStateRef.current.search,
                 type: overrides.type ?? tableStateRef.current.type,
+                city: overrides.city ?? tableStateRef.current.city,
+                sector: overrides.sector ?? tableStateRef.current.sector,
+                sort: overrides.sort ?? tableStateRef.current.sort,
                 page: overrides.page ?? 1,
                 per_page: overrides.per_page ?? tableStateRef.current.per_page,
             };
@@ -260,6 +276,9 @@ export default function UserBeneficiariesIndex({
             setTableState({
                 search: next.search,
                 type: next.type,
+                city: next.city,
+                sector: next.sector,
+                sort: next.sort,
                 per_page: next.per_page,
             });
 
@@ -283,6 +302,9 @@ export default function UserBeneficiariesIndex({
     const tableFilters: BeneficiaryTableFilters = {
         search: tableState.search,
         type: tableState.type,
+        city: tableState.city,
+        sector: tableState.sector,
+        sort: tableState.sort,
     };
 
     const beneficiaryColumns = useMemo(
@@ -367,6 +389,7 @@ export default function UserBeneficiariesIndex({
                                         table={table}
                                         columnVisibility={columnVisibility}
                                         filters={tableFilters}
+                                        cityOptions={cityOptions}
                                         onFiltersChange={visitTable}
                                     />
                                 )}

@@ -8,10 +8,7 @@ import {
 import type { ChartConfig } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
 import { DashboardChartFrame } from '@/pages/user/dashboard/dashboard-chart-frame';
-import {
-    DashboardSectionCard,
-    dashboardProgressClass,
-} from '@/pages/user/dashboard/dashboard-stat-card';
+import { DashboardSectionCard } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { RequestStatusChartPoint } from '@/types/dashboard';
 
 const CHART_COLORS = [
@@ -52,6 +49,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
             title="Requests by status"
             description="Assistance requests grouped by status"
             icon={PieChartIcon}
+            className="h-full"
             data-tour="dashboard-requests-status-chart"
         >
             {chartData.length === 0 ? (
@@ -127,7 +125,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
                                 </div>
                                 <Progress
                                     value={entry.percent}
-                                    className={dashboardProgressClass}
+                                    className="h-1.5"
                                 />
                             </li>
                         ))}

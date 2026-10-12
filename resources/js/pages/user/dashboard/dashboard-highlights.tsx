@@ -7,14 +7,12 @@ import {
     Users,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
 import { EMPTY_CELL } from '@/lib/empty-cell';
-import { cn } from '@/lib/utils';
 import {
     DashboardSectionCard,
-    DashboardStatCard,
-    DashboardStatCardSkeleton,
-    dashboardProgressClass,
-    dashboardSurfaceClass,
+    SectionCardSkeleton,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DashboardSummary } from '@/types/dashboard';
 
@@ -61,7 +59,7 @@ function RadialRate({
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="6"
-                        className="text-slate-200 dark:text-muted"
+                        className="text-muted"
                     />
                     <circle
                         cx="40"
@@ -73,20 +71,16 @@ function RadialRate({
                         strokeDasharray={circumference}
                         strokeDashoffset={offset}
                         strokeLinecap="round"
-                        className="text-emerald-500 transition-all"
+                        className="text-primary transition-all"
                     />
                 </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-slate-900 tabular-nums dark:text-foreground">
+                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums">
                     {display}
                 </span>
             </div>
             <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-semibold text-slate-900 dark:text-foreground">
-                    {label}
-                </p>
-                <p className="text-xs text-slate-500 dark:text-muted-foreground">
-                    {description}
-                </p>
+                <p className="text-sm font-medium">{label}</p>
+                <p className="text-xs text-muted-foreground">{description}</p>
             </div>
         </div>
     );
@@ -97,26 +91,20 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
 
     return (
         <div className="flex flex-col gap-4" data-tour="dashboard-highlights">
-            <DashboardStatCard
+            <StatCard
                 label="Delivery rate"
                 value={formatPercent(rate)}
                 description={`${summary.delivered_requests.toLocaleString()} of ${summary.total_requests.toLocaleString()} requests`}
                 icon={TrendingUp}
-                tone="success"
-                valueClassName="text-3xl"
-                footer={
-                    <Progress value={rate} className={dashboardProgressClass} />
-                }
+                footer={<Progress value={rate} />}
             />
-            <DashboardStatCard
+            <StatCard
                 label="In progress"
                 value={summary.in_progress_requests.toLocaleString()}
                 description={`${summary.denied_requests.toLocaleString()} denied · ${summary.unique_beneficiaries.toLocaleString()} beneficiaries`}
                 icon={Activity}
-                tone="warning"
-                valueClassName="text-3xl"
             />
-            <DashboardStatCard
+            <StatCard
                 label="Avg days to deliver"
                 value={
                     summary.avg_days_to_deliver !== null
@@ -132,14 +120,16 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
                     </>
                 }
                 icon={Clock3}
-                tone="info"
-                valueClassName="text-3xl"
             />
         </div>
     );
 }
 
-export function DeliverySnapshot({ summary }: { summary: DashboardSummary }) {
+export function DeliverySnapshot({
+    summary,
+}: {
+    summary: DashboardSummary;
+}) {
     const rate = deliveryRate(summary);
     const avgItems =
         summary.delivered_requests > 0
@@ -152,56 +142,55 @@ export function DeliverySnapshot({ summary }: { summary: DashboardSummary }) {
             title="Delivery snapshot"
             description="How much of the filtered work is done"
             icon={Package}
-            tone="success"
             data-tour="dashboard-delivery-snapshot"
             contentClassName="space-y-6"
         >
             <div className="grid gap-3">
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-slate-500 dark:text-muted-foreground">
+                    <span className="text-muted-foreground">
                         Delivered requests
                     </span>
-                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
+                    <span className="font-medium tabular-nums">
                         {summary.delivered_requests.toLocaleString()}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-slate-500 dark:text-muted-foreground">
+                    <span className="text-muted-foreground">
                         Delivered items
                     </span>
-                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
+                    <span className="font-medium tabular-nums">
                         {summary.total_delivered_items.toLocaleString()}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-slate-500 dark:text-muted-foreground">
+                    <span className="text-muted-foreground">
                         Active programs
                     </span>
-                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
+                    <span className="font-medium tabular-nums">
                         {summary.active_programs.toLocaleString()}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-1.5 text-slate-500 dark:text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
                         <Users className="size-3.5" />
                         Requests / beneficiary
                     </span>
-                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
+                    <span className="font-medium tabular-nums">
                         {summary.avg_requests_per_beneficiary.toFixed(2)}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 text-sm">
-                    <span className="flex items-center gap-1.5 text-slate-500 dark:text-muted-foreground">
+                    <span className="flex items-center gap-1.5 text-muted-foreground">
                         <Repeat className="size-3.5" />
                         Repeat beneficiaries
                     </span>
-                    <span className="font-semibold text-slate-900 tabular-nums dark:text-foreground">
+                    <span className="font-medium tabular-nums">
                         {summary.repeat_beneficiaries.toLocaleString()}
                     </span>
                 </div>
             </div>
 
-            <div className="space-y-4 border-t border-slate-200 pt-4 dark:border-border">
+            <div className="space-y-4 border-t pt-4">
                 <RadialRate
                     label="% Delivered"
                     display={formatPercent(rate)}
@@ -230,36 +219,22 @@ export function DashboardHighlightsSkeleton() {
             aria-busy="true"
             aria-label="Loading highlights"
         >
-            <DashboardStatCardSkeleton withFooter />
-            <DashboardStatCardSkeleton />
-            <DashboardStatCardSkeleton />
+            <StatCardSkeleton withFooter />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
         </div>
     );
 }
 
 export function DeliverySnapshotSkeleton() {
     return (
-        <div
-            className={cn('overflow-hidden', dashboardSurfaceClass)}
-            aria-busy="true"
-            aria-label="Loading snapshot"
-        >
-            <div className="flex items-start justify-between gap-2 px-6 pt-6">
-                <div className="space-y-2">
-                    <div className="h-5 w-36 animate-pulse rounded bg-muted" />
-                    <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-                </div>
-                <div className="size-5 animate-pulse rounded bg-muted" />
-            </div>
-            <div className="space-y-4 px-6 py-6">
+        <SectionCardSkeleton label="Loading snapshot" titleClassName="w-36">
+            <div className="space-y-4">
                 {[0, 1, 2].map((key) => (
-                    <div
-                        key={key}
-                        className="h-4 w-full animate-pulse rounded bg-muted"
-                    />
+                    <Skeleton key={key} className="h-4 w-full" />
                 ))}
-                <div className="h-20 w-full animate-pulse rounded bg-muted" />
+                <Skeleton className="h-20 w-full" />
             </div>
-        </div>
+        </SectionCardSkeleton>
     );
 }

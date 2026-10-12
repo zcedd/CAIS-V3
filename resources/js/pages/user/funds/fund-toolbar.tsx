@@ -1,5 +1,10 @@
 'use client';
 
+import { Form } from '@inertiajs/react';
+import type { Table, VisibilityState } from '@tanstack/react-table';
+import { Plus, RotateCcw, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
@@ -15,18 +20,14 @@ import {
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { FundAmountField } from '@/pages/user/funds/fund-amount-field';
-import type { FundRow } from '@/types/fund';
+import { usePageCommands } from '@/lib/command-registry';
 import {
     applyCreateDrawerOpenChange,
     useCreateDrawerTourLock,
 } from '@/lib/tour-create-drawer';
+import { FundAmountField } from '@/pages/user/funds/fund-amount-field';
 import { store as storeFund } from '@/routes/user/funds';
-import { Form } from '@inertiajs/react';
-import { Table, VisibilityState } from '@tanstack/react-table';
-import { Plus, RotateCcw, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import type { FundRow } from '@/types/fund';
 
 const fundStatusOptions = [
     { label: 'Active', value: 'active' },
@@ -60,7 +61,40 @@ export function FundDataTableToolbar({
     onFundCreated,
 }: FundDataTableToolbarProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search);
-    const [createOpen, setCreateOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(
+        () =>
+            typeof window !== 'undefined' &&
+            new URLSearchParams(window.location.search).get('create') === '1',
+    );
+    const createCommands = useMemo(
+        () => [
+            {
+                id: 'fund.create',
+                label: 'Add fund',
+                icon: Plus,
+                keywords: 'create fund',
+                onSelect: () => setCreateOpen(true),
+            },
+        ],
+        [],
+    );
+    usePageCommands(createCommands);
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.get('create') !== '1') {
+            return;
+        }
+
+        url.searchParams.delete('create');
+        window.history.replaceState(
+            window.history.state,
+            '',
+            `${url.pathname}${url.search}${url.hash}`,
+        );
+    }, []);
+
     const createDrawerTourLocked = useCreateDrawerTourLock();
     const [createFormKey, setCreateFormKey] = useState(0);
 
@@ -101,9 +135,7 @@ export function FundDataTableToolbar({
                     <Input
                         placeholder="Search by fund name..."
                         value={searchQuery}
-                        onChange={(event) =>
-                            setSearchQuery(event.target.value)
-                        }
+                        onChange={(event) => setSearchQuery(event.target.value)}
                         className="h-9 max-w-sm"
                     />
                     <DataTableFacetedFilter
@@ -155,18 +187,12 @@ export function FundDataTableToolbar({
                 onOpenChange={(open) =>
                     applyCreateDrawerOpenChange(open, setCreateOpen)
                 }
-                dismissible={!createDrawerTourLocked}
                 noBodyStyles={createDrawerTourLocked}
                 direction="right"
             >
                 <DrawerContent
                     className="data-[vaul-drawer-direction=right]:sm:max-w-lg"
                     data-tour="funds-create-form"
-                    onPointerDownOutside={(event) => {
-                        if (createDrawerTourLocked) {
-                            event.preventDefault();
-                        }
-                    }}
                 >
                     <DrawerHeader>
                         <DrawerTitle>Create fund</DrawerTitle>
@@ -256,10 +282,7 @@ export function FundDataTableToolbar({
                                     className="px-0"
                                     data-tour="funds-create-submit"
                                 >
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         {processing
                                             ? 'Creating...'
                                             : 'Create fund'}

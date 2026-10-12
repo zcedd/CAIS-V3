@@ -7,9 +7,8 @@ import {
     Package,
     Users,
 } from 'lucide-react';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
 import { cn } from '@/lib/utils';
-import { DashboardStatCard } from '@/pages/user/dashboard/dashboard-stat-card';
-import type { DashboardTone } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DashboardSummary } from '@/types/dashboard';
 
 type KpiCardsProps = {
@@ -18,74 +17,51 @@ type KpiCardsProps = {
     className?: string;
 };
 
-const primaryKpis: {
-    key:
-        | 'total_requests'
-        | 'delivered_requests'
-        | 'in_progress_requests'
-        | 'denied_requests';
-    label: string;
-    description: string;
-    icon: typeof ClipboardList;
-    tone: DashboardTone;
-}[] = [
+const primaryKpis = [
     {
-        key: 'total_requests',
+        key: 'total_requests' as const,
         label: 'Total requests',
         description: 'Assistance requests matching the filters',
         icon: ClipboardList,
-        tone: 'info',
     },
     {
-        key: 'delivered_requests',
+        key: 'delivered_requests' as const,
         label: 'Delivered',
         description: 'Requests marked as delivered',
         icon: CheckCircle2,
-        tone: 'success',
     },
     {
-        key: 'in_progress_requests',
+        key: 'in_progress_requests' as const,
         label: 'In progress',
         description: 'Not delivered or denied yet',
         icon: Loader,
-        tone: 'warning',
     },
     {
-        key: 'denied_requests',
+        key: 'denied_requests' as const,
         label: 'Denied',
         description: 'Requests marked as denied',
         icon: Ban,
-        tone: 'danger',
     },
 ];
 
-const secondaryKpis: {
-    key: 'total_delivered_items' | 'unique_beneficiaries' | 'active_programs';
-    label: string;
-    description: string;
-    icon: typeof Package;
-    tone: DashboardTone;
-}[] = [
+const secondaryKpis = [
     {
-        key: 'total_delivered_items',
+        key: 'total_delivered_items' as const,
         label: 'Delivered items',
         description: 'Total quantity received',
         icon: Package,
-        tone: 'success',
     },
     {
-        key: 'unique_beneficiaries',
+        key: 'unique_beneficiaries' as const,
         label: 'Beneficiaries',
         description: 'People and organizations assisted',
         icon: Users,
-        tone: 'info',
     },
     {
-        key: 'active_programs',
+        key: 'active_programs' as const,
         label: 'Active programs',
         description: 'Open programs',
         icon: FolderKanban,
-        tone: 'success',
     },
 ];
 
@@ -108,15 +84,14 @@ export function KpiCards({
             data-tour="dashboard-kpis"
         >
             {items.map((kpi) => (
-                <DashboardStatCard
+                <StatCard
                     key={kpi.key}
                     label={kpi.label}
                     value={summary[kpi.key].toLocaleString()}
                     description={kpi.description}
                     icon={kpi.icon}
-                    tone={kpi.tone}
                     valueClassName={
-                        variant === 'strip' ? 'text-2xl' : 'text-3xl'
+                        variant === 'strip' ? 'text-2xl' : undefined
                     }
                 />
             ))}
@@ -140,17 +115,7 @@ export function KpiCardsSkeleton({
             aria-label="Loading dashboard statistics"
         >
             {items.map((kpi) => (
-                <DashboardStatCard
-                    key={kpi.key}
-                    label={kpi.label}
-                    value={
-                        <span className="inline-block h-8 w-16 animate-pulse rounded bg-muted" />
-                    }
-                    description={
-                        <span className="inline-block h-3 w-28 animate-pulse rounded bg-muted" />
-                    }
-                    icon={kpi.icon}
-                />
+                <StatCardSkeleton key={kpi.key} />
             ))}
         </div>
     );

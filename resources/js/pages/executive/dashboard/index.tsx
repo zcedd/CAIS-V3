@@ -4,7 +4,6 @@ import {
     ClipboardList,
     FolderKanban,
     FolderLock,
-    LayoutDashboard,
     Package,
     Repeat,
     UserRound,
@@ -20,32 +19,22 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
-import { DashboardFiltersBar } from '@/pages/executive/dashboard/dashboard-filters';
+import { StatCard } from '@/components/user/stat-card';
+import { DashboardFiltersButton } from '@/pages/executive/dashboard/dashboard-filters';
 import { DashboardFiltersSkeleton } from '@/pages/user/dashboard/dashboard-filters-skeleton';
 import {
-    DashboardHighlights,
-    DashboardHighlightsSkeleton,
     DeliverySnapshot,
     DeliverySnapshotSkeleton,
 } from '@/pages/user/dashboard/dashboard-highlights';
-import {
-    DashboardIconWell,
-    DashboardStatCard,
-    dashboardHeadingClass,
-    dashboardMutedClass,
-    dashboardPageClass,
-    dashboardSubheadingClass,
-    dashboardSurfaceClass,
-    dashboardTabListClass,
-    dashboardTabTriggerClass,
-    dashboardTitleClass,
-} from '@/pages/user/dashboard/dashboard-stat-card';
 import { DemographicsPanelSkeleton } from '@/pages/user/dashboard/demographics-panel';
 import { InsightsPanelSkeleton } from '@/pages/user/dashboard/insights-panel';
-import { KpiCards, KpiCardsSkeleton } from '@/pages/user/dashboard/kpi-cards';
+import {
+    IntelligencePanel,
+    IntelligencePanelSkeleton,
+} from '@/pages/user/dashboard/intelligence-panel';
+import { KpiCardsSkeleton } from '@/pages/user/dashboard/kpi-cards';
+import { MunicipalityMapSkeleton } from '@/pages/user/dashboard/municipality-map-skeleton';
 import { TopDeliveredItemsSkeleton } from '@/pages/user/dashboard/top-delivered-items';
 import { dashboard as executiveDashboard } from '@/routes/executive';
 import type { BreadcrumbItem } from '@/types';
@@ -55,7 +44,9 @@ import {
 } from '@/types/dashboard';
 import type {
     BeneficiaryTypeChartPoint,
+    CityChartPoint,
     DashboardDemographics,
+    DashboardFilterOption,
     DashboardFilterOptions,
     DashboardFilters,
     DashboardInsights,
@@ -67,17 +58,12 @@ import type {
     RequestsTrendPoint,
     TopBarangayPoint,
     UnspscReleasedChartPoint,
+    MunicipalityMapPoint,
 } from '@/types/dashboard';
 
 const RequestStatusChart = lazy(() =>
     import('@/pages/user/dashboard/request-status-chart').then((module) => ({
         default: module.RequestStatusChart,
-    })),
-);
-
-const DeliveredItemsChart = lazy(() =>
-    import('@/pages/user/dashboard/delivered-items-chart').then((module) => ({
-        default: module.DeliveredItemsChart,
     })),
 );
 
@@ -123,6 +109,12 @@ const InsightsPanel = lazy(() =>
     })),
 );
 
+const MunicipalityMap = lazy(() =>
+    import('@/pages/user/dashboard/municipality-map').then((module) => ({
+        default: module.MunicipalityMap,
+    })),
+);
+
 type DashboardPageProps = {
     summary?: DashboardSummary;
     requestStatusChart?: RequestStatusChartPoint[];
@@ -134,73 +126,14 @@ type DashboardPageProps = {
     insights?: DashboardInsights;
     topBarangays?: TopBarangayPoint[];
     modeOfRequestChart?: DemographicCount[];
+    cityChart?: CityChartPoint[];
+    municipalityMap?: MunicipalityMapPoint[];
     programsTable?: DashboardProgramRow[];
-    filterOptions?: DashboardFilterOptions;
+    filterOptions?: DashboardFilterOptions & {
+        departments: DashboardFilterOption[];
+    };
     filters?: DashboardFilters & { department: string[] };
 };
-
-function OverviewHero({
-    summary,
-    deliveredItemsChart,
-}: {
-    summary: DashboardSummary;
-    deliveredItemsChart: DeliveredItemsChartPoint[];
-}) {
-    return (
-        <Card
-            className={cn(dashboardSurfaceClass, 'gap-4')}
-            data-tour="dashboard-assistance-overview"
-        >
-            <CardHeader className="flex flex-row items-start justify-between gap-2">
-                <div className="min-w-0 space-y-1">
-                    <CardTitle className={dashboardTitleClass}>
-                        Assistance overview
-                    </CardTitle>
-                    <CardDescription className={dashboardMutedClass}>
-                        Request counts and the items handed over most often,
-                        using the filters above.
-                    </CardDescription>
-                </div>
-                <DashboardIconWell icon={LayoutDashboard} tone="info" />
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <KpiCards summary={summary} variant="strip" />
-                <Separator />
-                <div className="min-w-0">
-                    <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-foreground">
-                        Top delivered items
-                    </p>
-                    <Suspense fallback={<ChartSkeleton />}>
-                        <DeliveredItemsChart data={deliveredItemsChart} />
-                    </Suspense>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
-
-function OverviewHeroSkeleton() {
-    return (
-        <Card
-            className={cn(dashboardSurfaceClass, 'gap-4')}
-            aria-busy="true"
-            aria-label="Loading assistance overview"
-        >
-            <CardHeader className="flex flex-row items-start justify-between gap-2">
-                <div className="space-y-2">
-                    <div className="h-5 w-40 animate-pulse rounded bg-muted" />
-                    <div className="h-4 w-64 animate-pulse rounded bg-muted" />
-                </div>
-                <div className="size-9 animate-pulse rounded-lg bg-slate-100 dark:bg-muted" />
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <KpiCardsSkeleton variant="strip" />
-                <Separator />
-                <ChartSkeleton />
-            </CardContent>
-        </Card>
-    );
-}
 
 export default function ExecutiveDashboardIndex({
     summary,
@@ -213,6 +146,8 @@ export default function ExecutiveDashboardIndex({
     insights,
     topBarangays,
     modeOfRequestChart,
+    cityChart,
+    municipalityMap,
     programsTable,
     filterOptions,
     filters,
@@ -235,107 +170,113 @@ export default function ExecutiveDashboardIndex({
     return (
         <>
             <Head title="Executive dashboard" />
-            <div className={dashboardPageClass}>
-                <div className="flex flex-col gap-1">
-                    <h1 className={dashboardHeadingClass}>Dashboard</h1>
-                    <p className={dashboardSubheadingClass}>
-                        Requests, deliveries, and programs across all
-                        departments.
-                    </p>
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Dashboard
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Requests, deliveries, and programs across all
+                            departments.
+                        </p>
+                    </div>
+                    <WhenVisible
+                        data={['filterOptions', 'filters']}
+                        buffer={200}
+                        fallback={<DashboardFiltersSkeleton />}
+                    >
+                        {filterOptions && filters ? (
+                            <DashboardFiltersButton
+                                filters={filters}
+                                filterOptions={filterOptions}
+                            />
+                        ) : (
+                            <DashboardFiltersSkeleton />
+                        )}
+                    </WhenVisible>
                 </div>
 
-                <WhenVisible
-                    data={['filterOptions', 'filters']}
-                    buffer={200}
-                    fallback={<DashboardFiltersSkeleton />}
-                >
-                    {filterOptions && filters ? (
-                        <DashboardFiltersBar
-                            filters={filters}
-                            filterOptions={filterOptions}
-                        />
-                    ) : (
-                        <DashboardFiltersSkeleton />
-                    )}
-                </WhenVisible>
-
                 <Tabs defaultValue="overview" className="gap-4">
-                    <div className="-mb-1 w-full overflow-x-auto pb-1">
-                        <TabsList
-                            variant="line"
-                            className={dashboardTabListClass}
-                        >
+                    <div className="no-scrollbar w-full overflow-x-auto overflow-y-hidden">
+                        <TabsList data-tour="dashboard-tabs">
                             <TabsTrigger
                                 value="overview"
-                                className={dashboardTabTriggerClass}
+                                data-tour="dashboard-tab-overview"
                             >
-                                Overview
+                                Charts & Metrics
                             </TabsTrigger>
                             <TabsTrigger
                                 value="insights"
-                                className={dashboardTabTriggerClass}
+                                data-tour="dashboard-tab-insights"
                             >
                                 Insights
                             </TabsTrigger>
                             <TabsTrigger
                                 value="beneficiaries"
-                                className={dashboardTabTriggerClass}
+                                data-tour="dashboard-tab-beneficiaries"
                             >
                                 Beneficiaries
                             </TabsTrigger>
                             <TabsTrigger
                                 value="demographics"
-                                className={dashboardTabTriggerClass}
+                                data-tour="dashboard-tab-demographics"
                             >
                                 Demographics
                             </TabsTrigger>
                             <TabsTrigger
                                 value="programs"
-                                className={dashboardTabTriggerClass}
+                                data-tour="dashboard-tab-programs"
                             >
-                                Programs
+                                Table View
                             </TabsTrigger>
                         </TabsList>
                     </div>
 
                     <TabsContent value="overview" className="space-y-4">
-                        <div className="grid items-start gap-4 lg:grid-cols-3">
-                            <div className="min-w-0 lg:col-span-2">
-                                <WhenVisible
-                                    data={[
-                                        'summary',
-                                        ...DASHBOARD_CHART_DEFER_PROPS,
-                                    ]}
-                                    buffer={200}
-                                    fallback={<OverviewHeroSkeleton />}
-                                >
-                                    {summary ? (
-                                        <OverviewHero
-                                            summary={summary}
-                                            deliveredItemsChart={
-                                                deliveredItemsChart ?? []
-                                            }
-                                        />
-                                    ) : (
-                                        <OverviewHeroSkeleton />
-                                    )}
-                                </WhenVisible>
-                            </div>
-                            <div className="min-w-0">
-                                <WhenVisible
-                                    data="summary"
-                                    buffer={200}
-                                    fallback={<DashboardHighlightsSkeleton />}
-                                >
-                                    {summary ? (
-                                        <DashboardHighlights
-                                            summary={summary}
-                                        />
-                                    ) : (
-                                        <DashboardHighlightsSkeleton />
-                                    )}
-                                </WhenVisible>
-                            </div>
+                        <div data-tour="dashboard-assistance-overview">
+                            <WhenVisible
+                                data={['summary', 'cityChart', 'demographics']}
+                                buffer={200}
+                                fallback={<IntelligencePanelSkeleton />}
+                            >
+                                {summary ? (
+                                    <IntelligencePanel
+                                        summary={summary}
+                                        cities={cityChart ?? []}
+                                        demographics={demographics ?? null}
+                                        map={
+                                            <div
+                                                data-tour="dashboard-municipality-map"
+                                                className="flex h-full min-w-0 flex-col"
+                                            >
+                                                <WhenVisible
+                                                    data="municipalityMap"
+                                                    buffer={200}
+                                                    fallback={
+                                                        <MunicipalityMapSkeleton />
+                                                    }
+                                                >
+                                                    <Suspense
+                                                        fallback={
+                                                            <MunicipalityMapSkeleton />
+                                                        }
+                                                    >
+                                                        <MunicipalityMap
+                                                            municipalities={
+                                                                municipalityMap ??
+                                                                []
+                                                            }
+                                                        />
+                                                    </Suspense>
+                                                </WhenVisible>
+                                            </div>
+                                        }
+                                    />
+                                ) : (
+                                    <IntelligencePanelSkeleton />
+                                )}
+                            </WhenVisible>
                         </div>
 
                         <WhenVisible
@@ -350,8 +291,8 @@ export default function ExecutiveDashboardIndex({
                             </Suspense>
                         </WhenVisible>
 
-                        <div className="grid items-start gap-4 lg:grid-cols-2">
-                            <div className="min-w-0">
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="h-full min-w-0 [&>*]:h-full">
                                 <WhenVisible
                                     data={[...DASHBOARD_CHART_DEFER_PROPS]}
                                     buffer={200}
@@ -366,7 +307,7 @@ export default function ExecutiveDashboardIndex({
                                     </Suspense>
                                 </WhenVisible>
                             </div>
-                            <div className="min-w-0">
+                            <div className="h-full min-w-0 [&>*]:h-full">
                                 <WhenVisible
                                     data={[...DASHBOARD_CHART_DEFER_PROPS]}
                                     buffer={200}
@@ -386,14 +327,12 @@ export default function ExecutiveDashboardIndex({
                             buffer={200}
                             fallback={<ChartSkeleton />}
                         >
-                            <Card className={dashboardSurfaceClass}>
+                            <Card size="sm">
                                 <CardHeader>
-                                    <CardTitle className={dashboardTitleClass}>
+                                    <CardTitle className="text-sm">
                                         Released by UNSPSC segment
                                     </CardTitle>
-                                    <CardDescription
-                                        className={dashboardMutedClass}
-                                    >
+                                    <CardDescription className="text-xs">
                                         Quantity released, classified for
                                         PhilGEPS, COA, and donors. Spend
                                         reporting waits on item cost.
@@ -411,71 +350,67 @@ export default function ExecutiveDashboardIndex({
                     </TabsContent>
 
                     <TabsContent value="insights" className="space-y-4">
-                        <WhenVisible
-                            data={[...DASHBOARD_INSIGHT_DEFER_PROPS]}
-                            buffer={200}
-                            fallback={<InsightsPanelSkeleton />}
-                        >
-                            <Suspense fallback={<InsightsPanelSkeleton />}>
-                                {insights ? (
-                                    <InsightsPanel
-                                        insights={insights}
-                                        topBarangays={topBarangays ?? []}
-                                        modeOfRequestChart={
-                                            modeOfRequestChart ?? []
-                                        }
-                                    />
-                                ) : (
-                                    <InsightsPanelSkeleton />
-                                )}
-                            </Suspense>
-                        </WhenVisible>
+                        <div data-tour="dashboard-insights">
+                            <WhenVisible
+                                data={[...DASHBOARD_INSIGHT_DEFER_PROPS]}
+                                buffer={200}
+                                fallback={<InsightsPanelSkeleton />}
+                            >
+                                <Suspense fallback={<InsightsPanelSkeleton />}>
+                                    {insights ? (
+                                        <InsightsPanel
+                                            insights={insights}
+                                            topBarangays={topBarangays ?? []}
+                                            modeOfRequestChart={
+                                                modeOfRequestChart ?? []
+                                            }
+                                        />
+                                    ) : (
+                                        <InsightsPanelSkeleton />
+                                    )}
+                                </Suspense>
+                            </WhenVisible>
+                        </div>
                     </TabsContent>
 
                     <TabsContent value="beneficiaries" className="space-y-4">
-                        <WhenVisible
-                            data="summary"
-                            buffer={200}
-                            fallback={<KpiCardsSkeleton />}
-                        >
-                            {summary ? (
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                                    <DashboardStatCard
-                                        label="Unique beneficiaries"
-                                        value={summary.unique_beneficiaries.toLocaleString()}
-                                        icon={Users}
-                                        tone="info"
-                                        valueClassName="text-3xl"
-                                    />
-                                    <DashboardStatCard
-                                        label="Repeat beneficiaries"
-                                        value={summary.repeat_beneficiaries.toLocaleString()}
-                                        description="More than one request"
-                                        icon={Repeat}
-                                        tone="info"
-                                        valueClassName="text-3xl"
-                                    />
-                                    <DashboardStatCard
-                                        label="One-time beneficiaries"
-                                        value={summary.one_time_beneficiaries.toLocaleString()}
-                                        icon={UserRound}
-                                        tone="info"
-                                        valueClassName="text-3xl"
-                                    />
-                                    <DashboardStatCard
-                                        label="Avg requests / person"
-                                        value={summary.avg_requests_per_beneficiary.toFixed(
-                                            2,
-                                        )}
-                                        icon={ClipboardList}
-                                        tone="info"
-                                        valueClassName="text-3xl"
-                                    />
-                                </div>
-                            ) : (
-                                <KpiCardsSkeleton />
-                            )}
-                        </WhenVisible>
+                        <div data-tour="dashboard-beneficiaries">
+                            <WhenVisible
+                                data="summary"
+                                buffer={200}
+                                fallback={<KpiCardsSkeleton />}
+                            >
+                                {summary ? (
+                                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                        <StatCard
+                                            label="Unique beneficiaries"
+                                            value={summary.unique_beneficiaries.toLocaleString()}
+                                            icon={Users}
+                                        />
+                                        <StatCard
+                                            label="Repeat beneficiaries"
+                                            value={summary.repeat_beneficiaries.toLocaleString()}
+                                            description="More than one request"
+                                            icon={Repeat}
+                                        />
+                                        <StatCard
+                                            label="One-time beneficiaries"
+                                            value={summary.one_time_beneficiaries.toLocaleString()}
+                                            icon={UserRound}
+                                        />
+                                        <StatCard
+                                            label="Avg requests / person"
+                                            value={summary.avg_requests_per_beneficiary.toFixed(
+                                                2,
+                                            )}
+                                            icon={ClipboardList}
+                                        />
+                                    </div>
+                                ) : (
+                                    <KpiCardsSkeleton />
+                                )}
+                            </WhenVisible>
+                        </div>
 
                         <div className="grid gap-4 lg:grid-cols-2">
                             <WhenVisible
@@ -489,91 +424,84 @@ export default function ExecutiveDashboardIndex({
                                     />
                                 </Suspense>
                             </WhenVisible>
-                            <WhenVisible
-                                data="summary"
-                                buffer={200}
-                                fallback={<DeliverySnapshotSkeleton />}
-                            >
-                                {summary ? (
-                                    <DeliverySnapshot summary={summary} />
-                                ) : (
-                                    <DeliverySnapshotSkeleton />
-                                )}
-                            </WhenVisible>
+                            <div data-tour="dashboard-delivery-snapshot">
+                                <WhenVisible
+                                    data="summary"
+                                    buffer={200}
+                                    fallback={<DeliverySnapshotSkeleton />}
+                                >
+                                    {summary ? (
+                                        <DeliverySnapshot summary={summary} />
+                                    ) : (
+                                        <DeliverySnapshotSkeleton />
+                                    )}
+                                </WhenVisible>
+                            </div>
                         </div>
                     </TabsContent>
 
                     <TabsContent value="demographics" className="space-y-4">
-                        <WhenVisible
-                            data="demographics"
-                            buffer={200}
-                            fallback={<DemographicsPanelSkeleton />}
-                        >
-                            <Suspense fallback={<DemographicsPanelSkeleton />}>
-                                {demographics ? (
-                                    <DemographicsPanel
-                                        demographics={demographics}
-                                    />
-                                ) : (
-                                    <DemographicsPanelSkeleton />
-                                )}
-                            </Suspense>
-                        </WhenVisible>
+                        <div data-tour="dashboard-demographics">
+                            <WhenVisible
+                                data="demographics"
+                                buffer={200}
+                                fallback={<DemographicsPanelSkeleton />}
+                            >
+                                <Suspense
+                                    fallback={<DemographicsPanelSkeleton />}
+                                >
+                                    {demographics ? (
+                                        <DemographicsPanel
+                                            demographics={demographics}
+                                        />
+                                    ) : (
+                                        <DemographicsPanelSkeleton />
+                                    )}
+                                </Suspense>
+                            </WhenVisible>
+                        </div>
                     </TabsContent>
 
                     <TabsContent value="programs" className="space-y-4">
-                        <WhenVisible
-                            data="summary"
-                            buffer={200}
-                            fallback={<KpiCardsSkeleton variant="strip" />}
-                        >
-                            {summary ? (
-                                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                    <DashboardStatCard
-                                        label="Active programs"
-                                        value={summary.active_programs.toLocaleString()}
-                                        icon={FolderKanban}
-                                        tone="success"
-                                        valueClassName="text-3xl"
-                                    />
-                                    <DashboardStatCard
-                                        label="Closed programs"
-                                        value={summary.closed_programs.toLocaleString()}
-                                        icon={FolderLock}
-                                        tone="info"
-                                        valueClassName="text-3xl"
-                                    />
-                                    <DashboardStatCard
-                                        label="Delivered items"
-                                        value={summary.total_delivered_items.toLocaleString()}
-                                        icon={Package}
-                                        tone="success"
-                                        valueClassName="text-3xl"
-                                    />
-                                    <DashboardStatCard
-                                        label="Denied requests"
-                                        value={summary.denied_requests.toLocaleString()}
-                                        icon={Ban}
-                                        tone="danger"
-                                        valueClassName="text-3xl"
-                                    />
-                                </div>
-                            ) : (
-                                <KpiCardsSkeleton />
-                            )}
-                        </WhenVisible>
+                        <div data-tour="dashboard-kpis">
+                            <WhenVisible
+                                data="summary"
+                                buffer={200}
+                                fallback={<KpiCardsSkeleton variant="strip" />}
+                            >
+                                {summary ? (
+                                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                        <StatCard
+                                            label="Active programs"
+                                            value={summary.active_programs.toLocaleString()}
+                                            icon={FolderKanban}
+                                        />
+                                        <StatCard
+                                            label="Closed programs"
+                                            value={summary.closed_programs.toLocaleString()}
+                                            icon={FolderLock}
+                                        />
+                                        <StatCard
+                                            label="Delivered items"
+                                            value={summary.total_delivered_items.toLocaleString()}
+                                            icon={Package}
+                                        />
+                                        <StatCard
+                                            label="Denied requests"
+                                            value={summary.denied_requests.toLocaleString()}
+                                            icon={Ban}
+                                        />
+                                    </div>
+                                ) : (
+                                    <KpiCardsSkeleton />
+                                )}
+                            </WhenVisible>
+                        </div>
 
-                        <WhenVisible
-                            data="programsTable"
-                            buffer={200}
-                            fallback={
-                                <DataTableSkeleton
-                                    columnCount={8}
-                                    rowCount={5}
-                                />
-                            }
-                        >
-                            <Suspense
+                        <div data-tour="dashboard-programs-summary">
+                            <WhenVisible
+                                data="programsTable"
+                                buffer={200}
                                 fallback={
                                     <DataTableSkeleton
                                         columnCount={8}
@@ -581,9 +509,18 @@ export default function ExecutiveDashboardIndex({
                                     />
                                 }
                             >
-                                <ProgramsTable data={programsTable ?? []} />
-                            </Suspense>
-                        </WhenVisible>
+                                <Suspense
+                                    fallback={
+                                        <DataTableSkeleton
+                                            columnCount={8}
+                                            rowCount={5}
+                                        />
+                                    }
+                                >
+                                    <ProgramsTable data={programsTable ?? []} />
+                                </Suspense>
+                            </WhenVisible>
+                        </div>
                     </TabsContent>
                 </Tabs>
             </div>

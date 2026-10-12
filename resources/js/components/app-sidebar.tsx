@@ -1,19 +1,8 @@
 import { Link, usePage } from '@inertiajs/react';
-import {
-    Bell,
-    FolderKanban,
-    Inbox,
-    Landmark,
-    LayoutGrid,
-    CalendarDays,
-    Package,
-    Shield,
-    Stamp,
-    Users,
-} from 'lucide-react';
-import { useMemo } from 'react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
+import { NavTourButton } from '@/components/nav-tour-button';
+import { NavUser } from '@/components/nav-user';
 import {
     NavAdministration,
     NavExecutive,
@@ -23,174 +12,40 @@ import {
     Sidebar,
     SidebarContent,
     SidebarFooter,
-    SidebarGroup,
-    SidebarGroupLabel,
     SidebarHeader,
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarSeparator,
 } from '@/components/ui/sidebar';
-import { useCan } from '@/hooks/use-can';
-import { Permission } from '@/lib/permissions';
+import { useAppNavItems } from '@/hooks/use-app-nav-items';
 import { dashboard } from '@/routes';
-import { dashboard as executiveDashboard } from '@/routes/executive';
-import { index as executiveDistributionsIndex } from '@/routes/executive/distributions';
-import { index as executiveProgramsIndex } from '@/routes/executive/programs';
-import { index as adminUsersIndex } from '@/routes/admin/users';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
-import { index as departmentDistributionsIndex } from '@/routes/user/distributions';
-import { index as departmentFundsIndex } from '@/routes/user/funds';
-import { index as departmentItemsIndex } from '@/routes/user/items';
-import { index as departmentNotificationsIndex } from '@/routes/user/notifications';
-import { index as departmentProgramsIndex } from '@/routes/user/programs';
-import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiaries';
-import { index as departmentQueueIndex } from '@/routes/user/queue';
-import type { NavItem } from '@/types';
 import type { Auth } from '@/types/auth';
 
 type SidebarPageProps = {
     auth: Auth;
-    unreadNotificationsCount: number;
 };
 
 export function AppSidebar() {
     const { props } = usePage<SidebarPageProps>();
-    const can = useCan();
-
-    const footerNavItems = useMemo((): NavItem[] => {
-        const slug = props.auth.user?.department?.slug;
-
-        const items: NavItem[] = [];
-
-        if (slug) {
-            items.push({
-                title: 'Notifications',
-                href: departmentNotificationsIndex(slug),
-                icon: Bell,
-                badge: props.unreadNotificationsCount,
-            });
-        }
-
-        return items;
-    }, [props.auth.user, props.unreadNotificationsCount]);
-
-    const administrationNavItems = useMemo((): NavItem[] => {
-        const items: NavItem[] = [];
-
-        if (props.auth.is_super_admin) {
-            items.push({
-                title: 'Admin',
-                href: adminUsersIndex(),
-                icon: Shield,
-            });
-        }
-
-        return items;
-    }, [props.auth.is_super_admin]);
-
-    const executiveNavItems = useMemo((): NavItem[] => {
-        const items: NavItem[] = [];
-
-        if (
-            props.auth.office_roles?.includes('executive') ||
-            can(Permission.ProgramApprove)
-        ) {
-            items.push(
-                {
-                    title: 'Dashboard',
-                    href: executiveDashboard(),
-                    icon: LayoutGrid,
-                },
-                {
-                    title: 'Programs',
-                    href: executiveProgramsIndex(),
-                    icon: Stamp,
-                },
-                {
-                    title: 'Distributions',
-                    href: executiveDistributionsIndex(),
-                    icon: CalendarDays,
-                },
-            );
-        }
-
-        return items;
-    }, [props.auth.office_roles, can, Permission.ProgramApprove]);
-
-    const mainNavItems = useMemo((): NavItem[] => {
-        const slug = props.auth.user?.department?.slug;
-
-        const items: NavItem[] = [
-            {
-                title: 'Dashboard',
-                href: slug ? departmentDashboardIndex(slug) : dashboard(),
-                icon: LayoutGrid,
-            },
-        ];
-
-        if (slug) {
-            const departmentItems: NavItem[] = [
-                {
-                    title: 'Programs',
-                    href: departmentProgramsIndex(slug),
-                    icon: FolderKanban,
-                    permission: Permission.ProgramViewAny,
-                },
-                {
-                    title: 'Distributions',
-                    href: departmentDistributionsIndex(slug),
-                    icon: CalendarDays,
-                    permission: Permission.DistributionViewAny,
-                },
-                {
-                    title: 'Queue',
-                    href: departmentQueueIndex(slug),
-                    icon: Inbox,
-                    permission: Permission.AssistanceViewAny,
-                },
-                {
-                    title: 'Beneficiaries',
-                    href: departmentBeneficiariesIndex(slug),
-                    icon: Users,
-                    permission: Permission.BeneficiaryViewAny,
-                },
-                {
-                    title: 'Items',
-                    href: departmentItemsIndex(slug),
-                    icon: Package,
-                    permission: Permission.ItemViewAny,
-                },
-                {
-                    title: 'Funds',
-                    href: departmentFundsIndex(slug),
-                    icon: Landmark,
-                    permission: Permission.FundViewAny,
-                },
-            ];
-
-            items.push(
-                ...departmentItems.filter(
-                    (item) =>
-                        item.permission === undefined || can(item.permission),
-                ),
-            );
-        }
-
-        return items;
-    }, [
-        can,
-        props.auth.is_super_admin,
-        props.auth.office_roles,
-        props.auth.user,
-    ]);
+    const {
+        mainNavItems,
+        executiveNavItems,
+        administrationNavItems,
+        footerNavItems,
+    } = useAppNavItems();
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton
+                            size="lg"
+                            asChild
+                            tooltip="Centralized Assistance Information System"
+                            className="h-auto min-h-12"
+                        >
                             <Link
                                 href={
                                     props.auth.user?.department?.slug
@@ -202,7 +57,10 @@ export function AppSidebar() {
                                 prefetch
                                 data-tour="sidebar-logo"
                             >
-                                <AppLogo />
+                                <AppLogo
+                                    name="Centralized Assistance Information System v3"
+                                    wrap
+                                />
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -221,7 +79,10 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                <NavFooter items={footerNavItems}>
+                    <NavTourButton />
+                </NavFooter>
+                <NavUser />
             </SidebarFooter>
         </Sidebar>
     );

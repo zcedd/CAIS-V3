@@ -1,5 +1,6 @@
 import { InertiaLinkProps } from '@inertiajs/react';
 import { LucideIcon } from 'lucide-react';
+import type { NotificationEntry } from './notification';
 
 export interface Auth {
     user: User;
@@ -33,6 +34,7 @@ export interface SharedData {
     auth: Auth;
     sidebarOpen: boolean;
     unreadNotificationsCount: number;
+    recentNotifications?: NotificationEntry[];
     duplicate_candidates?: unknown;
     eligibility_findings?: unknown;
     [key: string]: unknown;

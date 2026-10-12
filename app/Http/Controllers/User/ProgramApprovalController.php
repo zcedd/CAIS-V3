@@ -9,6 +9,7 @@ use App\Models\Program;
 use App\Models\User;
 use App\Services\User\ProgramApprovalService;
 use Illuminate\Http\RedirectResponse;
+use Inertia\Inertia;
 
 class ProgramApprovalController extends Controller
 {
@@ -27,11 +28,11 @@ class ProgramApprovalController extends Controller
 
         $this->approvals->submit($program, $actor, $request->remark());
 
-        return redirect()
-            ->route('user.programs.show', [
-                'department' => $department,
-                'program' => $program,
-            ])
-            ->with('success', 'Program submitted for executive approval.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Program submitted for executive approval.',
+        ]);
+
+        return redirect()->back();
     }
 }

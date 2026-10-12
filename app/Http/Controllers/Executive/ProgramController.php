@@ -19,20 +19,23 @@ class ProgramController extends Controller
 {
     public function __construct(
         private ProgramApprovalService $approvals,
-        private ProgramService $programs,
+        private ProgramService $programService,
     ) {}
 
     public function index(IndexRequest $request): Response
     {
+        $programs = $this->approvals->paginateForGovernor(
+            $request->search(),
+            $request->types(),
+            $request->statuses(),
+            $request->approvals(),
+            $request->departments(),
+            $request->perPage(),
+        );
+
         return Inertia::render('executive/programs/index', [
-            'programs' => $this->approvals->paginateForGovernor(
-                $request->search(),
-                $request->types(),
-                $request->statuses(),
-                $request->approvals(),
-                $request->departments(),
-                $request->perPage(),
-            ),
+            'programs' => $programs,
+            'program_metrics' => $this->programService->cardMetrics(collect($programs->items())),
             'search' => $request->search(),
             'type' => $request->types(),
             'status' => $request->statuses(),
@@ -41,6 +44,13 @@ class ProgramController extends Controller
             'departments' => $this->approvals->departmentOptions(),
             'per_page' => $request->perPage(),
             'awaiting_count' => $this->approvals->awaitingGovernorCount(),
+            'approval_counts' => $this->approvals->approvalCounts(
+                $request->search(),
+                $request->types(),
+                $request->statuses(),
+                $request->departments(),
+            ),
+            'review_queue_count' => $this->approvals->awaitingGovernorCount(),
         ]);
     }
 
@@ -49,7 +59,7 @@ class ProgramController extends Controller
         return Inertia::render('executive/programs/show', [
             'program' => [
                 ...$this->approvals->showPayload($program),
-                ...$this->programs->executiveReviewPayload($program),
+                ...$this->programService->executiveReviewPayload($program),
             ],
         ]);
     }
@@ -64,9 +74,12 @@ class ProgramController extends Controller
 
         $this->approvals->approve($program, $actor, $request->remark());
 
-        return redirect()
-            ->route('executive.programs.show', $program)
-            ->with('success', 'Program approved.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Program approved.',
+        ]);
+
+        return redirect()->back();
     }
 
     public function returnToDepartment(ReturnRequest $request, Program $program): RedirectResponse
@@ -79,8 +92,11 @@ class ProgramController extends Controller
 
         $this->approvals->returnToDepartment($program, $actor, $request->remark());
 
-        return redirect()
-            ->route('executive.programs.show', $program)
-            ->with('success', 'Program returned to the department.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Program returned to the department.',
+        ]);
+
+        return redirect()->back();
     }
 }

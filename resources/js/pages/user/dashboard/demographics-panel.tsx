@@ -9,11 +9,10 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
     DashboardSectionCard,
-    dashboardProgressClass,
-    dashboardSurfaceClass,
+    SectionCardSkeleton,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type {
     BeneficiaryTypeChartPoint,
@@ -56,15 +55,12 @@ function BreakdownList({
                                     <span className="font-medium">
                                         {row.label}
                                     </span>
-                                    <span className="text-muted-foreground tabular-nums">
+                                    <span className="tabular-nums text-muted-foreground">
                                         {row.count.toLocaleString()} (
                                         {percent.toFixed(1)}%)
                                     </span>
                                 </div>
-                                <Progress
-                                    value={percent}
-                                    className={dashboardProgressClass}
-                                />
+                                <Progress value={percent} className="h-1.5" />
                             </li>
                         );
                     })}
@@ -158,26 +154,21 @@ export function DemographicsPanelSkeleton() {
             aria-label="Loading demographics"
         >
             {Array.from({ length: 7 }).map((_, index) => (
-                <div
+                <SectionCardSkeleton
                     key={index}
-                    className={cn('overflow-hidden', dashboardSurfaceClass)}
+                    label="Loading demographics"
+                    titleClassName="w-28"
+                    descriptionClassName="w-40"
                 >
-                    <div className="flex items-start justify-between gap-2 px-6 pt-6">
-                        <div className="space-y-2">
-                            <div className="h-5 w-28 animate-pulse rounded bg-muted" />
-                            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
-                        </div>
-                        <div className="size-5 animate-pulse rounded bg-muted" />
-                    </div>
-                    <div className="space-y-3 px-6 py-6">
+                    <div className="space-y-3">
                         {Array.from({ length: 3 }).map((__, row) => (
                             <div key={row} className="space-y-1.5">
-                                <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                                <div className="h-1.5 w-full animate-pulse rounded bg-muted" />
+                                <Skeleton className="h-4 w-full" />
+                                <Skeleton className="h-1.5 w-full rounded-full" />
                             </div>
                         ))}
                     </div>
-                </div>
+                </SectionCardSkeleton>
             ))}
         </div>
     );

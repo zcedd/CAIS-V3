@@ -1,13 +1,16 @@
 'use client';
 
+import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
+import { LayoutList, RotateCcw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { DataTable } from '@/components/data-table';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
-import { SlaBadge } from '@/components/user/sla-badge';
-import { EMPTY_CELL } from '@/lib/empty-cell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,7 +24,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SlaBadge } from '@/components/user/sla-badge';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
+import { PayoutDesk } from '@/pages/user/queue/payout-desk';
+import type { QueueSelection } from '@/pages/user/queue/payout-desk';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { claim as claimAssistance } from '@/routes/user/programs/assistances';
 import {
@@ -29,11 +36,6 @@ import {
     index as departmentQueueIndex,
 } from '@/routes/user/queue';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
-import { RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 const QUEUE_TABLE_PARTIAL_PROPS = [
     'assistances',
@@ -452,6 +454,7 @@ export default function UserQueueIndex({
     program_options,
     status_options,
     staff_options,
+    selected: initialSelected = null,
 }: {
     department: DepartmentSummary;
     tab: 'mine' | 'team';
@@ -464,7 +467,9 @@ export default function UserQueueIndex({
     program_options: FilterOption[];
     status_options: FilterOption[];
     staff_options: DepartmentStaffOption[];
+    selected?: QueueSelection | null;
 }) {
+    const [deskView, setDeskView] = useState(true);
     const [tableState, setTableState] = useState({
         tab: initialTab,
         search: initialSearch,
@@ -573,6 +578,20 @@ export default function UserQueueIndex({
         [department.slug],
     );
 
+    const changeDeskTab = useCallback(
+        (tab: 'mine' | 'team') => {
+            visitTable({ tab, page: 1 });
+        },
+        [visitTable],
+    );
+
+    const changeDeskSearch = useCallback(
+        (search: string) => {
+            visitTable({ search, page: 1 });
+        },
+        [visitTable],
+    );
+
     const columns = useMemo(
         () => createQueueColumns(department.slug, tableState.tab),
         [department.slug, tableState.tab],
@@ -597,173 +616,231 @@ export default function UserQueueIndex({
                             waiting for the team.
                         </p>
                     </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        data-tour="queue-view-toggle"
+                        onClick={() => setDeskView((current) => !current)}
+                    >
+                        <LayoutList className="size-4" />
+                        {deskView ? 'Table' : 'Desk'}
+                    </Button>
                 </div>
 
-                <Tabs
-                    value={tableState.tab}
-                    onValueChange={(value) =>
-                        visitTable({
-                            tab: value === 'team' ? 'team' : 'mine',
-                            page: 1,
-                        })
-                    }
-                >
-                    <TabsList>
-                        <TabsTrigger value="mine">My queue</TabsTrigger>
-                        <TabsTrigger value="team">Team queue</TabsTrigger>
-                    </TabsList>
-                </Tabs>
+                {deskView ? (
+                    <PayoutDesk
+                        departmentSlug={department.slug}
+                        rows={assistances.data}
+                        selectedId={initialSelected?.id ?? null}
+                        selected={initialSelected}
+                        onSelect={(id) =>
+                            router.get(
+                                departmentQueueIndex.url(department.slug, {
+                                    query: {
+                                        ...buildQueueQuery(filters),
+                                        selected: id,
+                                    },
+                                }),
+                                {},
+                                {
+                                    preserveState: true,
+                                    preserveScroll: true,
+                                    replace: true,
+                                    only: ['selected'],
+                                },
+                            )
+                        }
+                        tab={tableState.tab}
+                        onTabChange={changeDeskTab}
+                        search={tableState.search}
+                        onSearchChange={changeDeskSearch}
+                    />
+                ) : null}
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="text-lg">
-                            {tableState.tab === 'mine'
-                                ? 'Assigned to me'
-                                : 'Team queue'}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <DataTable
-                            columns={columns}
-                            data={assistances.data}
-                            emptyMessage={
-                                tableState.tab === 'mine'
-                                    ? 'Nothing is assigned to you.'
-                                    : 'No matching requests in the team queue.'
-                            }
-                            manualPagination
-                            manualFiltering
-                            serverPagination={assistances}
-                            partialReloadOnly={[...QUEUE_TABLE_PARTIAL_PROPS]}
-                            isLoading={isTableReloading}
-                            loadingFallback={
-                                <DataTableSkeleton
-                                    columnCount={8}
-                                    rowCount={tableState.per_page}
-                                />
-                            }
-                            onPerPageChange={(nextPerPage) => {
+                {!deskView ? (
+                    <>
+                        <Tabs
+                            value={tableState.tab}
+                            onValueChange={(value) =>
                                 visitTable({
-                                    per_page: nextPerPage,
+                                    tab: value === 'team' ? 'team' : 'mine',
                                     page: 1,
-                                });
-                            }}
-                            onPageChange={(page) => {
-                                visitTable({ page });
-                            }}
-                            enableRowSelection
-                            toolbar={(table, columnVisibility) => (
-                                <QueueToolbar
-                                    table={table}
-                                    columnVisibility={columnVisibility}
-                                    filters={filters}
-                                    programOptions={program_options}
-                                    statusOptions={status_options}
-                                    onFiltersChange={visitTable}
-                                />
-                            )}
-                            selectionActions={({
-                                table,
-                                selectedCount,
-                            }) =>
-                                selectedCount > 0 ? (
-                                    <Form
-                                        {...bulkAssignQueue.form.patch(
-                                            department.slug,
-                                        )}
-                                        disableWhileProcessing
-                                        options={{ preserveScroll: true }}
-                                        transform={(data) => ({
-                                            ...data,
-                                            assistance_ids: table
-                                                .getSelectedRowModel()
-                                                .rows.map(
-                                                    (row) => row.original.id,
-                                                ),
-                                            assigned_to_id:
-                                                assigneeId === '' ||
-                                                assigneeId === 'unassigned'
-                                                    ? null
-                                                    : Number(assigneeId),
-                                        })}
-                                        onSuccess={() => {
-                                            table.resetRowSelection();
-                                            setAssigneeId('');
-                                            toast.success(
-                                                'Assistance assignment updated.',
-                                            );
-                                        }}
-                                        className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/40 px-3 py-2"
-                                    >
-                                        {({ errors, processing }) => (
-                                            <>
-                                                <p className="text-sm text-muted-foreground">
-                                                    {selectedCount} selected
-                                                </p>
-                                                <div className="space-y-1">
-                                                    <Label htmlFor="queue-assignee">
-                                                        Assign to
-                                                    </Label>
-                                                    <Select
-                                                        value={assigneeId}
-                                                        onValueChange={
-                                                            setAssigneeId
-                                                        }
-                                                    >
-                                                        <SelectTrigger
-                                                            id="queue-assignee"
-                                                            className="h-9 w-56"
-                                                        >
-                                                            <SelectValue placeholder="Choose staff" />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="unassigned">
-                                                                Unassigned
-                                                            </SelectItem>
-                                                            {staff_options.map(
-                                                                (staff) => (
-                                                                    <SelectItem
-                                                                        key={
-                                                                            staff.id
-                                                                        }
-                                                                        value={String(
-                                                                            staff.id,
-                                                                        )}
-                                                                    >
-                                                                        {
-                                                                            staff.name
-                                                                        }
-                                                                    </SelectItem>
-                                                                ),
-                                                            )}
-                                                        </SelectContent>
-                                                    </Select>
-                                                    <InputError
-                                                        message={
-                                                            errors.assigned_to_id
-                                                        }
-                                                    />
-                                                </div>
-                                                <Button
-                                                    type="submit"
-                                                    size="sm"
-                                                    disabled={
-                                                        processing ||
-                                                        assigneeId === ''
-                                                    }
-                                                >
-                                                    {processing
-                                                        ? 'Saving...'
-                                                        : 'Update assignment'}
-                                                </Button>
-                                            </>
-                                        )}
-                                    </Form>
-                                ) : null
+                                })
                             }
-                        />
-                    </CardContent>
-                </Card>
+                        >
+                            <TabsList>
+                                <TabsTrigger value="mine">My queue</TabsTrigger>
+                                <TabsTrigger value="team">
+                                    Team queue
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-lg">
+                                    {tableState.tab === 'mine'
+                                        ? 'Assigned to me'
+                                        : 'Team queue'}
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="space-y-4">
+                                <DataTable
+                                    columns={columns}
+                                    data={assistances.data}
+                                    emptyMessage={
+                                        tableState.tab === 'mine'
+                                            ? 'Nothing is assigned to you.'
+                                            : 'No matching requests in the team queue.'
+                                    }
+                                    manualPagination
+                                    manualFiltering
+                                    serverPagination={assistances}
+                                    partialReloadOnly={[
+                                        ...QUEUE_TABLE_PARTIAL_PROPS,
+                                    ]}
+                                    isLoading={isTableReloading}
+                                    loadingFallback={
+                                        <DataTableSkeleton
+                                            columnCount={8}
+                                            rowCount={tableState.per_page}
+                                        />
+                                    }
+                                    onPerPageChange={(nextPerPage) => {
+                                        visitTable({
+                                            per_page: nextPerPage,
+                                            page: 1,
+                                        });
+                                    }}
+                                    onPageChange={(page) => {
+                                        visitTable({ page });
+                                    }}
+                                    enableRowSelection
+                                    toolbar={(table, columnVisibility) => (
+                                        <QueueToolbar
+                                            table={table}
+                                            columnVisibility={columnVisibility}
+                                            filters={filters}
+                                            programOptions={program_options}
+                                            statusOptions={status_options}
+                                            onFiltersChange={visitTable}
+                                        />
+                                    )}
+                                    selectionActions={({
+                                        table,
+                                        selectedCount,
+                                    }) =>
+                                        selectedCount > 0 ? (
+                                            <Form
+                                                {...bulkAssignQueue.form.patch(
+                                                    department.slug,
+                                                )}
+                                                disableWhileProcessing
+                                                options={{
+                                                    preserveScroll: true,
+                                                }}
+                                                transform={(data) => ({
+                                                    ...data,
+                                                    assistance_ids: table
+                                                        .getSelectedRowModel()
+                                                        .rows.map(
+                                                            (row) =>
+                                                                row.original.id,
+                                                        ),
+                                                    assigned_to_id:
+                                                        assigneeId === '' ||
+                                                        assigneeId ===
+                                                            'unassigned'
+                                                            ? null
+                                                            : Number(
+                                                                  assigneeId,
+                                                              ),
+                                                })}
+                                                onSuccess={() => {
+                                                    table.resetRowSelection();
+                                                    setAssigneeId('');
+                                                    toast.success(
+                                                        'Assistance assignment updated.',
+                                                    );
+                                                }}
+                                                className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/40 px-3 py-2"
+                                            >
+                                                {({ errors, processing }) => (
+                                                    <>
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {selectedCount}{' '}
+                                                            selected
+                                                        </p>
+                                                        <div className="space-y-1">
+                                                            <Label htmlFor="queue-assignee">
+                                                                Assign to
+                                                            </Label>
+                                                            <Select
+                                                                value={
+                                                                    assigneeId
+                                                                }
+                                                                onValueChange={
+                                                                    setAssigneeId
+                                                                }
+                                                            >
+                                                                <SelectTrigger
+                                                                    id="queue-assignee"
+                                                                    className="h-9 w-56"
+                                                                >
+                                                                    <SelectValue placeholder="Choose staff" />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="unassigned">
+                                                                        Unassigned
+                                                                    </SelectItem>
+                                                                    {staff_options.map(
+                                                                        (
+                                                                            staff,
+                                                                        ) => (
+                                                                            <SelectItem
+                                                                                key={
+                                                                                    staff.id
+                                                                                }
+                                                                                value={String(
+                                                                                    staff.id,
+                                                                                )}
+                                                                            >
+                                                                                {
+                                                                                    staff.name
+                                                                                }
+                                                                            </SelectItem>
+                                                                        ),
+                                                                    )}
+                                                                </SelectContent>
+                                                            </Select>
+                                                            <InputError
+                                                                message={
+                                                                    errors.assigned_to_id
+                                                                }
+                                                            />
+                                                        </div>
+                                                        <Button
+                                                            type="submit"
+                                                            size="sm"
+                                                            disabled={
+                                                                processing ||
+                                                                assigneeId ===
+                                                                    ''
+                                                            }
+                                                        >
+                                                            {processing
+                                                                ? 'Saving...'
+                                                                : 'Update assignment'}
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </Form>
+                                        ) : null
+                                    }
+                                />
+                            </CardContent>
+                        </Card>
+                    </>
+                ) : null}
             </div>
         </>
     );

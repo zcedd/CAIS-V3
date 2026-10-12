@@ -6,13 +6,17 @@ use App\Enums\RequestSubStatusCode;
 use App\Enums\WorkflowTaskStatus;
 use App\Models\Assistance;
 use App\Models\Department;
+use App\Models\Individual;
 use App\Models\User;
 use App\Support\EmptyCell;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Gate;
 
 class AssistanceQueueService
 {
+    public function __construct(private AssistanceService $assistanceService) {}
+
     /**
      * @param  array{
      *     tab?: string,
@@ -163,6 +167,77 @@ class AssistanceQueueService
             array_map(static fn (mixed $item): int => (int) $item, $items),
             static fn (int $item): bool => $item > 0,
         ));
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function selectedProfile(Department $department, int $assistanceId): ?array
+    {
+        $assistance = Assistance::query()
+            ->whereKey($assistanceId)
+            ->whereHas('program', fn ($query) => $query->where('department_id', $department->id))
+            ->with([
+                'beneficiary.beneficiable' => function ($morphTo): void {
+                    $morphTo->morphWith([
+                        Individual::class => ['address.city', 'beneficiaryIdentification.identification'],
+                    ]);
+                },
+                'program:id,name,department_id',
+                'assistanceItem.item:id,name,kind',
+                'currentRequestSubStatus.requestStatus',
+            ])
+            ->first();
+
+        if ($assistance === null || $assistance->beneficiary === null || $assistance->program === null) {
+            return null;
+        }
+
+        $preview = $this->assistanceService->eligibilityPreview(
+            $assistance->program,
+            $assistance->beneficiary,
+            [],
+            null,
+            $assistance->id,
+        );
+        $individual = $assistance->beneficiary->beneficiable instanceof Individual
+            ? $assistance->beneficiary->beneficiable
+            : null;
+        $identification = $individual?->beneficiaryIdentification->first();
+        $barangay = $individual?->address;
+
+        return [
+            'id' => $assistance->id,
+            'program_id' => $assistance->program_id,
+            'program_name' => $assistance->program->name,
+            'cais_number' => $assistance->beneficiary->cais_number,
+            'beneficiary_name' => $assistance->beneficiary->name,
+            'address' => $barangay === null
+                ? null
+                : collect([$barangay->name, $barangay->city?->name])->filter()->implode(', '),
+            'age' => $individual?->birthday !== null ? (int) Carbon::parse($individual->birthday)->age : null,
+            'sex' => $individual?->sex,
+            'primary_id' => $identification === null ? null : [
+                'type' => $identification->identification?->name,
+                'number' => $identification->number,
+            ],
+            'status' => $assistance->currentRequestSubStatus?->requestStatus?->name
+                ?? $assistance->currentRequestSubStatus?->name,
+            'was_delivered' => (bool) $assistance->was_delivered,
+            'can_claim' => Gate::allows('claim', $assistance),
+            'items' => $assistance->assistanceItem
+                ->map(static fn ($item): array => [
+                    'name' => $item->item?->name ?? EmptyCell::VALUE,
+                    'kind' => $item->item?->kind?->value,
+                    'quantity' => (int) ($item->requested_quantity ?: $item->quantity),
+                ])
+                ->values()
+                ->all(),
+            'findings' => array_values(array_filter(
+                $preview['findings'],
+                static fn (array $finding): bool => in_array($finding['code'], ['open_request', 'cooldown'], true),
+            )),
+        ];
     }
 
     /**

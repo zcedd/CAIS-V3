@@ -6,6 +6,7 @@ use App\Enums\RoleName;
 use App\Models\User;
 use App\Services\User\NotificationService;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -54,6 +55,11 @@ class HandleInertiaRequests extends Middleware
             'unreadNotificationsCount' => $user
                 ? app(NotificationService::class)->unreadCountForUser($user)
                 : 0,
+            'recentNotifications' => Inertia::optional(
+                fn (): array => $user instanceof User
+                    ? app(NotificationService::class)->recentForUser($user)
+                    : [],
+            ),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'duplicate_candidates' => $request->session()->get('duplicate_candidates'),
             'eligibility_findings' => $request->session()->get('eligibility_findings'),

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Enums\ProgramApprovalStatus;
 use App\Models\Program;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
@@ -30,6 +31,8 @@ class IndexRequest extends FormRequest
             'type.*' => ['string', Rule::in(['individual', 'organization'])],
             'status' => ['nullable', 'array'],
             'status.*' => ['string', Rule::in(['open', 'closed'])],
+            'approval' => ['nullable', 'array'],
+            'approval.*' => ['string', Rule::enum(ProgramApprovalStatus::class)],
         ];
     }
 
@@ -52,6 +55,14 @@ class IndexRequest extends FormRequest
     public function statuses(): array
     {
         return array_values($this->validated('status') ?? []);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function approvals(): array
+    {
+        return array_values($this->validated('approval') ?? []);
     }
 
     public function perPage(): int

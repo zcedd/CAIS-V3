@@ -1,25 +1,42 @@
+import { Head, router, setLayoutProps } from '@inertiajs/react';
+import { ClipboardCheck, X } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import type { ServerPaginationMeta } from '@/components/data-table/types';
 import { ServerPagination } from '@/components/server-pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { NoticeBanner } from '@/components/user/notice-banner';
+import { ProgramAnalyticsDialog } from '@/components/user/program-analytics-dialog';
+import { ProgramCard } from '@/components/user/program-card';
+import type { ProgramCardMetric } from '@/components/user/program-card';
+import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
+import type { ProgramDecisionAction } from '@/components/user/programs/program-decision-dialog';
+import { StatusPillTabs } from '@/components/user/status-pill-tabs';
+import { cn } from '@/lib/utils';
+import type { ProgramListRow } from '@/pages/user/programs/program-folder-card';
 import {
-    ProgramFolderCard,
-    type ProgramListRow,
-} from '@/pages/user/programs/program-folder-card';
-import {
+    analytics as executiveProgramAnalytics,
+    approve as approveProgram,
     index as executiveProgramsIndex,
+    returnMethod as returnProgram,
     show as executiveProgramShow,
 } from '@/routes/executive/programs';
+import { exportMethod as exportAssistances } from '@/routes/user/programs/assistances';
 import type { BreadcrumbItem } from '@/types';
-import { cn } from '@/lib/utils';
-import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+
+type ApprovalCounts = {
+    all: number;
+    draft: number;
+    awaiting_governor: number;
+    approved: number;
+    returned: number;
+};
 
 type ExecutiveProgramRow = ProgramListRow & {
     approval_status: string;
     approval_label: string;
+    can_approve?: boolean;
     department: { id: number; name: string; slug: string } | null;
 };
 
@@ -45,18 +62,6 @@ type ProgramListFilters = {
 const programTypeOptions = [
     { label: 'Individual', value: 'individual' },
     { label: 'Organization', value: 'organization' },
-] as const;
-
-const programStatusOptions = [
-    { label: 'Open', value: 'open' },
-    { label: 'Closed', value: 'closed' },
-] as const;
-
-const approvalOptions = [
-    { label: 'Awaiting executive', value: 'awaiting_governor' },
-    { label: 'Draft', value: 'draft' },
-    { label: 'Returned', value: 'returned' },
-    { label: 'Approved', value: 'approved' },
 ] as const;
 
 function buildProgramsQuery(
@@ -106,6 +111,8 @@ export default function GovernorProgramsIndex({
     departments,
     per_page: initialPerPage,
     awaiting_count,
+    approval_counts: approvalCounts,
+    program_metrics: programMetrics = {},
 }: {
     programs: PaginatedPrograms;
     search: string;
@@ -116,8 +123,16 @@ export default function GovernorProgramsIndex({
     departments: DepartmentOption[];
     per_page: number;
     awaiting_count: number;
+    approval_counts: ApprovalCounts;
+    program_metrics?: Record<string, ProgramCardMetric>;
 }) {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
+    const [analyticsProgram, setAnalyticsProgram] =
+        useState<ExecutiveProgramRow | null>(null);
+    const [decision, setDecision] = useState<{
+        program: ExecutiveProgramRow;
+        action: Extract<ProgramDecisionAction, 'approve' | 'return'>;
+    } | null>(null);
 
     useEffect(() => {
         setLayoutProps({
@@ -161,6 +176,8 @@ export default function GovernorProgramsIndex({
                         'department',
                         'per_page',
                         'awaiting_count',
+                        'approval_counts',
+                        'program_metrics',
                     ],
                 },
             );
@@ -195,6 +212,7 @@ export default function GovernorProgramsIndex({
         initialStatus.length > 0 ||
         initialApproval.length > 0 ||
         initialDepartment.length > 0;
+    const selectedApproval = initialApproval[0] ?? 'all';
 
     return (
         <>
@@ -210,79 +228,121 @@ export default function GovernorProgramsIndex({
                         </p>
                     </div>
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                        <Input
-                            type="text"
-                            name="search"
-                            autoComplete="off"
-                            placeholder="Search by program name"
-                            value={searchQuery}
-                            onChange={(event) =>
-                                setSearchQuery(event.target.value)
-                            }
-                            className={cn(
-                                'max-w-md',
-                                searchQuery.trim().length > 0 &&
-                                    'border-primary bg-primary/5 ring-1 ring-primary/30',
-                            )}
-                        />
-                        <DataTableFacetedFilter
-                            filterValue={initialType}
-                            title="Type"
-                            options={[...programTypeOptions]}
-                            onFilterChange={(values) =>
-                                navigateWithFilters({ type: values })
-                            }
-                        />
-                        <DataTableFacetedFilter
-                            filterValue={initialStatus}
-                            title="Status"
-                            options={[...programStatusOptions]}
-                            onFilterChange={(values) =>
-                                navigateWithFilters({ status: values })
-                            }
-                        />
-                        <DataTableFacetedFilter
-                            filterValue={initialApproval}
-                            title="Approval"
-                            options={[...approvalOptions]}
-                            onFilterChange={(values) =>
-                                navigateWithFilters({ approval: values })
-                            }
-                        />
-                        <DataTableFacetedFilter
-                            filterValue={initialDepartment}
-                            title="Department"
-                            options={departments.map((department) => ({
-                                label: department.name,
-                                value: String(department.id),
-                            }))}
-                            onFilterChange={(values) =>
-                                navigateWithFilters({ department: values })
-                            }
-                        />
-                        {isFiltered ? (
+                {awaiting_count > 0 ? (
+                    <NoticeBanner
+                        tone="amber"
+                        icon={ClipboardCheck}
+                        title="Programs awaiting executive approval"
+                        description={`${awaiting_count} endorsed ${awaiting_count === 1 ? 'program is' : 'programs are'} waiting for a decision.`}
+                        action={
                             <Button
                                 type="button"
-                                variant="ghost"
-                                className="h-8 px-2 lg:px-3"
-                                onClick={() => {
-                                    setSearchQuery('');
+                                size="sm"
+                                onClick={() =>
                                     navigateWithFilters({
-                                        search: '',
-                                        type: [],
-                                        status: [],
-                                        approval: [],
-                                        department: [],
-                                    });
-                                }}
+                                        approval: ['awaiting_governor'],
+                                    })
+                                }
                             >
-                                Reset
-                                <X className="ml-2 size-4" />
+                                Review queue ({awaiting_count})
                             </Button>
-                        ) : null}
-                    </div>
+                        }
+                    />
+                ) : null}
+                <div data-tour="programs-approval">
+                    <StatusPillTabs
+                        value={selectedApproval}
+                        onChange={(value) =>
+                            navigateWithFilters({
+                                approval: value === 'all' ? [] : [value],
+                            })
+                        }
+                        pills={[
+                            {
+                                value: 'all',
+                                label: 'All Programs',
+                                count: approvalCounts.all,
+                            },
+                            {
+                                value: 'approved',
+                                label: 'Approved & Active',
+                                count: approvalCounts.approved,
+                                dotClassName: 'bg-emerald-500',
+                            },
+                            {
+                                value: 'awaiting_governor',
+                                label: 'Awaiting Governor Approval',
+                                count: approvalCounts.awaiting_governor,
+                                dotClassName: 'bg-amber-500',
+                            },
+                            {
+                                value: 'draft',
+                                label: 'Awaiting Dept Review',
+                                count: approvalCounts.draft,
+                                dotClassName: 'bg-blue-500',
+                            },
+                            {
+                                value: 'returned',
+                                label: 'Returned / Shelved',
+                                count: approvalCounts.returned,
+                                dotClassName: 'bg-muted-foreground',
+                            },
+                        ]}
+                    />
+                </div>
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <Input
+                        type="text"
+                        name="search"
+                        autoComplete="off"
+                        placeholder="Search by program name"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className={cn(
+                            'max-w-md',
+                            searchQuery.trim().length > 0 &&
+                                'border-primary bg-primary/5 ring-1 ring-primary/30',
+                        )}
+                    />
+                    <DataTableFacetedFilter
+                        filterValue={initialType}
+                        title="Type"
+                        options={[...programTypeOptions]}
+                        onFilterChange={(values) =>
+                            navigateWithFilters({ type: values })
+                        }
+                    />
+                    <DataTableFacetedFilter
+                        filterValue={initialDepartment}
+                        title="Department"
+                        options={departments.map((department) => ({
+                            label: department.name,
+                            value: String(department.id),
+                        }))}
+                        onFilterChange={(values) =>
+                            navigateWithFilters({ department: values })
+                        }
+                    />
+                    {isFiltered ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-8 px-2 lg:px-3"
+                            onClick={() => {
+                                setSearchQuery('');
+                                navigateWithFilters({
+                                    search: '',
+                                    type: [],
+                                    status: [],
+                                    approval: [],
+                                    department: [],
+                                });
+                            }}
+                        >
+                            Reset
+                            <X className="ml-2 size-4" />
+                        </Button>
+                    ) : null}
                 </div>
                 <div>
                     {programs.data.length === 0 ? (
@@ -296,24 +356,54 @@ export default function GovernorProgramsIndex({
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
-                            <div className="grid auto-rows-min gap-x-5 gap-y-7 md:grid-cols-2 lg:grid-cols-4">
+                            <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
                                 {programs.data.map((program) => (
-                                    <Link
+                                    <ProgramCard
                                         key={program.id}
+                                        program={program}
+                                        metrics={
+                                            programMetrics[String(program.id)]
+                                        }
                                         href={executiveProgramShow.url(
                                             program.id,
                                         )}
-                                        prefetch
-                                        className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                    >
-                                        <ProgramFolderCard
-                                            program={program}
-                                            showDepartment
-                                        />
-                                    </Link>
+                                        onInspect={() =>
+                                            setAnalyticsProgram(program)
+                                        }
+                                        actions={
+                                            program.can_approve ? (
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        type="button"
+                                                        className="flex-1"
+                                                        onClick={() =>
+                                                            setDecision({
+                                                                program,
+                                                                action: 'approve',
+                                                            })
+                                                        }
+                                                    >
+                                                        Approve
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        className="flex-1"
+                                                        onClick={() =>
+                                                            setDecision({
+                                                                program,
+                                                                action: 'return',
+                                                            })
+                                                        }
+                                                    >
+                                                        Return
+                                                    </Button>
+                                                </div>
+                                            ) : null
+                                        }
+                                    />
                                 ))}
                             </div>
-
                             <ServerPagination
                                 pagination={programs}
                                 onPageChange={(page) =>
@@ -330,6 +420,45 @@ export default function GovernorProgramsIndex({
                     )}
                 </div>
             </div>
+            <ProgramDecisionDialog
+                open={decision !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setDecision(null);
+                    }
+                }}
+                programName={decision?.program.name ?? ''}
+                action={decision?.action ?? 'approve'}
+                url={
+                    decision === null
+                        ? ''
+                        : decision.action === 'approve'
+                          ? approveProgram.url(decision.program.id)
+                          : returnProgram.url(decision.program.id)
+                }
+            />
+            <ProgramAnalyticsDialog
+                program={analyticsProgram}
+                open={analyticsProgram !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setAnalyticsProgram(null);
+                    }
+                }}
+                url={
+                    analyticsProgram
+                        ? executiveProgramAnalytics.url(analyticsProgram.id)
+                        : null
+                }
+                exportUrl={
+                    analyticsProgram?.department?.slug
+                        ? exportAssistances.url({
+                              department: analyticsProgram.department.slug,
+                              program: analyticsProgram.id,
+                          })
+                        : null
+                }
+            />
         </>
     );
 }

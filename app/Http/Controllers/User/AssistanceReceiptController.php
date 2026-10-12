@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Enums\RequestStatusCode;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Assistance\ShowReceiptRequest;
 use App\Models\Assistance;
+use App\Models\AssistanceRequestSubStatus;
 use App\Models\Department;
+use App\Models\Individual;
 use App\Models\Program;
+use App\Models\User;
 use App\Services\User\AssistanceItemFulfillmentService;
 use App\Support\EmptyCell;
 use App\Support\QrCodeSvg;
@@ -30,7 +34,12 @@ class AssistanceReceiptController extends Controller
         Assistance $assistance,
     ): Response {
         $assistance->load([
-            'beneficiary:id,name,cais_number,beneficiable_type',
+            'beneficiary:id,name,cais_number,beneficiable_type,beneficiable_id',
+            'beneficiary.beneficiable' => function ($morphTo): void {
+                $morphTo->morphWith([
+                    Individual::class => ['address.city', 'beneficiaryIdentification.identification'],
+                ]);
+            },
             'program:id,name,department_id',
             'program.department:id,name,slug',
             'assistanceItem',
@@ -47,6 +56,14 @@ class AssistanceReceiptController extends Controller
         $itemFulfillment = $this->assistanceItemFulfillmentService->summarize(
             $assistance->assistanceItem,
         );
+        $individual = $assistance->beneficiary?->beneficiable instanceof Individual
+            ? $assistance->beneficiary->beneficiable
+            : null;
+        $barangay = $individual?->address;
+        $identification = $individual?->beneficiaryIdentification->first();
+        $cashTotal = (int) collect($itemFulfillment['released'])
+            ->where('kind', 'cash')
+            ->sum('quantity');
 
         return Inertia::render('user/assistances/receipt', [
             'department' => $department->only(['id', 'name', 'slug']),
@@ -55,6 +72,14 @@ class AssistanceReceiptController extends Controller
                 'assistance_id' => $assistance->id,
                 'cais_number' => $assistance->beneficiary?->cais_number ?? EmptyCell::VALUE,
                 'beneficiary_name' => $assistance->beneficiary?->name ?? EmptyCell::VALUE,
+                'beneficiary_address' => $barangay === null
+                    ? null
+                    : collect([$barangay->name, $barangay->city?->name])->filter()->implode(', '),
+                'beneficiary_id_number' => $identification?->number,
+                'program_name' => $program->name,
+                'department_name' => $department->name,
+                'cash_total' => $cashTotal,
+                'released_by' => $this->releasedByName($assistance),
                 'date_requested' => $assistance->date_requested
                     ? Carbon::parse($assistance->date_requested)->toDateString()
                     : null,
@@ -69,5 +94,25 @@ class AssistanceReceiptController extends Controller
                 'item_variance' => $itemFulfillment['variance'],
             ],
         ]);
+    }
+
+    private function releasedByName(Assistance $assistance): ?string
+    {
+        $userId = AssistanceRequestSubStatus::query()
+            ->where('assistance_id', $assistance->id)
+            ->whereHas(
+                'requestSubStatus.requestStatus',
+                fn ($query) => $query->where('code', RequestStatusCode::Delivered->value),
+            )
+            ->latest('id')
+            ->value('recorded_by');
+
+        if ($userId === null) {
+            return null;
+        }
+
+        $name = User::query()->whereKey($userId)->value('name');
+
+        return is_string($name) && $name !== '' ? $name : null;
     }
 }

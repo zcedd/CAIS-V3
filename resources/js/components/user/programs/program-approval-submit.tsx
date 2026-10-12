@@ -1,39 +1,42 @@
-import InputError from '@/components/input-error';
-import { Button } from '@/components/ui/button';
-import { store as submitProgramApproval } from '@/routes/user/programs/approval';
-import { Form } from '@inertiajs/react';
 import { Send } from 'lucide-react';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
+import { store as submitProgramApproval } from '@/routes/user/programs/approval';
 
 export function ProgramApprovalSubmit({
     departmentSlug,
     programId,
+    programName,
     canSubmit = false,
 }: {
     departmentSlug: string;
     programId: number;
+    programName: string;
     canSubmit?: boolean;
 }) {
+    const [open, setOpen] = useState(false);
+
     if (!canSubmit) {
         return null;
     }
 
     return (
-        <Form
-            action={submitProgramApproval.url({
-                department: departmentSlug,
-                program: programId,
-            })}
-            method="post"
-        >
-            {({ processing, errors }) => (
-                <div className="flex flex-col items-start gap-1">
-                    <Button type="submit" size="sm" disabled={processing}>
-                        <Send className="size-4" />
-                        Submit for executive approval
-                    </Button>
-                    <InputError message={errors.program} />
-                </div>
-            )}
-        </Form>
+        <>
+            <Button type="button" onClick={() => setOpen(true)}>
+                <Send data-icon="inline-start" />
+                Endorse & Forward to Governor
+            </Button>
+            <ProgramDecisionDialog
+                open={open}
+                onOpenChange={setOpen}
+                programName={programName}
+                action="endorse"
+                url={submitProgramApproval.url({
+                    department: departmentSlug,
+                    program: programId,
+                })}
+            />
+        </>
     );
 }

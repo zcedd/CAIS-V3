@@ -29,8 +29,9 @@ export function Breadcrumbs({
     return (
         <>
             {breadcrumbs.length > 0 && (
-                <Breadcrumb>
+                <Breadcrumb className="min-w-0">
                     <BreadcrumbList
+                        className="flex-nowrap overflow-hidden"
                         {...(showBreadcrumbTourTarget
                             ? { 'data-tour': 'breadcrumb-links' }
                             : {})}
@@ -40,14 +41,21 @@ export function Breadcrumbs({
 
                             return (
                                 <Fragment key={index}>
-                                    <BreadcrumbItem>
+                                    <BreadcrumbItem className="min-w-0 max-w-48">
                                         {isLast ? (
-                                            <BreadcrumbPage>
+                                            <BreadcrumbPage
+                                                className="min-w-0 truncate"
+                                                title={item.title}
+                                            >
                                                 {item.title}
                                             </BreadcrumbPage>
                                         ) : (
                                             <BreadcrumbLink asChild>
-                                                <Link href={item.href}>
+                                                <Link
+                                                    className="min-w-0 truncate"
+                                                    href={item.href}
+                                                    title={item.title}
+                                                >
                                                     {item.title}
                                                 </Link>
                                             </BreadcrumbLink>

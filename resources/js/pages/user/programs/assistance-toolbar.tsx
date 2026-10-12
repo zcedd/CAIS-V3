@@ -1,17 +1,28 @@
 'use client';
 
+import { Form, usePage } from '@inertiajs/react';
+import type { Table, VisibilityState } from '@tanstack/react-table';
+import {
+    CalendarDays,
+    ChevronDownIcon,
+    Plus,
+    RotateCcw,
+    X,
+} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
     AssistanceFieldInputs,
     fieldValuesToPayload,
     initialFieldValues,
 } from '@/components/assistance-field-inputs';
 import { BeneficiarySearchCombobox } from '@/components/beneficiary-search-combobox';
+import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
+import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import {
     EligibilityFindingsPanel,
     hasHardEligibilityFindings,
 } from '@/components/eligibility-findings-panel';
-import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
-import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
@@ -41,23 +52,17 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateTimeForSubmit } from '@/lib/app-datetime';
+import { usePageCommands } from '@/lib/command-registry';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
-import { store as storeProgramAssistance, eligibility as assistanceEligibility } from '@/routes/user/programs/assistances';
-import type { EligibilityPreview } from '@/types/eligibility';
-import { itemQuantityFieldLabel, type ItemKind } from '@/types/item';
-import type { ProgramFieldOption } from '@/types/program-field';
-import { Form, usePage } from '@inertiajs/react';
-import { Table, VisibilityState } from '@tanstack/react-table';
 import {
-    CalendarDays,
-    ChevronDownIcon,
-    Plus,
-    RotateCcw,
-    X,
-} from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+    store as storeProgramAssistance,
+    eligibility as assistanceEligibility,
+} from '@/routes/user/programs/assistances';
+import type { EligibilityPreview } from '@/types/eligibility';
+import { itemQuantityFieldLabel } from '@/types/item';
+import type { ItemKind } from '@/types/item';
+import type { ProgramFieldOption } from '@/types/program-field';
 
 export type FilterOption = {
     label: string;
@@ -363,6 +368,22 @@ export function AssistanceDataTableToolbar({
 }: AssistanceDataTableToolbarProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search);
     const [createOpen, setCreateOpen] = useState(false);
+    const createCommands = useMemo(
+        () =>
+            canCreate
+                ? [
+                      {
+                          id: 'assistance.create',
+                          label: 'Add request',
+                          icon: Plus,
+                          keywords: 'create assistance',
+                          onSelect: () => setCreateOpen(true),
+                      },
+                  ]
+                : [],
+        [canCreate],
+    );
+    usePageCommands(createCommands);
     const [dateRequestedOpen, setDateRequestedOpen] = useState(false);
     const [dateRequested, setDateRequested] = useState<Date | undefined>(
         undefined,
@@ -386,9 +407,8 @@ export function AssistanceDataTableToolbar({
     }>();
     const { eligibility_findings: flashedFindings } = page.props;
     const pageErrors = page.props.errors ?? {};
-    const pageAssistanceErrorSummary = assistanceErrorMessages(pageErrors).join(
-        ' ',
-    );
+    const pageAssistanceErrorSummary =
+        assistanceErrorMessages(pageErrors).join(' ');
 
     const programItemSelectOptions = programItems.map((item) => ({
         value: String(item.id),
@@ -497,8 +517,8 @@ export function AssistanceDataTableToolbar({
                                         (itemId) => ({
                                             item_id: Number(itemId),
                                             quantity: Number(
-                                                itemDetails[itemId]
-                                                    ?.quantity ?? 1,
+                                                itemDetails[itemId]?.quantity ??
+                                                    1,
                                             ),
                                         }),
                                     ),
@@ -741,295 +761,314 @@ export function AssistanceDataTableToolbar({
                                 ).join(' ');
 
                                 return (
-                                <>
-                                    {isOrganization ? (
-                                        <BeneficiarySearchCombobox
-                                            key={beneficiaryFieldKey}
-                                            departmentSlug={departmentSlug}
-                                            beneficiaryType="organization"
-                                            label="Organization"
-                                            name="beneficiary_id"
-                                            value={selectedBeneficiaryId}
-                                            onChange={(id) =>
-                                                setSelectedBeneficiaryId(id)
-                                            }
-                                            error={errors.beneficiary_id}
-                                        />
-                                    ) : (
-                                        <BeneficiarySearchCombobox
-                                            key={beneficiaryFieldKey}
-                                            departmentSlug={departmentSlug}
-                                            beneficiaryType="individual"
-                                            value={selectedBeneficiaryId}
-                                            onChange={(id) =>
-                                                setSelectedBeneficiaryId(id)
-                                            }
-                                            error={errors.beneficiary_id}
-                                        />
-                                    )}
+                                    <>
+                                        {isOrganization ? (
+                                            <BeneficiarySearchCombobox
+                                                key={beneficiaryFieldKey}
+                                                departmentSlug={departmentSlug}
+                                                beneficiaryType="organization"
+                                                label="Organization"
+                                                name="beneficiary_id"
+                                                value={selectedBeneficiaryId}
+                                                onChange={(id) =>
+                                                    setSelectedBeneficiaryId(id)
+                                                }
+                                                error={errors.beneficiary_id}
+                                            />
+                                        ) : (
+                                            <BeneficiarySearchCombobox
+                                                key={beneficiaryFieldKey}
+                                                departmentSlug={departmentSlug}
+                                                beneficiaryType="individual"
+                                                value={selectedBeneficiaryId}
+                                                onChange={(id) =>
+                                                    setSelectedBeneficiaryId(id)
+                                                }
+                                                error={errors.beneficiary_id}
+                                            />
+                                        )}
 
-                                    <EligibilityFindingsPanel
-                                        departmentSlug={departmentSlug}
-                                        findings={
-                                            flashedFindings ??
-                                            eligibilityPreview?.findings ??
-                                            []
-                                        }
-                                        history={
-                                            eligibilityPreview?.history ?? []
-                                        }
-                                        overrideReason={overrideReason}
-                                        onOverrideReasonChange={
-                                            setOverrideReason
-                                        }
-                                        overrideError={
-                                            errors.eligibility_override_reason
-                                        }
-                                        isLoading={eligibilityLoading}
-                                    />
+                                        <EligibilityFindingsPanel
+                                            departmentSlug={departmentSlug}
+                                            findings={
+                                                flashedFindings ??
+                                                eligibilityPreview?.findings ??
+                                                []
+                                            }
+                                            history={
+                                                eligibilityPreview?.history ??
+                                                []
+                                            }
+                                            overrideReason={overrideReason}
+                                            onOverrideReasonChange={
+                                                setOverrideReason
+                                            }
+                                            overrideError={
+                                                errors.eligibility_override_reason
+                                            }
+                                            isLoading={eligibilityLoading}
+                                        />
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="assistance-mode">
-                                            Mode of request
-                                        </Label>
-                                        <Select
-                                            name="mode_of_request_id"
-                                            defaultValue=""
-                                            value={undefined}
-                                        >
-                                            <SelectTrigger
-                                                id="assistance-mode"
-                                                className={selectClassName}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="assistance-mode">
+                                                Mode of request
+                                            </Label>
+                                            <Select
+                                                name="mode_of_request_id"
+                                                defaultValue=""
+                                                value={undefined}
                                             >
-                                                <SelectValue placeholder="Select mode of request" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {modeOfRequestOptions.map(
-                                                    (option) => (
-                                                        <SelectItem
-                                                            key={option.id}
-                                                            value={String(
-                                                                option.id,
-                                                            )}
-                                                        >
-                                                            {option.name}
-                                                        </SelectItem>
-                                                    ),
-                                                )}
-                                            </SelectContent>
-                                        </Select>
-                                        <InputError
-                                            message={errors.mode_of_request_id}
+                                                <SelectTrigger
+                                                    id="assistance-mode"
+                                                    className={selectClassName}
+                                                >
+                                                    <SelectValue placeholder="Select mode of request" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {modeOfRequestOptions.map(
+                                                        (option) => (
+                                                            <SelectItem
+                                                                key={option.id}
+                                                                value={String(
+                                                                    option.id,
+                                                                )}
+                                                            >
+                                                                {option.name}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                            <InputError
+                                                message={
+                                                    errors.mode_of_request_id
+                                                }
+                                            />
+                                        </div>
+
+                                        <AssistanceDatePicker
+                                            id="assistance-date-requested"
+                                            label="Recorded at"
+                                            selected={dateRequested}
+                                            onSelect={setDateRequested}
+                                            open={dateRequestedOpen}
+                                            onOpenChange={setDateRequestedOpen}
+                                            error={errors.recorded_at}
                                         />
-                                    </div>
 
-                                    <AssistanceDatePicker
-                                        id="assistance-date-requested"
-                                        label="Recorded at"
-                                        selected={dateRequested}
-                                        onSelect={setDateRequested}
-                                        open={dateRequestedOpen}
-                                        onOpenChange={setDateRequestedOpen}
-                                        error={errors.recorded_at}
-                                    />
+                                        <div className="space-y-2">
+                                            <Label htmlFor="assistance-items">
+                                                Items
+                                            </Label>
+                                            <MultiSelect
+                                                options={
+                                                    programItemSelectOptions
+                                                }
+                                                selected={selectedItemIds}
+                                                onChange={setSelectedItemIds}
+                                                placeholder="Choose items..."
+                                                className="w-full"
+                                            />
+                                            <InputError
+                                                message={
+                                                    errors.item_details ??
+                                                    errors.item_ids
+                                                }
+                                            />
+                                        </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="assistance-items">
-                                            Items
-                                        </Label>
-                                        <MultiSelect
-                                            options={programItemSelectOptions}
-                                            selected={selectedItemIds}
-                                            onChange={setSelectedItemIds}
-                                            placeholder="Choose items..."
-                                            className="w-full"
-                                        />
-                                        <InputError
-                                            message={
-                                                errors.item_details ??
-                                                errors.item_ids
-                                            }
-                                        />
-                                    </div>
+                                        {selectedItemIds.length > 0 ? (
+                                            <div className="space-y-3">
+                                                <Label>Item details</Label>
+                                                {selectedItemIds.map(
+                                                    (selectedItemId, index) => {
+                                                        const item =
+                                                            programItems.find(
+                                                                ({ id }) =>
+                                                                    String(
+                                                                        id,
+                                                                    ) ===
+                                                                    selectedItemId,
+                                                            );
 
-                                    {selectedItemIds.length > 0 ? (
-                                        <div className="space-y-3">
-                                            <Label>Item details</Label>
-                                            {selectedItemIds.map(
-                                                (selectedItemId, index) => {
-                                                    const item =
-                                                        programItems.find(
-                                                            ({ id }) =>
-                                                                String(id) ===
-                                                                selectedItemId,
-                                                        );
+                                                        if (!item) {
+                                                            return null;
+                                                        }
 
-                                                    if (!item) {
-                                                        return null;
-                                                    }
+                                                        const detail =
+                                                            itemDetails[
+                                                                selectedItemId
+                                                            ] ?? {
+                                                                quantity: '1',
+                                                                specification:
+                                                                    '',
+                                                            };
 
-                                                    const detail = itemDetails[
-                                                        selectedItemId
-                                                    ] ?? {
-                                                        quantity: '1',
-                                                        specification: '',
-                                                    };
-
-                                                    return (
-                                                        <div
-                                                            key={selectedItemId}
-                                                            className="grid gap-3 rounded-xl border p-3"
-                                                        >
-                                                            <p className="text-sm font-medium">
-                                                                {item.name}
-                                                            </p>
-                                                            <div className="grid gap-2 sm:grid-cols-2">
-                                                                <div className="space-y-2">
-                                                                    <Label
-                                                                        htmlFor={`assistance-item-quantity-${selectedItemId}`}
-                                                                    >
-                                                                        {itemQuantityFieldLabel(
-                                                                            item.kind,
-                                                                        )}
-                                                                    </Label>
-                                                                    <Input
-                                                                        id={`assistance-item-quantity-${selectedItemId}`}
-                                                                        type="number"
-                                                                        min={1}
-                                                                        step={1}
-                                                                        value={
-                                                                            detail.quantity
-                                                                        }
-                                                                        onChange={(
-                                                                            event,
-                                                                        ) =>
-                                                                            setItemDetails(
-                                                                                (
-                                                                                    current,
-                                                                                ) => ({
-                                                                                    ...current,
-                                                                                    [selectedItemId]:
-                                                                                        {
-                                                                                            ...detail,
-                                                                                            quantity:
-                                                                                                event
-                                                                                                    .target
-                                                                                                    .value,
-                                                                                        },
-                                                                                }),
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                    <InputError
-                                                                        message={
-                                                                            errors[
-                                                                                `item_details.${index}.quantity`
-                                                                            ]
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                                <div className="space-y-2">
-                                                                    <Label
-                                                                        htmlFor={`assistance-item-specification-${selectedItemId}`}
-                                                                    >
-                                                                        Specification
-                                                                    </Label>
-                                                                    <Input
-                                                                        id={`assistance-item-specification-${selectedItemId}`}
-                                                                        value={
-                                                                            detail.specification
-                                                                        }
-                                                                        onChange={(
-                                                                            event,
-                                                                        ) =>
-                                                                            setItemDetails(
-                                                                                (
-                                                                                    current,
-                                                                                ) => ({
-                                                                                    ...current,
-                                                                                    [selectedItemId]:
-                                                                                        {
-                                                                                            ...detail,
-                                                                                            specification:
-                                                                                                event
-                                                                                                    .target
-                                                                                                    .value,
-                                                                                        },
-                                                                                }),
-                                                                            )
-                                                                        }
-                                                                        placeholder="Optional specification"
-                                                                    />
-                                                                    <InputError
-                                                                        message={
-                                                                            errors[
-                                                                                `item_details.${index}.specification`
-                                                                            ]
-                                                                        }
-                                                                    />
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    selectedItemId
+                                                                }
+                                                                className="grid gap-3 rounded-xl border p-3"
+                                                            >
+                                                                <p className="text-sm font-medium">
+                                                                    {item.name}
+                                                                </p>
+                                                                <div className="grid gap-2 sm:grid-cols-2">
+                                                                    <div className="space-y-2">
+                                                                        <Label
+                                                                            htmlFor={`assistance-item-quantity-${selectedItemId}`}
+                                                                        >
+                                                                            {itemQuantityFieldLabel(
+                                                                                item.kind,
+                                                                            )}
+                                                                        </Label>
+                                                                        <Input
+                                                                            id={`assistance-item-quantity-${selectedItemId}`}
+                                                                            type="number"
+                                                                            min={
+                                                                                1
+                                                                            }
+                                                                            step={
+                                                                                1
+                                                                            }
+                                                                            value={
+                                                                                detail.quantity
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                setItemDetails(
+                                                                                    (
+                                                                                        current,
+                                                                                    ) => ({
+                                                                                        ...current,
+                                                                                        [selectedItemId]:
+                                                                                            {
+                                                                                                ...detail,
+                                                                                                quantity:
+                                                                                                    event
+                                                                                                        .target
+                                                                                                        .value,
+                                                                                            },
+                                                                                    }),
+                                                                                )
+                                                                            }
+                                                                        />
+                                                                        <InputError
+                                                                            message={
+                                                                                errors[
+                                                                                    `item_details.${index}.quantity`
+                                                                                ]
+                                                                            }
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label
+                                                                            htmlFor={`assistance-item-specification-${selectedItemId}`}
+                                                                        >
+                                                                            Specification
+                                                                        </Label>
+                                                                        <Input
+                                                                            id={`assistance-item-specification-${selectedItemId}`}
+                                                                            value={
+                                                                                detail.specification
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) =>
+                                                                                setItemDetails(
+                                                                                    (
+                                                                                        current,
+                                                                                    ) => ({
+                                                                                        ...current,
+                                                                                        [selectedItemId]:
+                                                                                            {
+                                                                                                ...detail,
+                                                                                                specification:
+                                                                                                    event
+                                                                                                        .target
+                                                                                                        .value,
+                                                                                            },
+                                                                                    }),
+                                                                                )
+                                                                            }
+                                                                            placeholder="Optional specification"
+                                                                        />
+                                                                        <InputError
+                                                                            message={
+                                                                                errors[
+                                                                                    `item_details.${index}.specification`
+                                                                                ]
+                                                                            }
+                                                                        />
+                                                                    </div>
                                                                 </div>
                                                             </div>
-                                                        </div>
-                                                    );
-                                                },
-                                            )}
-                                        </div>
-                                    ) : null}
+                                                        );
+                                                    },
+                                                )}
+                                            </div>
+                                        ) : null}
 
-                                    <AssistanceFieldInputs
-                                        fields={programFields}
-                                        values={fieldValues}
-                                        onChange={(fieldId, value) =>
-                                            setFieldValues((current) => ({
-                                                ...current,
-                                                [fieldId]: value,
-                                            }))
-                                        }
-                                        errors={errors}
-                                        idPrefix="create-assistance-field"
-                                    />
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="assistance-remark">
-                                            Remark
-                                        </Label>
-                                        <Textarea
-                                            id="assistance-remark"
-                                            name="remark"
-                                            placeholder="Optional notes about this request"
-                                            rows={3}
-                                        />
-                                        <InputError message={errors.remark} />
-                                    </div>
-
-                                    <DrawerFooter className="px-0">
-                                        <InputError message={errorSummary} />
-                                        <Button
-                                            type="submit"
-                                            disabled={
-                                                processing ||
-                                                programItems.length === 0 ||
-                                                hasHardEligibilityFindings(
-                                                    flashedFindings ??
-                                                        eligibilityPreview?.findings ??
-                                                        [],
-                                                )
+                                        <AssistanceFieldInputs
+                                            fields={programFields}
+                                            values={fieldValues}
+                                            onChange={(fieldId, value) =>
+                                                setFieldValues((current) => ({
+                                                    ...current,
+                                                    [fieldId]: value,
+                                                }))
                                             }
-                                        >
-                                            {processing
-                                                ? 'Creating...'
-                                                : 'Add assistance'}
-                                        </Button>
-                                        <DrawerClose asChild>
+                                            errors={errors}
+                                            idPrefix="create-assistance-field"
+                                        />
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="assistance-remark">
+                                                Remark
+                                            </Label>
+                                            <Textarea
+                                                id="assistance-remark"
+                                                name="remark"
+                                                placeholder="Optional notes about this request"
+                                                rows={3}
+                                            />
+                                            <InputError
+                                                message={errors.remark}
+                                            />
+                                        </div>
+
+                                        <DrawerFooter className="px-0">
+                                            <InputError
+                                                message={errorSummary}
+                                            />
                                             <Button
-                                                type="button"
-                                                variant="outline"
+                                                type="submit"
+                                                disabled={
+                                                    processing ||
+                                                    programItems.length === 0 ||
+                                                    hasHardEligibilityFindings(
+                                                        flashedFindings ??
+                                                            eligibilityPreview?.findings ??
+                                                            [],
+                                                    )
+                                                }
                                             >
-                                                Cancel
+                                                {processing
+                                                    ? 'Creating...'
+                                                    : 'Add assistance'}
                                             </Button>
-                                        </DrawerClose>
-                                    </DrawerFooter>
-                                </>
+                                            <DrawerClose asChild>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                >
+                                                    Cancel
+                                                </Button>
+                                            </DrawerClose>
+                                        </DrawerFooter>
+                                    </>
                                 );
                             }}
                         </Form>

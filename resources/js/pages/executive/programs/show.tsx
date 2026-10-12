@@ -1,8 +1,10 @@
-import InputError from '@/components/input-error';
+import { Head, Link, setLayoutProps } from '@inertiajs/react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
+import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
+import type { ProgramDecisionAction } from '@/components/user/programs/program-decision-dialog';
 import {
     approve as approveProgram,
     index as governorProgramsIndex,
@@ -10,8 +12,6 @@ import {
     show as governorProgramShow,
 } from '@/routes/executive/programs';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
-import { type ReactNode, useEffect } from 'react';
 
 type GovernorProgram = {
     id: number;
@@ -125,6 +125,10 @@ export default function GovernorProgramShow({
         program.eligibility.cooldown_days !== null ||
         program.eligibility.requirements.length > 0 ||
         program.eligibility.item_caps.length > 0;
+    const [decision, setDecision] = useState<Extract<
+        ProgramDecisionAction,
+        'approve' | 'return'
+    > | null>(null);
 
     useEffect(() => {
         const breadcrumbs: BreadcrumbItem[] = [
@@ -190,42 +194,38 @@ export default function GovernorProgramShow({
                 </div>
 
                 {canDecide ? (
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <Form {...approveProgram.form.post(program.id)}>
-                            {({ processing, errors }) => (
-                                <div className="flex flex-col gap-2">
-                                    <Button type="submit" disabled={processing}>
-                                        Approve
-                                    </Button>
-                                    <InputError message={errors.program} />
-                                </div>
-                            )}
-                        </Form>
-                        <Form
-                            {...returnProgram.form.post(program.id)}
-                            className="flex flex-1 flex-col gap-2"
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            onClick={() => setDecision('approve')}
                         >
-                            {({ processing, errors }) => (
-                                <>
-                                    <Textarea
-                                        name="remark"
-                                        placeholder="Remark for the department"
-                                    />
-                                    <InputError message={errors.remark} />
-                                    <InputError message={errors.program} />
-                                    <Button
-                                        type="submit"
-                                        variant="outline"
-                                        disabled={processing}
-                                        className="w-fit"
-                                    >
-                                        Return to department
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
+                            Approve
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDecision('return')}
+                        >
+                            Return to department
+                        </Button>
                     </div>
                 ) : null}
+
+                <ProgramDecisionDialog
+                    open={decision !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setDecision(null);
+                        }
+                    }}
+                    programName={program.name}
+                    action={decision ?? 'approve'}
+                    url={
+                        decision === 'return'
+                            ? returnProgram.url(program.id)
+                            : approveProgram.url(program.id)
+                    }
+                />
 
                 <Card>
                     <CardHeader>
@@ -244,7 +244,10 @@ export default function GovernorProgramShow({
 
                         <DetailBlock title="Program period">
                             <p className="text-sm">
-                                {programPeriod(program.start_at, program.end_at)}
+                                {programPeriod(
+                                    program.start_at,
+                                    program.end_at,
+                                )}
                             </p>
                         </DetailBlock>
 
@@ -256,7 +259,9 @@ export default function GovernorProgramShow({
 
                         <DetailBlock title="Funding sources">
                             {program.funds.length === 0 ? (
-                                <EmptyDetail>No funding sources linked</EmptyDetail>
+                                <EmptyDetail>
+                                    No funding sources linked
+                                </EmptyDetail>
                             ) : (
                                 <ul className="flex flex-col gap-1.5">
                                     {program.funds.map((fund) => (
@@ -274,7 +279,9 @@ export default function GovernorProgramShow({
                                             </span>
                                             {formatFundAmount(fund.amount) ? (
                                                 <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-                                                    {formatFundAmount(fund.amount)}
+                                                    {formatFundAmount(
+                                                        fund.amount,
+                                                    )}
                                                 </span>
                                             ) : null}
                                         </li>
@@ -289,7 +296,10 @@ export default function GovernorProgramShow({
                             ) : (
                                 <div className="flex flex-wrap gap-1.5">
                                     {program.items.map((item) => (
-                                        <Badge key={item.id} variant="secondary">
+                                        <Badge
+                                            key={item.id}
+                                            variant="secondary"
+                                        >
                                             {item.name}
                                             {item.unit ? (
                                                 <span className="text-muted-foreground">

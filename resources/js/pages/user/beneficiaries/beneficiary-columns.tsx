@@ -1,42 +1,68 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
-import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
-import type { BeneficiaryListRow } from '@/types/beneficiary';
 import { Link } from '@inertiajs/react';
-import { ColumnDef } from '@tanstack/react-table';
-import { Building2, MapPin, Phone, UserRound } from 'lucide-react';
-import { EMPTY_CELL } from '@/lib/empty-cell';
+import type { ColumnDef } from '@tanstack/react-table';
+import { Check, Copy } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useClipboard } from '@/hooks/use-clipboard';
+import { formatPeso } from '@/lib/format-peso';
+import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
+import { index as queueIndex } from '@/routes/user/queue';
+import type { BeneficiaryListRow } from '@/types/beneficiary';
 
 export type BeneficiaryTableContext = {
     departmentSlug: string;
 };
 
-function formatDate(value: string | null): string {
-    if (!value) {
-        return EMPTY_CELL;
-    }
-
-    const parsed = new Date(value);
-
-    if (Number.isNaN(parsed.getTime())) {
-        return EMPTY_CELL;
-    }
-
-    return parsed.toLocaleDateString(undefined, { dateStyle: 'medium' });
+function beneficiaryTypeLabel(type: BeneficiaryListRow['type']): string {
+    return type === 'organization' ? 'Organization' : 'Individual';
 }
 
-function typeBadge(type: BeneficiaryListRow['type']) {
-    return type === 'organization' ? (
-        <Badge variant="secondary">
-            <Building2 aria-hidden />
-            Organization
-        </Badge>
-    ) : (
-        <Badge variant="outline">
-            <UserRound aria-hidden />
-            Individual
-        </Badge>
+function CopyableValue({
+    value,
+    label,
+}: {
+    value: string | null;
+    label: string;
+}) {
+    const [, copy] = useClipboard();
+    const [copied, setCopied] = useState(false);
+
+    useEffect(() => {
+        if (!copied) {
+            return;
+        }
+
+        const handle = window.setTimeout(() => setCopied(false), 1500);
+
+        return () => window.clearTimeout(handle);
+    }, [copied]);
+
+    if (value == null || value.trim() === '') {
+        return '-';
+    }
+
+    return (
+        <span className="inline-flex items-center gap-1">
+            <span>{value}</span>
+            <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                aria-label={copied ? `${label} copied` : `Copy ${label}`}
+                onClick={() => {
+                    void copy(value).then((copiedSuccessfully) => {
+                        if (copiedSuccessfully) {
+                            setCopied(true);
+                        }
+                    });
+                }}
+            >
+                {copied ? <Check /> : <Copy />}
+            </Button>
+        </span>
     );
 }
 
@@ -45,97 +71,165 @@ export function createBeneficiaryColumns({
 }: BeneficiaryTableContext): ColumnDef<BeneficiaryListRow>[] {
     return [
         {
-            accessorKey: 'cais_number',
-            meta: { title: 'CAIS Number' },
-            header: 'CAIS Number',
+            id: 'beneficiary',
+            accessorKey: 'name',
+            meta: { title: 'Beneficiary & proof of life' },
+            header: 'Beneficiary & proof of life',
+            cell: ({ row }) => {
+                const sectors = row.original.sectors ?? [];
+                const details = [
+                    row.original.age !== null &&
+                    row.original.age !== undefined
+                        ? `Age ${row.original.age}`
+                        : null,
+                    row.original.sex,
+                    row.original.civil_status,
+                ].filter(Boolean);
+
+                return (
+                    <div className="min-w-0">
+                        <Link
+                            href={beneficiaryShow.url({
+                                department: departmentSlug,
+                                beneficiary: row.original.id,
+                            })}
+                            className="font-medium hover:underline"
+                        >
+                            {row.original.name}
+                        </Link>
+                        {details.length > 0 ? (
+                            <p className="text-[11px] text-muted-foreground">
+                                {details.join(' · ')}
+                            </p>
+                        ) : null}
+                        {sectors.length > 0 ? (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                                {sectors.map((sector) => (
+                                    <Badge key={sector} variant="outline">
+                                        {sector}
+                                    </Badge>
+                                ))}
+                            </div>
+                        ) : null}
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'type',
+            accessorKey: 'type',
+            meta: { title: 'Type' },
+            header: 'Type',
             cell: ({ row }) => (
-                <Link
-                    href={beneficiaryShow.url({
-                        department: departmentSlug,
-                        beneficiary: row.original.id,
-                    })}
-                    className="font-medium text-primary hover:underline"
-                >
-                    {row.original.cais_number}
-                </Link>
+                <Badge variant="outline">
+                    {beneficiaryTypeLabel(row.original.type)}
+                </Badge>
             ),
         },
         {
-            id: 'beneficiary',
-            accessorKey: 'name',
-            meta: { title: 'Beneficiary' },
-            header: 'Beneficiary',
+            id: 'cais_number',
+            accessorKey: 'cais_number',
+            meta: { title: 'CAIS number' },
+            header: 'CAIS number',
             cell: ({ row }) => (
-                <div className="flex flex-col gap-0.5">
-                    <span className="font-medium">{row.original.name}</span>
-                    {row.original.address ? (
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <MapPin className="size-3 shrink-0" aria-hidden />
-                            {row.original.address}
-                        </span>
+                <CopyableValue
+                    value={row.original.cais_number}
+                    label="CAIS number"
+                />
+            ),
+        },
+        {
+            id: 'government_id',
+            meta: { title: 'Government ID' },
+            header: 'Government ID',
+            cell: ({ row }) => {
+                const primaryId = row.original.primary_id;
+
+                if (primaryId?.number == null || primaryId.number === '') {
+                    return '-';
+                }
+
+                return (
+                    <div>
+                        <p className="text-[10px] tracking-wide text-muted-foreground uppercase">
+                            {primaryId.type ?? 'Government ID'}
+                        </p>
+                        <p className="font-mono text-xs">{primaryId.number}</p>
+                    </div>
+                );
+            },
+        },
+        {
+            id: 'contact',
+            accessorKey: 'contact',
+            meta: { title: 'Contact number' },
+            header: 'Contact number',
+            cell: ({ row }) => (
+                <CopyableValue
+                    value={row.original.contact}
+                    label="contact number"
+                />
+            ),
+        },
+        {
+            id: 'address',
+            meta: { title: 'Address' },
+            header: 'Address',
+            cell: ({ row }) => (
+                <div>
+                    <p className="font-medium">
+                        {row.original.city ?? '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        {row.original.barangay}
+                    </p>
+                    {row.original.other_address ? (
+                        <p className="text-[11px] text-muted-foreground">
+                            {row.original.other_address}
+                        </p>
                     ) : null}
                 </div>
             ),
         },
         {
-            accessorKey: 'type',
-            meta: { title: 'Type' },
-            header: 'Type',
-            cell: ({ row }) => typeBadge(row.original.type),
-        },
-        {
-            accessorKey: 'contact',
-            meta: { title: 'Contact' },
-            header: 'Contact',
-            cell: ({ row }) =>
-                row.original.contact ? (
-                    <span className="flex items-center gap-1.5 tabular-nums">
-                        <Phone
-                            className="size-3.5 shrink-0 text-muted-foreground"
-                            aria-hidden
-                        />
-                        {row.original.contact}
-                    </span>
-                ) : (
-                    <span className="text-muted-foreground/60">{EMPTY_CELL}</span>
-                ),
-        },
-        {
-            accessorKey: 'assistances_count',
-            meta: {
-                title: 'Requests',
-                cellClassName: 'text-right tabular-nums',
+            id: 'history',
+            meta: { title: 'Assistance history' },
+            header: 'Assistance history',
+            cell: ({ row }) => {
+                const delivered = row.original.delivered_count ?? 0;
+                const cash = row.original.cash_received ?? 0;
+
+                return (
+                    <div>
+                        <span className="inline-flex rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-700 dark:text-emerald-400">
+                            Received {delivered}{' '}
+                            {delivered === 1 ? 'time' : 'times'}
+                        </span>
+                        <p className="mt-1 font-mono text-xs tabular-nums">
+                            {cash > 0 ? formatPeso(cash) : '-'}
+                            {(row.original.goods_received ?? 0) > 0
+                                ? ` · ${row.original.goods_received} in-kind`
+                                : ''}
+                        </p>
+                    </div>
+                );
             },
-            header: () => <div className="text-right">Requests</div>,
-            cell: ({ row }) =>
-                row.original.assistances_count > 0 ? (
-                    row.original.assistances_count.toLocaleString()
-                ) : (
-                    <span className="text-muted-foreground/60">0</span>
-                ),
         },
         {
-            accessorKey: 'last_assisted_at',
-            meta: {
-                title: 'Last assisted',
-                cellClassName: 'text-right tabular-nums text-muted-foreground',
-            },
-            header: () => <div className="text-right">Last assisted</div>,
-            cell: ({ row }) =>
-                row.original.last_assisted_at ? (
-                    formatDate(row.original.last_assisted_at)
-                ) : (
-                    <span className="text-muted-foreground/60">Never</span>
-                ),
-        },
-        {
-            accessorKey: 'registered_at',
-            meta: {
-                title: 'Registered',
-                cellClassName: 'text-right tabular-nums text-muted-foreground',
-            },
-            header: () => <div className="text-right">Registered</div>,
-            cell: ({ row }) => formatDate(row.original.registered_at),
+            id: 'actions',
+            meta: { title: 'Actions' },
+            header: 'Actions',
+            cell: ({ row }) => (
+                <Button variant="outline" size="sm" asChild>
+                    <Link
+                        href={queueIndex.url(departmentSlug, {
+                            query: { search: row.original.name },
+                        })}
+                    >
+                        Assist
+                    </Link>
+                </Button>
+            ),
         },
     ];
 }

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Beneficiary;
+use App\Models\Individual;
 use App\Services\User\BeneficiaryService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -171,4 +172,39 @@ test('beneficiaries index uses the default page size when none is given', functi
         ->assertInertia(fn (Assert $page) => $page
             ->where('beneficiaries.per_page', 25)
             ->where('per_page', 25));
+});
+
+test('beneficiaries index filters by city and sector and exposes profile fields', function () {
+    ['department' => $department, 'user' => $user] = createBeneficiaryDepartmentUser();
+
+    $pwd = Individual::factory()->create([
+        'sex' => 'Female',
+        'birthday' => now()->subYears(40)->toDateString(),
+        'pwd' => true,
+    ]);
+    Individual::factory()->create([
+        'pwd' => false,
+        'sex' => 'Male',
+    ]);
+
+    $cityId = $pwd->address()->value('address_city_id');
+
+    $this->actingAs($user)
+        ->get(route('user.beneficiaries.index', [
+            'department' => $department->slug,
+            'city' => $cityId,
+            'sector' => 'pwd',
+            'sort' => 'newest',
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('beneficiaries.data', 1)
+            ->where('beneficiaries.data.0.id', $pwd->beneficiaryRecord()->value('id'))
+            ->where('beneficiaries.data.0.sex', 'Female')
+            ->where('beneficiaries.data.0.age', 40)
+            ->where('beneficiaries.data.0.sectors', ['PWD'])
+            ->where('beneficiaries.data.0.city', 'Factory City')
+            ->where('city', (string) $cityId)
+            ->where('sector', 'pwd')
+            ->where('sort', 'newest'));
 });

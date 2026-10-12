@@ -30,6 +30,14 @@ const DEFERRED_ASSISTANCE_TOUR_TARGETS = [
     '[data-tour="program-assistance-table"]',
 ] as const;
 
+/** Desk targets that mount after the Desk/Table toggle opens the desk. */
+const QUEUE_DESK_TOUR_TARGETS = [
+    '[data-tour="queue-recipients"]',
+    '[data-tour="queue-tabs"]',
+    '[data-tour="queue-search"]',
+    '[data-tour="queue-release"]',
+] as const;
+
 const TOUR_DRAWER_ANIMATION_MS = 400;
 
 type CreateDrawerField = {
@@ -72,13 +80,11 @@ const CREATE_DRAWER_TOURS = {
             },
             {
                 target: '[data-tour="programs-create-fields"]',
-                content:
-                    'Add extra fields if assistance records need them.',
+                content: 'Add extra fields if assistance records need them.',
             },
             {
                 target: '[data-tour="programs-create-organization"]',
-                content:
-                    'Turn this on when the program is for organizations.',
+                content: 'Turn this on when the program is for organizations.',
             },
             {
                 target: '[data-tour="programs-create-submit"]',
@@ -124,8 +130,7 @@ const CREATE_DRAWER_TOURS = {
             },
             {
                 target: '[data-tour="funds-create-active"]',
-                content:
-                    'Keep this on if the fund should be usable now.',
+                content: 'Keep this on if the fund should be usable now.',
             },
             {
                 target: '[data-tour="funds-create-submit"]',
@@ -139,6 +144,10 @@ function isDeferredAssistanceTourTarget(target: string): boolean {
     return (DEFERRED_ASSISTANCE_TOUR_TARGETS as readonly string[]).includes(
         target,
     );
+}
+
+function isQueueDeskTourTarget(target: string): boolean {
+    return (QUEUE_DESK_TOUR_TARGETS as readonly string[]).includes(target);
 }
 
 function revealTourTargetParent(parentSelector: string): void {
@@ -190,6 +199,78 @@ function waitForDeferredAssistanceTourTarget(selector: string): Promise<void> {
     return waitForTourTarget(selector, {
         parentSelector: DEFERRED_ASSISTANCE_TOUR_PARENT,
     });
+}
+
+function ensureQueueDesk(): Promise<void> {
+    const toggle = document.querySelector('[data-tour="queue-view-toggle"]');
+
+    if (
+        toggle instanceof HTMLButtonElement &&
+        /\bDesk\b/.test(toggle.textContent ?? '')
+    ) {
+        toggle.click();
+    }
+
+    return waitForTourTarget('[data-tour="queue-recipients"]');
+}
+
+/** Panels that mount only after their dashboard tab is selected. */
+const DASHBOARD_TAB_FOR_TARGET: Record<string, string> = {
+    '[data-tour="dashboard-assistance-overview"]':
+        '[data-tour="dashboard-tab-overview"]',
+    '[data-tour="dashboard-requests-trend"]':
+        '[data-tour="dashboard-tab-overview"]',
+    '[data-tour="dashboard-top-delivered-items"]':
+        '[data-tour="dashboard-tab-overview"]',
+    '[data-tour="dashboard-requests-status-chart"]':
+        '[data-tour="dashboard-tab-overview"]',
+    '[data-tour="dashboard-unspsc-released-chart"]':
+        '[data-tour="dashboard-tab-overview"]',
+    '[data-tour="dashboard-insights"]': '[data-tour="dashboard-tab-insights"]',
+    '[data-tour="dashboard-beneficiaries"]':
+        '[data-tour="dashboard-tab-beneficiaries"]',
+    '[data-tour="dashboard-delivery-snapshot"]':
+        '[data-tour="dashboard-tab-beneficiaries"]',
+    '[data-tour="dashboard-demographics"]':
+        '[data-tour="dashboard-tab-demographics"]',
+    '[data-tour="dashboard-kpis"]': '[data-tour="dashboard-tab-programs"]',
+    '[data-tour="dashboard-programs-summary"]':
+        '[data-tour="dashboard-tab-programs"]',
+};
+
+const EXECUTIVE_OVERVIEW_CHART_TARGETS = new Set([
+    '[data-tour="dashboard-requests-trend"]',
+    '[data-tour="dashboard-top-delivered-items"]',
+    '[data-tour="dashboard-requests-status-chart"]',
+    '[data-tour="dashboard-unspsc-released-chart"]',
+]);
+
+function dashboardTabTriggerForTarget(target: string): string | null {
+    return DASHBOARD_TAB_FOR_TARGET[target] ?? null;
+}
+
+async function revealDashboardTourTarget(target: string): Promise<void> {
+    const triggerSelector = dashboardTabTriggerForTarget(target);
+
+    if (triggerSelector) {
+        const trigger = document.querySelector(triggerSelector);
+
+        if (trigger instanceof HTMLElement) {
+            trigger.click();
+        }
+    }
+
+    await waitForTourTarget(target);
+}
+
+function dashboardTourStep(target: string, content: string): Step {
+    return {
+        target,
+        content,
+        targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        before: () => revealDashboardTourTarget(target),
+        beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
+    };
 }
 
 function wait(ms: number): Promise<void> {
@@ -332,7 +413,7 @@ const SHARED_STEPS: Step[] = [
     {
         target: '[data-tour="page-header"]',
         content:
-            'The header has the sidebar toggle and your account menu.',
+            'The header has the sidebar toggle, search, notifications, appearance, fullscreen, and your account menu.',
         placement: 'bottom',
     },
     {
@@ -349,26 +430,62 @@ const PAGE_STEPS: Record<string, Step[]> = {
             content: 'These filters change what the numbers cover.',
         },
         {
-            target: '[data-tour="dashboard-kpis"]',
-            content: 'These cards show request and delivery counts.',
+            target: '[data-tour="dashboard-tabs"]',
+            content: 'These tabs switch the dashboard view.',
         },
-        {
-            target: '[data-tour="dashboard-requests-status-chart"]',
-            content: 'This chart breaks requests down by status.',
-        },
-        {
-            target: '[data-tour="dashboard-items-delivered-charts"]',
-            content: 'Items handed over, grouped by program.',
-        },
-        {
-            target: '[data-tour="dashboard-programs-summary"]',
-            content: 'A short list of programs and how they are doing.',
-        },
+        dashboardTourStep(
+            '[data-tour="dashboard-assistance-overview"]',
+            'Cash disbursed, in-kind packages, beneficiaries by municipality, age, and vulnerability categories.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-requests-trend"]',
+            'How many requests arrived over time.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-top-delivered-items"]',
+            'The items released most often.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-requests-status-chart"]',
+            'Requests grouped by status.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-unspsc-released-chart"]',
+            'Released quantity grouped by UNSPSC segment.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-insights"]',
+            'Pending items, backlog aging, top barangays, and how requests were submitted.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-beneficiaries"]',
+            'How many people were reached once, and how many came back.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-delivery-snapshot"]',
+            'Delivery rate and items per delivered request.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-demographics"]',
+            'Sex, age, civil status, and other beneficiary breakdowns.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-kpis"]',
+            'Active programs, closed programs, delivered items, and denied requests.',
+        ),
+        dashboardTourStep(
+            '[data-tour="dashboard-programs-summary"]',
+            'Programs in this view and how they are doing.',
+        ),
     ],
     programs: [
         {
+            target: '[data-tour="programs-approval"]',
+            content: 'These pills filter programs by approval status.',
+        },
+        {
             target: '[data-tour="programs-filters"]',
-            content: 'Search or filter the program list.',
+            content: 'Search or filter the program cards.',
         },
         {
             target: '[data-tour="programs-create"]',
@@ -379,7 +496,8 @@ const PAGE_STEPS: Record<string, Step[]> = {
         ...createDrawerTourSteps(CREATE_DRAWER_TOURS.programs),
         {
             target: '[data-tour="programs-list"]',
-            content: 'Your programs show up in this list.',
+            content:
+                'Each program appears as a card with budget, progress, and reach.',
             before: () =>
                 closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.programs),
         },
@@ -396,11 +514,12 @@ const PAGE_STEPS: Record<string, Step[]> = {
         {
             target: '[data-tour="program-kpis"]',
             content:
-                'Request, beneficiary, and delivery counts for this program.',
+                'Budget, cash released, requests, and delivered items for this program.',
         },
         {
             target: '[data-tour="program-requests-status-chart"]',
-            content: 'Requests grouped by status.',
+            content:
+                'Demographic reach, the endorsement trail, and how requests are grouped by status.',
         },
         {
             target: '[data-tour="program-overview"]',
@@ -444,8 +563,7 @@ const PAGE_STEPS: Record<string, Step[]> = {
     beneficiaries: [
         {
             target: '[data-tour="beneficiaries-kpis"]',
-            content:
-                'How many people and organizations are in the registry.',
+            content: 'How many people and organizations are in the registry.',
         },
         {
             target: '[data-tour="beneficiaries-create"]',
@@ -495,6 +613,50 @@ const PAGE_STEPS: Record<string, Step[]> = {
             before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.funds),
         },
     ],
+    queue: [
+        {
+            target: '[data-tour="queue-view-toggle"]',
+            content: 'Switch between the release desk and the table.',
+            placement: 'bottom',
+        },
+        {
+            target: '[data-tour="queue-recipients"]',
+            content: 'People waiting in this queue.',
+            placement: 'right',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+            before: () => ensureQueueDesk(),
+            beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="queue-tabs"]',
+            content:
+                'My queue is assigned to you. Team queue is work still waiting.',
+            placement: 'right',
+        },
+        {
+            target: '[data-tour="queue-search"]',
+            content: 'Search by beneficiary, CAIS number, or program.',
+            placement: 'right',
+        },
+        {
+            target: '[data-tour="queue-release"]',
+            content:
+                'Select someone, then verify them, review the package, and release it.',
+            placement: 'left',
+        },
+        {
+            target: '[data-tour="queue-steps"]',
+            content:
+                'Recipient, package, then release. Finished steps can be reopened.',
+            placement: 'bottom',
+        },
+        {
+            target: '[data-tour="queue-step-actions"]',
+            content:
+                'Go back, continue, claim the request, or print the receipt.',
+            placement: 'top',
+        },
+    ],
 };
 
 function selectPageSteps(pathname: string): Step[] {
@@ -505,6 +667,12 @@ function selectPageSteps(pathname: string): Step[] {
     }
 
     return PAGE_STEPS[routeKey] ?? [];
+}
+
+export function hasTourForPath(pathname: string): boolean {
+    const [pathOnly] = pathname.split('?');
+
+    return selectPageSteps(pathOnly).length > 0;
 }
 
 function hasCompletedSharedTour(): boolean {
@@ -581,11 +749,31 @@ function filterAvailableSteps(steps: Step[]): Step[] {
             return canOpenCreateDrawer(createDrawer.trigger);
         }
 
+        const dashboardTab = dashboardTabTriggerForTarget(step.target);
+
+        if (
+            dashboardTab &&
+            document.querySelector(dashboardTab) !== null &&
+            (!EXECUTIVE_OVERVIEW_CHART_TARGETS.has(step.target) ||
+                document.querySelector(
+                    '[data-tour="dashboard-tab-beneficiaries"]',
+                ) !== null)
+        ) {
+            return true;
+        }
+
         // Keep WhenVisible-deferred targets while their parent section exists.
         // `before` hooks scroll the section into view and wait for mount.
-        return (
+        if (
             isDeferredAssistanceTourTarget(step.target) &&
             assistanceParentPresent
+        ) {
+            return true;
+        }
+
+        return (
+            isQueueDeskTourTarget(step.target) &&
+            document.querySelector('[data-tour="queue-view-toggle"]') !== null
         );
     });
 }

@@ -33,6 +33,7 @@ class IndexRequest extends FormRequest
             'sla.*' => ['string'],
             'include_assigned' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:10', 'max:100'],
+            'selected' => ['nullable', 'integer'],
         ];
     }
 }

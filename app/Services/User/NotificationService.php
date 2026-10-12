@@ -53,6 +53,30 @@ class NotificationService
             ->withQueryString();
     }
 
+    /**
+     * @return list<array{
+     *     id: string,
+     *     type: string,
+     *     category: string,
+     *     title: string,
+     *     message: string,
+     *     url: string|null,
+     *     data: array<string, mixed>,
+     *     read_at: string|null,
+     *     created_at: string|null
+     * }>
+     */
+    public function recentForUser(User $user, int $limit = 5): array
+    {
+        return $user->notifications()
+            ->latest()
+            ->limit($limit)
+            ->get()
+            ->map(fn (DatabaseNotification $notification): array => $this->serialize($notification))
+            ->values()
+            ->all();
+    }
+
     public function findForUser(User $user, string $notificationId): DatabaseNotification
     {
         return $user->notifications()->whereKey($notificationId)->firstOrFail();

@@ -1,8 +1,6 @@
-import type { ComponentPropsWithoutRef } from 'react';
+import type { ReactNode } from 'react';
 import { Link } from '@inertiajs/react';
 import {
-    SidebarGroup,
-    SidebarGroupContent,
     SidebarMenu,
     SidebarMenuBadge,
     SidebarMenuButton,
@@ -28,65 +26,53 @@ function isExternalHref(href: NavItem['href']): boolean {
 
 export function NavFooter({
     items,
-    className,
-    ...props
-}: ComponentPropsWithoutRef<typeof SidebarGroup> & {
+    children,
+}: {
     items: NavItem[];
+    children?: ReactNode;
 }) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
 
     return (
-        <SidebarGroup
-            {...props}
-            className={`group-data-[collapsible=icon]:p-0 ${className || ''}`}
-        >
-            <SidebarGroupContent>
-                <SidebarMenu>
-                    {items.map((item) => {
-                        const badgeCount = item.badge ?? 0;
-                        const showBadge = badgeCount > 0;
+        <SidebarMenu>
+            {items.map((item) => {
+                const badgeCount = item.badge ?? 0;
 
-                        return (
-                            <SidebarMenuItem key={item.title}>
-                                <SidebarMenuButton
-                                    asChild
-                                    isActive={
-                                        !isExternalHref(item.href) &&
-                                        isCurrentOrParentUrl(item.href)
-                                    }
-                                    tooltip={{ children: item.title }}
-                                    className="text-neutral-600 hover:text-neutral-800 dark:text-neutral-300 dark:hover:text-neutral-100"
+                return (
+                    <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                            asChild
+                            isActive={
+                                !isExternalHref(item.href) &&
+                                isCurrentOrParentUrl(item.href)
+                            }
+                            tooltip={{ children: item.title }}
+                        >
+                            {isExternalHref(item.href) ? (
+                                <a
+                                    href={toUrl(item.href)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                 >
-                                    {isExternalHref(item.href) ? (
-                                        <a
-                                            href={toUrl(item.href)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                        >
-                                            {item.icon && (
-                                                <item.icon className="h-5 w-5" />
-                                            )}
-                                            <span>{item.title}</span>
-                                        </a>
-                                    ) : (
-                                        <Link href={item.href} prefetch>
-                                            {item.icon && (
-                                                <item.icon className="h-5 w-5" />
-                                            )}
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    )}
-                                </SidebarMenuButton>
-                                {showBadge ? (
-                                    <SidebarMenuBadge>
-                                        {formatBadgeCount(badgeCount)}
-                                    </SidebarMenuBadge>
-                                ) : null}
-                            </SidebarMenuItem>
-                        );
-                    })}
-                </SidebarMenu>
-            </SidebarGroupContent>
-        </SidebarGroup>
+                                    {item.icon && <item.icon />}
+                                    <span>{item.title}</span>
+                                </a>
+                            ) : (
+                                <Link href={item.href} prefetch>
+                                    {item.icon && <item.icon />}
+                                    <span>{item.title}</span>
+                                </Link>
+                            )}
+                        </SidebarMenuButton>
+                        {badgeCount > 0 ? (
+                            <SidebarMenuBadge>
+                                {formatBadgeCount(badgeCount)}
+                            </SidebarMenuBadge>
+                        ) : null}
+                    </SidebarMenuItem>
+                );
+            })}
+            {children}
+        </SidebarMenu>
     );
 }
