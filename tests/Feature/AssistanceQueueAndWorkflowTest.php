@@ -113,6 +113,45 @@ test('public submit is unassigned on the team queue and claim moves it to my que
             ->where('assistances.data.0.id', $assistance->id));
 });
 
+test('queue selected profile includes duplicate-claim findings', function () {
+    ['department' => $department, 'encoder' => $user, 'program' => $program, 'beneficiary' => $beneficiary, 'mode' => $mode] = createQueueAssistanceContext();
+
+    $selected = Assistance::query()->create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => now()->toDateString(),
+        'user_id' => null,
+    ]);
+    $other = Assistance::query()->create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $beneficiary->id,
+        'mode_of_request_id' => $mode->id,
+        'date_requested' => now()->toDateString(),
+        'user_id' => null,
+    ]);
+
+    foreach ([$selected, $other] as $assistance) {
+        AssistanceRequestSubStatus::query()->create([
+            'assistance_id' => $assistance->id,
+            'request_sub_status_id' => catalogReasonId(RequestSubStatusCode::AwaitingReview),
+            'recorded_at' => now(),
+        ]);
+    }
+
+    $this->actingAs($user)
+        ->get(route('user.queue.index', [
+            'department' => $department->slug,
+            'tab' => 'team',
+            'selected' => $selected->id,
+        ]))
+        ->assertSuccessful()
+        ->assertInertia(fn ($page) => $page
+            ->where('selected.id', $selected->id)
+            ->where('selected.beneficiary_name', 'Juan Dela Cruz')
+            ->where('selected.findings.0.code', 'open_request'));
+});
+
 test('assigning an assistance writes history and notifies the new assignee', function () {
     Notification::fake();
 

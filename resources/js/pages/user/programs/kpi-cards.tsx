@@ -1,14 +1,8 @@
+import { ClipboardList, Loader, Package, PackageCheck } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
 import type { ProgramSummary } from '@/types/program';
-import {
-    ClipboardList,
-    Loader,
-    Package,
-    PackageCheck,
-    type LucideIcon,
-} from 'lucide-react';
 
 type ProgramKpiCardsProps = {
     summary: ProgramSummary;
@@ -60,45 +54,33 @@ export function ProgramKpiCards({ summary }: ProgramKpiCardsProps) {
             data-tour="program-kpis"
         >
             {kpis.map((kpi) => {
-                const Icon = kpi.icon;
                 const isDelivered = kpi.key === 'delivered_requests';
+                const showRate = isDelivered && deliveryRate !== null;
 
                 return (
-                    <div
+                    <StatCard
                         key={kpi.key}
-                        className={cn(
-                            'rounded-xl border border-border bg-card p-4',
-                            'transition-colors duration-150',
-                        )}
-                    >
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs text-muted-foreground">
-                                {kpi.label}
-                            </p>
-                            <Icon className="size-4 shrink-0 text-muted-foreground" />
-                        </div>
-                        <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">
-                            {summary[kpi.key].toLocaleString()}
-                        </p>
-                        {isDelivered && deliveryRate !== null ? (
-                            <div className="mt-2 space-y-1.5">
-                                <Progress
-                                    value={deliveryRate}
-                                    aria-label={`Delivery rate ${deliveryRate}%`}
-                                />
-                                <p className="text-xs text-muted-foreground">
-                                    <span className="font-medium tabular-nums text-foreground">
-                                        {deliveryRate}%
-                                    </span>{' '}
-                                    of all requests delivered
-                                </p>
-                            </div>
-                        ) : (
-                            <p className="mt-1 text-xs text-muted-foreground">
-                                {kpi.description}
-                            </p>
-                        )}
-                    </div>
+                        label={kpi.label}
+                        value={summary[kpi.key].toLocaleString()}
+                        description={showRate ? undefined : kpi.description}
+                        icon={kpi.icon}
+                        footer={
+                            showRate ? (
+                                <div className="flex flex-col gap-1.5">
+                                    <Progress
+                                        value={deliveryRate}
+                                        aria-label={`Delivery rate ${deliveryRate}%`}
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                        <span className="font-medium text-foreground tabular-nums">
+                                            {deliveryRate}%
+                                        </span>{' '}
+                                        of all requests delivered
+                                    </p>
+                                </div>
+                            ) : undefined
+                        }
+                    />
                 );
             })}
         </div>
@@ -114,17 +96,10 @@ export function ProgramKpiCardsSkeleton() {
             aria-label="Loading program statistics"
         >
             {kpis.map((kpi) => (
-                <div
+                <StatCardSkeleton
                     key={kpi.key}
-                    className="rounded-xl border border-border bg-card p-4"
-                >
-                    <div className="flex items-center justify-between gap-2">
-                        <Skeleton className="h-3 w-24 rounded-sm" />
-                        <Skeleton className="size-4 rounded-sm" />
-                    </div>
-                    <Skeleton className="mt-2 h-8 w-16 rounded-sm" />
-                    <Skeleton className="mt-2 h-3 w-32 rounded-sm" />
-                </div>
+                    withFooter={kpi.key === 'delivered_requests'}
+                />
             ))}
         </div>
     );

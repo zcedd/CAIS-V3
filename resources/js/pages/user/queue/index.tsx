@@ -1,13 +1,16 @@
 'use client';
 
+import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
+import { LayoutList, RotateCcw } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { DataTable } from '@/components/data-table';
 import { DataTableColumnHeader } from '@/components/data-table/data-table-column-header';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
-import { SlaBadge } from '@/components/user/sla-badge';
-import { EMPTY_CELL } from '@/lib/empty-cell';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -21,7 +24,11 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SlaBadge } from '@/components/user/sla-badge';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
+import { PayoutDesk  } from '@/pages/user/queue/payout-desk';
+import type {QueueSelection} from '@/pages/user/queue/payout-desk';
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { claim as claimAssistance } from '@/routes/user/programs/assistances';
 import {
@@ -29,11 +36,6 @@ import {
     index as departmentQueueIndex,
 } from '@/routes/user/queue';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
-import { RotateCcw } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { toast } from 'sonner';
 
 const QUEUE_TABLE_PARTIAL_PROPS = [
     'assistances',
@@ -449,6 +451,7 @@ export default function UserQueueIndex({
     program_options,
     status_options,
     staff_options,
+    selected: initialSelected = null,
 }: {
     department: DepartmentSummary;
     tab: 'mine' | 'team';
@@ -461,7 +464,9 @@ export default function UserQueueIndex({
     program_options: FilterOption[];
     status_options: FilterOption[];
     staff_options: DepartmentStaffOption[];
+    selected?: QueueSelection | null;
 }) {
+    const [deskView, setDeskView] = useState(true);
     const [tableState, setTableState] = useState({
         tab: initialTab,
         search: initialSearch,
@@ -594,7 +599,41 @@ export default function UserQueueIndex({
                             waiting for the team.
                         </p>
                     </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setDeskView((current) => !current)}
+                    >
+                        <LayoutList className="size-4" />
+                        {deskView ? 'Table' : 'Desk'}
+                    </Button>
                 </div>
+
+                {deskView ? (
+                    <PayoutDesk
+                        departmentSlug={department.slug}
+                        rows={assistances.data}
+                        selectedId={initialSelected?.id ?? null}
+                        selected={initialSelected}
+                        onSelect={(id) =>
+                            router.get(
+                                departmentQueueIndex.url(department.slug, {
+                                    query: {
+                                        ...buildQueueQuery(filters),
+                                        selected: id,
+                                    },
+                                }),
+                                {},
+                                {
+                                    preserveState: true,
+                                    preserveScroll: true,
+                                    replace: true,
+                                    only: ['selected'],
+                                },
+                            )
+                        }
+                    />
+                ) : null}
 
                 <Tabs
                     value={tableState.tab}
@@ -611,6 +650,7 @@ export default function UserQueueIndex({
                     </TabsList>
                 </Tabs>
 
+                {!deskView ? (
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">
@@ -761,6 +801,7 @@ export default function UserQueueIndex({
                         />
                     </CardContent>
                 </Card>
+                ) : null}
             </div>
         </>
     );

@@ -1,8 +1,8 @@
-import InputError from '@/components/input-error';
+import { Head, Link, setLayoutProps } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import {
     Table,
     TableBody,
@@ -11,6 +11,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
+import type { ProgramDecisionAction } from '@/components/user/programs/program-decision-dialog';
 import {
     approve as approveProgram,
     index as governorProgramsIndex,
@@ -18,8 +20,6 @@ import {
     show as governorProgramShow,
 } from '@/routes/executive/programs';
 import type { BreadcrumbItem } from '@/types';
-import { Form, Head, Link, setLayoutProps } from '@inertiajs/react';
-import { useEffect } from 'react';
 
 type GovernorProgram = {
     id: number;
@@ -54,6 +54,10 @@ export default function GovernorProgramShow({
     beneficiaries: PaginatedBeneficiaries;
 }) {
     const canDecide = program.approval_status === 'awaiting_governor';
+    const [decision, setDecision] = useState<Extract<
+        ProgramDecisionAction,
+        'approve' | 'return'
+    > | null>(null);
 
     useEffect(() => {
         const breadcrumbs: BreadcrumbItem[] = [
@@ -80,9 +84,13 @@ export default function GovernorProgramShow({
                             {program.name}
                         </h1>
                         <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline">{program.approval_label}</Badge>
+                            <Badge variant="outline">
+                                {program.approval_label}
+                            </Badge>
                             {program.department ? (
-                                <Badge variant="outline">{program.department.name}</Badge>
+                                <Badge variant="outline">
+                                    {program.department.name}
+                                </Badge>
                             ) : null}
                         </div>
                         {program.descriptions ? (
@@ -92,47 +100,45 @@ export default function GovernorProgramShow({
                         ) : null}
                     </div>
                     <Button variant="outline" asChild>
-                        <Link href={governorProgramsIndex()}>Back to programs</Link>
+                        <Link href={governorProgramsIndex()}>
+                            Back to programs
+                        </Link>
                     </Button>
                 </div>
 
                 {canDecide ? (
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                        <Form {...approveProgram.form.post(program.id)}>
-                            {({ processing, errors }) => (
-                                <div className="space-y-2">
-                                    <Button type="submit" disabled={processing}>
-                                        Approve
-                                    </Button>
-                                    <InputError message={errors.program} />
-                                </div>
-                            )}
-                        </Form>
-                        <Form
-                            {...returnProgram.form.post(program.id)}
-                            className="flex flex-1 flex-col gap-2"
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            onClick={() => setDecision('approve')}
                         >
-                            {({ processing, errors }) => (
-                                <>
-                                    <Textarea
-                                        name="remark"
-                                        placeholder="Remark for the department"
-                                    />
-                                    <InputError message={errors.remark} />
-                                    <InputError message={errors.program} />
-                                    <Button
-                                        type="submit"
-                                        variant="outline"
-                                        disabled={processing}
-                                        className="w-fit"
-                                    >
-                                        Return to department
-                                    </Button>
-                                </>
-                            )}
-                        </Form>
+                            Approve
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setDecision('return')}
+                        >
+                            Return to department
+                        </Button>
                     </div>
                 ) : null}
+
+                <ProgramDecisionDialog
+                    open={decision !== null}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setDecision(null);
+                        }
+                    }}
+                    programName={program.name}
+                    action={decision ?? 'approve'}
+                    url={
+                        decision === 'return'
+                            ? returnProgram.url(program.id)
+                            : approveProgram.url(program.id)
+                    }
+                />
 
                 <Card>
                     <CardHeader>
@@ -162,7 +168,9 @@ export default function GovernorProgramShow({
                                             <TableCell>
                                                 {row.cais_number ?? '—'}
                                             </TableCell>
-                                            <TableCell>{row.status ?? '—'}</TableCell>
+                                            <TableCell>
+                                                {row.status ?? '—'}
+                                            </TableCell>
                                             <TableCell>
                                                 {row.sub_status ?? '—'}
                                             </TableCell>
@@ -175,14 +183,18 @@ export default function GovernorProgramShow({
                             <div className="mt-4 flex gap-2">
                                 {beneficiaries.prev_page_url ? (
                                     <Button variant="outline" size="sm" asChild>
-                                        <Link href={beneficiaries.prev_page_url}>
+                                        <Link
+                                            href={beneficiaries.prev_page_url}
+                                        >
                                             Previous
                                         </Link>
                                     </Button>
                                 ) : null}
                                 {beneficiaries.next_page_url ? (
                                     <Button variant="outline" size="sm" asChild>
-                                        <Link href={beneficiaries.next_page_url}>
+                                        <Link
+                                            href={beneficiaries.next_page_url}
+                                        >
                                             Next
                                         </Link>
                                     </Button>

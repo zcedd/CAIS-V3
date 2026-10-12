@@ -8,10 +8,11 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
 import {
     DashboardSectionCard,
-    DashboardStatCard,
-    DashboardStatCardSkeleton,
+    SectionCardSkeleton,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type {
     DashboardInsights,
@@ -93,25 +94,25 @@ export function InsightsPanel({
     return (
         <div className="space-y-4" data-tour="dashboard-insights">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <DashboardStatCard
+                <StatCard
                     label="Pending items"
                     value={insights.pending_items.toLocaleString()}
                     description="Not yet marked received"
                     icon={PackageX}
                 />
-                <DashboardStatCard
+                <StatCard
                     label="Received items"
                     value={insights.received_items.toLocaleString()}
                     description={`${receivedRate.toFixed(1)}% of item lines`}
                     icon={PackageCheck}
                 />
-                <DashboardStatCard
+                <StatCard
                     label="Open backlog"
                     value={backlogTotal.toLocaleString()}
                     description="In-progress requests"
                     icon={Clock3}
                 />
-                <DashboardStatCard
+                <StatCard
                     label="Barangays reached"
                     value={insights.distinct_barangays.toLocaleString()}
                     description="Distinct addresses in this filter"
@@ -156,31 +157,21 @@ export function InsightsPanelSkeleton() {
         >
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 {Array.from({ length: 4 }).map((_, index) => (
-                    <DashboardStatCardSkeleton key={index} />
+                    <StatCardSkeleton key={index} />
                 ))}
             </div>
             <div className="grid gap-4 lg:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                    <div
-                        key={index}
-                        className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
-                    >
-                        <div className="flex items-start justify-between gap-2 px-6 pt-6">
-                            <div className="space-y-2">
-                                <div className="h-5 w-32 animate-pulse rounded bg-muted" />
-                                <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-                            </div>
-                            <div className="size-5 animate-pulse rounded bg-muted" />
-                        </div>
-                        <div className="space-y-3 px-6 py-6">
+                    <SectionCardSkeleton key={index} label="Loading activity">
+                        <div className="space-y-3">
                             {Array.from({ length: 4 }).map((__, row) => (
                                 <div key={row} className="space-y-1.5">
-                                    <div className="h-4 w-full animate-pulse rounded bg-muted" />
-                                    <div className="h-1.5 w-full animate-pulse rounded bg-muted" />
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-1.5 w-full rounded-full" />
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </SectionCardSkeleton>
                 ))}
             </div>
         </div>

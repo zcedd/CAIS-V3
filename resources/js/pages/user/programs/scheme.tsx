@@ -1,3 +1,20 @@
+import {
+    Form,
+    Head,
+    router,
+    setLayoutProps,
+    WhenVisible,
+} from '@inertiajs/react';
+import {
+    Building2,
+    Pencil,
+    Plus,
+    Send,
+    UserRound,
+    Users,
+} from 'lucide-react';
+import { lazy, Suspense, useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +30,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MultiSelect } from '@/components/ui/multi-select';
+import { ProgramAnalyticsDialog } from '@/components/user/program-analytics-dialog';
+import {
+    ProgramCard,
+    ProgramCardSkeleton,
+} from '@/components/user/program-card';
+import type {
+    ProgramCardMetric,
+    ProgramCardModel,
+} from '@/components/user/program-card';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
+import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
+import { formatProgramPeriod } from '@/lib/format-program-period';
+import { cn } from '@/lib/utils';
+import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
 import {
     ProgramKpiCards,
     ProgramKpiCardsSkeleton,
@@ -22,14 +52,14 @@ import {
     ProgramStatusBreakdown,
     ProgramStatusBreakdownSkeleton,
 } from '@/pages/user/programs/status-breakdown';
-import { ProgramApprovalSubmit } from '@/components/user/programs/program-approval-submit';
-import { store as storeProgramBatch } from '@/routes/user/programs/batches';
 import {
+    analytics as programAnalytics,
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
-import { formatProgramPeriod } from '@/lib/format-program-period';
-import { cn } from '@/lib/utils';
+import { store as submitProgramApproval } from '@/routes/user/programs/approval';
+import { exportMethod as exportAssistances } from '@/routes/user/programs/assistances';
+import { store as storeProgramBatch } from '@/routes/user/programs/batches';
 import type { BreadcrumbItem } from '@/types';
 import type {
     DocumentTypeOption,
@@ -40,18 +70,6 @@ import type {
     ProgramSummary,
 } from '@/types/program';
 import type { ProgramFieldDefinition } from '@/types/program-field';
-import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
-import {
-    Form,
-    Head,
-    Link,
-    router,
-    setLayoutProps,
-    WhenVisible,
-} from '@inertiajs/react';
-import { Building2, Pencil, Plus, UserRound, Users } from 'lucide-react';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { toast } from 'sonner';
 
 const ProgramEditDrawer = lazy(() =>
     import('@/components/user/programs/program-edit-drawer').then((module) => ({
@@ -96,17 +114,9 @@ type ProgramEditRelations = {
     workflow_id?: number | null;
 };
 
-type SchemeBatchRow = {
-    id: number;
-    name: string;
-    batch_name: string | null;
+type SchemeBatchRow = ProgramCardModel & {
     batch_number: number | null;
-    start_at: string | null;
-    end_at: string | null;
-    is_closed: boolean;
-    public_intake?: boolean;
     total_requests: number;
-    approval_label?: string | null;
     can_submit_approval?: boolean;
 };
 
@@ -127,6 +137,7 @@ export default function UserProgramScheme({
     summary,
     status_breakdown,
     batches,
+    batch_metrics = {},
     department,
     program_edit,
     funds,
@@ -138,6 +149,7 @@ export default function UserProgramScheme({
     summary?: ProgramSummary;
     status_breakdown?: ProgramStatusBreakdownPoint[];
     batches: SchemeBatchRow[];
+    batch_metrics?: Record<string, ProgramCardMetric>;
     department: DepartmentSummary | null;
     program_edit?: ProgramEditRelations;
     funds?: SelectOption[];
@@ -155,6 +167,11 @@ export default function UserProgramScheme({
     const [endAtOpen, setEndAtOpen] = useState(false);
     const [selectedFundIds, setSelectedFundIds] = useState<string[]>([]);
     const [publicIntake, setPublicIntake] = useState(false);
+    const [analyticsProgram, setAnalyticsProgram] =
+        useState<SchemeBatchRow | null>(null);
+    const [endorseProgram, setEndorseProgram] = useState<SchemeBatchRow | null>(
+        null,
+    );
 
     useEffect(() => {
         if (!department?.slug) {
@@ -357,78 +374,107 @@ export default function UserProgramScheme({
                                 assistance.
                             </p>
                         ) : (
-                            <ul className="divide-y divide-border">
-                                {batches.map((batch) => (
-                                    <li
-                                        key={batch.id}
-                                        className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-                                    >
-                                        {department?.slug ? (
-                                            <Link
-                                                href={departmentProgramShow.url(
-                                                    {
-                                                        department:
-                                                            department.slug,
-                                                        program: batch.id,
-                                                    },
-                                                )}
-                                                prefetch
-                                                className="min-w-0"
-                                            >
-                                                <p className="font-medium">
-                                                    {batch.batch_name ??
-                                                        batch.name}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {formatProgramPeriod(
-                                                        batch.start_at,
-                                                        batch.end_at,
-                                                    )}
-                                                </p>
-                                            </Link>
-                                        ) : (
-                                            <span>{batch.name}</span>
-                                        )}
-                                        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                                            <span>
-                                                {batch.total_requests.toLocaleString()}{' '}
-                                                requests
-                                            </span>
-                                            <Badge variant="outline">
-                                                {batch.is_closed
-                                                    ? 'Closed'
-                                                    : 'Open'}
-                                            </Badge>
-                                            {batch.approval_label ? (
-                                                <Badge variant="outline">
-                                                    {batch.approval_label}
-                                                </Badge>
-                                            ) : null}
-                                            {batch.public_intake &&
-                                            !batch.is_closed ? (
-                                                <Badge variant="outline">
-                                                    Public intake
-                                                </Badge>
-                                            ) : null}
-                                            {department?.slug ? (
-                                                <ProgramApprovalSubmit
-                                                    departmentSlug={
-                                                        department.slug
-                                                    }
-                                                    programId={batch.id}
-                                                    canSubmit={
-                                                        batch.can_submit_approval
-                                                    }
-                                                />
-                                            ) : null}
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
+                            <WhenVisible
+                                data="batch_metrics"
+                                buffer={200}
+                                fallback={<BatchCardsSkeleton />}
+                            >
+                                <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                    {batches.map((batch) => (
+                                        <ProgramCard
+                                            key={batch.id}
+                                            program={batch}
+                                            metrics={
+                                                batch_metrics[String(batch.id)]
+                                            }
+                                            href={
+                                                department?.slug
+                                                    ? departmentProgramShow.url(
+                                                          {
+                                                              department:
+                                                                  department.slug,
+                                                              program: batch.id,
+                                                          },
+                                                      )
+                                                    : undefined
+                                            }
+                                            onInspect={() =>
+                                                setAnalyticsProgram(batch)
+                                            }
+                                            actions={
+                                                batch.can_submit_approval &&
+                                                department?.slug &&
+                                                (batch.approval_status ===
+                                                    'draft' ||
+                                                    batch.approval_status ===
+                                                        'returned') ? (
+                                                    <Button
+                                                        type="button"
+                                                        className="w-full"
+                                                        onClick={() =>
+                                                            setEndorseProgram(
+                                                                batch,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Send data-icon="inline-start" />
+                                                        Endorse & Forward to
+                                                        Governor
+                                                    </Button>
+                                                ) : null
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </WhenVisible>
                         )}
                     </div>
                 </section>
             </div>
+
+            <ProgramDecisionDialog
+                open={endorseProgram !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setEndorseProgram(null);
+                    }
+                }}
+                programName={endorseProgram?.name ?? ''}
+                action="endorse"
+                url={
+                    endorseProgram && department?.slug
+                        ? submitProgramApproval.url({
+                              department: department.slug,
+                              program: endorseProgram.id,
+                          })
+                        : ''
+                }
+            />
+            <ProgramAnalyticsDialog
+                program={analyticsProgram}
+                open={analyticsProgram !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setAnalyticsProgram(null);
+                    }
+                }}
+                url={
+                    analyticsProgram && department?.slug
+                        ? programAnalytics.url({
+                              department: department.slug,
+                              program: analyticsProgram.id,
+                          })
+                        : null
+                }
+                exportUrl={
+                    analyticsProgram && department?.slug
+                        ? exportAssistances.url({
+                              department: department.slug,
+                              program: analyticsProgram.id,
+                          })
+                        : null
+                }
+            />
 
             {canEdit && department && editOpen ? (
                 <Suspense fallback={null}>
@@ -587,5 +633,15 @@ export default function UserProgramScheme({
                 </Drawer>
             ) : null}
         </>
+    );
+}
+
+function BatchCardsSkeleton() {
+    return (
+        <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 3 }, (_, index) => (
+                <ProgramCardSkeleton key={index} />
+            ))}
+        </div>
     );
 }

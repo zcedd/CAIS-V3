@@ -1,33 +1,5 @@
 'use client';
 
-import { DataTable } from '@/components/data-table';
-import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
-import { EMPTY_CELL } from '@/lib/empty-cell';
-import { BeneficiaryEditDrawer } from '@/components/user/beneficiaries/beneficiary-edit-drawer';
-import {
-    BeneficiaryShowTableToolbar,
-    createBeneficiaryAssistanceColumns,
-    createMembershipColumns,
-} from '@/pages/user/beneficiaries/beneficiary-show-columns';
-import {
-    index as beneficiariesIndex,
-    show as beneficiaryShow,
-} from '@/routes/user/beneficiaries';
-import type {
-    BeneficiaryAssistanceSummary,
-    BeneficiaryProfile,
-    DepartmentSummary,
-    FormOptions,
-    IndividualOrganizationMembership,
-    OrganizationMember,
-    PaginatedBeneficiaryAssistances,
-} from '@/types/beneficiary';
-import type { BreadcrumbItem } from '@/types';
 import { Head, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import {
     Building2,
@@ -43,9 +15,39 @@ import {
     UserRound,
     Users,
     XCircle,
-    type LucideIcon,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { BeneficiaryEditDrawer } from '@/components/user/beneficiaries/beneficiary-edit-drawer';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
+import { usePageCommands } from '@/lib/command-registry';
+import { EMPTY_CELL } from '@/lib/empty-cell';
+import { cn } from '@/lib/utils';
+import {
+    BeneficiaryShowTableToolbar,
+    createBeneficiaryAssistanceColumns,
+    createMembershipColumns,
+} from '@/pages/user/beneficiaries/beneficiary-show-columns';
+import {
+    index as beneficiariesIndex,
+    show as beneficiaryShow,
+} from '@/routes/user/beneficiaries';
+import type { BreadcrumbItem } from '@/types';
+import type {
+    BeneficiaryAssistanceSummary,
+    BeneficiaryProfile,
+    DepartmentSummary,
+    FormOptions,
+    IndividualOrganizationMembership,
+    OrganizationMember,
+    PaginatedBeneficiaryAssistances,
+} from '@/types/beneficiary';
 
 function formatDate(value: string | null | undefined): string | null {
     if (!value) {
@@ -74,7 +76,7 @@ function DetailItem({
 
     return (
         <div>
-            <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <dt className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 {label}
             </dt>
             <dd className="mt-1 text-sm font-medium">{String(value)}</dd>
@@ -149,29 +151,15 @@ function AssistanceSummaryCards({
             className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
             data-tour="beneficiary-assistance-summary"
         >
-            {summaryCards.map((card) => {
-                const Icon = card.icon;
-
-                return (
-                    <div
-                        key={card.key}
-                        className="rounded-xl border border-border bg-card p-4"
-                    >
-                        <div className="flex items-center justify-between gap-2">
-                            <p className="text-xs text-muted-foreground">
-                                {card.label}
-                            </p>
-                            <Icon className="size-4 shrink-0 text-muted-foreground" />
-                        </div>
-                        <p className="mt-1.5 text-3xl font-semibold tracking-tight tabular-nums">
-                            {summary[card.key].toLocaleString()}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                            {descriptionFor(card.key)}
-                        </p>
-                    </div>
-                );
-            })}
+            {summaryCards.map((card) => (
+                <StatCard
+                    key={card.key}
+                    label={card.label}
+                    value={summary[card.key].toLocaleString()}
+                    description={descriptionFor(card.key)}
+                    icon={card.icon}
+                />
+            ))}
         </div>
     );
 }
@@ -184,17 +172,7 @@ function AssistanceSummaryCardsSkeleton() {
             aria-label="Loading assistance summary"
         >
             {summaryCards.map((card) => (
-                <div
-                    key={card.key}
-                    className="rounded-xl border border-border bg-card p-4"
-                >
-                    <div className="flex items-center justify-between gap-2">
-                        <Skeleton className="h-3 w-24 rounded-sm" />
-                        <Skeleton className="size-4 rounded-sm" />
-                    </div>
-                    <Skeleton className="mt-2 h-8 w-14 rounded-sm" />
-                    <Skeleton className="mt-2 h-3 w-32 rounded-sm" />
-                </div>
+                <StatCardSkeleton key={card.key} />
             ))}
         </div>
     );
@@ -244,7 +222,7 @@ function DeliveryBreakdown({
                     </span>{' '}
                     <span className="text-muted-foreground">delivered</span>
                 </p>
-                <p className="text-xs tabular-nums text-muted-foreground">
+                <p className="text-xs text-muted-foreground tabular-nums">
                     {summary.delivered.toLocaleString()} of{' '}
                     {total.toLocaleString()}
                 </p>
@@ -308,6 +286,18 @@ export default function UserBeneficiaryShow({
     form_options?: FormOptions;
 }) {
     const [editOpen, setEditOpen] = useState(false);
+    const pageCommands = useMemo(
+        () => [
+            {
+                id: 'beneficiary.edit',
+                label: 'Edit beneficiary',
+                icon: Pencil,
+                onSelect: () => setEditOpen(true),
+            },
+        ],
+        [],
+    );
+    usePageCommands(pageCommands);
     const details = beneficiary.details as Record<string, unknown>;
     const isOrganization = beneficiary.type === 'organization';
     const organizationMembers = isOrganization
@@ -335,8 +325,7 @@ export default function UserBeneficiaryShow({
 
     const address = (details.address as string | undefined) || null;
     const otherAddress = (details.other_address as string | undefined) || null;
-    const mobileNumber =
-        (details.mobile_number as string | undefined) || null;
+    const mobileNumber = (details.mobile_number as string | undefined) || null;
     const president = details.president as
         | { name?: string; cais_number?: string }
         | null
@@ -402,9 +391,7 @@ export default function UserBeneficiaryShow({
                                 ) : (
                                     <UserRound aria-hidden />
                                 )}
-                                {isOrganization
-                                    ? 'Organization'
-                                    : 'Individual'}
+                                {isOrganization ? 'Organization' : 'Individual'}
                             </Badge>
                             <Badge variant="outline" className="font-mono">
                                 {beneficiary.cais_number}
@@ -479,7 +466,7 @@ export default function UserBeneficiaryShow({
                         <div className="grid gap-6 lg:grid-cols-3">
                             <div className="min-w-0 space-y-5 lg:col-span-2">
                                 <div>
-                                    <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="mb-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         Profile
                                     </p>
                                     <dl className="grid gap-4 sm:grid-cols-2">
@@ -567,7 +554,7 @@ export default function UserBeneficiaryShow({
 
                                 {!isOrganization ? (
                                     <div>
-                                        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <p className="mb-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                             Attributes
                                         </p>
                                         <div className="flex flex-wrap gap-1.5">
@@ -591,7 +578,7 @@ export default function UserBeneficiaryShow({
 
                                 {identifications.length > 0 ? (
                                     <div>
-                                        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                             <IdCard className="size-3.5" />
                                             Identifications
                                         </p>
@@ -622,7 +609,7 @@ export default function UserBeneficiaryShow({
 
                             <div className="min-w-0 space-y-5 lg:border-l lg:border-border lg:pl-6">
                                 <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <Phone className="size-3.5" />
                                         Contact
                                     </p>
@@ -662,7 +649,7 @@ export default function UserBeneficiaryShow({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <HeartHandshake className="size-3.5" />
                                         Delivery rate
                                     </p>
@@ -679,7 +666,7 @@ export default function UserBeneficiaryShow({
                                 </div>
 
                                 <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                         <FolderOpen className="size-3.5" />
                                         Programs
                                     </p>
@@ -720,11 +707,10 @@ export default function UserBeneficiaryShow({
                                         </ul>
                                     )}
                                     {beneficiary.assistances_count > 0 ? (
-                                        <p className="text-xs tabular-nums text-muted-foreground">
+                                        <p className="text-xs text-muted-foreground tabular-nums">
                                             {beneficiary.assistances_count.toLocaleString()}{' '}
                                             total assistance{' '}
-                                            {beneficiary.assistances_count ===
-                                            1
+                                            {beneficiary.assistances_count === 1
                                                 ? 'request'
                                                 : 'requests'}
                                         </p>

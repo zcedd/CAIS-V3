@@ -3,17 +3,25 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Enums\ItemKind;
+use App\Enums\ProgramApprovalAction;
 use App\Enums\ProgramApprovalStatus;
 use App\Enums\ProgramKind;
+use App\Enums\RoleName;
 use App\Models\Department;
 use App\Models\Fund;
+use App\Models\Individual;
 use App\Models\Item;
 use App\Models\Program;
 use App\Models\ProgramEligibilityRule;
 use App\Models\ProgramItemCap;
+use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class ProgramService
@@ -33,6 +41,7 @@ class ProgramService
     /**
      * @param  list<string>  $types
      * @param  list<string>  $statuses
+     * @param  list<string>  $approvals
      */
     public function paginateForDepartment(
         Department $department,
@@ -40,57 +49,107 @@ class ProgramService
         array $types,
         array $statuses,
         int $perPage = self::PROGRAMS_PER_PAGE,
+        array $approvals = [],
     ): LengthAwarePaginator {
-        return Program::query()
-            ->select([
-                'id',
-                'name',
-                'descriptions',
-                'start_at',
-                'end_at',
-                'is_closed',
-                'is_organization',
-                'public_intake',
-                'department_id',
-                'kind',
-            ])
-            ->with(['department:id,name,slug'])
-            ->withCount([
-                'batches',
-                'batches as open_batches_count' => fn ($query) => $query->where('is_closed', false),
-            ])
-            ->roots()
-            ->where('department_id', $department->id)
-            ->when($search !== '', function ($query) use ($search): void {
-                $query->where(function ($searchQuery) use ($search): void {
-                    $searchQuery
-                        ->where('name', 'like', '%'.$search.'%')
-                        ->orWhereHas('batches', function ($batchQuery) use ($search): void {
-                            $batchQuery
-                                ->where('name', 'like', '%'.$search.'%')
-                                ->orWhere('batch_name', 'like', '%'.$search.'%');
-                        });
-                });
-            })
+        return $this->departmentIndexQuery($department, $search, $types, $statuses)
             ->when(
-                count($types) === 1 && in_array('individual', $types, true),
-                fn ($query) => $query->where('is_organization', false),
-            )
-            ->when(
-                count($types) === 1 && in_array('organization', $types, true),
-                fn ($query) => $query->where('is_organization', true),
-            )
-            ->when(
-                count($statuses) === 1 && in_array('open', $statuses, true),
-                fn ($query) => $query->where('is_closed', false),
-            )
-            ->when(
-                count($statuses) === 1 && in_array('closed', $statuses, true),
-                fn ($query) => $query->where('is_closed', true),
+                $approvals !== [],
+                fn (Builder $query) => $query->whereIn('approval_status', $approvals),
             )
             ->orderByDesc('id')
             ->paginate($perPage)
-            ->withQueryString();
+            ->withQueryString()
+            ->through(fn (Program $program): array => $this->indexRow($program));
+    }
+
+    /**
+     * Counts ignore the approval filter so the status pills stay stable.
+     *
+     * @param  list<string>  $types
+     * @param  list<string>  $statuses
+     * @return array{all: int, draft: int, awaiting_governor: int, approved: int, returned: int}
+     */
+    public function approvalCounts(
+        Department $department,
+        string $search,
+        array $types,
+        array $statuses,
+    ): array {
+        $rows = $this->applyDepartmentIndexFilters(
+            Program::query(),
+            $department,
+            $search,
+            $types,
+            $statuses,
+        )
+            ->selectRaw('approval_status, COUNT(*) as aggregate')
+            ->groupBy('approval_status')
+            ->pluck('aggregate', 'approval_status');
+
+        $draft = (int) ($rows[ProgramApprovalStatus::Draft->value] ?? 0);
+        $awaiting = (int) ($rows[ProgramApprovalStatus::AwaitingGovernor->value] ?? 0);
+        $approved = (int) ($rows[ProgramApprovalStatus::Approved->value] ?? 0);
+        $returned = (int) ($rows[ProgramApprovalStatus::Returned->value] ?? 0);
+
+        return [
+            'all' => (int) $this->applyDepartmentIndexFilters(
+                Program::query(),
+                $department,
+                $search,
+                $types,
+                $statuses,
+            )->count(),
+            'draft' => $draft,
+            'awaiting_governor' => $awaiting,
+            'approved' => $approved,
+            'returned' => $returned,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Program|array<string, mixed>>  $programs
+     * @return array<int, array<string, mixed>>
+     */
+    /**
+     * Programs whose assistances belong to this program, including batches of a scheme.
+     *
+     * @return list<int>
+     */
+    public function assistanceProgramIds(Program $program): array
+    {
+        return $this->metricScope(collect([$program]))['scope_ids'];
+    }
+
+    public function cardMetrics(Collection $programs): array
+    {
+        if ($programs->isEmpty()) {
+            return [];
+        }
+
+        $models = $this->metricPrograms($programs);
+
+        if ($models->isEmpty()) {
+            return [];
+        }
+
+        $scope = $this->metricScope($models);
+        $roots = $scope['roots'];
+        $childToRoot = $scope['child_to_root'];
+        $scopeIds = $scope['scope_ids'];
+
+        $metrics = [];
+
+        foreach ($roots as $rootId) {
+            $metrics[$rootId] = $this->emptyCardMetric();
+        }
+
+        $this->applyBudgetMetrics($metrics, $childToRoot, $scopeIds);
+        $this->applyItemKindMetrics($metrics, $childToRoot, $scopeIds);
+        $this->applyRequestMetrics($metrics, $childToRoot, $scopeIds);
+        $this->applyPeopleMetrics($metrics, $childToRoot, $scopeIds);
+        $this->applyApprovalEventMetrics($metrics, $childToRoot, $scopeIds);
+
+        return $metrics;
     }
 
     /**
@@ -530,7 +589,7 @@ class ProgramService
             : $scheme->batches()->withCount('assistance')->get()->keyBy('id');
 
         return $scheme->batches
-            ->map(static function (Program $batch) use ($requestCounts): array {
+            ->map(function (Program $batch) use ($requestCounts): array {
                 $counted = $requestCounts->get($batch->id);
                 $status = $batch->approval_status instanceof ProgramApprovalStatus
                     ? $batch->approval_status
@@ -539,16 +598,19 @@ class ProgramService
                 return [
                     'id' => $batch->id,
                     'name' => $batch->name,
+                    'descriptions' => $batch->descriptions,
                     'batch_name' => $batch->batch_name,
                     'batch_number' => $batch->batch_number,
                     'start_at' => $batch->start_at,
                     'end_at' => $batch->end_at,
                     'is_closed' => (bool) $batch->is_closed,
+                    'is_organization' => (bool) $batch->is_organization,
                     'public_intake' => (bool) $batch->public_intake,
+                    'kind' => $batch->kind instanceof ProgramKind ? $batch->kind->value : $batch->kind,
                     'total_requests' => (int) ($counted?->assistance_count ?? 0),
                     'approval_status' => $status->value,
                     'approval_label' => $status->label(),
-                    'can_submit_approval' => Gate::allows('submit', $batch)
+                    'can_submit_approval' => $this->canEndorse($batch)
                         && in_array($status, [
                             ProgramApprovalStatus::Draft,
                             ProgramApprovalStatus::Returned,
@@ -681,5 +743,491 @@ class ProgramService
         }
 
         return Carbon::parse($value)->toDateString();
+    }
+
+    /**
+     * @param  list<string>  $types
+     * @param  list<string>  $statuses
+     * @return Builder<Program>
+     */
+    private function departmentIndexQuery(
+        Department $department,
+        string $search,
+        array $types,
+        array $statuses,
+    ): Builder {
+        return $this->applyDepartmentIndexFilters(
+            Program::query()
+                ->select([
+                    'id',
+                    'name',
+                    'descriptions',
+                    'start_at',
+                    'end_at',
+                    'is_closed',
+                    'is_organization',
+                    'public_intake',
+                    'department_id',
+                    'kind',
+                    'approval_status',
+                    'batch_name',
+                ])
+                ->with(['department:id,name,slug'])
+                ->withCount([
+                    'batches',
+                    'batches as open_batches_count' => fn (Builder $query) => $query->where('is_closed', false),
+                ]),
+            $department,
+            $search,
+            $types,
+            $statuses,
+        );
+    }
+
+    /**
+     * @param  Builder<Program>  $query
+     * @param  list<string>  $types
+     * @param  list<string>  $statuses
+     * @return Builder<Program>
+     */
+    private function applyDepartmentIndexFilters(
+        Builder $query,
+        Department $department,
+        string $search,
+        array $types,
+        array $statuses,
+    ): Builder {
+        return $query
+            ->roots()
+            ->where('department_id', $department->id)
+            ->when($search !== '', function (Builder $builder) use ($search): void {
+                $builder->where(function (Builder $searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('name', 'like', '%'.$search.'%')
+                        ->orWhereHas('batches', function (Builder $batchQuery) use ($search): void {
+                            $batchQuery
+                                ->where('name', 'like', '%'.$search.'%')
+                                ->orWhere('batch_name', 'like', '%'.$search.'%');
+                        });
+                });
+            })
+            ->when(
+                count($types) === 1 && in_array('individual', $types, true),
+                fn (Builder $builder) => $builder->where('is_organization', false),
+            )
+            ->when(
+                count($types) === 1 && in_array('organization', $types, true),
+                fn (Builder $builder) => $builder->where('is_organization', true),
+            )
+            ->when(
+                count($statuses) === 1 && in_array('open', $statuses, true),
+                fn (Builder $builder) => $builder->where('is_closed', false),
+            )
+            ->when(
+                count($statuses) === 1 && in_array('closed', $statuses, true),
+                fn (Builder $builder) => $builder->where('is_closed', true),
+            );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function indexRow(Program $program): array
+    {
+        $status = $program->approval_status instanceof ProgramApprovalStatus
+            ? $program->approval_status
+            : ProgramApprovalStatus::Draft;
+
+        return [
+            'id' => $program->id,
+            'name' => $program->name,
+            'descriptions' => $program->descriptions,
+            'start_at' => $program->start_at,
+            'end_at' => $program->end_at,
+            'is_closed' => (bool) $program->is_closed,
+            'is_organization' => (bool) $program->is_organization,
+            'public_intake' => (bool) $program->public_intake,
+            'kind' => $program->kind instanceof ProgramKind ? $program->kind->value : $program->kind,
+            'batch_name' => $program->batch_name,
+            'batches_count' => (int) $program->batches_count,
+            'open_batches_count' => (int) $program->open_batches_count,
+            'approval_status' => $status->value,
+            'approval_label' => $status->label(),
+            'can_submit_approval' => $this->canEndorse($program),
+            'department' => $program->department === null ? null : [
+                'id' => $program->department->id,
+                'name' => $program->department->name,
+                'slug' => $program->department->slug,
+            ],
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Program|array<string, mixed>>  $programs
+     * @return Collection<int, Program>
+     */
+    private function metricPrograms(Collection $programs): Collection
+    {
+        $first = $programs->first();
+
+        if ($first instanceof Program) {
+            return $programs->filter(fn (mixed $program): bool => $program instanceof Program)->values();
+        }
+
+        $ids = $programs
+            ->map(function (mixed $program): int {
+                if (is_array($program)) {
+                    return (int) ($program['id'] ?? 0);
+                }
+
+                return (int) ($program->id ?? 0);
+            })
+            ->filter(fn (int $id): bool => $id > 0)
+            ->values()
+            ->all();
+
+        return Program::query()
+            ->whereIn('id', $ids)
+            ->get(['id', 'kind', 'parent_id']);
+    }
+
+    /**
+     * @param  Collection<int, Program>  $programs
+     * @return array{roots: list<int>, child_to_root: array<int, int>, scope_ids: list<int>}
+     */
+    private function metricScope(Collection $programs): array
+    {
+        $schemeIds = $programs
+            ->filter(fn (Program $program): bool => $program->isScheme())
+            ->pluck('id')
+            ->all();
+
+        $batches = $schemeIds === []
+            ? collect()
+            : Program::query()
+                ->whereIn('parent_id', $schemeIds)
+                ->get(['id', 'parent_id']);
+
+        $childToRoot = [];
+        $scopeIds = [];
+
+        foreach ($programs as $program) {
+            $rootId = $program->id;
+
+            if ($program->isScheme()) {
+                $children = $batches->where('parent_id', $rootId)->pluck('id');
+
+                if ($children->isEmpty()) {
+                    $childToRoot[$rootId] = $rootId;
+                    $scopeIds[] = $rootId;
+
+                    continue;
+                }
+
+                foreach ($children as $childId) {
+                    $childToRoot[(int) $childId] = $rootId;
+                    $scopeIds[] = (int) $childId;
+                }
+
+                continue;
+            }
+
+            $childToRoot[$rootId] = $rootId;
+            $scopeIds[] = $rootId;
+        }
+
+        return [
+            'roots' => $programs->pluck('id')->map(fn (mixed $id): int => (int) $id)->all(),
+            'child_to_root' => $childToRoot,
+            'scope_ids' => array_values(array_unique($scopeIds)),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyCardMetric(): array
+    {
+        return [
+            'budget' => 0.0,
+            'cash_released' => 0,
+            'goods_released' => 0,
+            'item_kinds' => [],
+            'total_requests' => 0,
+            'delivered_requests' => 0,
+            'claimants' => 0,
+            'mean_age' => null,
+            'female' => 0,
+            'male' => 0,
+            'other' => 0,
+            'pwd' => 0,
+            'individuals' => 0,
+            'submitted_at' => null,
+            'approved_at' => null,
+        ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $metrics
+     * @param  array<int, int>  $childToRoot
+     * @param  list<int>  $scopeIds
+     */
+    private function applyBudgetMetrics(array &$metrics, array $childToRoot, array $scopeIds): void
+    {
+        if ($scopeIds === []) {
+            return;
+        }
+
+        $rows = DB::table('fund_program')
+            ->join('funds', 'funds.id', '=', 'fund_program.fund_id')
+            ->whereIn('fund_program.program_id', $scopeIds)
+            ->whereNull('fund_program.deleted_at')
+            ->whereNull('funds.deleted_at')
+            ->get(['fund_program.program_id', 'funds.id as fund_id', 'funds.amount']);
+
+        $seen = [];
+
+        foreach ($rows as $row) {
+            $rootId = $childToRoot[(int) $row->program_id] ?? null;
+
+            if ($rootId === null || ! isset($metrics[$rootId])) {
+                continue;
+            }
+
+            $key = $rootId.'-'.$row->fund_id;
+
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $metrics[$rootId]['budget'] += (float) $row->amount;
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $metrics
+     * @param  array<int, int>  $childToRoot
+     * @param  list<int>  $scopeIds
+     */
+    private function applyItemKindMetrics(array &$metrics, array $childToRoot, array $scopeIds): void
+    {
+        if ($scopeIds === []) {
+            return;
+        }
+
+        $rows = DB::table('item_program')
+            ->join('items', 'items.id', '=', 'item_program.item_id')
+            ->whereIn('item_program.program_id', $scopeIds)
+            ->whereNull('item_program.deleted_at')
+            ->whereNull('items.deleted_at')
+            ->distinct()
+            ->get(['item_program.program_id', 'items.kind']);
+
+        foreach ($rows as $row) {
+            $rootId = $childToRoot[(int) $row->program_id] ?? null;
+
+            if ($rootId === null || ! isset($metrics[$rootId]) || $row->kind === null) {
+                continue;
+            }
+
+            if (! in_array($row->kind, $metrics[$rootId]['item_kinds'], true)) {
+                $metrics[$rootId]['item_kinds'][] = (string) $row->kind;
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $metrics
+     * @param  array<int, int>  $childToRoot
+     * @param  list<int>  $scopeIds
+     */
+    private function applyRequestMetrics(array &$metrics, array $childToRoot, array $scopeIds): void
+    {
+        if ($scopeIds === []) {
+            return;
+        }
+
+        $rows = DB::table('assistances')
+            ->whereIn('program_id', $scopeIds)
+            ->whereNull('deleted_at')
+            ->select('program_id')
+            ->selectRaw('COUNT(*) as total_requests')
+            ->selectRaw('SUM(CASE WHEN was_delivered = 1 THEN 1 ELSE 0 END) as delivered_requests')
+            ->selectRaw('COUNT(DISTINCT CASE WHEN was_delivered = 1 THEN beneficiary_id END) as claimants')
+            ->groupBy('program_id')
+            ->get();
+
+        foreach ($rows as $row) {
+            $rootId = $childToRoot[(int) $row->program_id] ?? null;
+
+            if ($rootId === null || ! isset($metrics[$rootId])) {
+                continue;
+            }
+
+            $metrics[$rootId]['total_requests'] += (int) $row->total_requests;
+            $metrics[$rootId]['delivered_requests'] += (int) $row->delivered_requests;
+            $metrics[$rootId]['claimants'] += (int) $row->claimants;
+        }
+
+        $released = DB::table('assistance_item as ai')
+            ->join('assistances', 'assistances.id', '=', 'ai.assistance_id')
+            ->join('items', 'items.id', '=', 'ai.item_id')
+            ->whereIn('assistances.program_id', $scopeIds)
+            ->where('ai.is_received', true)
+            ->whereNull('ai.deleted_at')
+            ->whereNull('assistances.deleted_at')
+            ->select('assistances.program_id', 'items.kind')
+            ->selectRaw('SUM(ai.quantity) as total')
+            ->groupBy('assistances.program_id', 'items.kind')
+            ->get();
+
+        foreach ($released as $row) {
+            $rootId = $childToRoot[(int) $row->program_id] ?? null;
+
+            if ($rootId === null || ! isset($metrics[$rootId])) {
+                continue;
+            }
+
+            if ($row->kind === ItemKind::Cash->value) {
+                $metrics[$rootId]['cash_released'] += (int) $row->total;
+            }
+
+            if ($row->kind === ItemKind::Goods->value) {
+                $metrics[$rootId]['goods_released'] += (int) $row->total;
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $metrics
+     * @param  array<int, int>  $childToRoot
+     * @param  list<int>  $scopeIds
+     */
+    private function applyPeopleMetrics(array &$metrics, array $childToRoot, array $scopeIds): void
+    {
+        if ($scopeIds === []) {
+            return;
+        }
+
+        $rows = DB::table('assistances')
+            ->join('beneficiaries', 'beneficiaries.id', '=', 'assistances.beneficiary_id')
+            ->join('individuals', function ($join): void {
+                $join->on('beneficiaries.beneficiable_id', '=', 'individuals.id')
+                    ->where('beneficiaries.beneficiable_type', '=', Individual::class);
+            })
+            ->whereIn('assistances.program_id', $scopeIds)
+            ->whereNull('assistances.deleted_at')
+            ->whereNull('beneficiaries.deleted_at')
+            ->whereNull('individuals.deleted_at')
+            ->groupBy('assistances.program_id', 'individuals.id')
+            ->get([
+                'assistances.program_id',
+                'individuals.id',
+                DB::raw('MAX(individuals.sex) as sex'),
+                DB::raw('MAX(individuals.pwd) as pwd'),
+                DB::raw('MAX(individuals.birthday) as birthday'),
+            ]);
+
+        /** @var array<int, array{ages: list<int>, female: int, male: int, other: int, pwd: int}> $buckets */
+        $buckets = [];
+
+        foreach ($rows as $row) {
+            $rootId = $childToRoot[(int) $row->program_id] ?? null;
+
+            if ($rootId === null) {
+                continue;
+            }
+
+            $buckets[$rootId] ??= [
+                'ages' => [],
+                'female' => 0,
+                'male' => 0,
+                'other' => 0,
+                'pwd' => 0,
+            ];
+
+            $sex = strtolower(trim((string) $row->sex));
+
+            if ($sex === 'female') {
+                $buckets[$rootId]['female']++;
+            } elseif ($sex === 'male') {
+                $buckets[$rootId]['male']++;
+            } else {
+                $buckets[$rootId]['other']++;
+            }
+
+            if ((int) $row->pwd === 1) {
+                $buckets[$rootId]['pwd']++;
+            }
+
+            if ($row->birthday !== null) {
+                $buckets[$rootId]['ages'][] = (int) Carbon::parse($row->birthday)->age;
+            }
+        }
+
+        foreach ($buckets as $rootId => $bucket) {
+            if (! isset($metrics[$rootId])) {
+                continue;
+            }
+
+            $metrics[$rootId]['female'] = $bucket['female'];
+            $metrics[$rootId]['male'] = $bucket['male'];
+            $metrics[$rootId]['other'] = $bucket['other'];
+            $metrics[$rootId]['pwd'] = $bucket['pwd'];
+            $metrics[$rootId]['individuals'] = $bucket['female'] + $bucket['male'] + $bucket['other'];
+            $metrics[$rootId]['mean_age'] = $bucket['ages'] === []
+                ? null
+                : round(array_sum($bucket['ages']) / count($bucket['ages']), 1);
+        }
+    }
+
+    private function canEndorse(Program $program): bool
+    {
+        $user = auth()->user();
+
+        return $user instanceof User
+            && $user->hasRole(RoleName::DepartmentHead->value)
+            && Gate::allows('submit', $program);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $metrics
+     * @param  array<int, int>  $childToRoot
+     * @param  list<int>  $scopeIds
+     */
+    private function applyApprovalEventMetrics(array &$metrics, array $childToRoot, array $scopeIds): void
+    {
+        if ($scopeIds === []) {
+            return;
+        }
+
+        $rows = DB::table('program_approval_events')
+            ->whereIn('program_id', $scopeIds)
+            ->whereIn('action', [
+                ProgramApprovalAction::Submitted->value,
+                ProgramApprovalAction::Approved->value,
+            ])
+            ->select('program_id', 'action')
+            ->selectRaw('MAX(created_at) as happened_at')
+            ->groupBy('program_id', 'action')
+            ->get();
+
+        foreach ($rows as $row) {
+            $rootId = $childToRoot[(int) $row->program_id] ?? null;
+
+            if ($rootId === null || ! isset($metrics[$rootId]) || $row->happened_at === null) {
+                continue;
+            }
+
+            $key = $row->action === ProgramApprovalAction::Approved->value
+                ? 'approved_at'
+                : 'submitted_at';
+            $current = $metrics[$rootId][$key];
+
+            if ($current === null || $row->happened_at > $current) {
+                $metrics[$rootId][$key] = (string) $row->happened_at;
+            }
+        }
     }
 }

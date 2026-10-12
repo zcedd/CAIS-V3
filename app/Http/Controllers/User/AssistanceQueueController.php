@@ -59,6 +59,12 @@ class AssistanceQueueController extends Controller
                     'value' => $status->name,
                 ])
                 ->all(),
+            'selected' => $request->filled('selected')
+                ? $this->assistanceQueueService->selectedProfile(
+                    $department,
+                    (int) $request->input('selected'),
+                )
+                : null,
             'staff_options' => User::query()
                 ->where('department_id', $department->id)
                 ->orderBy('lastName')

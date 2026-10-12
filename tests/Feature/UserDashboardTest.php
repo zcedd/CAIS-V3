@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ItemKind;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Beneficiary;
@@ -115,6 +116,24 @@ function createAssistanceForIndividual(
     return $assistance;
 }
 
+function dashboardBarangay(string $city): int
+{
+    $cityId = DB::table('address_cities')->insertGetId([
+        'name' => $city,
+        'zipcode' => 2900,
+        'excel_name' => $city,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+
+    return (int) DB::table('address_barangays')->insertGetId([
+        'name' => $city.' Barangay',
+        'address_city_id' => $cityId,
+        'created_at' => now(),
+        'updated_at' => now(),
+    ]);
+}
+
 test('guests cannot view the department dashboard', function () {
     $response = $this->get(route('user.dashboard.index', ['department' => 'any-department']));
 
@@ -143,6 +162,10 @@ test('department users can view the dashboard with expected props', function () 
             ->where('department.slug', $department->slug)
             ->loadDeferredProps(['kpis', 'filters', 'charts', 'programs'], fn ($reload) => $reload
                 ->where('summary.total_requests', 1)
+                ->where('summary.cash_disbursed', 0)
+                ->where('summary.goods_released', 0)
+                ->has('cityChart')
+                ->has('municipalityMap')
                 ->has('requestStatusChart')
                 ->has('deliveredItemsChart')
                 ->has('unspscReleasedChart')
@@ -151,6 +174,107 @@ test('department users can view the dashboard with expected props', function () 
                 ->where('filters.year', [(string) now()->year])
                 ->where('filters.quarter', [])
                 ->where('filters.program', [])));
+});
+
+test('municipality map counts delivered beneficiaries in their city', function () {
+    [
+        'department' => $department,
+        'departmentB' => $departmentB,
+        'user' => $user,
+        'program' => $program,
+        'item' => $item,
+    ] = createDashboardFixtures();
+
+    $laoagBarangay = dashboardBarangay('Laoag');
+    $batacBarangay = dashboardBarangay('Batac');
+
+    $laoagPerson = Individual::factory()->create([
+        'address_barangay_id' => $laoagBarangay,
+    ]);
+    $batacPerson = Individual::factory()->create([
+        'address_barangay_id' => $batacBarangay,
+    ]);
+    $otherPerson = Individual::factory()->create([
+        'address_barangay_id' => $laoagBarangay,
+    ]);
+
+    $cash = Item::create([
+        'name' => 'Financial assistance',
+        'kind' => ItemKind::Cash,
+        'department_id' => $department->id,
+        'item_unit_measurement_id' => $item->item_unit_measurement_id,
+    ]);
+
+    $first = createAssistanceForIndividual($program, $laoagPerson, $item, true, 2);
+    createAssistanceForIndividual($program, $laoagPerson, $item, true, 3);
+    AssistanceItem::create([
+        'assistance_id' => $first->id,
+        'item_id' => $cash->id,
+        'quantity' => 1500,
+        'is_received' => true,
+    ]);
+    createAssistanceForIndividual($program, $batacPerson, $item, false, 9);
+
+    $otherProgram = Program::create([
+        'name' => 'Other Department Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $departmentB->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+    createAssistanceForIndividual($otherProgram, $otherPerson, $item, true, 8);
+
+    $paoayBarangay = dashboardBarangay('Paoay');
+    $organization = Organization::factory()->create([
+        'address_barangay_id' => $paoayBarangay,
+    ]);
+    $orgAssistance = Assistance::create([
+        'program_id' => $program->id,
+        'beneficiary_id' => $organization->beneficiaryRecord->id,
+        'mode_of_request_id' => ModeOfRequest::query()->firstOrCreate(['name' => 'Walk In'])->id,
+        'date_requested' => now()->toDateString(),
+        'date_delivered' => now()->toDateString(),
+        'was_delivered' => true,
+        'user_id' => $user->id,
+    ]);
+    AssistanceItem::create([
+        'assistance_id' => $orgAssistance->id,
+        'item_id' => $item->id,
+        'quantity' => 4,
+        'is_received' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->loadDeferredProps(['charts'], fn (Assert $reload) => $reload
+                ->where('municipalityMap', function ($rows): bool {
+                    $byCity = $rows->keyBy('city');
+
+                    expect($byCity->get('Laoag'))->toMatchArray([
+                        'beneficiaries' => 1,
+                        'delivered_requests' => 2,
+                        'goods_released' => 5,
+                        'cash_disbursed' => 1500,
+                    ]);
+                    expect($byCity->get('Batac'))->toMatchArray([
+                        'beneficiaries' => 0,
+                        'delivered_requests' => 0,
+                        'goods_released' => 0,
+                        'cash_disbursed' => 0,
+                    ]);
+                    expect($byCity->get('Paoay'))->toMatchArray([
+                        'beneficiaries' => 1,
+                        'delivered_requests' => 1,
+                        'goods_released' => 4,
+                        'cash_disbursed' => 0,
+                    ]);
+
+                    return true;
+                })));
 });
 
 test('program filter reduces total requests on the dashboard', function () {

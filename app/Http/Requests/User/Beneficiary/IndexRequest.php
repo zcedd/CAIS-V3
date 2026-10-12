@@ -26,6 +26,15 @@ class IndexRequest extends FormRequest
             'search' => ['nullable', 'string', 'max:255'],
             'type' => ['nullable', 'array'],
             'type.*' => ['string', Rule::in(['individual', 'organization'])],
+            'city' => ['nullable', 'integer', Rule::exists('address_cities', 'id')],
+            'sector' => ['nullable', 'string', Rule::in([
+                'pwd',
+                'solo_parent',
+                'four_ps',
+                'indigenous',
+                'senior',
+            ])],
+            'sort' => ['nullable', 'string', Rule::in(['name', 'newest', 'most_assisted'])],
         ];
     }
 
@@ -45,5 +54,24 @@ class IndexRequest extends FormRequest
     public function types(): array
     {
         return array_values($this->validated('type') ?? []);
+    }
+
+    public function cityId(): ?int
+    {
+        $city = $this->validated('city');
+
+        return $city === null ? null : (int) $city;
+    }
+
+    public function sector(): ?string
+    {
+        $sector = $this->validated('sector');
+
+        return is_string($sector) && $sector !== '' ? $sector : null;
+    }
+
+    public function sort(): string
+    {
+        return $this->validated('sort') ?? 'name';
     }
 }

@@ -49,6 +49,7 @@ export function RequestStatusChart({ data }: RequestStatusChartProps) {
             title="Requests by status"
             description="Assistance requests grouped by status"
             icon={PieChartIcon}
+            className="h-full"
             data-tour="dashboard-requests-status-chart"
         >
             {chartData.length === 0 ? (

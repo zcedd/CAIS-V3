@@ -7,8 +7,8 @@ import {
     Package,
     Users,
 } from 'lucide-react';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
 import { cn } from '@/lib/utils';
-import { DashboardStatCard } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DashboardSummary } from '@/types/dashboard';
 
 type KpiCardsProps = {
@@ -84,14 +84,14 @@ export function KpiCards({
             data-tour="dashboard-kpis"
         >
             {items.map((kpi) => (
-                <DashboardStatCard
+                <StatCard
                     key={kpi.key}
                     label={kpi.label}
                     value={summary[kpi.key].toLocaleString()}
                     description={kpi.description}
                     icon={kpi.icon}
                     valueClassName={
-                        variant === 'strip' ? 'text-2xl' : 'text-3xl'
+                        variant === 'strip' ? 'text-2xl' : undefined
                     }
                 />
             ))}
@@ -115,17 +115,7 @@ export function KpiCardsSkeleton({
             aria-label="Loading dashboard statistics"
         >
             {items.map((kpi) => (
-                <DashboardStatCard
-                    key={kpi.key}
-                    label={kpi.label}
-                    value={
-                        <span className="inline-block h-8 w-16 animate-pulse rounded bg-muted" />
-                    }
-                    description={
-                        <span className="inline-block h-3 w-28 animate-pulse rounded bg-muted" />
-                    }
-                    icon={kpi.icon}
-                />
+                <StatCardSkeleton key={kpi.key} />
             ))}
         </div>
     );

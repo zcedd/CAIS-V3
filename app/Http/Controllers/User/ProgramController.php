@@ -36,6 +36,7 @@ class ProgramController extends Controller
         $search = $request->search();
         $types = $request->types();
         $statuses = $request->statuses();
+        $approvals = $request->approvals();
         $perPage = $request->perPage();
 
         $programs = $this->programService->paginateForDepartment(
@@ -44,14 +45,25 @@ class ProgramController extends Controller
             $types,
             $statuses,
             $perPage,
+            $approvals,
+        );
+        $approvalCounts = $this->programService->approvalCounts(
+            $department,
+            $search,
+            $types,
+            $statuses,
         );
 
         return Inertia::render('user/programs/index', [
             'programs' => $programs,
+            'program_metrics' => $this->programService->cardMetrics(collect($programs->items())),
             'department' => $department->only(['id', 'name', 'slug']),
             'search' => $search,
             'type' => $types,
             'status' => $statuses,
+            'approval' => $approvals,
+            'approval_counts' => $approvalCounts,
+            'review_queue_count' => $approvalCounts['draft'] + $approvalCounts['returned'],
             'per_page' => $perPage,
             'funds' => Inertia::defer(
                 fn () => $this->programService->departmentFundsForSelect($department),
@@ -127,6 +139,10 @@ class ProgramController extends Controller
                     'kpis',
                 ),
                 'batches' => $this->programService->schemeBatchesPayload($program),
+                'batch_metrics' => Inertia::defer(
+                    fn () => $this->programService->cardMetrics($program->batches),
+                    'batches',
+                ),
                 'department' => fn () => $department->only(['id', 'name', 'slug']),
                 'program_edit' => Inertia::defer(
                     fn () => $this->programService->editRelationsPayload($program),
@@ -153,6 +169,10 @@ class ProgramController extends Controller
             ),
             'status_breakdown' => Inertia::defer(
                 fn () => $this->programService->statusBreakdown($program),
+                'kpis',
+            ),
+            'program_metrics' => Inertia::defer(
+                fn () => $this->programService->cardMetrics(collect([$program]))[$program->id] ?? null,
                 'kpis',
             ),
             'program_funds' => Inertia::defer(

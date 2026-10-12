@@ -1,8 +1,44 @@
+import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
+import {
+    BarChart3,
+    Building2,
+    CalendarRange,
+    Coins,
+    Copy,
+    Download,
+    Package,
+    Pencil,
+    UserRound,
+    Users,
+} from 'lucide-react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
+import { toast } from 'sonner';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ApprovalBadge } from '@/components/user/approval-badge';
+import { CodeChip } from '@/components/user/code-chip';
+import { ProgramAnalyticsDialog } from '@/components/user/program-analytics-dialog';
+import type { ProgramCardMetric } from '@/components/user/program-card';
+import { ProgramApprovalSubmit } from '@/components/user/programs/program-approval-submit';
+import { usePageCommands } from '@/lib/command-registry';
+import type { PageCommand } from '@/lib/command-registry';
+import { formatPeso } from '@/lib/format-peso';
+import {
+    formatProgramDate,
+    formatProgramPeriod,
+} from '@/lib/format-program-period';
+import { cn } from '@/lib/utils';
 import type {
     AssistanceModeOption,
     AssistanceProgramItemOption,
@@ -16,32 +52,30 @@ import type {
     StatusFilterOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import {
-    ProgramKpiCards,
-    ProgramKpiCardsSkeleton,
-} from '@/pages/user/programs/kpi-cards';
-import {
     ASSISTANCE_TABLE_DEFER_GROUP_PROPS,
     ASSISTANCE_TABLE_SKELETON_COLUMNS,
     buildTableQuery,
     isAssistancesPartialVisit,
     isAssistancesTableReady,
-    type PaginatedAssistances,
 } from '@/pages/user/programs/program-assistance-table';
+import type { PaginatedAssistances } from '@/pages/user/programs/program-assistance-table';
+import {
+    ProgramShowMetrics,
+    ProgramShowMetricsSkeleton,
+    ProgramReachCards,
+    ProgramReachSkeleton,
+} from '@/pages/user/programs/program-show-metrics';
 import {
     ProgramStatusBreakdown,
     ProgramStatusBreakdownSkeleton,
 } from '@/pages/user/programs/status-breakdown';
-import { ProgramApprovalSubmit } from '@/components/user/programs/program-approval-submit';
 import { show as publicApplyShow } from '@/routes/public/apply';
 import {
+    analytics as programAnalytics,
     index as departmentProgramsIndex,
     show as departmentProgramShow,
 } from '@/routes/user/programs';
-import {
-    formatProgramDate,
-    formatProgramPeriod,
-} from '@/lib/format-program-period';
-import { cn } from '@/lib/utils';
+import { exportMethod as exportAssistances } from '@/routes/user/programs/assistances';
 import type { BreadcrumbItem } from '@/types';
 import type {
     DocumentTypeOption,
@@ -58,26 +92,6 @@ import type {
     ProgramFieldDefinition,
     ProgramFieldOption,
 } from '@/types/program-field';
-import { Head, router, setLayoutProps, WhenVisible } from '@inertiajs/react';
-import {
-    Building2,
-    Copy,
-    CalendarRange,
-    Coins,
-    Package,
-    Pencil,
-    UserRound,
-    Users,
-} from 'lucide-react';
-import {
-    lazy,
-    Suspense,
-    useCallback,
-    useEffect,
-    useRef,
-    useState,
-} from 'react';
-import { toast } from 'sonner';
 
 const ProgramAssistanceTableSection = lazy(() =>
     import('@/pages/user/programs/program-assistance-table').then((module) => ({
@@ -116,6 +130,7 @@ type ProgramDetail = {
     is_organization: boolean | null;
     public_intake?: boolean | null;
     kind?: string | null;
+    approval_status?: string | null;
     approval_label?: string | null;
     can_submit_approval?: boolean;
     batch_name?: string | null;
@@ -225,6 +240,7 @@ export default function UserProgramShow({
     program,
     summary,
     status_breakdown,
+    program_metrics,
     program_funds,
     program_covered_items,
     program_stock,
@@ -253,6 +269,7 @@ export default function UserProgramShow({
     program: ProgramDetail;
     summary?: ProgramSummary;
     status_breakdown?: ProgramStatusBreakdownPoint[];
+    program_metrics?: ProgramCardMetric | null;
     program_funds?: ProgramFund[];
     program_covered_items?: ProgramCoveredItem[];
     program_stock?: ProgramStockRow[];
@@ -280,6 +297,7 @@ export default function UserProgramShow({
     workflow_options?: WorkflowOption[];
 }) {
     const [editOpen, setEditOpen] = useState(false);
+    const [analyticsOpen, setAnalyticsOpen] = useState(false);
     const [editFormKey, setEditFormKey] = useState(0);
     const [tableState, setTableState] = useState({
         sort,
@@ -467,7 +485,63 @@ export default function UserProgramShow({
     );
 
     const heading = program.name;
+    const programCode = program.batch_name?.trim()
+        ? program.batch_name
+        : `PRG-${String(program.id).padStart(4, '0')}`;
+    const fundTotal = (program_funds ?? []).reduce(
+        (sum, fund) => sum + (fund.amount ?? 0),
+        0,
+    );
     const canEdit = Boolean(department?.slug);
+    const pageCommands = useMemo(() => {
+        const commands: PageCommand[] = [];
+
+        if (department?.slug) {
+            commands.push({
+                id: 'program.edit',
+                label: 'Edit program',
+                icon: Pencil,
+                onSelect: () => setEditOpen(true),
+            });
+        }
+
+        commands.push({
+            id: 'program.analytics',
+            label: 'Inspect analytics',
+            icon: BarChart3,
+            onSelect: () => setAnalyticsOpen(true),
+        });
+
+        if (department?.slug) {
+            const exportUrl = exportAssistances.url({
+                department: department.slug,
+                program: program.id,
+            });
+
+            commands.push({
+                id: 'program.export',
+                label: 'Export requests',
+                icon: Download,
+                onSelect: () => {
+                    window.location.assign(exportUrl);
+                },
+            });
+        }
+
+        commands.push({
+            id: 'program.copy-link',
+            label: 'Copy program link',
+            icon: Copy,
+            onSelect: () => {
+                void navigator.clipboard
+                    .writeText(window.location.href)
+                    .then(() => toast.success('Program link copied'));
+            },
+        });
+
+        return commands;
+    }, [department, program.id]);
+    usePageCommands(pageCommands);
     const canCreateAssistance = Boolean(department?.slug && !program.is_closed);
     const liveAssistanceTable = {
         assistances,
@@ -511,6 +585,8 @@ export default function UserProgramShow({
                             {heading}
                         </h1>
                         <div className="flex flex-wrap items-center gap-1.5">
+                            <CodeChip>{programCode}</CodeChip>
+                            <ApprovalBadge status={program.approval_status} />
                             <Badge
                                 variant="outline"
                                 className={cn(
@@ -519,15 +595,6 @@ export default function UserProgramShow({
                                         : 'border-emerald-600/30 bg-emerald-600/10 text-emerald-700 dark:text-emerald-400',
                                 )}
                             >
-                                <span
-                                    aria-hidden
-                                    className={cn(
-                                        'size-1.5 rounded-full',
-                                        isClosed
-                                            ? 'bg-muted-foreground/50'
-                                            : 'bg-emerald-600',
-                                    )}
-                                />
                                 {isClosed ? 'Closed' : 'Open'}
                             </Badge>
                             <Badge variant="outline">
@@ -540,24 +607,14 @@ export default function UserProgramShow({
                                     ? 'Organization'
                                     : 'Individual'}
                             </Badge>
-                            {program.kind === 'batch' && program.batch_name ? (
-                                <Badge variant="outline">
-                                    {program.batch_name}
-                                </Badge>
-                            ) : null}
-                            {program.public_intake && !isClosed ? (
-                                <Badge variant="outline">Public intake</Badge>
-                            ) : null}
                             {department ? (
                                 <Badge variant="outline">
                                     <Building2 aria-hidden />
                                     {department.name}
                                 </Badge>
                             ) : null}
-                            {program.approval_label ? (
-                                <Badge variant="outline">
-                                    {program.approval_label}
-                                </Badge>
+                            {program.public_intake && !isClosed ? (
+                                <Badge variant="outline">Public intake</Badge>
                             ) : null}
                         </div>
                     </div>
@@ -577,10 +634,19 @@ export default function UserProgramShow({
                                 Copy public URL
                             </Button>
                         ) : null}
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setAnalyticsOpen(true)}
+                        >
+                            <BarChart3 className="size-4" />
+                            Inspect analytics
+                        </Button>
                         {department?.slug ? (
                             <ProgramApprovalSubmit
                                 departmentSlug={department.slug}
                                 programId={program.id}
+                                programName={program.name}
                                 canSubmit={program.can_submit_approval}
                             />
                         ) : null}
@@ -599,192 +665,205 @@ export default function UserProgramShow({
 
                 <div data-tour="program-kpis">
                     <WhenVisible
-                        data="summary"
+                        data={['summary', 'program_metrics']}
                         buffer={200}
-                        fallback={<ProgramKpiCardsSkeleton />}
+                        fallback={<ProgramShowMetricsSkeleton />}
                     >
-                        {summary ? (
-                            <ProgramKpiCards summary={summary} />
+                        {program_metrics ? (
+                            <ProgramShowMetrics
+                                metrics={program_metrics}
+                                summary={summary}
+                            />
                         ) : (
-                            <ProgramKpiCardsSkeleton />
+                            <ProgramShowMetricsSkeleton />
                         )}
                     </WhenVisible>
                 </div>
 
                 <div data-tour="program-requests-status-chart">
                     <WhenVisible
-                        data="status_breakdown"
+                        data={['program_metrics', 'status_breakdown']}
                         buffer={200}
-                        fallback={<ProgramStatusBreakdownSkeleton />}
+                        fallback={
+                            <div className="grid gap-4 xl:grid-cols-3">
+                                <ProgramReachSkeleton />
+                                <ProgramStatusBreakdownSkeleton />
+                            </div>
+                        }
                     >
-                        {status_breakdown ? (
-                            <ProgramStatusBreakdown
-                                breakdown={status_breakdown}
-                            />
-                        ) : (
-                            <ProgramStatusBreakdownSkeleton />
-                        )}
+                        <div className="grid gap-4 xl:grid-cols-3">
+                            {program_metrics ? (
+                                <ProgramReachCards metrics={program_metrics} />
+                            ) : (
+                                <ProgramReachSkeleton />
+                            )}
+                            {status_breakdown ? (
+                                <ProgramStatusBreakdown
+                                    breakdown={status_breakdown}
+                                />
+                            ) : (
+                                <ProgramStatusBreakdownSkeleton />
+                            )}
+                        </div>
                     </WhenVisible>
                 </div>
 
-                <section
+                <div
                     data-tour="program-overview"
-                    className="rounded-xl border border-border bg-card"
+                    className="grid gap-4 lg:grid-cols-3"
                 >
-                    <div className="flex flex-col gap-4 p-4">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0 space-y-1">
-                                <h2 className="text-[15px] font-semibold tracking-tight">
-                                    Overview
-                                </h2>
+                    <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+                        <h2 className="text-[15px] font-semibold tracking-tight">
+                            Description
+                        </h2>
+                        <p
+                            className={cn(
+                                'text-sm leading-relaxed whitespace-pre-wrap',
+                                description
+                                    ? 'text-muted-foreground'
+                                    : 'text-muted-foreground/60 italic',
+                            )}
+                        >
+                            {description || 'No description'}
+                        </p>
+                        <div className="space-y-2">
+                            <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                                <CalendarRange className="size-3.5" />
+                                Program period
+                            </p>
+                            <p className="text-sm tabular-nums">
+                                {formatProgramPeriod(
+                                    program.start_at,
+                                    program.end_at,
+                                )}
+                            </p>
+                            {timeline ? (
+                                <div className="space-y-1.5">
+                                    <Progress
+                                        value={timeline.percent}
+                                        aria-label={`Program timeline ${timeline.percent}% elapsed`}
+                                    />
+                                    <p className="text-xs text-muted-foreground tabular-nums">
+                                        {timeline.caption}
+                                    </p>
+                                </div>
+                            ) : program.start_at_input &&
+                              !program.end_at_input ? (
                                 <p className="text-xs text-muted-foreground">
-                                    Dates, funding, and covered items
+                                    Ongoing since{' '}
+                                    {formatProgramDate(program.start_at_input)}{' '}
+                                    (no end date set)
                                 </p>
-                            </div>
+                            ) : null}
                         </div>
+                    </section>
 
-                        <div className="grid gap-6 lg:grid-cols-3">
-                            <div className="min-w-0 lg:col-span-2">
-                                <p className="mb-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                    Description
+                    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+                        <div className="flex items-center justify-between gap-2">
+                            <h2 className="flex items-center gap-1.5 text-[15px] font-semibold tracking-tight">
+                                <Coins className="size-3.5" />
+                                Funding sources
+                            </h2>
+                            {program_funds && program_funds.length > 0 ? (
+                                <span className="font-mono text-xs tabular-nums">
+                                    {formatPeso(fundTotal)}
+                                </span>
+                            ) : null}
+                        </div>
+                        {program_funds === undefined ? (
+                            <OverviewDetailSkeleton />
+                        ) : program_funds.length === 0 ? (
+                            <p className="text-sm text-muted-foreground/60 italic">
+                                No funding sources linked
+                            </p>
+                        ) : (
+                            <ul className="space-y-1.5">
+                                {program_funds.map((fund) => (
+                                    <li
+                                        key={fund.id}
+                                        className="flex items-baseline justify-between gap-2 text-sm"
+                                    >
+                                        <span className="min-w-0 truncate">
+                                            {fund.name}
+                                            {fund.year ? (
+                                                <span className="ml-1.5 text-xs text-muted-foreground">
+                                                    {fund.year}
+                                                </span>
+                                            ) : null}
+                                        </span>
+                                        {formatFundAmount(fund.amount) ? (
+                                            <span className="shrink-0 font-mono text-xs text-muted-foreground tabular-nums">
+                                                {formatFundAmount(fund.amount)}
+                                            </span>
+                                        ) : null}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </section>
+
+                    <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+                        <div className="space-y-2">
+                            <h2 className="flex items-center gap-1.5 text-[15px] font-semibold tracking-tight">
+                                <Package className="size-3.5" />
+                                Covered items
+                            </h2>
+                            {program_covered_items === undefined ? (
+                                <OverviewDetailSkeleton />
+                            ) : program_covered_items.length === 0 ? (
+                                <p className="text-sm text-muted-foreground/60 italic">
+                                    No items linked
                                 </p>
-                                <p
-                                    className={cn(
-                                        'text-sm leading-relaxed whitespace-pre-wrap',
-                                        description
-                                            ? 'text-muted-foreground'
-                                            : 'text-muted-foreground/60 italic',
-                                    )}
-                                >
-                                    {description || 'No description'}
+                            ) : (
+                                <div className="flex flex-wrap gap-1.5">
+                                    {program_covered_items.map((item) => (
+                                        <Badge
+                                            key={item.id}
+                                            variant="secondary"
+                                        >
+                                            {item.name}
+                                            {item.unit ? (
+                                                <span className="text-muted-foreground">
+                                                    · {item.unit}
+                                                </span>
+                                            ) : null}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div className="space-y-2">
+                            <h2 className="text-[15px] font-semibold tracking-tight">
+                                Stock allocated
+                            </h2>
+                            {program_stock === undefined ? (
+                                <OverviewDetailSkeleton />
+                            ) : program_stock.length === 0 ? (
+                                <p className="text-sm text-muted-foreground/60 italic">
+                                    No stock allocated to this program
                                 </p>
-                            </div>
+                            ) : (
+                                <ul className="space-y-3">
+                                    {program_stock.map((row) => {
+                                        const cap =
+                                            row.on_hand > 0
+                                                ? row.on_hand
+                                                : row.remaining;
+                                        const stockPercent =
+                                            cap > 0
+                                                ? Math.min(
+                                                      100,
+                                                      (row.remaining / cap) *
+                                                          100,
+                                                  )
+                                                : 0;
 
-                            <div className="min-w-0 space-y-5 lg:border-l lg:border-border lg:pl-6">
-                                <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        <CalendarRange className="size-3.5" />
-                                        Program period
-                                    </p>
-                                    <p className="text-sm tabular-nums">
-                                        {formatProgramPeriod(
-                                            program.start_at,
-                                            program.end_at,
-                                        )}
-                                    </p>
-                                    {timeline ? (
-                                        <div className="space-y-1.5">
-                                            <Progress
-                                                value={timeline.percent}
-                                                aria-label={`Program timeline ${timeline.percent}% elapsed`}
-                                            />
-                                            <p className="text-xs text-muted-foreground tabular-nums">
-                                                {timeline.caption}
-                                            </p>
-                                        </div>
-                                    ) : program.start_at_input &&
-                                      !program.end_at_input ? (
-                                        <p className="text-xs text-muted-foreground">
-                                            Ongoing since{' '}
-                                            {formatProgramDate(
-                                                program.start_at_input,
-                                            )}{' '}
-                                            (no end date set)
-                                        </p>
-                                    ) : null}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        <Coins className="size-3.5" />
-                                        Funding sources
-                                    </p>
-                                    {program_funds === undefined ? (
-                                        <OverviewDetailSkeleton />
-                                    ) : program_funds.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground/60 italic">
-                                            No funding sources linked
-                                        </p>
-                                    ) : (
-                                        <ul className="space-y-1.5">
-                                            {program_funds.map((fund) => (
-                                                <li
-                                                    key={fund.id}
-                                                    className="flex items-baseline justify-between gap-2 text-sm"
-                                                >
-                                                    <span className="min-w-0 truncate">
-                                                        {fund.name}
-                                                        {fund.year ? (
-                                                            <span className="ml-1.5 text-xs text-muted-foreground">
-                                                                {fund.year}
-                                                            </span>
-                                                        ) : null}
-                                                    </span>
-                                                    {formatFundAmount(
-                                                        fund.amount,
-                                                    ) ? (
-                                                        <span className="shrink-0 text-xs font-medium text-muted-foreground tabular-nums">
-                                                            {formatFundAmount(
-                                                                fund.amount,
-                                                            )}
-                                                        </span>
-                                                    ) : null}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        <Package className="size-3.5" />
-                                        Covered items
-                                    </p>
-                                    {program_covered_items === undefined ? (
-                                        <OverviewDetailSkeleton />
-                                    ) : program_covered_items.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground/60 italic">
-                                            No items linked
-                                        </p>
-                                    ) : (
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {program_covered_items.map(
-                                                (item) => (
-                                                    <Badge
-                                                        key={item.id}
-                                                        variant="secondary"
-                                                    >
-                                                        {item.name}
-                                                        {item.unit ? (
-                                                            <span className="text-muted-foreground">
-                                                                · {item.unit}
-                                                            </span>
-                                                        ) : null}
-                                                    </Badge>
-                                                ),
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="space-y-2">
-                                    <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                                        <Package className="size-3.5" />
-                                        Stock allocated
-                                    </p>
-                                    {program_stock === undefined ? (
-                                        <OverviewDetailSkeleton />
-                                    ) : program_stock.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground/60 italic">
-                                            No stock allocated to this program
-                                        </p>
-                                    ) : (
-                                        <ul className="space-y-1.5">
-                                            {program_stock.map((row) => (
-                                                <li
-                                                    key={row.item_id}
-                                                    className="flex items-center justify-between gap-2 text-sm"
-                                                >
+                                        return (
+                                            <li
+                                                key={row.item_id}
+                                                className="space-y-1"
+                                            >
+                                                <div className="flex items-center justify-between gap-2 text-sm">
                                                     <span>
                                                         {row.item_name}
                                                         {row.unit ? (
@@ -802,19 +881,22 @@ export default function UserProgramShow({
                                                             </Badge>
                                                         ) : null}
                                                     </span>
-                                                    <span className="text-muted-foreground tabular-nums">
+                                                    <span className="font-mono text-xs text-muted-foreground tabular-nums">
                                                         {row.remaining}{' '}
                                                         remaining
                                                     </span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
+                                                </div>
+                                                <Progress
+                                                    value={stockPercent}
+                                                />
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
                         </div>
-                    </div>
-                </section>
+                    </section>
+                </div>
 
                 <section
                     data-tour="program-assistance"
@@ -885,6 +967,28 @@ export default function UserProgramShow({
                     </div>
                 </section>
             </div>
+
+            <ProgramAnalyticsDialog
+                program={analyticsOpen ? program : null}
+                open={analyticsOpen}
+                onOpenChange={setAnalyticsOpen}
+                url={
+                    department?.slug
+                        ? programAnalytics.url({
+                              department: department.slug,
+                              program: program.id,
+                          })
+                        : null
+                }
+                exportUrl={
+                    department?.slug
+                        ? exportAssistances.url({
+                              department: department.slug,
+                              program: program.id,
+                          })
+                        : null
+                }
+            />
 
             {canEdit && department && editOpen ? (
                 <Suspense fallback={null}>

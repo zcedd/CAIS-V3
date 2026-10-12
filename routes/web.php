@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
 use App\Http\Controllers\Executive\DashboardController as ExecutiveDashboardController;
+use App\Http\Controllers\Executive\ProgramAnalyticsController as ExecutiveProgramAnalyticsController;
 use App\Http\Controllers\Executive\ProgramController as ExecutiveProgramController;
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
@@ -12,9 +13,11 @@ use App\Http\Controllers\User\AssistanceReceiptController as UserAssistanceRecei
 use App\Http\Controllers\User\BeneficiaryController as UserBeneficiaryController;
 use App\Http\Controllers\User\DashboardController as UserDashboardController;
 use App\Http\Controllers\User\FundController as UserFundController;
+use App\Http\Controllers\User\GlobalSearchController as UserGlobalSearchController;
 use App\Http\Controllers\User\ItemController as UserItemController;
 use App\Http\Controllers\User\ItemStockController as UserItemStockController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
+use App\Http\Controllers\User\ProgramAnalyticsController as UserProgramAnalyticsController;
 use App\Http\Controllers\User\ProgramApprovalController as UserProgramApprovalController;
 use App\Http\Controllers\User\ProgramBatchController as UserProgramBatchController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
@@ -35,6 +38,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('executive')->prefix('executive')->name('executive.')->group(function () {
         Route::get('dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');
         Route::get('programs', [ExecutiveProgramController::class, 'index'])->name('programs.index');
+        Route::get('programs/{program}/analytics', [ExecutiveProgramAnalyticsController::class, 'show'])->name('programs.analytics');
         Route::get('programs/{program}', [ExecutiveProgramController::class, 'show'])->name('programs.show');
         Route::post('programs/{program}/approve', [ExecutiveProgramController::class, 'approve'])->name('programs.approve');
         Route::post('programs/{program}/return', [ExecutiveProgramController::class, 'returnToDepartment'])->name('programs.return');
@@ -67,6 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::prefix('{department}')->middleware(EnsureUserBelongsToDepartment::class)->group(function () {
         Route::get('dashboard', [UserDashboardController::class, 'index'])->name('user.dashboard.index');
 
+        Route::get('search', [UserGlobalSearchController::class, 'index'])->name('user.search');
         Route::get('beneficiaries/search', [UserBeneficiaryController::class, 'search'])->name('user.beneficiaries.search');
         Route::get('beneficiaries/duplicates', [UserBeneficiaryController::class, 'duplicates'])->name('user.beneficiaries.duplicates');
         Route::get('beneficiaries/create', [UserBeneficiaryController::class, 'create'])->name('user.beneficiaries.create');
@@ -97,6 +102,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         Route::scopeBindings()->group(function () {
             Route::resource('programs', UserProgramController::class)->only(['index', 'store', 'show', 'update'])->names('user.programs');
+            Route::get('programs/{program}/analytics', [UserProgramAnalyticsController::class, 'show'])->name('user.programs.analytics');
             Route::post('programs/{program}/approval', [UserProgramApprovalController::class, 'store'])->name('user.programs.approval.store');
             Route::post('programs/{program}/batches', [UserProgramBatchController::class, 'store'])->name('user.programs.batches.store');
 

@@ -10,25 +10,32 @@ use App\Http\Requests\Executive\Program\ShowRequest;
 use App\Models\Program;
 use App\Models\User;
 use App\Services\User\ProgramApprovalService;
+use App\Services\User\ProgramService;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProgramController extends Controller
 {
-    public function __construct(private ProgramApprovalService $approvals) {}
+    public function __construct(
+        private ProgramApprovalService $approvals,
+        private ProgramService $programService,
+    ) {}
 
     public function index(IndexRequest $request): Response
     {
+        $programs = $this->approvals->paginateForGovernor(
+            $request->search(),
+            $request->types(),
+            $request->statuses(),
+            $request->approvals(),
+            $request->departments(),
+            $request->perPage(),
+        );
+
         return Inertia::render('executive/programs/index', [
-            'programs' => $this->approvals->paginateForGovernor(
-                $request->search(),
-                $request->types(),
-                $request->statuses(),
-                $request->approvals(),
-                $request->departments(),
-                $request->perPage(),
-            ),
+            'programs' => $programs,
+            'program_metrics' => $this->programService->cardMetrics(collect($programs->items())),
             'search' => $request->search(),
             'type' => $request->types(),
             'status' => $request->statuses(),
@@ -37,6 +44,13 @@ class ProgramController extends Controller
             'departments' => $this->approvals->departmentOptions(),
             'per_page' => $request->perPage(),
             'awaiting_count' => $this->approvals->awaitingGovernorCount(),
+            'approval_counts' => $this->approvals->approvalCounts(
+                $request->search(),
+                $request->types(),
+                $request->statuses(),
+                $request->departments(),
+            ),
+            'review_queue_count' => $this->approvals->awaitingGovernorCount(),
         ]);
     }
 
@@ -58,9 +72,12 @@ class ProgramController extends Controller
 
         $this->approvals->approve($program, $actor, $request->remark());
 
-        return redirect()
-            ->route('executive.programs.show', $program)
-            ->with('success', 'Program approved. Verified requests are ready for release.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Program approved. Verified requests are ready for release.',
+        ]);
+
+        return redirect()->back();
     }
 
     public function returnToDepartment(ReturnRequest $request, Program $program): RedirectResponse
@@ -73,8 +90,11 @@ class ProgramController extends Controller
 
         $this->approvals->returnToDepartment($program, $actor, $request->remark());
 
-        return redirect()
-            ->route('executive.programs.show', $program)
-            ->with('success', 'Program returned to the department.');
+        Inertia::flash('toast', [
+            'type' => 'success',
+            'message' => 'Program returned to the department.',
+        ]);
+
+        return redirect()->back();
     }
 }

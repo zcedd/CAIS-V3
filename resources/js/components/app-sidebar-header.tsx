@@ -1,5 +1,9 @@
 import { usePage } from '@inertiajs/react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { HeaderCommandMenu } from '@/components/header/header-command-menu';
+import { HeaderFullscreenToggle } from '@/components/header/header-fullscreen-toggle';
+import { HeaderNotifications } from '@/components/header/header-notifications';
+import { HeaderThemeToggle } from '@/components/header/header-theme-toggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -7,6 +11,7 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
@@ -33,7 +38,12 @@ export function AppSidebarHeader({
             </div>
 
             {user ? (
-                <div className="ml-auto flex shrink-0 items-center">
+                <div className="ml-auto flex shrink-0 items-center gap-1">
+                    <HeaderCommandMenu />
+                    <HeaderNotifications />
+                    <HeaderThemeToggle />
+                    <HeaderFullscreenToggle />
+                    <Separator orientation="vertical" className="mx-1 h-6" />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button

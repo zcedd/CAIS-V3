@@ -41,6 +41,22 @@ export type DashboardSummary = {
     repeat_beneficiaries: number;
     one_time_beneficiaries: number;
     avg_requests_per_beneficiary: number;
+    cash_disbursed: number;
+    goods_released: number;
+};
+
+export type CityChartPoint = {
+    city: string;
+    count: number;
+};
+
+export type MunicipalityMapPoint = {
+    city_id: number;
+    city: string;
+    beneficiaries: number;
+    delivered_requests: number;
+    goods_released: number;
+    cash_disbursed: number;
 };
 
 export type RequestStatusChartPoint = {
@@ -141,6 +157,7 @@ export const DASHBOARD_PARTIAL_PROPS = [
     'insights',
     'topBarangays',
     'modeOfRequestChart',
+    'municipalityMap',
     'programsTable',
     'filters',
 ] as const;

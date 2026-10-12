@@ -1,10 +1,14 @@
 'use client';
 
+import { Form } from '@inertiajs/react';
+import type { Table, VisibilityState } from '@tanstack/react-table';
+import { Plus, RotateCcw, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import InputError from '@/components/input-error';
-import { UnspscCodeCombobox } from '@/components/unspsc-code-combobox';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
     Drawer,
     DrawerClose,
@@ -23,6 +27,8 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { UnspscCodeCombobox } from '@/components/unspsc-code-combobox';
+import { usePageCommands } from '@/lib/command-registry';
 import {
     applyCreateDrawerOpenChange,
     useCreateDrawerTourLock,
@@ -30,16 +36,8 @@ import {
 import { cn } from '@/lib/utils';
 import type { UserDepartmentItemRow } from '@/pages/user/items/item-columns';
 import { store as storeDepartmentItem } from '@/routes/user/items';
-import {
-    ITEM_KIND_OPTIONS,
-    tracksInventory,
-    type ItemKind,
-} from '@/types/item';
-import { Form } from '@inertiajs/react';
-import { Table, VisibilityState } from '@tanstack/react-table';
-import { Plus, RotateCcw, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import { ITEM_KIND_OPTIONS, tracksInventory } from '@/types/item';
+import type { ItemKind } from '@/types/item';
 
 export type UnitMeasurementOption = {
     id: number;
@@ -76,7 +74,40 @@ export function ItemDataTableToolbar({
     onItemCreated,
 }: ItemDataTableToolbarProps) {
     const [searchQuery, setSearchQuery] = useState(filters.search);
-    const [createOpen, setCreateOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(
+        () =>
+            typeof window !== 'undefined' &&
+            new URLSearchParams(window.location.search).get('create') === '1',
+    );
+    const createCommands = useMemo(
+        () => [
+            {
+                id: 'item.create',
+                label: 'Add item',
+                icon: Plus,
+                keywords: 'create item inventory',
+                onSelect: () => setCreateOpen(true),
+            },
+        ],
+        [],
+    );
+    usePageCommands(createCommands);
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.get('create') !== '1') {
+            return;
+        }
+
+        url.searchParams.delete('create');
+        window.history.replaceState(
+            window.history.state,
+            '',
+            `${url.pathname}${url.search}${url.hash}`,
+        );
+    }, []);
+
     const createDrawerTourLocked = useCreateDrawerTourLock();
     const [createFormKey, setCreateFormKey] = useState(0);
     const [unspscCodeId, setUnspscCodeId] = useState<number | null>(null);
@@ -178,18 +209,12 @@ export function ItemDataTableToolbar({
                 onOpenChange={(open) =>
                     applyCreateDrawerOpenChange(open, setCreateOpen)
                 }
-                dismissible={!createDrawerTourLocked}
                 noBodyStyles={createDrawerTourLocked}
                 direction="right"
             >
                 <DrawerContent
                     className="data-[vaul-drawer-direction=right]:sm:max-w-3xl"
                     data-tour="items-create-form"
-                    onPointerDownOutside={(event) => {
-                        if (createDrawerTourLocked) {
-                            event.preventDefault();
-                        }
-                    }}
                 >
                     <DrawerHeader>
                         <DrawerTitle>Create item</DrawerTitle>

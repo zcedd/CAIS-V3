@@ -89,7 +89,7 @@ test('a department head submits verified beneficiaries for governor approval', f
 
     $this->actingAs($head)
         ->post(route('user.programs.approval.store', [$department, $program]))
-        ->assertRedirect(route('user.programs.show', [$department, $program]));
+        ->assertRedirect();
 
     expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor);
 });
@@ -108,7 +108,7 @@ test('governor approval marks only verified requests ready for release', functio
 
     $this->actingAs($governor)
         ->post(route('executive.programs.approve', $program))
-        ->assertRedirect(route('executive.programs.show', $program));
+        ->assertRedirect();
 
     $verified->refresh()->load('currentRequestSubStatus.requestStatus');
     $pending->refresh()->load('currentRequestSubStatus.requestStatus');
@@ -134,7 +134,7 @@ test('returning a program leaves beneficiary statuses unchanged', function () {
         ->post(route('executive.programs.return', $program), [
             'remark' => 'Add the missing household list.',
         ])
-        ->assertRedirect(route('executive.programs.show', $program));
+        ->assertRedirect();
 
     $verified->refresh()->load('currentRequestSubStatus');
 
@@ -214,7 +214,7 @@ test('each batch is submitted and approved separately', function () {
 
     $this->actingAs($head)
         ->post(route('user.programs.approval.store', [$department, $batch]))
-        ->assertRedirect(route('user.programs.show', [$department, $batch]));
+        ->assertRedirect();
 
     expect($scheme->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft)
         ->and($batch->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor)
@@ -231,6 +231,26 @@ test('each batch is submitted and approved separately', function () {
         ->and($otherBatch->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft)
         ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ReadyForRelease)
         ->and($otherVerified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
+});
+
+test('only a department head can endorse a program from the department index', function () {
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $program = draftProgram($department);
+    $head = officeUser(RoleName::DepartmentHead, $department);
+    $staff = officeUser(RoleName::Head, $department);
+
+    $this->actingAs($head)
+        ->get(route('user.programs.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('programs.data.0.id', $program->id)
+            ->where('programs.data.0.can_submit_approval', true));
+
+    $this->actingAs($staff)
+        ->get(route('user.programs.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('programs.data.0.can_submit_approval', false));
 });
 
 function officeUser(RoleName $role, Department $department): User

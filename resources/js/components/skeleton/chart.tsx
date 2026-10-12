@@ -1,18 +1,26 @@
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const barHeights = ['h-16', 'h-24', 'h-32', 'h-40', 'h-28', 'h-36', 'h-20'];
+
 export function Chart() {
     return (
-        <div role="status" className="h-full w-full animate-pulse rounded-sm border border-gray-200 p-4 shadow-sm md:p-6 dark:border-gray-700">
-            <div className="mb-2.5 h-1 w-32 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-            <div className="mb-10 h-1.5 w-48 rounded-full bg-gray-200 dark:bg-gray-700"></div>
-            <div className="mt-4 flex items-baseline">
-                <div className="h-12 w-full rounded-t-lg bg-gray-200 dark:bg-gray-700"></div>
-                <div className="ms-6 h-32 w-full rounded-t-lg bg-gray-200 dark:bg-gray-700"></div>
-                <div className="ms-6 h-34 w-full rounded-t-lg bg-gray-200 dark:bg-gray-700"></div>
-                <div className="ms-6 h-45 w-full rounded-t-lg bg-gray-200 dark:bg-gray-700"></div>
-                <div className="ms-6 h-32 w-full rounded-t-lg bg-gray-200 dark:bg-gray-700"></div>
-                <div className="ms-6 h-34 w-full rounded-t-lg bg-gray-200 dark:bg-gray-700"></div>
-                <div className="ms-6 h-31 w-full rounded-t-lg bg-gray-200 dark:bg-gray-700"></div>
-            </div>
-            <span className="sr-only">Loading...</span>
-        </div>
+        <Card role="status" aria-busy="true" className="h-full w-full">
+            <CardHeader>
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-48" />
+            </CardHeader>
+            <CardContent>
+                <div className="flex h-48 items-end gap-3">
+                    {barHeights.map((height) => (
+                        <Skeleton
+                            key={height}
+                            className={`${height} w-full rounded-t-md`}
+                        />
+                    ))}
+                </div>
+                <span className="sr-only">Loading...</span>
+            </CardContent>
+        </Card>
     );
 }

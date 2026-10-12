@@ -16,6 +16,7 @@ use App\Services\Workflow\WorkflowEngine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
 
 class ProgramApprovalService
@@ -124,6 +125,67 @@ class ProgramApprovalService
             ->count();
     }
 
+    /**
+     * Counts ignore the approval filter so the status pills stay stable.
+     *
+     * @param  list<string>  $types
+     * @param  list<string>  $statuses
+     * @param  list<int>  $departmentIds
+     * @return array{all: int, draft: int, awaiting_governor: int, approved: int, returned: int}
+     */
+    public function approvalCounts(
+        string $search,
+        array $types,
+        array $statuses,
+        array $departmentIds,
+    ): array {
+        $base = Program::query()
+            ->encodable()
+            ->when($search !== '', function (Builder $query) use ($search): void {
+                $query->where(function (Builder $searchQuery) use ($search): void {
+                    $searchQuery
+                        ->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('batch_name', 'like', '%'.$search.'%')
+                        ->orWhereHas('parent', function (Builder $parentQuery) use ($search): void {
+                            $parentQuery->where('name', 'like', '%'.$search.'%');
+                        });
+                });
+            })
+            ->when(
+                count($types) === 1 && in_array('individual', $types, true),
+                fn (Builder $query) => $query->where('is_organization', false),
+            )
+            ->when(
+                count($types) === 1 && in_array('organization', $types, true),
+                fn (Builder $query) => $query->where('is_organization', true),
+            )
+            ->when(
+                count($statuses) === 1 && in_array('open', $statuses, true),
+                fn (Builder $query) => $query->where('is_closed', false),
+            )
+            ->when(
+                count($statuses) === 1 && in_array('closed', $statuses, true),
+                fn (Builder $query) => $query->where('is_closed', true),
+            )
+            ->when(
+                $departmentIds !== [],
+                fn (Builder $query) => $query->whereIn('department_id', $departmentIds),
+            );
+
+        $rows = (clone $base)
+            ->selectRaw('approval_status, COUNT(*) as aggregate')
+            ->groupBy('approval_status')
+            ->pluck('aggregate', 'approval_status');
+
+        return [
+            'all' => (int) (clone $base)->count(),
+            'draft' => (int) ($rows[ProgramApprovalStatus::Draft->value] ?? 0),
+            'awaiting_governor' => (int) ($rows[ProgramApprovalStatus::AwaitingGovernor->value] ?? 0),
+            'approved' => (int) ($rows[ProgramApprovalStatus::Approved->value] ?? 0),
+            'returned' => (int) ($rows[ProgramApprovalStatus::Returned->value] ?? 0),
+        ];
+    }
+
     public function verifiedCount(Program $program): int
     {
         return $this->verifiedQuery($program)->count();
@@ -220,6 +282,7 @@ class ProgramApprovalService
                     'open_batches_count' => (int) $program->open_batches_count,
                     'approval_status' => $status->value,
                     'approval_label' => $status->label(),
+                    'can_approve' => Gate::allows('approve', $program),
                     'department' => $program->department === null ? null : [
                         'id' => $program->department->id,
                         'name' => $program->department->name,

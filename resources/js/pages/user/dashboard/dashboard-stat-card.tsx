@@ -1,4 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
+import type { ReactNode } from 'react';
 import {
     Card,
     CardContent,
@@ -6,55 +7,8 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-
-type DashboardStatCardProps = {
-    label: string;
-    value: React.ReactNode;
-    description?: React.ReactNode;
-    icon: LucideIcon;
-    footer?: React.ReactNode;
-    className?: string;
-    valueClassName?: string;
-};
-
-/**
- * Compact metric card used across the dashboard (Insights-style).
- */
-export function DashboardStatCard({
-    label,
-    value,
-    description,
-    icon: Icon,
-    footer,
-    className,
-    valueClassName,
-}: DashboardStatCardProps) {
-    return (
-        <Card size="sm" className={className}>
-            <CardHeader className="flex flex-row items-start justify-between gap-2">
-                <div className="min-w-0 space-y-1">
-                    <CardDescription>{label}</CardDescription>
-                    <CardTitle
-                        className={cn(
-                            'text-2xl font-semibold tabular-nums',
-                            valueClassName,
-                        )}
-                    >
-                        {value}
-                    </CardTitle>
-                    {description ? (
-                        <p className="text-xs text-muted-foreground">
-                            {description}
-                        </p>
-                    ) : null}
-                </div>
-                <Icon className="size-5 shrink-0 text-muted-foreground" />
-            </CardHeader>
-            {footer ? <CardContent>{footer}</CardContent> : null}
-        </Card>
-    );
-}
 
 type DashboardSectionCardProps = {
     title: string;
@@ -79,41 +33,51 @@ export function DashboardSectionCard({
     'data-tour': dataTour,
 }: DashboardSectionCardProps) {
     return (
-        <Card className={cn('gap-4', className)} data-tour={dataTour}>
+        <Card size="sm" className={cn('gap-4', className)} data-tour={dataTour}>
             <CardHeader className="flex flex-row items-start justify-between gap-2">
                 <div className="min-w-0 space-y-1">
-                    <CardTitle>{title}</CardTitle>
+                    <CardTitle className="text-sm">{title}</CardTitle>
                     {description ? (
-                        <CardDescription>{description}</CardDescription>
+                        <CardDescription className="text-xs">
+                            {description}
+                        </CardDescription>
                     ) : null}
                 </div>
-                <Icon className="size-5 shrink-0 text-muted-foreground" />
+                <Icon className="size-4 shrink-0 text-muted-foreground" />
             </CardHeader>
             <CardContent className={contentClassName}>{children}</CardContent>
         </Card>
     );
 }
 
-export function DashboardStatCardSkeleton({
-    withFooter = false,
+export function SectionCardSkeleton({
+    label,
+    titleClassName = 'w-32',
+    descriptionClassName = 'w-48',
+    className,
+    children,
 }: {
-    withFooter?: boolean;
+    label: string;
+    titleClassName?: string;
+    descriptionClassName?: string;
+    className?: string;
+    children: ReactNode;
 }) {
     return (
-        <Card size="sm">
+        <Card
+            aria-busy="true"
+            aria-label={label}
+            size="sm"
+            className={cn('h-full gap-4', className)}
+        >
             <CardHeader className="flex flex-row items-start justify-between gap-2">
-                <div className="space-y-2">
-                    <div className="h-3 w-24 animate-pulse rounded bg-muted" />
-                    <div className="h-8 w-16 animate-pulse rounded bg-muted" />
-                    <div className="h-3 w-32 animate-pulse rounded bg-muted" />
+                <div className="min-w-0 space-y-1">
+                    <Skeleton className={cn('h-4', titleClassName)} />
+                    <Skeleton className={cn('h-3', descriptionClassName)} />
                 </div>
-                <div className="size-5 animate-pulse rounded bg-muted" />
+                <Skeleton className="size-4 shrink-0" />
             </CardHeader>
-            {withFooter ? (
-                <CardContent>
-                    <div className="h-2 w-full animate-pulse rounded bg-muted" />
-                </CardContent>
-            ) : null}
+            <CardContent>{children}</CardContent>
         </Card>
     );
 }

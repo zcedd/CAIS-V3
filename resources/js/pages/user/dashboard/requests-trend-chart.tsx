@@ -40,11 +40,11 @@ export function RequestsTrendChart({ data }: RequestsTrendChartProps) {
     );
 
     return (
-        <Card className="gap-4" data-tour="dashboard-requests-trend">
+        <Card size="sm" className="gap-4" data-tour="dashboard-requests-trend">
             <CardHeader className="flex flex-row items-start justify-between gap-2">
                 <div className="min-w-0 space-y-1">
-                    <CardTitle>Requests over time</CardTitle>
-                    <CardDescription>
+                    <CardTitle className="text-sm">Requests over time</CardTitle>
+                    <CardDescription className="text-xs">
                         Assistance request volume by{' '}
                         {period === 'day'
                             ? 'day'

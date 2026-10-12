@@ -1,3 +1,7 @@
+import { Form, Head, router, setLayoutProps } from '@inertiajs/react';
+import { ClipboardCheck, Plus, Send, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import type { ServerPaginationMeta } from '@/components/data-table/types';
 import InputError from '@/components/input-error';
@@ -29,16 +33,30 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { ProgramAnalyticsDialog } from '@/components/user/program-analytics-dialog';
+import { ProgramCard } from '@/components/user/program-card';
+import type { ProgramCardMetric } from '@/components/user/program-card';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
+import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
+import { StatusPillTabs } from '@/components/user/status-pill-tabs';
+import { useCan } from '@/hooks/use-can';
+import { usePageCommands } from '@/lib/command-registry';
+import { Permission } from '@/lib/permissions';
 import {
-    ProgramFolderCard,
-    type ProgramListRow,
-} from '@/pages/user/programs/program-folder-card';
+    applyCreateDrawerOpenChange,
+    useCreateDrawerTourLock,
+} from '@/lib/tour-create-drawer';
+import { cn } from '@/lib/utils';
+import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
+import type { ProgramListRow } from '@/pages/user/programs/program-folder-card';
 import {
+    analytics as programAnalytics,
     index as departmentProgramsIndex,
     show as departmentProgramShow,
     store as storeProgram,
 } from '@/routes/user/programs';
+import { store as submitProgramApproval } from '@/routes/user/programs/approval';
+import { exportMethod as exportAssistances } from '@/routes/user/programs/assistances';
 import type { BreadcrumbItem } from '@/types';
 import type {
     DocumentTypeOption,
@@ -47,18 +65,6 @@ import type {
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
-import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
-import {
-    applyCreateDrawerOpenChange,
-    useCreateDrawerTourLock,
-} from '@/lib/tour-create-drawer';
-import { cn } from '@/lib/utils';
-import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { Plus, X } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { useCan } from '@/hooks/use-can';
-import { Permission } from '@/lib/permissions';
 
 type DepartmentSummary = {
     id: number;
@@ -75,16 +81,28 @@ type SelectOption = {
 
 type ProgramRow = ProgramListRow & {
     department?: DepartmentSummary | null;
+    approval_status?: string | null;
+    can_submit_approval?: boolean;
+    batch_name?: string | null;
 };
 
 type PaginatedPrograms = ServerPaginationMeta & {
     data: ProgramRow[];
 };
 
+type ApprovalCounts = {
+    all: number;
+    draft: number;
+    awaiting_governor: number;
+    approved: number;
+    returned: number;
+};
+
 type ProgramListFilters = {
     search: string;
     type: string[];
     status: string[];
+    approval: string[];
     page?: number;
     per_page?: number;
 };
@@ -92,11 +110,6 @@ type ProgramListFilters = {
 const programTypeOptions = [
     { label: 'Individual', value: 'individual' },
     { label: 'Organization', value: 'organization' },
-] as const;
-
-const programStatusOptions = [
-    { label: 'Open', value: 'open' },
-    { label: 'Closed', value: 'closed' },
 ] as const;
 
 function buildProgramsQuery(
@@ -115,6 +128,10 @@ function buildProgramsQuery(
 
     if (filters.status.length > 0) {
         query.status = filters.status;
+    }
+
+    if (filters.approval.length > 0) {
+        query.approval = filters.approval;
     }
 
     if (filters.page !== undefined && filters.page > 1) {
@@ -145,6 +162,10 @@ export default function UserProgramsIndex({
     search: initialSearch,
     type: initialType,
     status: initialStatus,
+    approval: initialApproval = [],
+    approval_counts: approvalCounts,
+    review_queue_count: reviewQueueCount = 0,
+    program_metrics: programMetrics = {},
     per_page: initialPerPage,
     funds,
     items,
@@ -156,6 +177,10 @@ export default function UserProgramsIndex({
     search: string;
     type: string[];
     status: string[];
+    approval?: string[];
+    approval_counts?: ApprovalCounts;
+    review_queue_count?: number;
+    program_metrics?: Record<string, ProgramCardMetric>;
     per_page: number;
     funds?: SelectOption[];
     items?: SelectOption[];
@@ -164,7 +189,11 @@ export default function UserProgramsIndex({
 }) {
     const canAssignWorkflow = useCan()(Permission.WorkflowAssign);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
-    const [createOpen, setCreateOpen] = useState(false);
+    const [createOpen, setCreateOpen] = useState(
+        () =>
+            typeof window !== 'undefined' &&
+            new URLSearchParams(window.location.search).get('create') === '1',
+    );
     const createDrawerTourLocked = useCreateDrawerTourLock();
     const [startAtOpen, setStartAtOpen] = useState(false);
     const [startAt, setStartAt] = useState<Date | undefined>(undefined);
@@ -196,6 +225,12 @@ export default function UserProgramsIndex({
         emptyProgramEligibility(),
     );
     const [workflowId, setWorkflowId] = useState('default');
+    const [analyticsProgram, setAnalyticsProgram] = useState<ProgramRow | null>(
+        null,
+    );
+    const [endorseProgram, setEndorseProgram] = useState<ProgramRow | null>(
+        null,
+    );
 
     const fundOptions = (funds ?? []).map((fund) => ({
         value: String(fund.id),
@@ -251,6 +286,7 @@ export default function UserProgramsIndex({
                 search: overrides.search ?? searchQuery,
                 type: overrides.type ?? initialType,
                 status: overrides.status ?? initialStatus,
+                approval: overrides.approval ?? initialApproval,
                 page: overrides.page ?? 1,
                 per_page: overrides.per_page ?? initialPerPage,
             };
@@ -269,6 +305,10 @@ export default function UserProgramsIndex({
                         'search',
                         'type',
                         'status',
+                        'approval',
+                        'approval_counts',
+                        'review_queue_count',
+                        'program_metrics',
                         'per_page',
                         'department',
                     ],
@@ -280,9 +320,11 @@ export default function UserProgramsIndex({
             searchQuery,
             initialType,
             initialStatus,
+            initialApproval,
             initialPerPage,
         ],
     );
+
     if (department?.slug) {
         const programsHref = departmentProgramsIndex.url(department.slug);
         setLayoutProps({
@@ -309,12 +351,52 @@ export default function UserProgramsIndex({
         return () => window.clearTimeout(handle);
     }, [searchQuery, initialSearch, department?.slug, navigateWithFilters]);
 
-    const heading = department ? `${department.name} programs` : 'Programs';
     const canCreate = Boolean(department?.slug);
+    const createCommands = useMemo(
+        () =>
+            canCreate
+                ? [
+                      {
+                          id: 'program.create',
+                          label: 'Create program',
+                          icon: Plus,
+                          keywords: 'propose new program',
+                          onSelect: () => setCreateOpen(true),
+                      },
+                  ]
+                : [],
+        [canCreate],
+    );
+    usePageCommands(createCommands);
+
+    useEffect(() => {
+        const url = new URL(window.location.href);
+
+        if (url.searchParams.get('create') !== '1') {
+            return;
+        }
+
+        url.searchParams.delete('create');
+        window.history.replaceState(
+            window.history.state,
+            '',
+            `${url.pathname}${url.search}${url.hash}`,
+        );
+    }, []);
+    const heading = department ? `${department.name} programs` : 'Programs';
     const isFiltered =
         initialSearch.trim() !== '' ||
         initialType.length > 0 ||
-        initialStatus.length > 0;
+        initialStatus.length > 0 ||
+        initialApproval.length > 0;
+    const counts: ApprovalCounts = approvalCounts ?? {
+        all: programs.total,
+        draft: 0,
+        awaiting_governor: 0,
+        approved: 0,
+        returned: 0,
+    };
+    const selectedApproval = initialApproval[0] ?? 'all';
 
     return (
         <>
@@ -331,60 +413,6 @@ export default function UserProgramsIndex({
                                 : 'Your account is not linked to a department, so there is nothing to show.'}
                         </p>
                     </div>
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div
-                        className="flex flex-1 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
-                        data-tour="programs-filters"
-                    >
-                        <Input
-                            type="text"
-                            name="search"
-                            autoComplete="off"
-                            placeholder="Search by program name"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className={cn(
-                                'max-w-md',
-                                searchQuery.trim().length > 0 &&
-                                    'border-primary bg-primary/5 ring-1 ring-primary/30',
-                            )}
-                        />
-                        <DataTableFacetedFilter
-                            filterValue={initialType}
-                            title="Type"
-                            options={[...programTypeOptions]}
-                            onFilterChange={(values) =>
-                                navigateWithFilters({ type: values })
-                            }
-                        />
-                        <DataTableFacetedFilter
-                            filterValue={initialStatus}
-                            title="Status"
-                            options={[...programStatusOptions]}
-                            onFilterChange={(values) =>
-                                navigateWithFilters({ status: values })
-                            }
-                        />
-                        {isFiltered ? (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                className="h-8 px-2 lg:px-3"
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    navigateWithFilters({
-                                        search: '',
-                                        type: [],
-                                        status: [],
-                                    });
-                                }}
-                            >
-                                Reset
-                                <X className="ml-2 size-4" />
-                            </Button>
-                        ) : null}
-                    </div>
                     <Button
                         type="button"
                         disabled={!canCreate}
@@ -392,8 +420,121 @@ export default function UserProgramsIndex({
                         data-tour="programs-create"
                     >
                         <Plus className="size-4" />
-                        Create program
+                        Propose New Program
                     </Button>
+                </div>
+                {reviewQueueCount > 0 ? (
+                    <div className="flex items-center justify-between gap-3 border-b border-border py-3 text-sm">
+                        <p className="flex min-w-0 items-center gap-2 text-muted-foreground">
+                            <ClipboardCheck className="size-4 shrink-0" />
+                            <span>
+                                {reviewQueueCount} program{' '}
+                                {reviewQueueCount === 1
+                                    ? 'draft needs'
+                                    : 'drafts need'}{' '}
+                                department evaluation before endorsement.
+                            </span>
+                        </p>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() =>
+                                navigateWithFilters({
+                                    approval: ['draft', 'returned'],
+                                })
+                            }
+                        >
+                            Evaluate drafts ({reviewQueueCount})
+                        </Button>
+                    </div>
+                ) : null}
+                <div data-tour="programs-approval">
+                    <StatusPillTabs
+                        value={selectedApproval}
+                        onChange={(value) =>
+                            navigateWithFilters({
+                                approval: value === 'all' ? [] : [value],
+                            })
+                        }
+                        pills={[
+                            {
+                                value: 'all',
+                                label: 'All Programs',
+                                count: counts.all,
+                            },
+                            {
+                                value: 'approved',
+                                label: 'Approved & Active',
+                                count: counts.approved,
+                                dotClassName: 'bg-emerald-500',
+                            },
+                            {
+                                value: 'awaiting_governor',
+                                label: 'Awaiting Governor Approval',
+                                count: counts.awaiting_governor,
+                                dotClassName: 'bg-amber-500',
+                            },
+                            {
+                                value: 'draft',
+                                label: 'Awaiting Dept Review',
+                                count: counts.draft,
+                                dotClassName: 'bg-blue-500',
+                            },
+                            {
+                                value: 'returned',
+                                label: 'Returned / Shelved',
+                                count: counts.returned,
+                                dotClassName: 'bg-muted-foreground',
+                            },
+                        ]}
+                    />
+                </div>
+                <div
+                    className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center"
+                    data-tour="programs-filters"
+                >
+                    <Input
+                        type="text"
+                        name="search"
+                        autoComplete="off"
+                        placeholder="Search by program name"
+                        value={searchQuery}
+                        onChange={(event) => setSearchQuery(event.target.value)}
+                        className={cn(
+                            'max-w-md',
+                            searchQuery.trim().length > 0 &&
+                                'border-primary bg-primary/5 ring-1 ring-primary/30',
+                        )}
+                    />
+                    <DataTableFacetedFilter
+                        filterValue={initialType}
+                        title="Type"
+                        options={[...programTypeOptions]}
+                        onFilterChange={(values) =>
+                            navigateWithFilters({ type: values })
+                        }
+                    />
+                    {isFiltered ? (
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className="h-8 px-2 lg:px-3"
+                            onClick={() => {
+                                setSearchQuery('');
+                                navigateWithFilters({
+                                    search: '',
+                                    type: [],
+                                    status: [],
+                                    approval: [],
+                                });
+                            }}
+                        >
+                            Reset
+                            <X className="ml-2 size-4" />
+                        </Button>
+                    ) : null}
                 </div>
                 <div data-tour="programs-list">
                     {programs.data.length === 0 ? (
@@ -407,30 +548,50 @@ export default function UserProgramsIndex({
                         </div>
                     ) : (
                         <div className="flex flex-col gap-4">
-                            <div className="grid auto-rows-min gap-x-5 gap-y-7 md:grid-cols-2 lg:grid-cols-4">
-                                {programs.data.map((program) =>
-                                    department?.slug ? (
-                                        <Link
-                                            key={program.id}
-                                            href={departmentProgramShow.url({
-                                                department: department.slug,
-                                                program: program.id,
-                                            })}
-                                            prefetch
-                                            className="block h-full rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                                        >
-                                            <ProgramFolderCard
-                                                program={program}
-                                            />
-                                        </Link>
-                                    ) : (
-                                        <div key={program.id}>
-                                            <ProgramFolderCard
-                                                program={program}
-                                            />
-                                        </div>
-                                    ),
-                                )}
+                            <div className="grid items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+                                {programs.data.map((program) => (
+                                    <ProgramCard
+                                        key={program.id}
+                                        program={program}
+                                        metrics={
+                                            programMetrics[String(program.id)]
+                                        }
+                                        href={
+                                            department?.slug
+                                                ? departmentProgramShow.url({
+                                                      department:
+                                                          department.slug,
+                                                      program: program.id,
+                                                  })
+                                                : undefined
+                                        }
+                                        onInspect={() =>
+                                            setAnalyticsProgram(program)
+                                        }
+                                        actions={
+                                            program.can_submit_approval &&
+                                            department?.slug &&
+                                            (program.approval_status ===
+                                                'draft' ||
+                                                program.approval_status ===
+                                                    'returned') ? (
+                                                <Button
+                                                    type="button"
+                                                    className="w-full"
+                                                    onClick={() =>
+                                                        setEndorseProgram(
+                                                            program,
+                                                        )
+                                                    }
+                                                >
+                                                    <Send data-icon="inline-start" />
+                                                    Endorse & Forward to
+                                                    Governor
+                                                </Button>
+                                            ) : null
+                                        }
+                                    />
+                                ))}
                             </div>
 
                             <ServerPagination
@@ -449,24 +610,61 @@ export default function UserProgramsIndex({
                     )}
                 </div>
             </div>
+            <ProgramDecisionDialog
+                open={endorseProgram !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setEndorseProgram(null);
+                    }
+                }}
+                programName={endorseProgram?.name ?? ''}
+                action="endorse"
+                url={
+                    endorseProgram && department?.slug
+                        ? submitProgramApproval.url({
+                              department: department.slug,
+                              program: endorseProgram.id,
+                          })
+                        : ''
+                }
+            />
+            <ProgramAnalyticsDialog
+                program={analyticsProgram}
+                open={analyticsProgram !== null}
+                onOpenChange={(open) => {
+                    if (!open) {
+                        setAnalyticsProgram(null);
+                    }
+                }}
+                url={
+                    analyticsProgram && department?.slug
+                        ? programAnalytics.url({
+                              department: department.slug,
+                              program: analyticsProgram.id,
+                          })
+                        : null
+                }
+                exportUrl={
+                    analyticsProgram && department?.slug
+                        ? exportAssistances.url({
+                              department: department.slug,
+                              program: analyticsProgram.id,
+                          })
+                        : null
+                }
+            />
 
             <Drawer
                 open={createOpen}
                 onOpenChange={(open) =>
                     applyCreateDrawerOpenChange(open, setCreateOpen)
                 }
-                dismissible={!createDrawerTourLocked}
                 noBodyStyles={createDrawerTourLocked}
                 direction="right"
             >
                 <DrawerContent
                     className="data-[vaul-drawer-direction=right]:sm:max-w-3xl"
                     data-tour="programs-create-form"
-                    onPointerDownOutside={(event) => {
-                        if (createDrawerTourLocked) {
-                            event.preventDefault();
-                        }
-                    }}
                 >
                     <DrawerHeader>
                         <DrawerTitle>Create program</DrawerTitle>
@@ -954,6 +1152,7 @@ export default function UserProgramsIndex({
                                                 setIsOrganization(
                                                     event.target.checked,
                                                 );
+
                                                 if (event.target.checked) {
                                                     setPublicIntake(false);
                                                     setFirstBatchPublicIntake(

@@ -69,6 +69,7 @@ test('app tour opens create drawers before highlighting their forms', function (
 
 test('create drawers ignore dismiss while the tour lock is active', function () {
     $lockSource = file_get_contents(resource_path('js/lib/tour-create-drawer.ts'));
+    $drawerSource = file_get_contents(resource_path('js/components/ui/drawer.tsx'));
     $programSource = file_get_contents(resource_path('js/pages/user/programs/index.tsx'));
     $itemSource = file_get_contents(resource_path('js/pages/user/items/item-toolbar.tsx'));
     $fundSource = file_get_contents(resource_path('js/pages/user/funds/fund-toolbar.tsx'));
@@ -80,15 +81,15 @@ test('create drawers ignore dismiss while the tour lock is active', function () 
         ->toContain('react-joyride-portal')
         ->toContain('restoreTourLayerInteractivity');
 
-    expect($programSource)
-        ->toContain('dismissible={!createDrawerTourLocked}')
+    expect($drawerSource)
+        ->toContain('dismissible = false')
         ->not->toContain('modal={!createDrawerTourLocked}');
 
-    expect($itemSource)
-        ->toContain('dismissible={!createDrawerTourLocked}')
-        ->not->toContain('modal={!createDrawerTourLocked}');
-
-    expect($fundSource)
-        ->toContain('dismissible={!createDrawerTourLocked}')
-        ->not->toContain('modal={!createDrawerTourLocked}');
+    foreach ([$programSource, $itemSource, $fundSource] as $source) {
+        expect($source)
+            ->toContain('applyCreateDrawerOpenChange')
+            ->toContain('noBodyStyles={createDrawerTourLocked}')
+            ->not->toContain('dismissible={!createDrawerTourLocked}')
+            ->not->toContain('modal={!createDrawerTourLocked}');
+    }
 });

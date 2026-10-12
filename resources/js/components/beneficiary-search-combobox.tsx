@@ -1,6 +1,9 @@
 'use client';
 
+import { Loader2, X } from 'lucide-react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
     Command,
@@ -16,10 +19,9 @@ import {
     PopoverAnchor,
     PopoverContent,
 } from '@/components/ui/popover';
+import { CodeChip } from '@/components/user/code-chip';
 import { cn } from '@/lib/utils';
 import { search as searchBeneficiaries } from '@/routes/user/beneficiaries';
-import { Loader2, X } from 'lucide-react';
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 export type BeneficiarySearchOption = {
     id: number;
@@ -28,6 +30,11 @@ export type BeneficiarySearchOption = {
     cais_number: string;
     name: string;
     label: string;
+    sex?: string | null;
+    age?: number | null;
+    barangay?: string | null;
+    city?: string | null;
+    sectors?: string[];
 };
 
 type BeneficiarySearchComboboxProps = {
@@ -81,6 +88,7 @@ export function BeneficiarySearchCombobox({
             try {
                 if (!departmentSlug) {
                     setSuggestions([]);
+
                     return;
                 }
 
@@ -262,13 +270,19 @@ export function BeneficiarySearchCombobox({
                                             onSelect={() =>
                                                 handleSelect(option)
                                             }
-                                            className="cursor-pointer flex-col items-start gap-0.5"
+                                            className="cursor-pointer items-start gap-2"
                                         >
-                                            <span className="font-medium">
-                                                {option.name}
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {option.cais_number}
+                                            <BeneficiaryAvatar name={option.name} />
+                                            <span className="flex min-w-0 flex-1 flex-col gap-1">
+                                                <span className="flex flex-wrap items-center gap-1.5">
+                                                    <span className="font-medium">
+                                                        {option.name}
+                                                    </span>
+                                                    <CodeChip>
+                                                        {option.cais_number}
+                                                    </CodeChip>
+                                                </span>
+                                                <BeneficiaryMeta option={option} />
                                             </span>
                                         </CommandItem>
                                     ))}
@@ -278,7 +292,90 @@ export function BeneficiarySearchCombobox({
                     </Command>
                 </PopoverContent>
             </Popover>
+            {value !== null && selectedOption !== null ? (
+                <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3 ring-1 ring-primary/30">
+                    <BeneficiaryAvatar name={selectedOption.name} />
+                    <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <p className="text-sm font-medium">
+                                {selectedOption.name}
+                            </p>
+                            <CodeChip>{selectedOption.cais_number}</CodeChip>
+                        </div>
+                        <BeneficiaryMeta option={selectedOption} />
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleClear}
+                        disabled={disabled}
+                    >
+                        Change
+                    </Button>
+                </div>
+            ) : null}
             <InputError message={error} />
         </div>
     );
+}
+
+function BeneficiaryAvatar({ name }: { name: string }) {
+    return (
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+            {initials(name)}
+        </span>
+    );
+}
+
+function BeneficiaryMeta({ option }: { option: BeneficiarySearchOption }) {
+    const line = profileLine(option);
+    const sectors = option.sectors ?? [];
+
+    if (line === null && sectors.length === 0) {
+        return null;
+    }
+
+    return (
+        <span className="flex flex-col gap-1">
+            {line !== null ? (
+                <span className="text-xs text-muted-foreground">{line}</span>
+            ) : null}
+            {sectors.length > 0 ? (
+                <span className="flex flex-wrap gap-1">
+                    {sectors.map((sector) => (
+                        <Badge key={sector} variant="secondary">
+                            {sector}
+                        </Badge>
+                    ))}
+                </span>
+            ) : null}
+        </span>
+    );
+}
+
+function initials(name: string): string {
+    const letters = name
+        .trim()
+        .split(/\s+/)
+        .filter((part) => part.length > 0)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '');
+
+    return letters.join('') || '?';
+}
+
+function profileLine(option: BeneficiarySearchOption): string | null {
+    const person = [
+        option.sex,
+        option.age === null || option.age === undefined ? null : String(option.age),
+    ]
+        .filter((part): part is string => part !== null && part !== '')
+        .join(', ');
+    const place = [option.barangay, option.city]
+        .filter((part): part is string => part !== null && part !== undefined && part !== '')
+        .join(', ');
+    const line = [person, place].filter((part) => part !== '').join(' · ');
+
+    return line === '' ? null : line;
 }

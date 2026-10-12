@@ -4,7 +4,9 @@ namespace App\Services\User;
 
 use App\Actions\User\ApplyDashboardFilters;
 use App\Actions\User\JoinAssistanceStatusRelations;
+use App\Enums\ItemKind;
 use App\Enums\RequestStatusCode;
+use App\Models\AddressCity;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Department;
@@ -106,7 +108,9 @@ class DashboardService
      *     avg_days_to_verify: float|null,
      *     repeat_beneficiaries: int,
      *     one_time_beneficiaries: int,
-     *     avg_requests_per_beneficiary: float
+     *     avg_requests_per_beneficiary: float,
+     *     cash_disbursed: int,
+     *     goods_released: int
      * }
      */
     public function summary(?Department $department, array $filters): array
@@ -154,6 +158,7 @@ class DashboardService
 
         $uniqueBeneficiaries = (int) ($stats->unique_beneficiaries ?? 0);
         $totalRequests = (int) ($stats->total_requests ?? 0);
+        $releasedByKind = $this->sumDeliveredItemsByKind($department, $filters);
 
         return [
             'total_requests' => $totalRequests,
@@ -175,6 +180,8 @@ class DashboardService
             'avg_requests_per_beneficiary' => $uniqueBeneficiaries > 0
                 ? round($totalRequests / $uniqueBeneficiaries, 2)
                 : 0.0,
+            'cash_disbursed' => $releasedByKind['cash'],
+            'goods_released' => $releasedByKind['goods'],
         ];
     }
 
@@ -873,7 +880,146 @@ class DashboardService
 
     /**
      * @param  array<string, mixed>  $filters
+     * @return array{cash: int, goods: int}
      */
+    private function sumDeliveredItemsByKind(?Department $department, array $filters): array
+    {
+        $rows = DB::table((new AssistanceItem)->getTable().' as ai')
+            ->joinSub(
+                $this->filteredDeliveredAssistanceIdsSubquery($department, $filters),
+                'delivered_assistances',
+                'delivered_assistances.id',
+                '=',
+                'ai.assistance_id',
+            )
+            ->join('items', 'items.id', '=', 'ai.item_id')
+            ->where('ai.is_received', true)
+            ->whereNull('ai.deleted_at')
+            ->select('items.kind')
+            ->selectRaw('SUM(ai.quantity) as total')
+            ->groupBy('items.kind')
+            ->get();
+
+        $totals = ['cash' => 0, 'goods' => 0];
+
+        foreach ($rows as $row) {
+            if ($row->kind === 'cash') {
+                $totals['cash'] = (int) $row->total;
+            }
+
+            if ($row->kind === 'goods') {
+                $totals['goods'] = (int) $row->total;
+            }
+        }
+
+        return $totals;
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return list<array{city: string, count: int}>
+     */
+    public function beneficiariesByCity(?Department $department, array $filters): array
+    {
+        $cityExpression = "COALESCE(NULLIF(city_ind.name, ''), NULLIF(city_org.name, ''), 'Unspecified')";
+
+        $scoped = (clone $this->filteredAssistanceQuery($department, $filters))
+            ->leftJoin('organizations', function ($join): void {
+                $join->on('beneficiaries.beneficiable_id', '=', 'organizations.id')
+                    ->where('beneficiaries.beneficiable_type', '=', Organization::class)
+                    ->whereNull('organizations.deleted_at');
+            })
+            ->leftJoin('address_barangays as ab_ind', 'ab_ind.id', '=', 'individuals.address_barangay_id')
+            ->leftJoin('address_barangays as ab_org', 'ab_org.id', '=', 'organizations.address_barangay_id')
+            ->leftJoin('address_cities as city_ind', 'city_ind.id', '=', 'ab_ind.address_city_id')
+            ->leftJoin('address_cities as city_org', 'city_org.id', '=', 'ab_org.address_city_id')
+            ->select('assistances.id')
+            ->selectRaw("{$cityExpression} as city")
+            ->distinct()
+            ->toBase();
+
+        return DB::query()
+            ->fromSub($scoped, 'scoped_cities')
+            ->select('city')
+            ->selectRaw('COUNT(*) as count')
+            ->groupBy('city')
+            ->orderByDesc('count')
+            ->limit(12)
+            ->get()
+            ->map(static fn ($row): array => [
+                'city' => (string) $row->city,
+                'count' => (int) $row->count,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Delivered assistance totals for every municipality, including those with none.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return list<array{
+     *     city_id: int,
+     *     city: string,
+     *     beneficiaries: int,
+     *     delivered_requests: int,
+     *     goods_released: int,
+     *     cash_disbursed: int
+     * }>
+     */
+    public function municipalityMap(?Department $department, array $filters): array
+    {
+        $counts = DB::query()
+            ->fromSub($this->deliveredAssistancesByCitySubquery($department, $filters), 'scoped_cities')
+            ->whereNotNull('address_city_id')
+            ->select('address_city_id')
+            ->selectRaw('COUNT(DISTINCT beneficiary_id) as beneficiaries')
+            ->selectRaw('COUNT(DISTINCT id) as delivered_requests')
+            ->groupBy('address_city_id');
+
+        $cash = ItemKind::Cash->value;
+        $goods = ItemKind::Goods->value;
+
+        $items = DB::table((new AssistanceItem)->getTable().' as ai')
+            ->joinSub(
+                $this->deliveredAssistancesByCitySubquery($department, $filters),
+                'scoped_cities',
+                'scoped_cities.id',
+                '=',
+                'ai.assistance_id',
+            )
+            ->join('items', 'items.id', '=', 'ai.item_id')
+            ->where('ai.is_received', true)
+            ->whereNull('ai.deleted_at')
+            ->whereNotNull('scoped_cities.address_city_id')
+            ->select('scoped_cities.address_city_id')
+            ->selectRaw("COALESCE(SUM(CASE WHEN items.kind = '{$cash}' THEN ai.quantity ELSE 0 END), 0) as cash_disbursed")
+            ->selectRaw("COALESCE(SUM(CASE WHEN items.kind = '{$goods}' THEN ai.quantity ELSE 0 END), 0) as goods_released")
+            ->groupBy('scoped_cities.address_city_id');
+
+        return AddressCity::query()
+            ->leftJoinSub($counts, 'city_counts', 'city_counts.address_city_id', '=', 'address_cities.id')
+            ->leftJoinSub($items, 'city_items', 'city_items.address_city_id', '=', 'address_cities.id')
+            ->orderBy('address_cities.name')
+            ->select('address_cities.id')
+            ->addSelect('address_cities.name')
+            ->selectRaw('COALESCE(city_counts.beneficiaries, 0) as beneficiaries')
+            ->selectRaw('COALESCE(city_counts.delivered_requests, 0) as delivered_requests')
+            ->selectRaw('COALESCE(city_items.goods_released, 0) as goods_released')
+            ->selectRaw('COALESCE(city_items.cash_disbursed, 0) as cash_disbursed')
+            ->get()
+            ->map(static fn (AddressCity $city): array => [
+                'city_id' => (int) $city->id,
+                'city' => (string) $city->name,
+                'beneficiaries' => (int) $city->beneficiaries,
+                'delivered_requests' => (int) $city->delivered_requests,
+                'goods_released' => (int) $city->goods_released,
+                'cash_disbursed' => (int) $city->cash_disbursed,
+            ])
+            ->values()
+            ->all();
+    }
+
     private function sumDeliveredItems(?Department $department, array $filters): int
     {
         return (int) DB::table((new AssistanceItem)->getTable().' as ai')
@@ -892,6 +1038,31 @@ class DashboardService
     /**
      * @param  array<string, mixed>  $filters
      */
+    /**
+     * One row per delivered assistance, with the beneficiary's municipality.
+     *
+     * @param  array<string, mixed>  $filters
+     */
+    private function deliveredAssistancesByCitySubquery(?Department $department, array $filters): QueryBuilder
+    {
+        return (clone $this->filteredAssistanceQuery($department, $filters))
+            ->whereRaw($this->isDeliveredSql())
+            ->leftJoin('organizations', function ($join): void {
+                $join->on('beneficiaries.beneficiable_id', '=', 'organizations.id')
+                    ->where('beneficiaries.beneficiable_type', '=', Organization::class)
+                    ->whereNull('organizations.deleted_at');
+            })
+            ->leftJoin('address_barangays as ab_ind', 'ab_ind.id', '=', 'individuals.address_barangay_id')
+            ->leftJoin('address_barangays as ab_org', 'ab_org.id', '=', 'organizations.address_barangay_id')
+            ->leftJoin('address_cities as city_ind', 'city_ind.id', '=', 'ab_ind.address_city_id')
+            ->leftJoin('address_cities as city_org', 'city_org.id', '=', 'ab_org.address_city_id')
+            ->select('assistances.id')
+            ->addSelect('assistances.beneficiary_id')
+            ->selectRaw('COALESCE(city_ind.id, city_org.id) as address_city_id')
+            ->distinct()
+            ->toBase();
+    }
+
     private function filteredDeliveredAssistanceIdsSubquery(?Department $department, array $filters): QueryBuilder
     {
         $deliveredSql = $this->isDeliveredSql();

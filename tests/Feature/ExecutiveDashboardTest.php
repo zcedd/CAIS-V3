@@ -44,10 +44,12 @@ test('the executive dashboard totals every department and can filter to one', fu
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('executive/dashboard/index')
-            ->loadDeferredProps(['kpis', 'filters', 'programs'], fn (Assert $reload) => $reload
+            ->loadDeferredProps(['kpis', 'filters', 'charts', 'programs'], fn (Assert $reload) => $reload
                 ->where('summary.total_requests', 2)
                 ->where('filters.department', [])
                 ->has('filterOptions.departments', 2)
+                ->has('cityChart')
+                ->has('municipalityMap')
                 ->has('programsTable', 2)));
 
     $this->actingAs($executive)

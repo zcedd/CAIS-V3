@@ -7,13 +7,14 @@ import {
     Users,
 } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import {
     DashboardSectionCard,
-    DashboardStatCard,
-    DashboardStatCardSkeleton,
+    SectionCardSkeleton,
 } from '@/pages/user/dashboard/dashboard-stat-card';
 import type { DashboardSummary } from '@/types/dashboard';
-import { EMPTY_CELL } from '@/lib/empty-cell';
 
 type DashboardHighlightsProps = {
     summary: DashboardSummary;
@@ -90,22 +91,20 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
 
     return (
         <div className="flex flex-col gap-4" data-tour="dashboard-highlights">
-            <DashboardStatCard
+            <StatCard
                 label="Delivery rate"
                 value={formatPercent(rate)}
                 description={`${summary.delivered_requests.toLocaleString()} of ${summary.total_requests.toLocaleString()} requests`}
                 icon={TrendingUp}
-                valueClassName="text-3xl"
                 footer={<Progress value={rate} />}
             />
-            <DashboardStatCard
+            <StatCard
                 label="In progress"
                 value={summary.in_progress_requests.toLocaleString()}
                 description={`${summary.denied_requests.toLocaleString()} denied · ${summary.unique_beneficiaries.toLocaleString()} beneficiaries`}
                 icon={Activity}
-                valueClassName="text-3xl"
             />
-            <DashboardStatCard
+            <StatCard
                 label="Avg days to deliver"
                 value={
                     summary.avg_days_to_deliver !== null
@@ -121,7 +120,6 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
                     </>
                 }
                 icon={Clock3}
-                valueClassName="text-3xl"
             />
         </div>
     );
@@ -221,36 +219,22 @@ export function DashboardHighlightsSkeleton() {
             aria-busy="true"
             aria-label="Loading highlights"
         >
-            <DashboardStatCardSkeleton withFooter />
-            <DashboardStatCardSkeleton />
-            <DashboardStatCardSkeleton />
+            <StatCardSkeleton withFooter />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
         </div>
     );
 }
 
 export function DeliverySnapshotSkeleton() {
     return (
-        <div
-            className="overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10"
-            aria-busy="true"
-            aria-label="Loading snapshot"
-        >
-            <div className="flex items-start justify-between gap-2 px-6 pt-6">
-                <div className="space-y-2">
-                    <div className="h-5 w-36 animate-pulse rounded bg-muted" />
-                    <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-                </div>
-                <div className="size-5 animate-pulse rounded bg-muted" />
-            </div>
-            <div className="space-y-4 px-6 py-6">
+        <SectionCardSkeleton label="Loading snapshot" titleClassName="w-36">
+            <div className="space-y-4">
                 {[0, 1, 2].map((key) => (
-                    <div
-                        key={key}
-                        className="h-4 w-full animate-pulse rounded bg-muted"
-                    />
+                    <Skeleton key={key} className="h-4 w-full" />
                 ))}
-                <div className="h-20 w-full animate-pulse rounded bg-muted" />
+                <Skeleton className="h-20 w-full" />
             </div>
-        </div>
+        </SectionCardSkeleton>
     );
 }
