@@ -332,10 +332,24 @@ class ProgramService
             'fund_ids' => $program->fund->pluck('id')->values()->all(),
             'item_ids' => $program->item->pluck('id')->values()->all(),
             'fields' => $this->programFieldService->fieldsPayload($program),
-            'document_requirements' => $this->programDocumentRequirementService->requirementsPayload($program),
+            'document_requirements' => $this->documentRequirementsPayload($program),
             'eligibility' => $this->eligibilityPayload($program),
             'workflow_id' => $program->workflow_id,
         ];
+    }
+
+    /**
+     * @return list<array{
+     *     id: int,
+     *     document_type_id: int,
+     *     is_required: bool,
+     *     required_before: string,
+     *     sort_order: int
+     * }>
+     */
+    public function documentRequirementsPayload(Program $program): array
+    {
+        return $this->programDocumentRequirementService->requirementsPayload($program);
     }
 
     /**

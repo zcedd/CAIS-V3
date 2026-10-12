@@ -33,6 +33,10 @@ import {
     type AssistanceRequestSubStatusOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { bulkUpdate as bulkUpdateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
+import {
+    programRequiresDocumentsBefore,
+    type ProgramDocumentRequirementInput,
+} from '@/types/document';
 import { Form } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -90,6 +94,7 @@ type AssistanceBulkStatusDrawerProps = {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     allowedRequestStatusIds?: number[];
     canAdvance?: boolean;
+    documentRequirements?: ProgramDocumentRequirementInput[];
     onUpdated?: () => void;
 };
 
@@ -103,6 +108,7 @@ export function AssistanceBulkStatusDrawer({
     requestSubStatusOptions,
     allowedRequestStatusIds,
     canAdvance = true,
+    documentRequirements = [],
     onUpdated,
 }: AssistanceBulkStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -149,7 +155,9 @@ export function AssistanceBulkStatusDrawer({
     const selectedSubStatus = bulkStatusOptions.find(
         (option) => String(option.id) === selectedSubStatusId,
     );
-    const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
+    const showVerifiedDocumentWarning =
+        selectedSubStatus?.name === 'Verified' &&
+        programRequiresDocumentsBefore(documentRequirements, 'verified');
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -230,7 +238,7 @@ export function AssistanceBulkStatusDrawer({
                                 ) : null}
                             </div>
 
-                            {isVerifiedStatus ? (
+                            {showVerifiedDocumentWarning ? (
                                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
                                     Required documents must be attached on each
                                     assistance profile before bulk Verified can

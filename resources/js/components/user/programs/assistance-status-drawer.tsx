@@ -39,6 +39,10 @@ import {
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { update as updateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
 import { formatItemQuantity } from '@/types/assistance-item';
+import {
+    programRequiresDocumentsBefore,
+    type ProgramDocumentRequirementInput,
+} from '@/types/document';
 import { itemQuantityFieldLabel, tracksInventory } from '@/types/item';
 import { Form, Link } from '@inertiajs/react';
 import {
@@ -207,6 +211,7 @@ type AssistanceStatusDrawerProps = {
     slaState?: string | null;
     canAdvance?: boolean;
     allowedRequestStatusIds?: number[];
+    documentRequirements?: ProgramDocumentRequirementInput[];
     onUpdated?: () => void;
 };
 
@@ -226,6 +231,7 @@ export function AssistanceStatusDrawer({
     slaState = null,
     canAdvance = true,
     allowedRequestStatusIds,
+    documentRequirements = [],
     onUpdated,
 }: AssistanceStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -256,7 +262,11 @@ export function AssistanceStatusDrawer({
         selectedSubStatus?.request_status_code === 'delivered' ||
         selectedSubStatus?.request_status === 'Delivered';
     const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
-    const requiresDocuments = isVerifiedStatus || isDeliveredStatus;
+    const requiresDocuments = isDeliveredStatus
+        ? programRequiresDocumentsBefore(documentRequirements, 'delivered')
+        : isVerifiedStatus
+          ? programRequiresDocumentsBefore(documentRequirements, 'verified')
+          : false;
     const undeliveredItems = useMemo(
         () =>
             assistanceItems.filter(

@@ -14,6 +14,7 @@ import type {
 import { show as assistanceShow } from '@/routes/user/assistances';
 import type { AssistanceItemOrigin } from '@/types/assistance-item';
 import { formatItemQuantity } from '@/types/assistance-item';
+import type { ProgramDocumentRequirementInput } from '@/types/document';
 import type { ItemKind } from '@/types/item';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Link } from '@inertiajs/react';
@@ -129,6 +130,7 @@ export type UserProgramAssistanceTableContext = {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
+    documentRequirements?: ProgramDocumentRequirementInput[];
     onAssistanceUpdated?: () => void;
 };
 
@@ -143,6 +145,7 @@ export function createUserProgramAssistanceColumns({
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
+    documentRequirements = [],
     onAssistanceUpdated,
 }: UserProgramAssistanceTableContext): ColumnDef<UserProgramAssistanceRow>[] {
     const dynamicFieldColumns: ColumnDef<UserProgramAssistanceRow>[] =
@@ -467,6 +470,7 @@ export function createUserProgramAssistanceColumns({
                     requestSubStatusOptions={requestSubStatusOptions}
                     transferProgramOptions={transferProgramOptions}
                     canTransferAssistance={canTransferAssistance}
+                    documentRequirements={documentRequirements}
                     onAssistanceUpdated={onAssistanceUpdated}
                 />
             ),

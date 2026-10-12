@@ -31,6 +31,7 @@ import type {
 import { show as assistanceShow } from '@/routes/user/assistances';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import { destroy as destroyProgramAssistance } from '@/routes/user/programs/assistances';
+import type { ProgramDocumentRequirementInput } from '@/types/document';
 import type { ProgramFieldOption } from '@/types/program-field';
 import { Link, router } from '@inertiajs/react';
 import { Row } from '@tanstack/react-table';
@@ -59,6 +60,7 @@ interface AssistanceDataTableRowActionsProps {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
+    documentRequirements?: ProgramDocumentRequirementInput[];
     onAssistanceUpdated?: () => void;
 }
 
@@ -74,6 +76,7 @@ export function AssistanceDataTableRowActions({
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
+    documentRequirements = [],
     onAssistanceUpdated,
 }: AssistanceDataTableRowActionsProps) {
     const record = row.original;
@@ -233,6 +236,7 @@ export function AssistanceDataTableRowActions({
                 slaState={record.sla_state}
                 canAdvance={record.can_advance !== false}
                 allowedRequestStatusIds={record.allowed_request_status_ids}
+                documentRequirements={documentRequirements}
                 onUpdated={onAssistanceUpdated}
             />
 
