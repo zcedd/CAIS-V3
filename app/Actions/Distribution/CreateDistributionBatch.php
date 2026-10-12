@@ -4,6 +4,7 @@ namespace App\Actions\Distribution;
 
 use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionBatchStatus;
+use App\Enums\ProgramApprovalStatus;
 use App\Models\Department;
 use App\Models\DistributionBatch;
 use App\Models\Program;
@@ -41,6 +42,12 @@ class CreateDistributionBatch
             if ((int) $program->department_id !== (int) $department->id || ! $program->isEncodable()) {
                 throw ValidationException::withMessages([
                     'program_id' => 'Choose an open program in this department.',
+                ]);
+            }
+
+            if ($program->approval_status !== ProgramApprovalStatus::Approved) {
+                throw ValidationException::withMessages([
+                    'program_id' => 'Choose an approved program.',
                 ]);
             }
 
