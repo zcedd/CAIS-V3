@@ -58,7 +58,7 @@ export function AppSidebar() {
                                 data-tour="sidebar-logo"
                             >
                                 <AppLogo
-                                    name="Centralized Assistance Information System v3"
+                                    name="Centralized Assistance Information System"
                                     wrap
                                 />
                             </Link>
