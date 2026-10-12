@@ -36,7 +36,9 @@ return new class extends Migration
 
         Schema::create('disbursement_approval_stages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_approval_policy_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('disbursement_approval_policy_id')
+                ->constrained(indexName: 'disbursement_stages_policy_fk')
+                ->cascadeOnDelete();
             $table->unsignedSmallInteger('sequence');
             $table->string('name');
             $table->string('role_name')->nullable();
@@ -97,12 +99,14 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(['disbursement_batch_id', 'assistance_id'], 'disbursement_batch_assistance_unique');
-            $table->index(['disbursement_batch_id', 'approval_status']);
+            $table->index(['disbursement_batch_id', 'approval_status'], 'disbursement_items_batch_status_index');
         });
 
         Schema::create('disbursement_batch_item_lines', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_item_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('disbursement_batch_item_id')
+                ->constrained(indexName: 'disbursement_lines_batch_item_fk')
+                ->cascadeOnDelete();
             $table->foreignId('assistance_item_id')->nullable()->constrained('assistance_item')->nullOnDelete();
             $table->foreignId('item_id')->constrained()->restrictOnDelete();
             $table->decimal('proposed_quantity', 15, 2)->nullable();
@@ -111,7 +115,7 @@ return new class extends Migration
             $table->decimal('approved_amount', 15, 2)->nullable();
             $table->timestamps();
 
-            $table->index(['disbursement_batch_item_id', 'item_id']);
+            $table->index(['disbursement_batch_item_id', 'item_id'], 'disbursement_lines_item_index');
         });
 
         Schema::create('disbursement_batch_revisions', function (Blueprint $table) {
@@ -128,7 +132,9 @@ return new class extends Migration
         Schema::create('disbursement_approval_tasks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('disbursement_batch_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('disbursement_approval_stage_id')->constrained()->restrictOnDelete();
+            $table->foreignId('disbursement_approval_stage_id')
+                ->constrained(indexName: 'disbursement_tasks_stage_fk')
+                ->restrictOnDelete();
             $table->unsignedInteger('revision');
             $table->string('status');
             $table->timestamp('completed_at')->nullable();
@@ -145,9 +151,18 @@ return new class extends Migration
         Schema::create('disbursement_approval_decisions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('disbursement_batch_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('disbursement_batch_item_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('disbursement_approval_task_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('disbursement_approval_stage_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('disbursement_batch_item_id')
+                ->nullable()
+                ->constrained(indexName: 'disbursement_decisions_item_fk')
+                ->nullOnDelete();
+            $table->foreignId('disbursement_approval_task_id')
+                ->nullable()
+                ->constrained(indexName: 'disbursement_decisions_task_fk')
+                ->nullOnDelete();
+            $table->foreignId('disbursement_approval_stage_id')
+                ->nullable()
+                ->constrained(indexName: 'disbursement_decisions_stage_fk')
+                ->nullOnDelete();
             $table->unsignedInteger('revision');
             $table->foreignId('actor_id')->constrained('users')->restrictOnDelete();
             $table->string('previous_decision')->nullable();
@@ -159,14 +174,17 @@ return new class extends Migration
             $table->text('remarks')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['disbursement_batch_id', 'revision']);
+            $table->index(['disbursement_batch_id', 'revision'], 'disbursement_decisions_revision_index');
             $table->index('actor_id');
         });
 
         Schema::create('disbursement_release_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('disbursement_batch_item_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('disbursement_batch_item_line_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('disbursement_batch_item_line_id')
+                ->nullable()
+                ->constrained(indexName: 'disbursement_release_line_fk')
+                ->nullOnDelete();
             $table->foreignId('assistance_item_id')->nullable()->constrained('assistance_item')->nullOnDelete();
             $table->string('outcome');
             $table->decimal('actual_quantity', 15, 2)->nullable();
@@ -178,7 +196,7 @@ return new class extends Migration
             $table->text('remarks')->nullable();
             $table->timestamps();
 
-            $table->index(['disbursement_batch_item_id', 'outcome']);
+            $table->index(['disbursement_batch_item_id', 'outcome'], 'disbursement_release_outcome_index');
             $table->unique(
                 ['disbursement_batch_item_line_id', 'receipt_reference'],
                 'disbursement_release_line_receipt_unique',
