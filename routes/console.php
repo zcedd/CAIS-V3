@@ -15,3 +15,7 @@ Schedule::command('assistances:notify-stale')
 Schedule::command('workflow-tasks:notify-due')
     ->daily()
     ->withoutOverlapping();
+
+Schedule::command('distribution:notify-upcoming')
+    ->daily()
+    ->withoutOverlapping();

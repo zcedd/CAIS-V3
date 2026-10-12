@@ -476,7 +476,7 @@ export default function UserProgramScheme({
                 }
             />
 
-            {canEdit && department && editOpen ? (
+            {canEdit && department ? (
                 <Suspense fallback={null}>
                     <ProgramEditDrawer
                         open={editOpen}

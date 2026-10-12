@@ -4,15 +4,10 @@ namespace App\Services\User;
 
 use App\Enums\ProgramApprovalAction;
 use App\Enums\ProgramApprovalStatus;
-use App\Enums\RequestSubStatusCode;
-use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\ProgramApprovalEvent;
-use App\Models\RequestSubStatus;
 use App\Models\User;
-use App\Services\Workflow\RequestStatusCatalog;
-use App\Services\Workflow\WorkflowEngine;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -21,11 +16,6 @@ use Illuminate\Validation\ValidationException;
 
 class ProgramApprovalService
 {
-    public function __construct(
-        private RequestStatusCatalog $statuses,
-        private WorkflowEngine $workflowEngine,
-    ) {}
-
     public function submit(Program $program, User $actor, ?string $remark): void
     {
         if ($program->isScheme()) {
@@ -43,12 +33,6 @@ class ProgramApprovalService
             ]);
         }
 
-        if ($this->verifiedCount($program) < 1) {
-            throw ValidationException::withMessages([
-                'program' => 'Add at least one verified beneficiary before submitting this program for executive approval.',
-            ]);
-        }
-
         DB::transaction(function () use ($program, $actor, $remark): void {
             $program->update([
                 'approval_status' => ProgramApprovalStatus::AwaitingGovernor,
@@ -62,17 +46,10 @@ class ProgramApprovalService
         $this->assertAwaiting($program);
 
         DB::transaction(function () use ($program, $actor, $remark): void {
-            $verified = $this->verifiedAssistances($program);
-            $readyForRelease = $this->readyForReleaseStatus();
-
             $program->update([
                 'approval_status' => ProgramApprovalStatus::Approved,
             ]);
             $this->record($program, $actor, ProgramApprovalAction::Approved, $remark);
-
-            foreach ($verified as $assistance) {
-                $this->workflowEngine->recordGovernorRelease($assistance, $readyForRelease, $actor);
-            }
         });
     }
 
@@ -184,11 +161,6 @@ class ProgramApprovalService
             'approved' => (int) ($rows[ProgramApprovalStatus::Approved->value] ?? 0),
             'returned' => (int) ($rows[ProgramApprovalStatus::Returned->value] ?? 0),
         ];
-    }
-
-    public function verifiedCount(Program $program): int
-    {
-        return $this->verifiedQuery($program)->count();
     }
 
     /**
@@ -316,32 +288,6 @@ class ProgramApprovalService
         ];
     }
 
-    /**
-     * @return LengthAwarePaginator<int, array<string, mixed>>
-     */
-    public function paginateBeneficiaries(Program $program): LengthAwarePaginator
-    {
-        return $this->assistanceQuery($program)
-            ->with([
-                'beneficiary:id,name,cais_number',
-                'currentRequestSubStatus.requestStatus',
-            ])
-            ->orderByDesc('id')
-            ->paginate(15)
-            ->withQueryString()
-            ->through(function (Assistance $assistance): array {
-                $subStatus = $assistance->currentRequestSubStatus;
-
-                return [
-                    'id' => $assistance->id,
-                    'beneficiary_name' => $assistance->beneficiary?->name,
-                    'cais_number' => $assistance->beneficiary?->cais_number,
-                    'status' => $subStatus?->requestStatus?->name,
-                    'sub_status' => $subStatus?->name,
-                ];
-            });
-    }
-
     private function assertAwaiting(Program $program): void
     {
         if ($program->approval_status !== ProgramApprovalStatus::AwaitingGovernor) {
@@ -349,37 +295,6 @@ class ProgramApprovalService
                 'program' => 'This program is not awaiting executive approval.',
             ]);
         }
-    }
-
-    /**
-     * @return list<Assistance>
-     */
-    private function verifiedAssistances(Program $program): array
-    {
-        return $this->verifiedQuery($program)->get()->all();
-    }
-
-    /**
-     * @return Builder<Assistance>
-     */
-    private function verifiedQuery(Program $program): Builder
-    {
-        return $this->assistanceQuery($program)->verified();
-    }
-
-    /**
-     * @return Builder<Assistance>
-     */
-    private function assistanceQuery(Program $program): Builder
-    {
-        return Assistance::query()->where('program_id', $program->id);
-    }
-
-    private function readyForReleaseStatus(): RequestSubStatus
-    {
-        return RequestSubStatus::query()->findOrFail(
-            $this->statuses->reasonId(RequestSubStatusCode::ReadyForRelease),
-        );
     }
 
     private function record(Program $program, User $actor, ProgramApprovalAction $action, ?string $remark): void

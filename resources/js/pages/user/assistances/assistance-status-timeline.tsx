@@ -1,4 +1,5 @@
 import { Badge } from '@/components/ui/badge';
+import { parseAppDateTime } from '@/lib/app-datetime';
 import {
     Timeline,
     TimelineBody,
@@ -20,7 +21,7 @@ export type AssistanceStatusTimelineEntry = {
 };
 
 function formatTimelineTimestamp(iso: string): { date: string; time: string } {
-    const recorded = new Date(iso);
+    const recorded = parseAppDateTime(iso);
 
     if (Number.isNaN(recorded.getTime())) {
         return { date: iso, time: '' };
@@ -42,11 +43,17 @@ function formatTimelineTimestamp(iso: string): { date: string; time: string } {
 function sortEntriesChronologically(
     entries: AssistanceStatusTimelineEntry[],
 ): AssistanceStatusTimelineEntry[] {
-    return [...entries].sort(
-        (left, right) =>
-            new Date(left.recorded_at).getTime() -
-            new Date(right.recorded_at).getTime(),
-    );
+    return [...entries].sort((left, right) => {
+        const byTime =
+            parseAppDateTime(left.recorded_at).getTime() -
+            parseAppDateTime(right.recorded_at).getTime();
+
+        if (byTime !== 0) {
+            return byTime;
+        }
+
+        return left.id - right.id;
+    });
 }
 
 type AssistanceStatusTimelineProps = {

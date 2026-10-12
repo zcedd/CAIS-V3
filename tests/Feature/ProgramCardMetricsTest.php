@@ -120,7 +120,7 @@ test('an executive can read program analytics', function () {
     $governor = User::factory()->create([
         'department_id' => Department::create(['name' => 'Governor'])->id,
     ]);
-    $governor->syncRoles([RoleName::Governor->value]);
+    $governor->syncRoles([RoleName::Executive->value]);
     $program = Program::factory()->standalone()->create([
         'department_id' => $department->id,
     ]);

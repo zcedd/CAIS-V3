@@ -10,6 +10,7 @@ export const Permission = {
     ItemCreate: 'item.create',
     FundViewAny: 'fund.viewAny',
     FundCreate: 'fund.create',
+    DistributionViewAny: 'distribution.viewAny',
     WorkflowViewAny: 'workflow.viewAny',
     WorkflowCreate: 'workflow.create',
     WorkflowUpdate: 'workflow.update',

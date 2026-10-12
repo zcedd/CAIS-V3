@@ -146,7 +146,7 @@ it('denormalizes current status, was_delivered, and milestone dates from status 
 
     expect($assistance->current_request_sub_status_id)->toBe($statuses['delivered'])
         ->and((bool) $assistance->was_delivered)->toBeTrue()
-        ->and($assistance->date_delivered)->toBe('2026-05-15');
+        ->and($assistance->date_delivered?->toDateTimeString())->toBe('2026-05-15 14:00:00');
 });
 
 it('keeps was_delivered true after a later non-delivered status is recorded', function () {
@@ -200,7 +200,7 @@ it('keeps was_delivered true after a later non-delivered status is recorded', fu
     $assistance->refresh();
 
     expect((bool) $assistance->was_delivered)->toBeTrue()
-        ->and($assistance->date_delivered)->toBe('2026-05-15')
+        ->and($assistance->date_delivered?->toDateTimeString())->toBe('2026-05-15 10:00:00')
         ->and($assistance->current_request_sub_status_id)->toBe($statuses['closed']);
 });
 
@@ -259,7 +259,7 @@ it('syncs delivered flags from status name when request_statuses has no code col
         $assistance->refresh();
 
         expect((bool) $assistance->was_delivered)->toBeTrue()
-            ->and($assistance->date_delivered)->toBe('2026-05-15')
+            ->and($assistance->date_delivered?->toDateTimeString())->toBe('2026-05-15 14:00:00')
             ->and($assistance->current_request_sub_status_id)->toBe($statuses['delivered']);
     } finally {
         restoreRequestStatusesCodeColumn();

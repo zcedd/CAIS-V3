@@ -57,8 +57,10 @@ class ProgramController extends Controller
     public function show(ShowRequest $request, Program $program): Response
     {
         return Inertia::render('executive/programs/show', [
-            'program' => $this->approvals->showPayload($program),
-            'beneficiaries' => $this->approvals->paginateBeneficiaries($program),
+            'program' => [
+                ...$this->approvals->showPayload($program),
+                ...$this->programService->executiveReviewPayload($program),
+            ],
         ]);
     }
 
@@ -74,7 +76,7 @@ class ProgramController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Program approved. Verified requests are ready for release.',
+            'message' => 'Program approved.',
         ]);
 
         return redirect()->back();

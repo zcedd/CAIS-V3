@@ -8,6 +8,7 @@ import type {
     AssistanceRequestSubStatusOption,
     AssistanceTransferProgramOption,
 } from '@/pages/user/programs/assistance-toolbar';
+import type { ProgramDocumentRequirementInput } from '@/types/document';
 import { ArrowRightLeft, ListChecks } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { RowSelectionState, Table } from '@tanstack/react-table';
@@ -22,6 +23,7 @@ type AssistanceBulkActionsBarProps = {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     transferProgramOptions: AssistanceTransferProgramOption[];
     canTransferAssistance: boolean;
+    documentRequirements?: ProgramDocumentRequirementInput[];
     onBulkStatusUpdated?: () => void;
 };
 
@@ -35,6 +37,7 @@ export function AssistanceBulkActionsBar({
     requestSubStatusOptions,
     transferProgramOptions,
     canTransferAssistance,
+    documentRequirements = [],
     onBulkStatusUpdated,
 }: AssistanceBulkActionsBarProps) {
     const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
@@ -150,6 +153,7 @@ export function AssistanceBulkActionsBar({
                 requestSubStatusOptions={requestSubStatusOptions}
                 allowedRequestStatusIds={allowedRequestStatusIds}
                 canAdvance={canAdvanceSelection}
+                documentRequirements={documentRequirements}
                 onUpdated={handleBulkStatusUpdated}
             />
 

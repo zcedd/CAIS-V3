@@ -144,6 +144,11 @@ class Program extends Model
         return $this->belongsTo(Workflow::class);
     }
 
+    public function distributions(): HasMany
+    {
+        return $this->hasMany(DistributionBatch::class);
+    }
+
     public function resolvedWorkflow(): Workflow
     {
         $this->loadMissing(['workflow.steps.transitions', 'parent.workflow.steps.transitions', 'department']);

@@ -70,6 +70,7 @@ export type QueueAssistanceRow = {
     request_sub_status: string | null;
     task_name: string | null;
     task_status: string | null;
+    task_note: string | null;
     task_due_at: string | null;
     assigned_to_id: number | null;
     assignee_name: string | null;
@@ -251,7 +252,9 @@ function createQueueColumns(
                         {row.original.task_name ?? EMPTY_CELL}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                        {row.original.task_status ?? EMPTY_CELL}
+                        {row.original.task_note ??
+                            row.original.task_status ??
+                            EMPTY_CELL}
                     </span>
                 </div>
             ),

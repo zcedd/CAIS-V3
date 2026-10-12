@@ -51,6 +51,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDateTimeForSubmit } from '@/lib/app-datetime';
 import { usePageCommands } from '@/lib/command-registry';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
@@ -189,21 +190,6 @@ function isInlineAssistanceError(key: string): boolean {
         key === 'remark' ||
         /^item_details\.\d+\.(quantity|specification|item_id)$/.test(key)
     );
-}
-
-function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
-    if (!date) {
-        return undefined;
-    }
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
 }
 
 function formatTimeForInput(date: Date): string {

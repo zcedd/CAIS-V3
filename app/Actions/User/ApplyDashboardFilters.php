@@ -158,8 +158,8 @@ class ApplyDashboardFilters
         foreach ($years as $year) {
             if ($months === []) {
                 $ranges[] = [
-                    sprintf('%04d-01-01', $year),
-                    sprintf('%04d-12-31', $year),
+                    sprintf('%04d-01-01 00:00:00', $year),
+                    sprintf('%04d-12-31 23:59:59', $year),
                 ];
 
                 continue;
@@ -167,9 +167,9 @@ class ApplyDashboardFilters
 
             foreach ($this->contiguousMonthRanges($months) as [$startMonth, $endMonth]) {
                 $ranges[] = [
-                    sprintf('%04d-%02d-01', $year, $startMonth),
+                    sprintf('%04d-%02d-01 00:00:00', $year, $startMonth),
                     sprintf(
-                        '%04d-%02d-%02d',
+                        '%04d-%02d-%02d 23:59:59',
                         $year,
                         $endMonth,
                         (int) date('t', mktime(0, 0, 0, $endMonth, 1, $year)),

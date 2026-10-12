@@ -1,6 +1,7 @@
 import { usePage } from '@inertiajs/react';
 import {
     Bell,
+    CalendarDays,
     FolderKanban,
     Inbox,
     Landmark,
@@ -16,9 +17,11 @@ import { Permission } from '@/lib/permissions';
 import { dashboard } from '@/routes';
 import { index as adminUsersIndex } from '@/routes/admin/users';
 import { dashboard as executiveDashboard } from '@/routes/executive';
+import { index as executiveDistributionsIndex } from '@/routes/executive/distributions';
 import { index as executiveProgramsIndex } from '@/routes/executive/programs';
 import { index as departmentBeneficiariesIndex } from '@/routes/user/beneficiaries';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
+import { index as departmentDistributionsIndex } from '@/routes/user/distributions';
 import { index as departmentFundsIndex } from '@/routes/user/funds';
 import { index as departmentItemsIndex } from '@/routes/user/items';
 import { index as departmentNotificationsIndex } from '@/routes/user/notifications';
@@ -78,7 +81,7 @@ export function useAppNavItems(): AppNavItems {
         const items: NavItem[] = [];
 
         if (
-            props.auth.office_roles?.includes('governor') ||
+            props.auth.office_roles?.includes('executive') ||
             can(Permission.ProgramApprove)
         ) {
             items.push(
@@ -91,6 +94,11 @@ export function useAppNavItems(): AppNavItems {
                     title: 'Programs',
                     href: executiveProgramsIndex(),
                     icon: Stamp,
+                },
+                {
+                    title: 'Distributions',
+                    href: executiveDistributionsIndex(),
+                    icon: CalendarDays,
                 },
             );
         }
@@ -116,6 +124,12 @@ export function useAppNavItems(): AppNavItems {
                     href: departmentProgramsIndex(slug),
                     icon: FolderKanban,
                     permission: Permission.ProgramViewAny,
+                },
+                {
+                    title: 'Distributions',
+                    href: departmentDistributionsIndex(slug),
+                    icon: CalendarDays,
+                    permission: Permission.DistributionViewAny,
                 },
                 {
                     title: 'Queue',

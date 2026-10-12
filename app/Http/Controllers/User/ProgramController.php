@@ -251,6 +251,7 @@ class ProgramController extends Controller
                 'table',
             ),
             'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            'document_requirements' => $this->programService->documentRequirementsPayload($program),
             'workflow_options' => $this->programService->workflowOptions($department),
         ]);
     }

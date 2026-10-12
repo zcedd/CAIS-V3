@@ -90,7 +90,7 @@ test('permission names include workflow management abilities', function () {
         ->toContain(PermissionName::WorkflowTaskOverride)
         ->and(PermissionName::forRole(RoleName::SuperAdmin))
         ->toBe(PermissionName::cases())
-        ->and(PermissionName::forRole(RoleName::Governor))
+        ->and(PermissionName::forRole(RoleName::Executive))
         ->toContain(PermissionName::ProgramApprove)
         ->not->toContain(PermissionName::ProgramSubmit)
         ->and(PermissionName::forRole(RoleName::DepartmentHead))

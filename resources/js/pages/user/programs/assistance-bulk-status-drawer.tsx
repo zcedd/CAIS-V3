@@ -27,12 +27,17 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDateTimeForSubmit } from '@/lib/app-datetime';
 import { cn } from '@/lib/utils';
 import {
     workflowAssignedStatusOptions,
     type AssistanceRequestSubStatusOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import { bulkUpdate as bulkUpdateProgramAssistanceStatus } from '@/routes/user/programs/assistances/status';
+import {
+    programRequiresDocumentsBefore,
+    type ProgramDocumentRequirementInput,
+} from '@/types/document';
 import { Form } from '@inertiajs/react';
 import { CalendarDays, ChevronDownIcon, RotateCcw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -41,21 +46,6 @@ import { toast } from 'sonner';
 const selectClassName = cn(
     'h-9 w-full min-w-0 rounded-4xl border border-input bg-input/30 px-3 py-1 text-base transition-colors outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
 );
-
-function formatDateTimeForSubmit(date: Date | undefined): string | undefined {
-    if (!date) {
-        return undefined;
-    }
-
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
 
 function formatTimeForInput(date: Date): string {
     const hours = String(date.getHours()).padStart(2, '0');
@@ -90,6 +80,7 @@ type AssistanceBulkStatusDrawerProps = {
     requestSubStatusOptions: AssistanceRequestSubStatusOption[];
     allowedRequestStatusIds?: number[];
     canAdvance?: boolean;
+    documentRequirements?: ProgramDocumentRequirementInput[];
     onUpdated?: () => void;
 };
 
@@ -103,6 +94,7 @@ export function AssistanceBulkStatusDrawer({
     requestSubStatusOptions,
     allowedRequestStatusIds,
     canAdvance = true,
+    documentRequirements = [],
     onUpdated,
 }: AssistanceBulkStatusDrawerProps) {
     const [formKey, setFormKey] = useState(0);
@@ -149,7 +141,9 @@ export function AssistanceBulkStatusDrawer({
     const selectedSubStatus = bulkStatusOptions.find(
         (option) => String(option.id) === selectedSubStatusId,
     );
-    const isVerifiedStatus = selectedSubStatus?.name === 'Verified';
+    const showVerifiedDocumentWarning =
+        selectedSubStatus?.name === 'Verified' &&
+        programRequiresDocumentsBefore(documentRequirements, 'verified');
 
     return (
         <Drawer open={open} onOpenChange={onOpenChange} direction="right">
@@ -230,7 +224,7 @@ export function AssistanceBulkStatusDrawer({
                                 ) : null}
                             </div>
 
-                            {isVerifiedStatus ? (
+                            {showVerifiedDocumentWarning ? (
                                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
                                     Required documents must be attached on each
                                     assistance profile before bulk Verified can

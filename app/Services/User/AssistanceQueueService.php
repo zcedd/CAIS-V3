@@ -2,6 +2,7 @@
 
 namespace App\Services\User;
 
+use App\Enums\RequestSubStatusCode;
 use App\Enums\WorkflowTaskStatus;
 use App\Models\Assistance;
 use App\Models\Department;
@@ -123,6 +124,7 @@ class AssistanceQueueService
             'task_status' => $assistance->currentTask()?->status instanceof WorkflowTaskStatus
                 ? $assistance->currentTask()->status->label()
                 : null,
+            'task_note' => $this->taskNote($assistance),
             'task_due_at' => $assistance->currentTask()?->due_at?->toIso8601String(),
             'assigned_to_id' => $assistance->assigned_to_id,
             'assignee_name' => $assignee instanceof User
@@ -141,6 +143,17 @@ class AssistanceQueueService
             'can_claim' => $viewer instanceof User && $viewer->can('claim', $assistance),
             'step_has_owner' => $assistance->currentWorkflowStep()?->assigned_to_id !== null,
         ];
+    }
+
+    private function taskNote(Assistance $assistance): ?string
+    {
+        $code = $assistance->currentRequestSubStatus?->code;
+
+        if (! $code instanceof RequestSubStatusCode || ! $code->reflectsOnTask()) {
+            return null;
+        }
+
+        return $code->label();
     }
 
     /**

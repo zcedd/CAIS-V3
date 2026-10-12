@@ -88,19 +88,10 @@ class ProgramAssistancesExport implements FromCollection, ShouldAutoSize, WithHe
             SpreadsheetCell::sanitize($assistance->request_status_name ?? EmptyCell::VALUE),
             SpreadsheetCell::sanitize($assistance->request_sub_status_name ?? EmptyCell::VALUE),
             SpreadsheetCell::sanitize($this->formatDateTime($assistance->request_sub_status_recorded_at)),
-            SpreadsheetCell::sanitize($this->formatDate($assistance->date_requested)),
-            SpreadsheetCell::sanitize($this->formatDate($assistance->date_delivered)),
+            SpreadsheetCell::sanitize($this->formatDateTime($assistance->date_requested)),
+            SpreadsheetCell::sanitize($this->formatDateTime($assistance->date_delivered)),
             SpreadsheetCell::sanitize($assistance->remark ?? ''),
         ];
-    }
-
-    private function formatDate(mixed $value): string
-    {
-        if ($value === null) {
-            return '';
-        }
-
-        return Carbon::parse($value)->toDateString();
     }
 
     private function formatDateTime(mixed $value): string

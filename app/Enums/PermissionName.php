@@ -53,6 +53,32 @@ enum PermissionName: string
     case WorkflowTaskReassign = 'workflow.task.reassign';
     case WorkflowTaskOverride = 'workflow.task.override';
 
+    case DistributionViewAny = 'distribution.viewAny';
+    case DistributionView = 'distribution.view';
+    case DistributionCreate = 'distribution.create';
+    case DistributionUpdate = 'distribution.update';
+    case DistributionValidate = 'distribution.validate';
+    case DistributionSubmit = 'distribution.submit';
+    case DistributionApprove = 'distribution.approve';
+    case DistributionReturn = 'distribution.return';
+    case DistributionReject = 'distribution.reject';
+    case DistributionModifyBeneficiary = 'distribution.modifyBeneficiary';
+    case DistributionFinalize = 'distribution.finalize';
+    case DistributionSchedule = 'distribution.schedule';
+    case DistributionExecute = 'distribution.execute';
+    case DistributionReconcile = 'distribution.reconcile';
+    case DistributionComplete = 'distribution.complete';
+    case DistributionCancel = 'distribution.cancel';
+    case DistributionPolicyManage = 'distribution.policy.manage';
+    case DistributionViewEvidence = 'distribution.viewEvidence';
+    case DistributionDownloadEvidence = 'distribution.downloadEvidence';
+    case DistributionIssueReceipt = 'distribution.issueReceipt';
+    case DistributionReprintReceipt = 'distribution.reprintReceipt';
+    case DistributionVoidTransaction = 'distribution.voidTransaction';
+    case DistributionViewAudit = 'distribution.viewAudit';
+    case DistributionAssignPersonnel = 'distribution.assignPersonnel';
+    case DistributionWaiveLivePhoto = 'distribution.waiveLivePhoto';
+
     case DepartmentSupervise = 'department.supervise';
 
     /**
@@ -70,7 +96,10 @@ enum PermissionName: string
     {
         return match ($role) {
             RoleName::Assistance => self::forResource('assistance'),
-            RoleName::Program => self::programResourcePermissions(),
+            RoleName::Program => array_merge(
+                self::programResourcePermissions(),
+                self::distributionStaffPermissions(),
+            ),
             RoleName::Beneficiary => self::forResource('beneficiary'),
             RoleName::Item => self::forResource('item'),
             RoleName::Fund => self::forResource('fund'),
@@ -78,7 +107,7 @@ enum PermissionName: string
             RoleName::Supervisor => [self::DepartmentSupervise],
             RoleName::Head => self::cases(),
             RoleName::SuperAdmin => self::cases(),
-            RoleName::Governor => self::governorPermissions(),
+            RoleName::Executive => self::executivePermissions(),
             RoleName::DepartmentHead => self::departmentHeadPermissions(),
             RoleName::ReleasingOfficer => self::releasingOfficerPermissions(),
         };
@@ -130,6 +159,31 @@ enum PermissionName: string
             self::WorkflowTaskAssign => 'Assign workflow tasks',
             self::WorkflowTaskReassign => 'Reassign workflow tasks',
             self::WorkflowTaskOverride => 'Override workflow tasks',
+            self::DistributionViewAny => 'View distribution batches',
+            self::DistributionView => 'View a distribution batch',
+            self::DistributionCreate => 'Create distribution batches',
+            self::DistributionUpdate => 'Update distribution batches',
+            self::DistributionValidate => 'Validate distribution batches',
+            self::DistributionSubmit => 'Submit distribution batches',
+            self::DistributionApprove => 'Approve a distribution batch',
+            self::DistributionReturn => 'Return a distribution batch',
+            self::DistributionReject => 'Reject a distribution batch',
+            self::DistributionModifyBeneficiary => 'Modify a distribution beneficiary amount',
+            self::DistributionFinalize => 'Finalize distribution approval',
+            self::DistributionSchedule => 'Schedule a distribution',
+            self::DistributionExecute => 'Record distribution releases',
+            self::DistributionReconcile => 'Reconcile a distribution',
+            self::DistributionComplete => 'Complete a distribution',
+            self::DistributionCancel => 'Cancel a distribution',
+            self::DistributionPolicyManage => 'Manage distribution approval policies',
+            self::DistributionViewEvidence => 'View distribution evidence',
+            self::DistributionDownloadEvidence => 'Download distribution evidence',
+            self::DistributionIssueReceipt => 'Issue a distribution acknowledgment receipt',
+            self::DistributionReprintReceipt => 'Reprint a distribution receipt',
+            self::DistributionVoidTransaction => 'Void a distribution release',
+            self::DistributionViewAudit => 'View the distribution audit log',
+            self::DistributionAssignPersonnel => 'Assign distribution personnel',
+            self::DistributionWaiveLivePhoto => 'Waive live photo evidence',
             self::DepartmentSupervise => 'Supervise the department',
         };
     }
@@ -137,7 +191,7 @@ enum PermissionName: string
     /**
      * @return list<self>
      */
-    public static function governorPermissions(): array
+    public static function executivePermissions(): array
     {
         return [
             self::ProgramViewAny,
@@ -149,6 +203,14 @@ enum PermissionName: string
             self::AssistanceView,
             self::FundViewAny,
             self::FundView,
+            self::DistributionViewAny,
+            self::DistributionView,
+            self::DistributionViewAudit,
+            self::DistributionApprove,
+            self::DistributionReturn,
+            self::DistributionReject,
+            self::DistributionFinalize,
+            self::DistributionModifyBeneficiary,
         ];
     }
 
@@ -185,6 +247,25 @@ enum PermissionName: string
             self::WorkflowViewAny,
             self::WorkflowView,
             self::WorkflowTaskView,
+            self::DistributionViewAny,
+            self::DistributionView,
+            self::DistributionCreate,
+            self::DistributionUpdate,
+            self::DistributionValidate,
+            self::DistributionSubmit,
+            self::DistributionApprove,
+            self::DistributionReturn,
+            self::DistributionReject,
+            self::DistributionFinalize,
+            self::DistributionSchedule,
+            self::DistributionCancel,
+            self::DistributionReconcile,
+            self::DistributionViewEvidence,
+            self::DistributionDownloadEvidence,
+            self::DistributionViewAudit,
+            self::DistributionAssignPersonnel,
+            self::DistributionVoidTransaction,
+            self::DistributionReprintReceipt,
         ];
     }
 
@@ -209,6 +290,36 @@ enum PermissionName: string
             self::BeneficiaryUpdate,
             self::ItemViewAny,
             self::ItemView,
+            self::DistributionViewAny,
+            self::DistributionView,
+            self::DistributionExecute,
+            self::DistributionReconcile,
+            self::DistributionComplete,
+            self::DistributionViewEvidence,
+            self::DistributionDownloadEvidence,
+            self::DistributionIssueReceipt,
+            self::DistributionReprintReceipt,
+        ];
+    }
+
+    /**
+     * Department staff who prepare a distribution, without approval authority.
+     *
+     * @return list<self>
+     */
+    public static function distributionStaffPermissions(): array
+    {
+        return [
+            self::DistributionViewAny,
+            self::DistributionView,
+            self::DistributionCreate,
+            self::DistributionUpdate,
+            self::DistributionValidate,
+            self::DistributionSubmit,
+            self::DistributionSchedule,
+            self::DistributionCancel,
+            self::DistributionAssignPersonnel,
+            self::DistributionViewAudit,
         ];
     }
 
