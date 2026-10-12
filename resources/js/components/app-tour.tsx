@@ -30,6 +30,14 @@ const DEFERRED_ASSISTANCE_TOUR_TARGETS = [
     '[data-tour="program-assistance-table"]',
 ] as const;
 
+/** Desk targets that mount after the Desk/Table toggle opens the desk. */
+const QUEUE_DESK_TOUR_TARGETS = [
+    '[data-tour="queue-recipients"]',
+    '[data-tour="queue-tabs"]',
+    '[data-tour="queue-search"]',
+    '[data-tour="queue-release"]',
+] as const;
+
 const TOUR_DRAWER_ANIMATION_MS = 400;
 
 type CreateDrawerField = {
@@ -138,6 +146,10 @@ function isDeferredAssistanceTourTarget(target: string): boolean {
     );
 }
 
+function isQueueDeskTourTarget(target: string): boolean {
+    return (QUEUE_DESK_TOUR_TARGETS as readonly string[]).includes(target);
+}
+
 function revealTourTargetParent(parentSelector: string): void {
     const parent = document.querySelector(parentSelector);
 
@@ -187,6 +199,19 @@ function waitForDeferredAssistanceTourTarget(selector: string): Promise<void> {
     return waitForTourTarget(selector, {
         parentSelector: DEFERRED_ASSISTANCE_TOUR_PARENT,
     });
+}
+
+function ensureQueueDesk(): Promise<void> {
+    const toggle = document.querySelector('[data-tour="queue-view-toggle"]');
+
+    if (
+        toggle instanceof HTMLButtonElement &&
+        /\bDesk\b/.test(toggle.textContent ?? '')
+    ) {
+        toggle.click();
+    }
+
+    return waitForTourTarget('[data-tour="queue-recipients"]');
 }
 
 /** Panels that mount only after their dashboard tab is selected. */
@@ -588,6 +613,50 @@ const PAGE_STEPS: Record<string, Step[]> = {
             before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.funds),
         },
     ],
+    queue: [
+        {
+            target: '[data-tour="queue-view-toggle"]',
+            content: 'Switch between the release desk and the table.',
+            placement: 'bottom',
+        },
+        {
+            target: '[data-tour="queue-recipients"]',
+            content: 'People waiting in this queue.',
+            placement: 'right',
+            targetWaitTimeout: TOUR_TARGET_MAX_WAIT_MS,
+            before: () => ensureQueueDesk(),
+            beforeTimeout: TOUR_TARGET_MAX_WAIT_MS,
+        },
+        {
+            target: '[data-tour="queue-tabs"]',
+            content:
+                'My queue is assigned to you. Team queue is work still waiting.',
+            placement: 'right',
+        },
+        {
+            target: '[data-tour="queue-search"]',
+            content: 'Search by beneficiary, CAIS number, or program.',
+            placement: 'right',
+        },
+        {
+            target: '[data-tour="queue-release"]',
+            content:
+                'Select someone, then verify them, review the package, and release it.',
+            placement: 'left',
+        },
+        {
+            target: '[data-tour="queue-steps"]',
+            content:
+                'Recipient, package, then release. Finished steps can be reopened.',
+            placement: 'bottom',
+        },
+        {
+            target: '[data-tour="queue-step-actions"]',
+            content:
+                'Go back, continue, claim the request, or print the receipt.',
+            placement: 'top',
+        },
+    ],
 };
 
 function selectPageSteps(pathname: string): Step[] {
@@ -695,9 +764,16 @@ function filterAvailableSteps(steps: Step[]): Step[] {
 
         // Keep WhenVisible-deferred targets while their parent section exists.
         // `before` hooks scroll the section into view and wait for mount.
-        return (
+        if (
             isDeferredAssistanceTourTarget(step.target) &&
             assistanceParentPresent
+        ) {
+            return true;
+        }
+
+        return (
+            isQueueDeskTourTarget(step.target) &&
+            document.querySelector('[data-tour="queue-view-toggle"]') !== null
         );
     });
 }

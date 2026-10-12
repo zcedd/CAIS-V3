@@ -4,6 +4,7 @@ const INDEX_MODULES = [
     'beneficiaries',
     'items',
     'funds',
+    'queue',
 ] as const;
 
 export function normalizePath(path: string): string {
@@ -36,9 +37,7 @@ export function resolveTourRouteKey(pathname: string): string | null {
     const module = segments[1];
 
     if (segments.length === 2) {
-        return INDEX_MODULES.includes(
-            module as (typeof INDEX_MODULES)[number],
-        )
+        return INDEX_MODULES.includes(module as (typeof INDEX_MODULES)[number])
             ? module
             : null;
     }
