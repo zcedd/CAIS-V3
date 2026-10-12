@@ -144,9 +144,9 @@ class Program extends Model
         return $this->belongsTo(Workflow::class);
     }
 
-    public function disbursements(): HasMany
+    public function distributions(): HasMany
     {
-        return $this->hasMany(DisbursementBatch::class);
+        return $this->hasMany(DistributionBatch::class);
     }
 
     public function resolvedWorkflow(): Workflow

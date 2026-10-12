@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('disbursement_approval_policies', function (Blueprint $table) {
+        Schema::create('distribution_approval_policies', function (Blueprint $table) {
             $table->id();
             $table->string('name');
             $table->foreignId('department_id')->nullable()->constrained()->cascadeOnDelete();
@@ -34,24 +34,26 @@ return new class extends Migration
             $table->index(['program_id', 'is_active']);
         });
 
-        Schema::create('disbursement_approval_stages', function (Blueprint $table) {
+        Schema::create('distribution_approval_stages', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_approval_policy_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_approval_policy_id')
+                ->constrained(indexName: 'distribution_stages_policy_fk')
+                ->cascadeOnDelete();
             $table->unsignedSmallInteger('sequence');
             $table->string('name');
             $table->string('role_name')->nullable();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
 
-            $table->unique(['disbursement_approval_policy_id', 'sequence'], 'disbursement_stages_policy_sequence_unique');
+            $table->unique(['distribution_approval_policy_id', 'sequence'], 'distribution_stages_policy_sequence_unique');
         });
 
-        Schema::create('disbursement_batches', function (Blueprint $table) {
+        Schema::create('distribution_batches', function (Blueprint $table) {
             $table->id();
             $table->string('batch_code')->unique();
             $table->foreignId('program_id')->constrained()->restrictOnDelete();
             $table->foreignId('department_id')->constrained()->restrictOnDelete();
-            $table->foreignId('disbursement_approval_policy_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('distribution_approval_policy_id')->nullable()->constrained()->nullOnDelete();
             $table->string('title');
             $table->text('description')->nullable();
             $table->dateTime('scheduled_at')->nullable();
@@ -83,9 +85,9 @@ return new class extends Migration
             $table->index('created_by');
         });
 
-        Schema::create('disbursement_batch_items', function (Blueprint $table) {
+        Schema::create('distribution_batch_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_batch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('assistance_id')->constrained()->restrictOnDelete();
             $table->foreignId('beneficiary_id')->constrained()->restrictOnDelete();
             $table->string('approval_status')->default('pending');
@@ -96,13 +98,15 @@ return new class extends Migration
             $table->json('warnings')->nullable();
             $table->timestamps();
 
-            $table->unique(['disbursement_batch_id', 'assistance_id'], 'disbursement_batch_assistance_unique');
-            $table->index(['disbursement_batch_id', 'approval_status']);
+            $table->unique(['distribution_batch_id', 'assistance_id'], 'distribution_batch_assistance_unique');
+            $table->index(['distribution_batch_id', 'approval_status'], 'distribution_items_batch_status_index');
         });
 
-        Schema::create('disbursement_batch_item_lines', function (Blueprint $table) {
+        Schema::create('distribution_batch_item_lines', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_item_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_batch_item_id')
+                ->constrained(indexName: 'distribution_lines_batch_item_fk')
+                ->cascadeOnDelete();
             $table->foreignId('assistance_item_id')->nullable()->constrained('assistance_item')->nullOnDelete();
             $table->foreignId('item_id')->constrained()->restrictOnDelete();
             $table->decimal('proposed_quantity', 15, 2)->nullable();
@@ -111,24 +115,26 @@ return new class extends Migration
             $table->decimal('approved_amount', 15, 2)->nullable();
             $table->timestamps();
 
-            $table->index(['disbursement_batch_item_id', 'item_id']);
+            $table->index(['distribution_batch_item_id', 'item_id'], 'distribution_lines_item_index');
         });
 
-        Schema::create('disbursement_batch_revisions', function (Blueprint $table) {
+        Schema::create('distribution_batch_revisions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_batch_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('revision');
             $table->json('snapshot');
             $table->foreignId('submitted_by')->constrained('users')->restrictOnDelete();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->unique(['disbursement_batch_id', 'revision'], 'disbursement_batch_revision_unique');
+            $table->unique(['distribution_batch_id', 'revision'], 'distribution_batch_revision_unique');
         });
 
-        Schema::create('disbursement_approval_tasks', function (Blueprint $table) {
+        Schema::create('distribution_approval_tasks', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('disbursement_approval_stage_id')->constrained()->restrictOnDelete();
+            $table->foreignId('distribution_batch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_approval_stage_id')
+                ->constrained(indexName: 'distribution_tasks_stage_fk')
+                ->restrictOnDelete();
             $table->unsignedInteger('revision');
             $table->string('status');
             $table->timestamp('completed_at')->nullable();
@@ -136,18 +142,27 @@ return new class extends Migration
             $table->timestamps();
 
             $table->unique(
-                ['disbursement_batch_id', 'disbursement_approval_stage_id', 'revision'],
-                'disbursement_tasks_batch_stage_revision_unique',
+                ['distribution_batch_id', 'distribution_approval_stage_id', 'revision'],
+                'distribution_tasks_batch_stage_revision_unique',
             );
             $table->index(['status', 'revision']);
         });
 
-        Schema::create('disbursement_approval_decisions', function (Blueprint $table) {
+        Schema::create('distribution_approval_decisions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('disbursement_batch_item_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('disbursement_approval_task_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('disbursement_approval_stage_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('distribution_batch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_batch_item_id')
+                ->nullable()
+                ->constrained(indexName: 'distribution_decisions_item_fk')
+                ->nullOnDelete();
+            $table->foreignId('distribution_approval_task_id')
+                ->nullable()
+                ->constrained(indexName: 'distribution_decisions_task_fk')
+                ->nullOnDelete();
+            $table->foreignId('distribution_approval_stage_id')
+                ->nullable()
+                ->constrained(indexName: 'distribution_decisions_stage_fk')
+                ->nullOnDelete();
             $table->unsignedInteger('revision');
             $table->foreignId('actor_id')->constrained('users')->restrictOnDelete();
             $table->string('previous_decision')->nullable();
@@ -159,14 +174,17 @@ return new class extends Migration
             $table->text('remarks')->nullable();
             $table->timestamp('created_at')->useCurrent();
 
-            $table->index(['disbursement_batch_id', 'revision']);
+            $table->index(['distribution_batch_id', 'revision'], 'distribution_decisions_revision_index');
             $table->index('actor_id');
         });
 
-        Schema::create('disbursement_release_records', function (Blueprint $table) {
+        Schema::create('distribution_release_records', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_item_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('disbursement_batch_item_line_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('distribution_batch_item_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_batch_item_line_id')
+                ->nullable()
+                ->constrained(indexName: 'distribution_release_line_fk')
+                ->nullOnDelete();
             $table->foreignId('assistance_item_id')->nullable()->constrained('assistance_item')->nullOnDelete();
             $table->string('outcome');
             $table->decimal('actual_quantity', 15, 2)->nullable();
@@ -178,16 +196,16 @@ return new class extends Migration
             $table->text('remarks')->nullable();
             $table->timestamps();
 
-            $table->index(['disbursement_batch_item_id', 'outcome']);
+            $table->index(['distribution_batch_item_id', 'outcome'], 'distribution_release_outcome_index');
             $table->unique(
-                ['disbursement_batch_item_line_id', 'receipt_reference'],
-                'disbursement_release_line_receipt_unique',
+                ['distribution_batch_item_line_id', 'receipt_reference'],
+                'distribution_release_line_receipt_unique',
             );
         });
 
-        Schema::create('disbursement_batch_documents', function (Blueprint $table) {
+        Schema::create('distribution_batch_documents', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('disbursement_batch_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('distribution_batch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('document_type_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('uploaded_by')->constrained('users')->restrictOnDelete();
             $table->string('original_name');
@@ -205,15 +223,15 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('disbursement_batch_documents');
-        Schema::dropIfExists('disbursement_release_records');
-        Schema::dropIfExists('disbursement_approval_decisions');
-        Schema::dropIfExists('disbursement_approval_tasks');
-        Schema::dropIfExists('disbursement_batch_revisions');
-        Schema::dropIfExists('disbursement_batch_item_lines');
-        Schema::dropIfExists('disbursement_batch_items');
-        Schema::dropIfExists('disbursement_batches');
-        Schema::dropIfExists('disbursement_approval_stages');
-        Schema::dropIfExists('disbursement_approval_policies');
+        Schema::dropIfExists('distribution_batch_documents');
+        Schema::dropIfExists('distribution_release_records');
+        Schema::dropIfExists('distribution_approval_decisions');
+        Schema::dropIfExists('distribution_approval_tasks');
+        Schema::dropIfExists('distribution_batch_revisions');
+        Schema::dropIfExists('distribution_batch_item_lines');
+        Schema::dropIfExists('distribution_batch_items');
+        Schema::dropIfExists('distribution_batches');
+        Schema::dropIfExists('distribution_approval_stages');
+        Schema::dropIfExists('distribution_approval_policies');
     }
 };

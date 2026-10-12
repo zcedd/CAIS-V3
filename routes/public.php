@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Public\DistributionReceiptVerificationController;
 use App\Http\Controllers\Public\IntakeController;
 use App\Http\Controllers\Public\TrackingController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,10 @@ Route::middleware('throttle:public-intake')->group(function (): void {
     Route::post('apply/{program}', [IntakeController::class, 'store'])
         ->middleware('throttle:public-intake-write')
         ->name('public.apply.store');
+
+    Route::get('receipts/verify/{token}', DistributionReceiptVerificationController::class)
+        ->middleware('throttle:30,1')
+        ->name('public.distribution-receipts.verify');
 
     Route::get('track', [TrackingController::class, 'index'])->name('public.track.index');
     Route::post('track', [TrackingController::class, 'lookup'])

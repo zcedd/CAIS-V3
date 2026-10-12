@@ -176,8 +176,18 @@ class WorkflowEngine
      */
     public function recordGovernorRelease(Assistance $assistance, RequestSubStatus $target, User $actor): Assistance
     {
+        return $this->recordStatusChange($assistance, $target, $actor, 'Executive approved. Ready for release.');
+    }
+
+    /**
+     * Write a status history row and move the workflow when that move is allowed.
+     * A distribution officer may not be the workflow assignee, so a refused
+     * transition still records the status.
+     */
+    public function recordStatusChange(Assistance $assistance, RequestSubStatus $target, User $actor, string $remark): Assistance
+    {
         $payload = [
-            'remark' => 'Executive approved. Ready for release.',
+            'remark' => $remark,
             'recorded_at' => now()->toDateTimeString(),
         ];
 
