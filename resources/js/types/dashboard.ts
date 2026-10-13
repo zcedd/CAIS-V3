@@ -88,9 +88,17 @@ export type DemographicCount = {
     count: number;
 };
 
+export type AgeBySexPoint = {
+    label: string;
+    male: number;
+    female: number;
+    other: number;
+};
+
 export type DashboardDemographics = {
     sex: DemographicCount[];
     age: DemographicCount[];
+    age_by_sex: AgeBySexPoint[];
     civil_status: DemographicCount[];
     pwd: DemographicCount[];
     four_ps: DemographicCount[];
@@ -129,6 +137,18 @@ export type DashboardProgramRow = {
     batches?: DashboardProgramBatchRow[];
 };
 
+export type DashboardRecentBeneficiaryRow = {
+    id: number;
+    name: string;
+    cais_number: string;
+    type: 'individual' | 'organization';
+    barangay: string | null;
+    city: string | null;
+    program: string;
+    status: string;
+    date_requested: string | null;
+};
+
 export type DashboardProgramBatchRow = {
     id: number;
     name: string;
@@ -159,6 +179,7 @@ export const DASHBOARD_PARTIAL_PROPS = [
     'modeOfRequestChart',
     'municipalityMap',
     'programsTable',
+    'recentBeneficiaries',
     'filters',
 ] as const;
 
@@ -172,6 +193,8 @@ export const DASHBOARD_CHART_DEFER_PROPS = [
 
 export const DASHBOARD_INSIGHT_DEFER_PROPS = [
     'insights',
+    'summary',
+    'programsTable',
     'topBarangays',
     'modeOfRequestChart',
 ] as const;
@@ -237,17 +260,15 @@ export function getDefaultDashboardFilters(): DashboardFilters {
 export function hasActiveDashboardFilters(filters: DashboardFilters): boolean {
     const defaults = getDefaultDashboardFilters();
 
-    return (Object.keys(defaults) as (keyof DashboardFilters)[]).some(
-        (key) => {
-            const current = [...filters[key]].sort();
-            const defaultValues = [...defaults[key]].sort();
+    return (Object.keys(defaults) as (keyof DashboardFilters)[]).some((key) => {
+        const current = [...filters[key]].sort();
+        const defaultValues = [...defaults[key]].sort();
 
-            return (
-                current.length !== defaultValues.length ||
-                current.some((value, index) => value !== defaultValues[index])
-            );
-        },
-    );
+        return (
+            current.length !== defaultValues.length ||
+            current.some((value, index) => value !== defaultValues[index])
+        );
+    });
 }
 
 export type TrendPeriod = 'day' | 'week' | 'month';

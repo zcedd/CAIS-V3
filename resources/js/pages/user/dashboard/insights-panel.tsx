@@ -1,85 +1,64 @@
 import {
+    Ban,
     Clock3,
     MapPin,
     PackageCheck,
     PackageX,
-    Send,
-    Timer,
+    Repeat,
+    TrendingUp,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
+import { EMPTY_CELL } from '@/lib/empty-cell';
 import {
-    DashboardSectionCard,
-    SectionCardSkeleton,
-} from '@/pages/user/dashboard/dashboard-stat-card';
+    ColumnBreakdownChart,
+    DashboardChartCard,
+    DashboardChartCardSkeleton,
+    DonutBreakdownChart,
+    ProgramOutcomesChart,
+    RankedBarChart,
+    sortByLabelOrder,
+} from '@/pages/user/dashboard/dashboard-charts';
 import type {
     DashboardInsights,
+    DashboardProgramRow,
+    DashboardSummary,
     DemographicCount,
     TopBarangayPoint,
 } from '@/types/dashboard';
 
-function BreakdownList({
-    title,
-    description,
-    data,
-    icon,
-    emptyMessage = 'Nothing matches these filters.',
-}: {
-    title: string;
-    description: string;
-    data: DemographicCount[];
-    icon: LucideIcon;
-    emptyMessage?: string;
-}) {
-    const total = data.reduce((sum, row) => sum + row.count, 0);
-
-    return (
-        <DashboardSectionCard
-            title={title}
-            description={description}
-            icon={icon}
-        >
-            {data.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">
-                    {emptyMessage}
-                </p>
-            ) : (
-                <ul className="space-y-3">
-                    {data.map((row) => {
-                        const percent =
-                            total > 0 ? (row.count / total) * 100 : 0;
-
-                        return (
-                            <li key={row.label} className="space-y-1.5">
-                                <div className="flex items-center justify-between gap-2 text-sm">
-                                    <span className="truncate font-medium">
-                                        {row.label}
-                                    </span>
-                                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                                        {row.count.toLocaleString()} (
-                                        {percent.toFixed(1)}%)
-                                    </span>
-                                </div>
-                                <Progress value={percent} className="h-1.5" />
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
-        </DashboardSectionCard>
-    );
-}
+const BACKLOG_ORDER = [
+    '0-7 days',
+    '8-30 days',
+    '31-90 days',
+    '90+ days',
+    'No request date',
+] as const;
 
 type InsightsPanelProps = {
     insights: DashboardInsights;
+    summary: DashboardSummary;
+    programs: DashboardProgramRow[];
     topBarangays: TopBarangayPoint[];
     modeOfRequestChart: DemographicCount[];
 };
 
+function formatPercent(value: number): string {
+    return `${value.toFixed(1)}%`;
+}
+
+function share(numerator: number, denominator: number): number {
+    if (denominator === 0) {
+        return 0;
+    }
+
+    return (numerator / denominator) * 100;
+}
+
 export function InsightsPanel({
     insights,
+    summary,
+    programs,
     topBarangays,
     modeOfRequestChart,
 }: InsightsPanelProps) {
@@ -90,9 +69,57 @@ export function InsightsPanel({
         (sum, row) => sum + row.count,
         0,
     );
+    const barangays: DemographicCount[] = topBarangays.map((row) => ({
+        label: row.barangay,
+        count: row.count,
+    }));
+    const deliveryRate = share(
+        summary.delivered_requests,
+        summary.total_requests,
+    );
+    const denialRate = share(summary.denied_requests, summary.total_requests);
 
     return (
-        <div className="space-y-4" data-tour="dashboard-insights">
+        <div className="flex flex-col gap-4" data-tour="dashboard-insights">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                    label="Delivery rate"
+                    value={formatPercent(deliveryRate)}
+                    description={`${summary.delivered_requests.toLocaleString()} of ${summary.total_requests.toLocaleString()} requests`}
+                    icon={TrendingUp}
+                    footer={<Progress value={deliveryRate} />}
+                />
+                <StatCard
+                    label="Denial rate"
+                    value={formatPercent(denialRate)}
+                    description={`${summary.denied_requests.toLocaleString()} denied requests`}
+                    icon={Ban}
+                />
+                <StatCard
+                    label="Avg days to deliver"
+                    value={
+                        summary.avg_days_to_deliver !== null
+                            ? summary.avg_days_to_deliver.toFixed(1)
+                            : EMPTY_CELL
+                    }
+                    description={
+                        <>
+                            Verify avg:{' '}
+                            {summary.avg_days_to_verify !== null
+                                ? `${summary.avg_days_to_verify.toFixed(1)}d`
+                                : EMPTY_CELL}
+                        </>
+                    }
+                    icon={Clock3}
+                />
+                <StatCard
+                    label="Repeat beneficiaries"
+                    value={summary.repeat_beneficiaries.toLocaleString()}
+                    description={`${summary.avg_requests_per_beneficiary.toFixed(2)} requests per beneficiary`}
+                    icon={Repeat}
+                />
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard
                     label="Pending items"
@@ -121,29 +148,37 @@ export function InsightsPanel({
             </div>
 
             <div className="grid items-start gap-4 lg:grid-cols-3">
-                <BreakdownList
+                <DashboardChartCard
                     title="Backlog aging"
                     description="How long open requests have been waiting"
-                    data={insights.backlog_aging}
-                    icon={Timer}
-                    emptyMessage="No open backlog with these filters."
-                />
-                <BreakdownList
+                >
+                    <ColumnBreakdownChart
+                        data={sortByLabelOrder(
+                            insights.backlog_aging,
+                            BACKLOG_ORDER,
+                        )}
+                        emptyMessage="No open backlog with these filters."
+                        valueLabel="Requests"
+                    />
+                </DashboardChartCard>
+                <DashboardChartCard
                     title="Top barangays"
                     description="Areas with the most assistance requests"
-                    data={topBarangays.map((row) => ({
-                        label: row.barangay,
-                        count: row.count,
-                    }))}
-                    icon={MapPin}
-                />
-                <BreakdownList
+                >
+                    <RankedBarChart data={barangays} valueLabel="Requests" />
+                </DashboardChartCard>
+                <DashboardChartCard
                     title="Mode of request"
                     description="How beneficiaries submitted their requests"
-                    data={modeOfRequestChart}
-                    icon={Send}
-                />
+                >
+                    <DonutBreakdownChart
+                        data={modeOfRequestChart}
+                        valueLabel="Requests"
+                    />
+                </DashboardChartCard>
             </div>
+
+            <ProgramOutcomesChart data={programs} />
         </div>
     );
 }
@@ -151,29 +186,25 @@ export function InsightsPanel({
 export function InsightsPanelSkeleton() {
     return (
         <div
-            className="space-y-4"
+            className="flex flex-col gap-4"
             aria-busy="true"
             aria-label="Loading activity"
         >
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                {Array.from({ length: 4 }).map((_, index) => (
+                <StatCardSkeleton withFooter />
+                {Array.from({ length: 7 }).map((_, index) => (
                     <StatCardSkeleton key={index} />
                 ))}
             </div>
             <div className="grid gap-4 lg:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, index) => (
-                    <SectionCardSkeleton key={index} label="Loading activity">
-                        <div className="space-y-3">
-                            {Array.from({ length: 4 }).map((__, row) => (
-                                <div key={row} className="space-y-1.5">
-                                    <Skeleton className="h-4 w-full" />
-                                    <Skeleton className="h-1.5 w-full rounded-full" />
-                                </div>
-                            ))}
-                        </div>
-                    </SectionCardSkeleton>
+                    <DashboardChartCardSkeleton
+                        key={index}
+                        label="Loading activity"
+                    />
                 ))}
             </div>
+            <DashboardChartCardSkeleton label="Loading program outcomes" />
         </div>
     );
 }

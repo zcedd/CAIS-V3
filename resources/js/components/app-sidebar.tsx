@@ -18,6 +18,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { useAppNavItems } from '@/hooks/use-app-nav-items';
+import { useCloseMobileSidebar } from '@/hooks/use-close-mobile-sidebar';
 import { dashboard } from '@/routes';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import type { Auth } from '@/types/auth';
@@ -34,6 +35,7 @@ export function AppSidebar() {
         administrationNavItems,
         footerNavItems,
     } = useAppNavItems();
+    const closeMobileSidebar = useCloseMobileSidebar();
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">
@@ -55,6 +57,7 @@ export function AppSidebar() {
                                         : dashboard()
                                 }
                                 prefetch
+                                onClick={closeMobileSidebar}
                                 data-tour="sidebar-logo"
                             >
                                 <AppLogo

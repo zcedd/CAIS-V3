@@ -6,6 +6,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
+import { useCloseMobileSidebar } from '@/hooks/use-close-mobile-sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
@@ -32,6 +33,7 @@ export function NavFooter({
     children?: ReactNode;
 }) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const closeMobileSidebar = useCloseMobileSidebar();
 
     return (
         <SidebarMenu>
@@ -58,7 +60,11 @@ export function NavFooter({
                                     <span>{item.title}</span>
                                 </a>
                             ) : (
-                                <Link href={item.href} prefetch>
+                                <Link
+                                    href={item.href}
+                                    prefetch
+                                    onClick={closeMobileSidebar}
+                                >
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>

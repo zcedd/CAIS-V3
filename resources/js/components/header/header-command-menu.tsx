@@ -19,7 +19,7 @@ import {
     Users,
     X,
 } from 'lucide-react';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { toast } from 'sonner';
 import { hasTourForPath } from '@/components/app-tour';
 import { CommandMenuResults } from '@/components/header/command-menu-results';
@@ -35,6 +35,7 @@ import {
     CommandInput,
     CommandItem,
     CommandList,
+    CommandShortcut,
 } from '@/components/ui/command';
 import { Kbd, KbdGroup } from '@/components/ui/kbd';
 import { useSidebar } from '@/components/ui/sidebar';
@@ -78,6 +79,13 @@ const QUICK_ACTION_IDS = [
     'fund.create',
     'beneficiary.create',
 ];
+
+const QUICK_ACTION_SHORTCUTS = {
+    'program.create': 'KeyP',
+    'beneficiary.create': 'KeyB',
+    'item.create': 'KeyM',
+    'fund.create': 'KeyF',
+} as const;
 
 const SCOPE_CHIPS: {
     id: 'all' | 'commands' | 'programs' | 'beneficiaries' | 'requests';
@@ -187,10 +195,15 @@ export function HeaderCommandMenu() {
     ].filter((item) => commandMatches(parsed.text, item.title));
     const pathname = url.split('?')[0] ?? url;
     const showTour = hasTourForPath(pathname);
-    const shortcut = useSyncExternalStore(
+    const shortcutModifier = useSyncExternalStore(
         subscribeToPlatform,
-        () => (isApplePlatform() ? '⌘K' : 'Ctrl K'),
-        () => 'Ctrl K',
+        () => (isApplePlatform() ? '⌘' : 'Ctrl'),
+        () => 'Ctrl',
+    );
+    const shortcutShift = useSyncExternalStore(
+        subscribeToPlatform,
+        () => (isApplePlatform() ? '⇧' : 'Shift'),
+        () => 'Shift',
     );
     const remote = useGlobalSearch(
         slug,
@@ -239,12 +252,13 @@ export function HeaderCommandMenu() {
         visit(target);
     }
 
-    const quickActions = (
+    const allowedQuickActions = (
         [
             {
                 id: 'program.create',
                 label: 'Create program',
                 icon: Plus,
+                code: QUICK_ACTION_SHORTCUTS['program.create'],
                 allowed: Boolean(slug) && can(Permission.ProgramCreate),
                 run: () =>
                     runRegisteredOrVisit(
@@ -258,6 +272,7 @@ export function HeaderCommandMenu() {
                 id: 'beneficiary.create',
                 label: 'Add beneficiary',
                 icon: UserPlus,
+                code: QUICK_ACTION_SHORTCUTS['beneficiary.create'],
                 allowed: Boolean(slug) && can(Permission.BeneficiaryCreate),
                 run: () =>
                     runRegisteredOrVisit(
@@ -269,6 +284,7 @@ export function HeaderCommandMenu() {
                 id: 'item.create',
                 label: 'Add item',
                 icon: Package,
+                code: QUICK_ACTION_SHORTCUTS['item.create'],
                 allowed: Boolean(slug) && can(Permission.ItemCreate),
                 run: () =>
                     runRegisteredOrVisit(
@@ -282,6 +298,7 @@ export function HeaderCommandMenu() {
                 id: 'fund.create',
                 label: 'Add fund',
                 icon: Landmark,
+                code: QUICK_ACTION_SHORTCUTS['fund.create'],
                 allowed: Boolean(slug) && can(Permission.FundCreate),
                 run: () =>
                     runRegisteredOrVisit(
@@ -292,14 +309,18 @@ export function HeaderCommandMenu() {
                     ),
             },
         ] satisfies Array<{
-            id: string;
+            id: keyof typeof QUICK_ACTION_SHORTCUTS;
             label: string;
             icon: PageCommand['icon'];
+            code: (typeof QUICK_ACTION_SHORTCUTS)[keyof typeof QUICK_ACTION_SHORTCUTS];
             allowed: boolean;
             run: () => void;
         }>
-    ).filter(
-        (action) => action.allowed && commandMatches(parsed.text, action.label),
+    ).filter((action) => action.allowed);
+    const allowedQuickActionsRef = useRef(allowedQuickActions);
+    allowedQuickActionsRef.current = allowedQuickActions;
+    const quickActions = allowedQuickActions.filter((action) =>
+        commandMatches(parsed.text, action.label),
     );
 
     const fallbacks =
@@ -397,11 +418,35 @@ export function HeaderCommandMenu() {
         const onKeyDown = (event: KeyboardEvent) => {
             if (
                 event.key.toLowerCase() === 'k' &&
-                (event.metaKey || event.ctrlKey)
+                (event.metaKey || event.ctrlKey) &&
+                !event.shiftKey
             ) {
                 event.preventDefault();
                 setOpen((current) => !current);
+
+                return;
             }
+
+            if (
+                event.repeat ||
+                event.isComposing ||
+                event.altKey ||
+                !event.shiftKey ||
+                !(event.metaKey || event.ctrlKey)
+            ) {
+                return;
+            }
+
+            const action = allowedQuickActionsRef.current.find(
+                (entry) => entry.code === event.code,
+            );
+
+            if (!action) {
+                return;
+            }
+
+            event.preventDefault();
+            action.run();
         };
 
         window.addEventListener('keydown', onKeyDown);
@@ -424,7 +469,14 @@ export function HeaderCommandMenu() {
                     >
                         <Search />
                         <span className="flex-1 text-left">Search...</span>
-                        <span className="text-xs">{shortcut}</span>
+                        <KbdGroup>
+                            <Kbd className="group-hover/button:bg-background">
+                                {shortcutModifier}
+                            </Kbd>
+                            <Kbd className="group-hover/button:bg-background">
+                                K
+                            </Kbd>
+                        </KbdGroup>
                         <span className="sr-only">Search</span>
                     </Button>
                 </TooltipTrigger>
@@ -567,6 +619,22 @@ export function HeaderCommandMenu() {
                                                 {record.group}
                                             </span>
                                         </span>
+                                        <button
+                                            type="button"
+                                            className="ml-auto rounded-sm text-muted-foreground hover:text-foreground"
+                                            aria-label={`Remove ${record.label}`}
+                                            onPointerDown={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                            }}
+                                            onClick={(event) => {
+                                                event.preventDefault();
+                                                event.stopPropagation();
+                                                recents.forgetOpened(record.url);
+                                            }}
+                                        >
+                                            <X />
+                                        </button>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>
@@ -615,6 +683,17 @@ export function HeaderCommandMenu() {
                                         >
                                             {Icon ? <Icon /> : null}
                                             {action.label}
+                                            <CommandShortcut className="tracking-normal">
+                                                <KbdGroup>
+                                                    <Kbd>
+                                                        {shortcutModifier}
+                                                    </Kbd>
+                                                    <Kbd>{shortcutShift}</Kbd>
+                                                    <Kbd>
+                                                        {action.code.slice(3)}
+                                                    </Kbd>
+                                                </KbdGroup>
+                                            </CommandShortcut>
                                         </CommandItem>
                                     );
                                 })}

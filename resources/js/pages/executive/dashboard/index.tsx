@@ -357,9 +357,11 @@ export default function ExecutiveDashboardIndex({
                                 fallback={<InsightsPanelSkeleton />}
                             >
                                 <Suspense fallback={<InsightsPanelSkeleton />}>
-                                    {insights ? (
+                                    {insights && summary ? (
                                         <InsightsPanel
                                             insights={insights}
+                                            summary={summary}
+                                            programs={programsTable ?? []}
                                             topBarangays={topBarangays ?? []}
                                             modeOfRequestChart={
                                                 modeOfRequestChart ?? []

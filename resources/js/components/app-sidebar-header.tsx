@@ -11,7 +11,6 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
 import { useInitials } from '@/hooks/use-initials';
@@ -43,7 +42,6 @@ export function AppSidebarHeader({
                     <HeaderNotifications />
                     <HeaderThemeToggle />
                     <HeaderFullscreenToggle />
-                    <Separator orientation="vertical" className="mx-1 h-6" />
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button

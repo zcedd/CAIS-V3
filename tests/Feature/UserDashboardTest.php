@@ -588,6 +588,129 @@ test('programs table shows only the 10 latest programs', function () {
         ->and($programsTable[9]['name'])->toBe('Program 3');
 });
 
+test('recent beneficiaries lists the latest request for each person in the department', function () {
+    [
+        'department' => $department,
+        'departmentB' => $departmentB,
+        'user' => $user,
+        'program' => $program,
+        'programB' => $programB,
+        'item' => $item,
+    ] = createDashboardFixtures();
+
+    $barangayId = dashboardBarangay('Laoag');
+
+    $latestPerson = Individual::factory()->create([
+        'first_name' => 'Latest',
+        'middle_name' => null,
+        'last_name' => 'Person',
+        'suffix' => null,
+        'address_barangay_id' => $barangayId,
+    ]);
+    $earlierPerson = Individual::factory()->create([
+        'first_name' => 'Earlier',
+        'middle_name' => null,
+        'last_name' => 'Person',
+        'suffix' => null,
+    ]);
+    $otherPerson = Individual::factory()->create([
+        'first_name' => 'Other',
+        'middle_name' => null,
+        'last_name' => 'Department',
+        'suffix' => null,
+    ]);
+
+    $year = now()->year;
+
+    createAssistanceForIndividual($program, $latestPerson, $item, dateRequested: ($year - 1).'-01-15');
+    createAssistanceForIndividual($program, $latestPerson, $item, dateRequested: "{$year}-06-01");
+    createAssistanceForIndividual($programB, $latestPerson, $item, dateRequested: "{$year}-06-01");
+    createAssistanceForIndividual($program, $earlierPerson, $item, dateRequested: "{$year}-03-01");
+
+    $otherProgram = Program::create([
+        'name' => 'Other Department Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $departmentB->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+    createAssistanceForIndividual($otherProgram, $otherPerson, $item, dateRequested: "{$year}-12-01");
+
+    $this->actingAs($user)
+        ->get(route('user.dashboard.index', ['department' => $department->slug]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->loadDeferredProps('beneficiaries', fn (Assert $reload) => $reload
+                ->has('recentBeneficiaries', 2)
+                ->where('recentBeneficiaries.0.name', 'Latest Person')
+                ->where('recentBeneficiaries.0.cais_number', $latestPerson->cais_number)
+                ->where('recentBeneficiaries.0.type', 'individual')
+                ->where('recentBeneficiaries.0.barangay', 'Laoag Barangay')
+                ->where('recentBeneficiaries.0.city', 'Laoag')
+                ->where('recentBeneficiaries.0.program', 'Beta Program')
+                ->where('recentBeneficiaries.0.status', 'Unrequested')
+                ->where('recentBeneficiaries.0.date_requested', "{$year}-06-01")
+                ->where('recentBeneficiaries.1.name', 'Earlier Person')
+                ->where('recentBeneficiaries.1.program', 'Alpha Program')
+                ->where('recentBeneficiaries.1.date_requested', "{$year}-03-01")));
+});
+
+test('recent beneficiaries respect the dashboard year filter', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    $currentPerson = Individual::factory()->create([
+        'first_name' => 'Current',
+        'middle_name' => null,
+        'last_name' => 'Person',
+        'suffix' => null,
+    ]);
+    $previousPerson = Individual::factory()->create([
+        'first_name' => 'Previous',
+        'middle_name' => null,
+        'last_name' => 'Person',
+        'suffix' => null,
+    ]);
+
+    createAssistanceForIndividual($program, $currentPerson, $item, dateRequested: '2025-02-01');
+    createAssistanceForIndividual($program, $previousPerson, $item, dateRequested: '2024-02-01');
+
+    $rows = app(DashboardService::class)->recentBeneficiaries($department, [
+        'year' => [2025],
+    ]);
+
+    expect($rows)->toHaveCount(1)
+        ->and($rows[0]['name'])->toBe('Current Person')
+        ->and($rows[0]['date_requested'])->toBe('2025-02-01');
+});
+
+test('recent beneficiaries returns at most 10 people', function () {
+    ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
+
+    foreach (range(1, 11) as $index) {
+        $person = Individual::factory()->create([
+            'first_name' => 'Person',
+            'middle_name' => null,
+            'last_name' => (string) $index,
+            'suffix' => null,
+        ]);
+
+        createAssistanceForIndividual(
+            $program,
+            $person,
+            $item,
+            dateRequested: sprintf('2025-01-%02d', $index),
+        );
+    }
+
+    $rows = app(DashboardService::class)->recentBeneficiaries($department, []);
+
+    expect($rows)->toHaveCount(10)
+        ->and($rows[0]['name'])->toBe('Person 11')
+        ->and($rows[9]['name'])->toBe('Person 2');
+});
+
 test('summary counts repeat and one-time beneficiaries in sql', function () {
     ['department' => $department, 'program' => $program, 'item' => $item] = createDashboardFixtures();
 

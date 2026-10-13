@@ -2,6 +2,14 @@ import { Head, setLayoutProps, WhenVisible } from '@inertiajs/react';
 import { Ban, FolderKanban, FolderLock, Package } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
+import { Chart as ChartSkeleton } from '@/components/skeleton/chart';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { StatCard } from '@/components/user/stat-card';
 import { DashboardFiltersButton } from '@/pages/user/dashboard/dashboard-filters';
@@ -13,9 +21,13 @@ import {
 } from '@/pages/user/dashboard/intelligence-panel';
 import { KpiCardsSkeleton } from '@/pages/user/dashboard/kpi-cards';
 import { MunicipalityMapSkeleton } from '@/pages/user/dashboard/municipality-map-skeleton';
+import { TopDeliveredItemsSkeleton } from '@/pages/user/dashboard/top-delivered-items';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import type { BreadcrumbItem } from '@/types';
-import { DASHBOARD_INSIGHT_DEFER_PROPS } from '@/types/dashboard';
+import {
+    DASHBOARD_CHART_DEFER_PROPS,
+    DASHBOARD_INSIGHT_DEFER_PROPS,
+} from '@/types/dashboard';
 import type {
     BeneficiaryTypeChartPoint,
     DashboardDemographics,
@@ -23,6 +35,7 @@ import type {
     DashboardFilters,
     DashboardInsights,
     DashboardProgramRow,
+    DashboardRecentBeneficiaryRow,
     DashboardSummary,
     DeliveredItemsChartPoint,
     DemographicCount,
@@ -41,9 +54,41 @@ const ProgramsTable = lazy(() =>
     })),
 );
 
+const RecentBeneficiariesTable = lazy(() =>
+    import('@/pages/user/dashboard/recent-beneficiaries-table').then(
+        (module) => ({
+            default: module.RecentBeneficiariesTable,
+        }),
+    ),
+);
+
 const InsightsPanel = lazy(() =>
     import('@/pages/user/dashboard/insights-panel').then((module) => ({
         default: module.InsightsPanel,
+    })),
+);
+
+const RequestStatusChart = lazy(() =>
+    import('@/pages/user/dashboard/request-status-chart').then((module) => ({
+        default: module.RequestStatusChart,
+    })),
+);
+
+const UnspscReleasedChart = lazy(() =>
+    import('@/pages/user/dashboard/unspsc-released-chart').then((module) => ({
+        default: module.UnspscReleasedChart,
+    })),
+);
+
+const TopDeliveredItems = lazy(() =>
+    import('@/pages/user/dashboard/top-delivered-items').then((module) => ({
+        default: module.TopDeliveredItems,
+    })),
+);
+
+const RequestsTrendChart = lazy(() =>
+    import('@/pages/user/dashboard/requests-trend-chart').then((module) => ({
+        default: module.RequestsTrendChart,
     })),
 );
 
@@ -66,6 +111,7 @@ type DashboardPageProps = {
     topBarangays?: TopBarangayPoint[];
     modeOfRequestChart?: DemographicCount[];
     programsTable?: DashboardProgramRow[];
+    recentBeneficiaries?: DashboardRecentBeneficiaryRow[];
     cityChart?: CityChartPoint[];
     municipalityMap?: MunicipalityMapPoint[];
     filterOptions?: DashboardFilterOptions;
@@ -75,11 +121,16 @@ type DashboardPageProps = {
 export default function UserDashboardIndex({
     department,
     summary,
+    requestStatusChart,
+    deliveredItemsChart,
+    unspscReleasedChart,
     demographics,
+    requestsTrend,
     insights,
     topBarangays,
     modeOfRequestChart,
     programsTable,
+    recentBeneficiaries,
     cityChart,
     municipalityMap,
     filterOptions,
@@ -103,7 +154,7 @@ export default function UserDashboardIndex({
     return (
         <>
             <Head title={`Dashboard: ${department.name}`} />
-            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+            <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-clip rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">
@@ -200,6 +251,31 @@ export default function UserDashboardIndex({
                                 )}
                             </WhenVisible>
                         </div>
+
+                        <WhenVisible
+                            data="recentBeneficiaries"
+                            buffer={200}
+                            fallback={
+                                <DataTableSkeleton
+                                    columnCount={6}
+                                    rowCount={5}
+                                />
+                            }
+                        >
+                            <Suspense
+                                fallback={
+                                    <DataTableSkeleton
+                                        columnCount={6}
+                                        rowCount={5}
+                                    />
+                                }
+                            >
+                                <RecentBeneficiariesTable
+                                    department={department}
+                                    data={recentBeneficiaries ?? []}
+                                />
+                            </Suspense>
+                        </WhenVisible>
                     </TabsContent>
 
                     <TabsContent value="insights" className="space-y-4">
@@ -210,9 +286,11 @@ export default function UserDashboardIndex({
                                 fallback={<InsightsPanelSkeleton />}
                             >
                                 <Suspense fallback={<InsightsPanelSkeleton />}>
-                                    {insights ? (
+                                    {insights && summary ? (
                                         <InsightsPanel
                                             insights={insights}
+                                            summary={summary}
+                                            programs={programsTable ?? []}
                                             topBarangays={topBarangays ?? []}
                                             modeOfRequestChart={
                                                 modeOfRequestChart ?? []
@@ -224,6 +302,75 @@ export default function UserDashboardIndex({
                                 </Suspense>
                             </WhenVisible>
                         </div>
+
+                        <WhenVisible
+                            data={[...DASHBOARD_CHART_DEFER_PROPS]}
+                            buffer={200}
+                            fallback={<ChartSkeleton />}
+                        >
+                            <Suspense fallback={<ChartSkeleton />}>
+                                <RequestsTrendChart
+                                    data={requestsTrend ?? []}
+                                />
+                            </Suspense>
+                        </WhenVisible>
+
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="h-full min-w-0 [&>*]:h-full">
+                                <WhenVisible
+                                    data={[...DASHBOARD_CHART_DEFER_PROPS]}
+                                    buffer={200}
+                                    fallback={<TopDeliveredItemsSkeleton />}
+                                >
+                                    <Suspense
+                                        fallback={<TopDeliveredItemsSkeleton />}
+                                    >
+                                        <TopDeliveredItems
+                                            data={deliveredItemsChart ?? []}
+                                        />
+                                    </Suspense>
+                                </WhenVisible>
+                            </div>
+                            <div className="h-full min-w-0 [&>*]:h-full">
+                                <WhenVisible
+                                    data={[...DASHBOARD_CHART_DEFER_PROPS]}
+                                    buffer={200}
+                                    fallback={<ChartSkeleton />}
+                                >
+                                    <Suspense fallback={<ChartSkeleton />}>
+                                        <RequestStatusChart
+                                            data={requestStatusChart ?? []}
+                                        />
+                                    </Suspense>
+                                </WhenVisible>
+                            </div>
+                        </div>
+
+                        <WhenVisible
+                            data={[...DASHBOARD_CHART_DEFER_PROPS]}
+                            buffer={200}
+                            fallback={<ChartSkeleton />}
+                        >
+                            <Card size="sm">
+                                <CardHeader>
+                                    <CardTitle className="text-sm">
+                                        Released by UNSPSC segment
+                                    </CardTitle>
+                                    <CardDescription className="text-xs">
+                                        Quantity released, classified for
+                                        PhilGEPS, COA, and donors. Spend
+                                        reporting waits on item cost.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Suspense fallback={<ChartSkeleton />}>
+                                        <UnspscReleasedChart
+                                            data={unspscReleasedChart ?? []}
+                                        />
+                                    </Suspense>
+                                </CardContent>
+                            </Card>
+                        </WhenVisible>
                     </TabsContent>
 
                     <TabsContent value="programs" className="space-y-4">

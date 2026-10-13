@@ -203,6 +203,29 @@
         oklch(0.553 0.013 58.071);
 }
 
+[data-slot='sidebar-content'] {
+    scrollbar-color: color-mix(in oklch, var(--sidebar-foreground) 35%, transparent)
+        transparent;
+    scrollbar-width: thin;
+}
+
+[data-slot='sidebar-content']::-webkit-scrollbar {
+    width: 8px;
+}
+
+[data-slot='sidebar-content']::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+[data-slot='sidebar-content']::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: color-mix(
+        in oklch,
+        var(--sidebar-foreground) 35%,
+        transparent
+    );
+}
+
 @layer base {
     * {
         @apply border-border outline-ring/50;

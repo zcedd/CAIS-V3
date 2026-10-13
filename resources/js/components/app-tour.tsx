@@ -455,7 +455,7 @@ const PAGE_STEPS: Record<string, Step[]> = {
         ),
         dashboardTourStep(
             '[data-tour="dashboard-insights"]',
-            'Pending items, backlog aging, top barangays, and how requests were submitted.',
+            'Delivery and denial rates, processing time, backlog aging, top barangays, and program outcomes.',
         ),
         dashboardTourStep(
             '[data-tour="dashboard-beneficiaries"]',
@@ -611,6 +611,26 @@ const PAGE_STEPS: Record<string, Step[]> = {
             target: '[data-tour="funds-table"]',
             content: 'The funds list.',
             before: () => closeCreateDrawerAnimated(CREATE_DRAWER_TOURS.funds),
+        },
+    ],
+    distributions: [
+        {
+            target: '[data-tour="distributions-filters"]',
+            content:
+                'Search by venue, beneficiary, code, status, or program.',
+        },
+        {
+            target: '[data-tour="distributions-calendar"]',
+            content: 'Open scheduled releases on a calendar.',
+        },
+        {
+            target: '[data-tour="distributions-create"]',
+            content: 'Start a new distribution batch here.',
+        },
+        {
+            target: '[data-tour="distributions-table"]',
+            content: 'Each row is a batch. Open the code to review it.',
+            placement: 'top',
         },
     ],
     queue: [

@@ -121,12 +121,16 @@ export default function DistributionsIndex({
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" asChild>
+                        <Button
+                            variant="outline"
+                            asChild
+                            data-tour="distributions-calendar"
+                        >
                             <Link href={calendar.url(department.slug)}>
                                 Calendar
                             </Link>
                         </Button>
-                        <Button asChild>
+                        <Button asChild data-tour="distributions-create">
                             <Link href={create.url(department.slug)}>
                                 New batch
                             </Link>
@@ -134,7 +138,10 @@ export default function DistributionsIndex({
                     </div>
                 </div>
 
-                <div className="grid gap-3 md:grid-cols-4">
+                <div
+                    className="grid gap-3 md:grid-cols-4"
+                    data-tour="distributions-filters"
+                >
                     <Input
                         defaultValue={filters.venue ?? ''}
                         placeholder="Venue"
@@ -210,7 +217,7 @@ export default function DistributionsIndex({
                     </Select>
                 </div>
 
-                <Card>
+                <Card data-tour="distributions-table">
                     <CardContent>
                         <Table>
                             <TableHeader>

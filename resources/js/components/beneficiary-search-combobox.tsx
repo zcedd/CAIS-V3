@@ -270,9 +270,8 @@ export function BeneficiarySearchCombobox({
                                             onSelect={() =>
                                                 handleSelect(option)
                                             }
-                                            className="cursor-pointer items-start gap-2"
+                                            className="cursor-pointer items-start"
                                         >
-                                            <BeneficiaryAvatar name={option.name} />
                                             <span className="flex min-w-0 flex-1 flex-col gap-1">
                                                 <span className="flex flex-wrap items-center gap-1.5">
                                                     <span className="font-medium">
@@ -294,7 +293,6 @@ export function BeneficiarySearchCombobox({
             </Popover>
             {value !== null && selectedOption !== null ? (
                 <div className="flex items-start gap-3 rounded-lg border bg-muted/40 p-3 ring-1 ring-primary/30">
-                    <BeneficiaryAvatar name={selectedOption.name} />
                     <div className="min-w-0 flex-1 space-y-1">
                         <div className="flex flex-wrap items-center gap-1.5">
                             <p className="text-sm font-medium">
@@ -317,14 +315,6 @@ export function BeneficiarySearchCombobox({
             ) : null}
             <InputError message={error} />
         </div>
-    );
-}
-
-function BeneficiaryAvatar({ name }: { name: string }) {
-    return (
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-            {initials(name)}
-        </span>
     );
 }
 
@@ -352,17 +342,6 @@ function BeneficiaryMeta({ option }: { option: BeneficiarySearchOption }) {
             ) : null}
         </span>
     );
-}
-
-function initials(name: string): string {
-    const letters = name
-        .trim()
-        .split(/\s+/)
-        .filter((part) => part.length > 0)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? '');
-
-    return letters.join('') || '?';
 }
 
 function profileLine(option: BeneficiarySearchOption): string | null {

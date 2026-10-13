@@ -1,5 +1,5 @@
 import { Head, router, setLayoutProps } from '@inertiajs/react';
-import { ClipboardCheck, X } from 'lucide-react';
+import { Check, ClipboardCheck, Undo2, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import type { ServerPaginationMeta } from '@/components/data-table/types';
@@ -383,6 +383,7 @@ export default function GovernorProgramsIndex({
                                                             })
                                                         }
                                                     >
+                                                        <Check data-icon="inline-start" />
                                                         Approve
                                                     </Button>
                                                     <Button
@@ -396,6 +397,7 @@ export default function GovernorProgramsIndex({
                                                             })
                                                         }
                                                     >
+                                                        <Undo2 data-icon="inline-start" />
                                                         Return
                                                     </Button>
                                                 </div>
