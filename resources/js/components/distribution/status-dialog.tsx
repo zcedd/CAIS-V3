@@ -22,6 +22,7 @@ export type DistributionStatusVariant =
 export type VisitCallbacks = {
     onStart?: () => void;
     onSuccess?: () => void;
+    onError?: () => void;
     onFinish?: () => void;
 };
 
@@ -170,6 +171,7 @@ export function ConfirmActionButton({
                     onConfirm({
                         onStart: () => setPending(true),
                         onSuccess: () => setOpen(false),
+                        onError: () => setOpen(false),
                         onFinish: () => setPending(false),
                     })
                 }

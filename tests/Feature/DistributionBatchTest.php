@@ -97,6 +97,27 @@ test('the same assistance request cannot be added twice', function () {
         ->assertSessionHasErrors('assistance_ids');
 });
 
+test('a delivered request stays in draft and keeps the validation error', function () {
+    $fixture = distributionFixture();
+    $batch = storeDistribution($fixture);
+    $assistance = $fixture['assistances'][0];
+    $assistance->forceFill(['was_delivered' => true])->save();
+    $name = $assistance->beneficiary->name;
+
+    test()->actingAs($fixture['creator'])
+        ->from(route('user.distributions.show', [$fixture['department'], $batch]))
+        ->post(route('user.distributions.validate', [$fixture['department'], $batch]))
+        ->assertRedirect()
+        ->assertSessionHasErrors([
+            'roster' => $name.' is already delivered.',
+        ]);
+
+    $batch->refresh();
+
+    expect($batch->status)->toBe(DistributionBatchStatus::Draft)
+        ->and($batch->validation_summary['errors'])->toBe([$name.' is already delivered.']);
+});
+
 test('a request that is not eligible cannot join a batch', function () {
     $fixture = distributionFixture();
     $fixture['assistances'][0]->update(['current_request_sub_status_id' => catalogReasonId(RequestSubStatusCode::Denied)]);

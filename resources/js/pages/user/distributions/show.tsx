@@ -1,4 +1,4 @@
-import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import { useEffect, useId, useState } from 'react';
 import { AssistanceLines } from '@/components/distribution/assistance-lines';
 import { DistributionComposition } from '@/components/distribution/composition';
@@ -170,6 +170,16 @@ function routeArgs(department: string, batchId: number) {
     return { department, distributionBatch: batchId };
 }
 
+function messageList(value: string | string[] | undefined): string[] {
+    if (value == null) {
+        return [];
+    }
+
+    return (Array.isArray(value) ? value : [value]).filter(
+        (message) => message !== '',
+    );
+}
+
 export default function DistributionShow({
     department,
     batch,
@@ -179,6 +189,15 @@ export default function DistributionShow({
 }) {
     const [selected, setSelected] = useState<number[]>([]);
     const args = routeArgs(department.slug, batch.id);
+    const pageErrors = (usePage().props.errors ?? {}) as Record<
+        string,
+        string | string[]
+    >;
+    const validationErrors = [
+        ...messageList(pageErrors.roster),
+        ...messageList(pageErrors.status),
+        ...(batch.validation_summary?.errors ?? []),
+    ].filter((message, index, messages) => messages.indexOf(message) === index);
 
     useEffect(() => {
         setLayoutProps({
@@ -238,6 +257,14 @@ export default function DistributionShow({
 
                 {batch.finalization_label && (
                     <p className="text-sm">{batch.finalization_label}</p>
+                )}
+
+                {validationErrors.length > 0 && (
+                    <ul className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                        {validationErrors.map((error) => (
+                            <li key={error}>{error}</li>
+                        ))}
+                    </ul>
                 )}
 
                 {(batch.validation_summary?.warnings ?? []).length > 0 && (
@@ -485,6 +512,11 @@ export default function DistributionShow({
                                             <AssistanceLines
                                                 lines={item.lines}
                                             />
+                                            {item.request_status && (
+                                                <div className="text-muted-foreground">
+                                                    {item.request_status}
+                                                </div>
+                                            )}
                                             {item.warnings.map((warning) => (
                                                 <div
                                                     key={warning}
