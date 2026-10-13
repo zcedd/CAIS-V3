@@ -84,6 +84,10 @@ class DashboardController extends Controller
                 fn () => $this->dashboardService->programsTable($department, $filters),
                 'programs',
             ),
+            'recentBeneficiaries' => Inertia::defer(
+                fn () => $this->dashboardService->recentBeneficiaries($department, $filters),
+                'beneficiaries',
+            ),
         ]);
     }
 }

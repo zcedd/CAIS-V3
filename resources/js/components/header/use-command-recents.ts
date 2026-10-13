@@ -87,6 +87,7 @@ export function useCommandRecents(userId: number | undefined): {
     rememberQuery: (query: string) => void;
     forgetQuery: (query: string) => void;
     rememberOpened: (record: RecentRecord) => void;
+    forgetOpened: (url: string) => void;
     clear: () => void;
 } {
     const recents = useSyncExternalStore(
@@ -143,6 +144,17 @@ export function useCommandRecents(userId: number | undefined): {
                         (entry) => entry.url !== record.url,
                     ),
                 ].slice(0, 6),
+            });
+        },
+        forgetOpened(url: string) {
+            if (!userId) {
+                return;
+            }
+
+            const current = read(userId);
+            write(userId, {
+                ...current,
+                opened: current.opened.filter((entry) => entry.url !== url),
             });
         },
         clear() {

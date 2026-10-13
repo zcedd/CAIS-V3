@@ -1,4 +1,5 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
+import { Check, Undo2 } from 'lucide-react';
 import { type ReactNode, useEffect, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -199,6 +200,7 @@ export default function GovernorProgramShow({
                             type="button"
                             onClick={() => setDecision('approve')}
                         >
+                            <Check data-icon="inline-start" />
                             Approve
                         </Button>
                         <Button
@@ -206,6 +208,7 @@ export default function GovernorProgramShow({
                             variant="outline"
                             onClick={() => setDecision('return')}
                         >
+                            <Undo2 data-icon="inline-start" />
                             Return to department
                         </Button>
                     </div>

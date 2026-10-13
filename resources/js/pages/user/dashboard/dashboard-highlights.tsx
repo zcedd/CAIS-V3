@@ -1,19 +1,14 @@
-import {
-    Activity,
-    Clock3,
-    Package,
-    Repeat,
-    TrendingUp,
-    Users,
-} from 'lucide-react';
+import { Activity, Clock3, Repeat, TrendingUp, Users } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
 import { EMPTY_CELL } from '@/lib/empty-cell';
 import {
-    DashboardSectionCard,
-    SectionCardSkeleton,
-} from '@/pages/user/dashboard/dashboard-stat-card';
+    DashboardChartCard,
+    DashboardChartCardSkeleton,
+    RadialMetric,
+} from '@/pages/user/dashboard/dashboard-charts';
 import type { DashboardSummary } from '@/types/dashboard';
 
 type DashboardHighlightsProps = {
@@ -30,60 +25,6 @@ function deliveryRate(summary: DashboardSummary): number {
     }
 
     return (summary.delivered_requests / summary.total_requests) * 100;
-}
-
-function RadialRate({
-    label,
-    display,
-    progress,
-    description,
-}: {
-    label: string;
-    display: string;
-    progress: number;
-    description: string;
-}) {
-    const clamped = Math.min(100, Math.max(0, progress));
-    const radius = 36;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (clamped / 100) * circumference;
-
-    return (
-        <div className="flex items-center gap-3">
-            <div className="relative size-20 shrink-0">
-                <svg className="size-20 -rotate-90" viewBox="0 0 80 80">
-                    <circle
-                        cx="40"
-                        cy="40"
-                        r={radius}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="6"
-                        className="text-muted"
-                    />
-                    <circle
-                        cx="40"
-                        cy="40"
-                        r={radius}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="6"
-                        strokeDasharray={circumference}
-                        strokeDashoffset={offset}
-                        strokeLinecap="round"
-                        className="text-primary transition-all"
-                    />
-                </svg>
-                <span className="absolute inset-0 flex items-center justify-center text-xs font-semibold tabular-nums">
-                    {display}
-                </span>
-            </div>
-            <div className="min-w-0 space-y-0.5">
-                <p className="text-sm font-medium">{label}</p>
-                <p className="text-xs text-muted-foreground">{description}</p>
-            </div>
-        </div>
-    );
 }
 
 export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
@@ -125,11 +66,7 @@ export function DashboardHighlights({ summary }: DashboardHighlightsProps) {
     );
 }
 
-export function DeliverySnapshot({
-    summary,
-}: {
-    summary: DashboardSummary;
-}) {
+export function DeliverySnapshot({ summary }: { summary: DashboardSummary }) {
     const rate = deliveryRate(summary);
     const avgItems =
         summary.delivered_requests > 0
@@ -138,12 +75,11 @@ export function DeliverySnapshot({
     const avgRingProgress = Math.min(100, avgItems * 10);
 
     return (
-        <DashboardSectionCard
+        <DashboardChartCard
             title="Delivery snapshot"
             description="How much of the filtered work is done"
-            icon={Package}
             data-tour="dashboard-delivery-snapshot"
-            contentClassName="space-y-6"
+            contentClassName="flex flex-col gap-6"
         >
             <div className="grid gap-3">
                 <div className="flex items-center justify-between gap-2 text-sm">
@@ -190,14 +126,16 @@ export function DeliverySnapshot({
                 </div>
             </div>
 
-            <div className="space-y-4 border-t pt-4">
-                <RadialRate
+            <Separator />
+
+            <div className="flex flex-col gap-4">
+                <RadialMetric
                     label="% Delivered"
                     display={formatPercent(rate)}
                     progress={rate}
                     description="Share of requests delivered"
                 />
-                <RadialRate
+                <RadialMetric
                     label="Items / delivery"
                     display={avgItems.toFixed(1)}
                     progress={avgRingProgress}
@@ -208,7 +146,7 @@ export function DeliverySnapshot({
                     }
                 />
             </div>
-        </DashboardSectionCard>
+        </DashboardChartCard>
     );
 }
 
@@ -228,13 +166,13 @@ export function DashboardHighlightsSkeleton() {
 
 export function DeliverySnapshotSkeleton() {
     return (
-        <SectionCardSkeleton label="Loading snapshot" titleClassName="w-36">
-            <div className="space-y-4">
+        <DashboardChartCardSkeleton label="Loading snapshot">
+            <div className="flex flex-col gap-4">
                 {[0, 1, 2].map((key) => (
                     <Skeleton key={key} className="h-4 w-full" />
                 ))}
                 <Skeleton className="h-20 w-full" />
             </div>
-        </SectionCardSkeleton>
+        </DashboardChartCardSkeleton>
     );
 }

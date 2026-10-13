@@ -4,6 +4,7 @@ const INDEX_MODULES = [
     'beneficiaries',
     'items',
     'funds',
+    'distributions',
     'queue',
 ] as const;
 

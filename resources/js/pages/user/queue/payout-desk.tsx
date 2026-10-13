@@ -2,7 +2,6 @@ import { Link, router } from '@inertiajs/react';
 import { Check, Search, ShieldAlert, UserSearch } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,15 +41,6 @@ export type QueueSelection = {
     items: { name: string; kind: string | null; quantity: number }[];
     findings: { code: string; message: string; severity: string }[];
 };
-
-function initials(name: string | null): string {
-    return (name ?? '?')
-        .split(' ')
-        .filter(Boolean)
-        .slice(0, 2)
-        .map((part) => part[0]?.toUpperCase() ?? '')
-        .join('');
-}
 
 type DeskRow = {
     id: number;
@@ -586,17 +576,12 @@ export function PayoutDesk({
                                     type="button"
                                     onClick={() => onSelect(row.id)}
                                     className={cn(
-                                        'flex w-full items-start gap-2 rounded-lg border border-l-[3px] px-3 py-2 text-left',
+                                        'flex w-full items-start rounded-lg border border-l-[3px] px-3 py-2 text-left',
                                         selectedRow
                                             ? 'border-emerald-500/40 border-l-emerald-500 bg-emerald-500/10'
                                             : 'border-border border-l-transparent hover:bg-muted/40',
                                     )}
                                 >
-                                    <Avatar size="sm">
-                                        <AvatarFallback>
-                                            {initials(row.beneficiary_name)}
-                                        </AvatarFallback>
-                                    </Avatar>
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-sm font-medium">
                                             {row.beneficiary_name}

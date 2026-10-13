@@ -1,16 +1,29 @@
 import { Banknote, Package, Truck, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    Cell,
+    Pie,
+    PieChart,
+    XAxis,
+    YAxis,
+} from 'recharts';
 import {
     ChartContainer,
     ChartTooltip,
-    ChartTooltipContent
-    
+    ChartTooltipContent,
 } from '@/components/ui/chart';
-import type {ChartConfig} from '@/components/ui/chart';
+import type { ChartConfig } from '@/components/ui/chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
 import { formatPeso } from '@/lib/format-peso';
+import {
+    ChartLegendChips,
+    DashboardChartCard,
+    seriesColor,
+} from '@/pages/user/dashboard/dashboard-charts';
 import type {
     CityChartPoint,
     DashboardDemographics,
@@ -21,13 +34,10 @@ const cityConfig = {
     count: { label: 'Beneficiaries', color: 'var(--chart-1)' },
 } satisfies ChartConfig;
 
-const ageColors = [
-    'var(--chart-1)',
-    'var(--chart-2)',
-    'var(--chart-3)',
-    'var(--chart-4)',
-    'var(--chart-5)',
-];
+const ENTER_ANIMATION = {
+    animationDuration: 800,
+    animationEasing: 'ease-out',
+} as const;
 
 export function IntelligencePanel({
     summary,
@@ -85,7 +95,9 @@ export function IntelligencePanel({
                             key={sector.label}
                             className="rounded-lg border border-border bg-muted/30 p-3"
                         >
-                            <p className="text-sm font-medium">{sector.label}</p>
+                            <p className="text-sm font-medium">
+                                {sector.label}
+                            </p>
                             <p className="mt-2 text-2xl font-semibold tabular-nums">
                                 {sector.count.toLocaleString()}
                             </p>
@@ -98,13 +110,10 @@ export function IntelligencePanel({
             </section>
 
             <div className="grid gap-4 lg:grid-cols-3">
-                <section className="h-full rounded-xl border border-border bg-card p-4">
-                    <h2 className="text-sm font-medium">
-                        Beneficiaries by municipality
-                    </h2>
-                    <p className="mb-3 text-xs text-muted-foreground">
-                        Distinct requests grouped by city.
-                    </p>
+                <DashboardChartCard
+                    title="Beneficiaries by municipality"
+                    description="Distinct requests grouped by city."
+                >
                     {cities.length === 0 ? (
                         <p className="flex h-48 items-center justify-center text-sm text-muted-foreground">
                             No city is recorded for these filters.
@@ -132,50 +141,35 @@ export function IntelligencePanel({
                                     <ChartTooltip
                                         content={<ChartTooltipContent />}
                                     />
-                                    <Bar dataKey="count" radius={4}>
+                                    <Bar
+                                        dataKey="count"
+                                        radius={4}
+                                        {...ENTER_ANIMATION}
+                                    >
                                         {cities.map((row, index) => (
                                             <Cell
                                                 key={row.city}
-                                                fill={
-                                                    ageColors[
-                                                        index %
-                                                            ageColors.length
-                                                    ]
-                                                }
+                                                fill={seriesColor(index)}
                                             />
                                         ))}
                                     </Bar>
                                 </BarChart>
                             </ChartContainer>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                                {cities.map((row, index) => (
-                                    <span
-                                        key={row.city}
-                                        className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
-                                    >
-                                        <span
-                                            className="size-2 rounded-full"
-                                            style={{
-                                                background:
-                                                    ageColors[
-                                                        index %
-                                                            ageColors.length
-                                                    ],
-                                            }}
-                                        />
-                                        {row.city} ({row.count})
-                                    </span>
-                                ))}
-                            </div>
+                            <ChartLegendChips
+                                items={cities.map((row, index) => ({
+                                    label: row.city,
+                                    count: row.count,
+                                    fill: seriesColor(index),
+                                }))}
+                            />
                         </>
                     )}
-                </section>
+                </DashboardChartCard>
 
-                <section className="h-full rounded-xl border border-border bg-card p-4">
-                    <h2 className="text-sm font-medium">Age distribution</h2>
-                    <p className="mb-3 text-xs text-muted-foreground">
-                        Ages of individual beneficiaries on these requests.
-                    </p>
+                <DashboardChartCard
+                    title="Age distribution"
+                    description="Ages of individual beneficiaries on these requests."
+                >
                     {ageData.length === 0 ? (
                         <p className="flex h-48 items-center justify-center text-sm text-muted-foreground">
                             No age is recorded for these filters.
@@ -183,7 +177,10 @@ export function IntelligencePanel({
                     ) : (
                         <ChartContainer
                             config={{
-                                count: { label: 'People', color: 'var(--chart-2)' },
+                                count: {
+                                    label: 'People',
+                                    color: 'var(--chart-2)',
+                                },
                             }}
                             className="aspect-auto h-64 w-full"
                         >
@@ -198,39 +195,26 @@ export function IntelligencePanel({
                                     innerRadius={58}
                                     outerRadius={88}
                                     paddingAngle={2}
+                                    {...ENTER_ANIMATION}
                                 >
                                     {ageData.map((row, index) => (
                                         <Cell
                                             key={row.label}
-                                            fill={
-                                                ageColors[
-                                                    index % ageColors.length
-                                                ]
-                                            }
+                                            fill={seriesColor(index)}
                                         />
                                     ))}
                                 </Pie>
                             </PieChart>
                         </ChartContainer>
                     )}
-                    <div className="mt-2 flex flex-wrap gap-2">
-                        {ageData.map((row, index) => (
-                            <span
-                                key={row.label}
-                                className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground"
-                            >
-                                <span
-                                    className="size-2 rounded-full"
-                                    style={{
-                                        background:
-                                            ageColors[index % ageColors.length],
-                                    }}
-                                />
-                                {row.label} ({row.count})
-                            </span>
-                        ))}
-                    </div>
-                </section>
+                    <ChartLegendChips
+                        items={ageData.map((row, index) => ({
+                            label: row.label,
+                            count: row.count,
+                            fill: seriesColor(index),
+                        }))}
+                    />
+                </DashboardChartCard>
                 {map}
             </div>
         </div>

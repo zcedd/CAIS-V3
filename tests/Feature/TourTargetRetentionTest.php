@@ -40,6 +40,26 @@ test('item create form tour target exists on the items toolbar drawer', function
         ->toContain('data-tour="items-create-submit"');
 });
 
+test('distribution index tour targets exist on the batches page', function () {
+    $page = file_get_contents(resource_path('js/pages/user/distributions/index.tsx'));
+    $tour = file_get_contents(resource_path('js/components/app-tour.tsx'));
+    $routes = file_get_contents(resource_path('js/lib/tour-routes.ts'));
+
+    expect($page)
+        ->toContain('data-tour="distributions-filters"')
+        ->toContain('data-tour="distributions-calendar"')
+        ->toContain('data-tour="distributions-create"')
+        ->toContain('data-tour="distributions-table"');
+
+    expect($tour)
+        ->toContain('[data-tour="distributions-filters"]')
+        ->toContain('[data-tour="distributions-calendar"]')
+        ->toContain('[data-tour="distributions-create"]')
+        ->toContain('[data-tour="distributions-table"]');
+
+    expect($routes)->toContain("'distributions'");
+});
+
 test('fund create form tour target exists on the funds toolbar drawer', function () {
     $source = file_get_contents(resource_path('js/pages/user/funds/fund-toolbar.tsx'));
 

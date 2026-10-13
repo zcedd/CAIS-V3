@@ -7,11 +7,13 @@ import {
     SidebarMenuItem,
     SidebarSeparator,
 } from '@/components/ui/sidebar';
+import { useCloseMobileSidebar } from '@/hooks/use-close-mobile-sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import type { NavItem } from '@/types';
 
 export function NavMain({ items = [] }: { items: NavItem[] }) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const closeMobileSidebar = useCloseMobileSidebar();
 
     return (
         <SidebarGroup className="px-2 py-0">
@@ -24,7 +26,11 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                             isActive={isCurrentOrParentUrl(item.href)}
                             tooltip={{ children: item.title }}
                         >
-                            <Link href={item.href} prefetch>
+                            <Link
+                                href={item.href}
+                                prefetch
+                                onClick={closeMobileSidebar}
+                            >
                                 {item.icon && <item.icon />}
                                 <span>{item.title}</span>
                             </Link>
@@ -38,6 +44,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
 
 export function NavAdministration({ items = [] }: { items: NavItem[] }) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const closeMobileSidebar = useCloseMobileSidebar();
 
     return (
         <>
@@ -52,7 +59,11 @@ export function NavAdministration({ items = [] }: { items: NavItem[] }) {
                                 isActive={isCurrentOrParentUrl(item.href)}
                                 tooltip={{ children: item.title }}
                             >
-                                <Link href={item.href} prefetch>
+                                <Link
+                                    href={item.href}
+                                    prefetch
+                                    onClick={closeMobileSidebar}
+                                >
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>
@@ -67,6 +78,7 @@ export function NavAdministration({ items = [] }: { items: NavItem[] }) {
 
 export function NavExecutive({ items = [] }: { items: NavItem[] }) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
+    const closeMobileSidebar = useCloseMobileSidebar();
 
     return (
         <>
@@ -81,7 +93,11 @@ export function NavExecutive({ items = [] }: { items: NavItem[] }) {
                                 isActive={isCurrentOrParentUrl(item.href)}
                                 tooltip={{ children: item.title }}
                             >
-                                <Link href={item.href} prefetch>
+                                <Link
+                                    href={item.href}
+                                    prefetch
+                                    onClick={closeMobileSidebar}
+                                >
                                     {item.icon && <item.icon />}
                                     <span>{item.title}</span>
                                 </Link>

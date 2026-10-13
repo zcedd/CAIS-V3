@@ -18,12 +18,15 @@ use App\Support\EmptyCell;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class DashboardService
 {
     private const PROGRAMS_TABLE_LIMIT = 10;
+
+    private const RECENT_BENEFICIARIES_LIMIT = 10;
 
     public function __construct(
         private ApplyDashboardFilters $applyDashboardFilters,
@@ -52,6 +55,7 @@ class DashboardService
             'deliveredItemsChart' => $this->deliveredItemsChart($department, $filters),
             'unspscReleasedChart' => $this->unspscReleasedChart($department, $filters),
             'programsTable' => $this->programsTable($department, $filters),
+            'recentBeneficiaries' => $this->recentBeneficiaries($department, $filters),
             'beneficiaryTypeChart' => $this->beneficiaryTypeChart($department, $filters),
             'demographics' => $this->demographics($department, $filters),
             'requestsTrend' => $this->requestsTrend($department, $filters),
@@ -457,6 +461,90 @@ class DashboardService
     }
 
     /**
+     * Latest matching request for each beneficiary, newest first.
+     *
+     * @param  array<string, mixed>  $filters
+     * @return list<array{
+     *     id: int,
+     *     name: string,
+     *     cais_number: string,
+     *     type: string,
+     *     barangay: string|null,
+     *     city: string|null,
+     *     program: string,
+     *     status: string,
+     *     date_requested: string|null
+     * }>
+     */
+    public function recentBeneficiaries(?Department $department, array $filters): array
+    {
+        $statusExpression = $this->resolvedStatusExpression();
+
+        $scoped = (clone $this->filteredAssistanceQuery($department, $filters))
+            ->whereNotNull('assistances.beneficiary_id')
+            ->leftJoin('organizations', function ($join): void {
+                $join->on('beneficiaries.beneficiable_id', '=', 'organizations.id')
+                    ->where('beneficiaries.beneficiable_type', '=', Organization::class)
+                    ->whereNull('organizations.deleted_at');
+            })
+            ->leftJoin('address_barangays as ab_ind', 'ab_ind.id', '=', 'individuals.address_barangay_id')
+            ->leftJoin('address_barangays as ab_org', 'ab_org.id', '=', 'organizations.address_barangay_id')
+            ->leftJoin('address_cities as city_ind', 'city_ind.id', '=', 'ab_ind.address_city_id')
+            ->leftJoin('address_cities as city_org', 'city_org.id', '=', 'ab_org.address_city_id')
+            ->select([
+                'assistances.id',
+                'assistances.beneficiary_id',
+                'assistances.date_requested',
+                'beneficiaries.name as beneficiary_name',
+                'beneficiaries.cais_number',
+                'programs.name as program_name',
+            ])
+            ->selectRaw(
+                "CASE WHEN beneficiaries.beneficiable_type = ? THEN 'organization' ELSE 'individual' END as beneficiary_type",
+                [Organization::class],
+            )
+            ->selectRaw('COALESCE(ab_ind.name, ab_org.name) as barangay')
+            ->selectRaw('COALESCE(city_ind.name, city_org.name) as city')
+            ->selectRaw("{$statusExpression} as request_status")
+            ->toBase();
+
+        $ranked = DB::query()
+            ->fromSub($scoped, 'recent_requests')
+            ->select('recent_requests.*')
+            ->selectRaw(
+                'ROW_NUMBER() OVER (PARTITION BY recent_requests.beneficiary_id ORDER BY recent_requests.date_requested DESC, recent_requests.id DESC) as recent_rank',
+            );
+
+        return DB::query()
+            ->fromSub($ranked, 'ranked_requests')
+            ->where('recent_rank', 1)
+            ->orderByDesc('date_requested')
+            ->orderByDesc('id')
+            ->limit(self::RECENT_BENEFICIARIES_LIMIT)
+            ->get()
+            ->map(static function (object $row): array {
+                $barangay = trim((string) ($row->barangay ?? ''));
+                $city = trim((string) ($row->city ?? ''));
+
+                return [
+                    'id' => (int) $row->beneficiary_id,
+                    'name' => (string) $row->beneficiary_name,
+                    'cais_number' => (string) $row->cais_number,
+                    'type' => (string) $row->beneficiary_type,
+                    'barangay' => $barangay !== '' ? $barangay : null,
+                    'city' => $city !== '' ? $city : null,
+                    'program' => (string) $row->program_name,
+                    'status' => (string) $row->request_status,
+                    'date_requested' => $row->date_requested
+                        ? Carbon::parse($row->date_requested)->toDateString()
+                        : null,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return array{
      *     year: list<array{label: string, value: string}>,
      *     quarter: list<array{label: string, value: string}>,
@@ -610,6 +698,7 @@ class DashboardService
      *     solo_parent: list<array{label: string, count: int}>,
      *     indigenous: list<array{label: string, count: int}>,
      *     age: list<array{label: string, count: int}>,
+     *     age_by_sex: list<array{label: string, male: int, female: int, other: int}>,
      *     civil_status: list<array{label: string, count: int}>
      * }
      */
@@ -624,12 +713,13 @@ class DashboardService
             "COALESCE(NULLIF(individuals.sex, ''), 'Unspecified')",
         );
 
+        $ageYears = $this->ageInYearsExpression();
         $ageExpression = "CASE
             WHEN individuals.birthday IS NULL THEN 'Unspecified'
-            WHEN TIMESTAMPDIFF(YEAR, individuals.birthday, CURDATE()) < 18 THEN 'Under 18'
-            WHEN TIMESTAMPDIFF(YEAR, individuals.birthday, CURDATE()) BETWEEN 18 AND 29 THEN '18-29'
-            WHEN TIMESTAMPDIFF(YEAR, individuals.birthday, CURDATE()) BETWEEN 30 AND 44 THEN '30-44'
-            WHEN TIMESTAMPDIFF(YEAR, individuals.birthday, CURDATE()) BETWEEN 45 AND 59 THEN '45-59'
+            WHEN {$ageYears} < 18 THEN 'Under 18'
+            WHEN {$ageYears} BETWEEN 18 AND 29 THEN '18-29'
+            WHEN {$ageYears} BETWEEN 30 AND 44 THEN '30-44'
+            WHEN {$ageYears} BETWEEN 45 AND 59 THEN '45-59'
             ELSE '60+'
         END";
 
@@ -643,6 +733,23 @@ class DashboardService
             ->map(static fn ($row): array => [
                 'label' => (string) $row->label,
                 'count' => (int) $row->count,
+            ])
+            ->values()
+            ->all();
+
+        $ageBySex = (clone $base)
+            ->selectRaw("{$ageExpression} as label")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN individuals.sex = 'Male' THEN assistances.id END) as male")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN individuals.sex = 'Female' THEN assistances.id END) as female")
+            ->selectRaw("COUNT(DISTINCT CASE WHEN individuals.sex IS NULL OR individuals.sex = '' OR individuals.sex NOT IN ('Male', 'Female') THEN assistances.id END) as other")
+            ->groupByRaw($ageExpression)
+            ->toBase()
+            ->get()
+            ->map(static fn ($row): array => [
+                'label' => (string) $row->label,
+                'male' => (int) $row->male,
+                'female' => (int) $row->female,
+                'other' => (int) $row->other,
             ])
             ->values()
             ->all();
@@ -667,6 +774,7 @@ class DashboardService
         return [
             'sex' => $sex,
             'age' => $age,
+            'age_by_sex' => $ageBySex,
             'civil_status' => $civilStatus,
             'pwd' => $this->booleanBreakdownFromTotals($booleanTotals, 'pwd'),
             'four_ps' => $this->booleanBreakdownFromTotals($booleanTotals, 'four_ps'),
@@ -1129,6 +1237,18 @@ class DashboardService
     private function resolvedStatusCodeExpression(): string
     {
         return "COALESCE(rs.code, '')";
+    }
+
+    /**
+     * Whole years of age, adjusted when the birthday has not yet occurred this year.
+     */
+    private function ageInYearsExpression(): string
+    {
+        if (DB::getDriverName() === 'sqlite') {
+            return "(CAST(strftime('%Y', 'now') AS INTEGER) - CAST(strftime('%Y', individuals.birthday) AS INTEGER)) - (CASE WHEN strftime('%m-%d', 'now') < strftime('%m-%d', individuals.birthday) THEN 1 ELSE 0 END)";
+        }
+
+        return 'TIMESTAMPDIFF(YEAR, individuals.birthday, CURDATE())';
     }
 
     private function dateDiffExpression(string $endColumn, string $startColumn): string
