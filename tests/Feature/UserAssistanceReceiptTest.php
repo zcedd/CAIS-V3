@@ -1,8 +1,10 @@
 <?php
 
 use App\Enums\AssistanceItemOrigin;
+use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Models\AssistanceRequestSubStatus;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Item;
@@ -103,6 +105,49 @@ test('authenticated users can view a printable acknowledgment receipt', function
             ->where('receipt.item_variance.has_variance', true)
             ->where('receipt.qr_svg', fn (string $svg): bool => str_contains($svg, '<svg') && str_contains($svg, '</svg>'))
             ->has('receipt.profile_url'));
+});
+
+test('acknowledgment receipt names the user who recorded delivery', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $viewer = User::factory()->create(['department_id' => $department->id]);
+    $releaser = User::factory()->create([
+        'department_id' => $department->id,
+        'firstName' => 'Ana',
+        'middleName' => 'Marie',
+        'lastName' => 'Reyes',
+    ]);
+    $program = Program::create([
+        'name' => 'Relief Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+    ]);
+    $assistance = Assistance::create([
+        'program_id' => $program->id,
+        'date_requested' => now()->toDateString(),
+        'user_id' => $viewer->id,
+    ]);
+
+    AssistanceRequestSubStatus::create([
+        'assistance_id' => $assistance->id,
+        'request_sub_status_id' => catalogReasonId(RequestSubStatusCode::Delivered),
+        'recorded_by' => $releaser->id,
+        'recorded_at' => now(),
+    ]);
+
+    $this->actingAs($viewer)
+        ->get(route('user.assistances.receipt', [
+            'department' => $department->slug,
+            'program' => $program->id,
+            'assistance' => $assistance->id,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('user/assistances/receipt')
+            ->where('receipt.released_by', 'Ana Marie Reyes'));
 });
 
 test('guests cannot view an acknowledgment receipt', function () {

@@ -111,7 +111,7 @@ class AssistanceReceiptController extends Controller
             return null;
         }
 
-        $name = User::query()->whereKey($userId)->value('name');
+        $name = User::query()->find($userId)?->name;
 
         return is_string($name) && $name !== '' ? $name : null;
     }
