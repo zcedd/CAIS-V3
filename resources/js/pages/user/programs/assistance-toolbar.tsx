@@ -51,8 +51,10 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCan } from '@/hooks/use-can';
 import { formatDateTimeForSubmit } from '@/lib/app-datetime';
 import { usePageCommands } from '@/lib/command-registry';
+import { Permission } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import {
@@ -366,6 +368,8 @@ export function AssistanceDataTableToolbar({
     programFields,
     onAssistanceCreated,
 }: AssistanceDataTableToolbarProps) {
+    const { can } = useCan();
+    const canExport = can(Permission.ProgramDownloadAssistance);
     const [searchQuery, setSearchQuery] = useState(filters.search);
     const [createOpen, setCreateOpen] = useState(false);
     const createCommands = useMemo(
@@ -648,40 +652,43 @@ export function AssistanceDataTableToolbar({
                     ) : null}
                 </div>
                 <div className="flex flex-1 flex-col-reverse items-start gap-y-2 sm:flex-row sm:items-center sm:space-x-2">
-                    <div data-tour="program-assistance-export">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 px-2 lg:px-3"
-                            onClick={() => triggerExport('csv')}
-                        >
-                            Export CSV
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            className="h-8 px-2 lg:px-3"
-                            onClick={() => triggerExport('xlsx')}
-                        >
-                            Export XLSX
-                        </Button>
-                    </div>
+                    {canExport ? (
+                        <div data-tour="program-assistance-export">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-8 px-2 lg:px-3"
+                                onClick={() => triggerExport('csv')}
+                            >
+                                Export CSV
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                className="h-8 px-2 lg:px-3"
+                                onClick={() => triggerExport('xlsx')}
+                            >
+                                Export XLSX
+                            </Button>
+                        </div>
+                    ) : null}
                     <DataTableViewOptions
                         table={table}
                         columnVisibility={columnVisibility}
                     />
-                    <div data-tour="program-assistance-create">
-                        <Button
-                            type="button"
-                            variant="default"
-                            className="h-8 px-2 lg:px-3"
-                            disabled={!canCreate}
-                            onClick={() => setCreateOpen(true)}
-                        >
-                            <Plus className="size-4" />
-                            Add Assistance
-                        </Button>
-                    </div>
+                    {canCreate ? (
+                        <div data-tour="program-assistance-create">
+                            <Button
+                                type="button"
+                                variant="default"
+                                className="h-8 px-2 lg:px-3"
+                                onClick={() => setCreateOpen(true)}
+                            >
+                                <Plus className="size-4" />
+                                Add Assistance
+                            </Button>
+                        </div>
+                    ) : null}
                 </div>
             </div>
 

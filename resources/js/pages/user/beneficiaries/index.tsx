@@ -14,19 +14,18 @@ import {
     UserRound,
     Users,
 } from 'lucide-react';
-import type {LucideIcon} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Can } from '@/components/auth/can';
 import { DataTable } from '@/components/data-table';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
+import { Permission } from '@/lib/permissions';
 import { createBeneficiaryColumns } from '@/pages/user/beneficiaries/beneficiary-columns';
-import {
-    BeneficiaryDataTableToolbar
-    
-} from '@/pages/user/beneficiaries/beneficiary-toolbar';
-import type {BeneficiaryTableFilters} from '@/pages/user/beneficiaries/beneficiary-toolbar';
+import { BeneficiaryDataTableToolbar } from '@/pages/user/beneficiaries/beneficiary-toolbar';
+import type { BeneficiaryTableFilters } from '@/pages/user/beneficiaries/beneficiary-toolbar';
 import {
     create as beneficiariesCreate,
     index as beneficiariesIndex,
@@ -328,12 +327,16 @@ export default function UserBeneficiariesIndex({
                             People and organizations in your registry.
                         </p>
                     </div>
-                    <Button asChild data-tour="beneficiaries-create">
-                        <Link href={beneficiariesCreate.url(department.slug)}>
-                            <Plus className="size-4" />
-                            Add beneficiary
-                        </Link>
-                    </Button>
+                    <Can permission={Permission.BeneficiaryCreate}>
+                        <Button asChild data-tour="beneficiaries-create">
+                            <Link
+                                href={beneficiariesCreate.url(department.slug)}
+                            >
+                                <Plus className="size-4" />
+                                Add beneficiary
+                            </Link>
+                        </Button>
+                    </Can>
                 </div>
 
                 <div data-tour="beneficiaries-kpis">

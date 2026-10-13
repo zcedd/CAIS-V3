@@ -17,6 +17,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 import {
     decide,
     finalize,
@@ -109,6 +111,21 @@ type Batch = {
 
 export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
     const [selected, setSelected] = useState<number[]>([]);
+    const { can } = useCan();
+    const canApprove = can(Permission.DistributionApprove);
+    const canFinalize = can(Permission.DistributionFinalize);
+    const canModify = can(Permission.DistributionModifyBeneficiary);
+    const batchDecisions = [
+        canApprove ? { value: 'approved', label: 'Approve' } : null,
+        can(Permission.DistributionReturn)
+            ? { value: 'returned', label: 'Return' }
+            : null,
+        can(Permission.DistributionReject)
+            ? { value: 'rejected', label: 'Reject' }
+            : null,
+    ].filter(
+        (choice): choice is { value: string; label: string } => choice !== null,
+    );
 
     useEffect(() => {
         setLayoutProps({
@@ -175,67 +192,73 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                     </p>
                 ))}
 
-                {batch.status === 'for_approval' && (
-                    <div className="flex flex-wrap gap-2">
-                        <DistributionDecisionDialog
-                            triggerLabel="Approve whole batch"
-                            title="Approve the whole batch"
-                            description="Approve, return, or reject every beneficiary still on this batch."
-                            choices={[
-                                { value: 'approved', label: 'Approve' },
-                                { value: 'returned', label: 'Return' },
-                                { value: 'rejected', label: 'Reject' },
-                            ]}
-                            reasonRequired={['returned', 'rejected']}
-                            onDecide={(payload, visit) =>
-                                post(
-                                    decide.url(batch.id),
-                                    {
-                                        decision: payload.decision,
-                                        remarks: payload.remarks,
-                                        lock_version: batch.lock_version,
-                                    },
-                                    visit,
-                                )
-                            }
-                        />
-                        <ConfirmActionButton
-                            label="Approve selected"
-                            buttonVariant="outline"
-                            title="Approve selected beneficiaries?"
-                            description={`Approve ${selected.length} selected ${selected.length === 1 ? 'beneficiary' : 'beneficiaries'}.`}
-                            status="Approved"
-                            statusVariant="default"
-                            disabled={selected.length === 0}
-                            onConfirm={(visit) =>
-                                post(
-                                    bulkDecide.url(batch.id),
-                                    {
-                                        item_ids: selected,
-                                        decision: 'approved',
-                                    },
-                                    {
-                                        ...visit,
-                                        onSuccess: () => {
-                                            visit.onSuccess?.();
-                                            setSelected([]);
-                                        },
-                                    },
-                                )
-                            }
-                        />
-                        <ConfirmActionButton
-                            label="Finalize review"
-                            title="Finalize this review?"
-                            description="Lock in the individual beneficiary decisions."
-                            status="Finalized"
-                            statusVariant="default"
-                            onConfirm={(visit) =>
-                                post(finalize.url(batch.id), {}, visit)
-                            }
-                        />
-                    </div>
-                )}
+                {batch.status === 'for_approval' &&
+                    (batchDecisions.length > 0 ||
+                        canApprove ||
+                        canFinalize) && (
+                        <div className="flex flex-wrap gap-2">
+                            {batchDecisions.length > 0 ? (
+                                <DistributionDecisionDialog
+                                    triggerLabel="Approve whole batch"
+                                    title="Approve the whole batch"
+                                    description="Approve, return, or reject every beneficiary still on this batch."
+                                    choices={batchDecisions}
+                                    reasonRequired={['returned', 'rejected']}
+                                    onDecide={(payload, visit) =>
+                                        post(
+                                            decide.url(batch.id),
+                                            {
+                                                decision: payload.decision,
+                                                remarks: payload.remarks,
+                                                lock_version:
+                                                    batch.lock_version,
+                                            },
+                                            visit,
+                                        )
+                                    }
+                                />
+                            ) : null}
+                            {canApprove ? (
+                                <ConfirmActionButton
+                                    label="Approve selected"
+                                    buttonVariant="outline"
+                                    title="Approve selected beneficiaries?"
+                                    description={`Approve ${selected.length} selected ${selected.length === 1 ? 'beneficiary' : 'beneficiaries'}.`}
+                                    status="Approved"
+                                    statusVariant="default"
+                                    disabled={selected.length === 0}
+                                    onConfirm={(visit) =>
+                                        post(
+                                            bulkDecide.url(batch.id),
+                                            {
+                                                item_ids: selected,
+                                                decision: 'approved',
+                                            },
+                                            {
+                                                ...visit,
+                                                onSuccess: () => {
+                                                    visit.onSuccess?.();
+                                                    setSelected([]);
+                                                },
+                                            },
+                                        )
+                                    }
+                                />
+                            ) : null}
+                            {canFinalize ? (
+                                <ConfirmActionButton
+                                    label="Finalize review"
+                                    title="Finalize this review?"
+                                    description="Lock in the individual beneficiary decisions."
+                                    status="Finalized"
+                                    statusVariant="default"
+                                    onConfirm={(visit) =>
+                                        post(finalize.url(batch.id), {}, visit)
+                                    }
+                                />
+                            ) : null}
+                        </div>
+                    )}
 
                 <Card>
                     <CardContent>
@@ -254,8 +277,9 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                         className="align-top"
                                     >
                                         <TableCell className="whitespace-normal">
-                                            {item.approval_status ===
-                                                'pending' &&
+                                            {canApprove &&
+                                                item.approval_status ===
+                                                    'pending' &&
                                                 batch.status ===
                                                     'for_approval' && (
                                                     <Checkbox
@@ -316,7 +340,9 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                                     {item.exclusion_reason}
                                                 </div>
                                             )}
-                                            {batch.status === 'for_approval' &&
+                                            {canApprove &&
+                                                batch.status ===
+                                                    'for_approval' &&
                                                 item.approval_status ===
                                                     'pending' && (
                                                     <DistributionDecisionDialog
@@ -344,6 +370,7 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                                             'excluded',
                                                         ]}
                                                         lines={
+                                                            canModify &&
                                                             batch.policy
                                                                 ?.allow_amount_modification
                                                                 ? item.lines.map(

@@ -20,6 +20,8 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 import type { DistributionPolicy } from '@/pages/admin/distribution-policies/policy-columns';
 import { destroy as destroyDistributionPolicy } from '@/routes/admin/distribution-policies';
 
@@ -30,6 +32,8 @@ export function DistributionPolicyRowActions({
     policy: DistributionPolicy;
     onEdit: (policy: DistributionPolicy) => void;
 }) {
+    const { can } = useCan();
+    const canManage = can(Permission.DistributionPolicyManage);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
 
@@ -47,6 +51,10 @@ export function DistributionPolicyRowActions({
             },
         });
     };
+
+    if (!canManage) {
+        return null;
+    }
 
     return (
         <>

@@ -176,7 +176,7 @@ export function HeaderCommandMenu() {
     const searchScope: SearchScope =
         mode === 'commands' || mode === 'all' ? 'all' : mode;
     const { updateAppearance } = useAppearance();
-    const can = useCan();
+    const { can } = useCan();
     const cleanup = useMobileNavigation();
     const { toggleSidebar } = useSidebar();
     const registered = useRegisteredCommands();
@@ -630,7 +630,9 @@ export function HeaderCommandMenu() {
                                             onClick={(event) => {
                                                 event.preventDefault();
                                                 event.stopPropagation();
-                                                recents.forgetOpened(record.url);
+                                                recents.forgetOpened(
+                                                    record.url,
+                                                );
                                             }}
                                         >
                                             <X />

@@ -1,5 +1,10 @@
 'use client';
 
+import { router } from '@inertiajs/react';
+import type { Row } from '@tanstack/react-table';
+import { Edit, MoreHorizontal, Package, Trash } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -17,17 +22,14 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 import type { UserDepartmentItemRow } from '@/pages/user/items/item-columns';
 import { ItemEditDrawer } from '@/pages/user/items/item-edit-drawer';
 import { ItemStockDrawer } from '@/pages/user/items/item-stock-drawer';
 import type { UnitMeasurementOption } from '@/pages/user/items/item-toolbar';
 import { destroy as destroyDepartmentItem } from '@/routes/user/items';
 import { tracksInventory } from '@/types/item';
-import { router } from '@inertiajs/react';
-import { Row } from '@tanstack/react-table';
-import { Edit, MoreHorizontal, Package, Trash } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 interface ItemDataTableRowActionsProps {
     row: Row<UserDepartmentItemRow>;
@@ -43,6 +45,9 @@ export function ItemDataTableRowActions({
     onItemUpdated,
 }: ItemDataTableRowActionsProps) {
     const record = row.original;
+    const { can } = useCan();
+    const canEdit = can(Permission.ItemUpdate);
+    const canDelete = can(Permission.ItemDelete);
     const [editOpen, setEditOpen] = useState(false);
     const [stockOpen, setStockOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
@@ -67,6 +72,10 @@ export function ItemDataTableRowActions({
         );
     };
 
+    if (!canEdit && !canDelete) {
+        return null;
+    }
+
     return (
         <>
             <DropdownMenu>
@@ -80,27 +89,31 @@ export function ItemDataTableRowActions({
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[160px]">
-                    <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit item
-                    </DropdownMenuItem>
-                    {tracksInventory(record.kind) ? (
+                    {canEdit ? (
+                        <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit item
+                        </DropdownMenuItem>
+                    ) : null}
+                    {canEdit && tracksInventory(record.kind) ? (
                         <DropdownMenuItem onSelect={() => setStockOpen(true)}>
                             <Package className="mr-2 h-4 w-4" />
                             Update stock
                         </DropdownMenuItem>
                     ) : null}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={(event) => {
-                            event.preventDefault();
-                            setDeleteOpen(true);
-                        }}
-                    >
-                        <Trash className="mr-2 h-4 w-4" />
-                        Delete item
-                    </DropdownMenuItem>
+                    {canEdit && canDelete ? <DropdownMenuSeparator /> : null}
+                    {canDelete ? (
+                        <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={(event) => {
+                                event.preventDefault();
+                                setDeleteOpen(true);
+                            }}
+                        >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete item
+                        </DropdownMenuItem>
+                    ) : null}
                 </DropdownMenuContent>
             </DropdownMenu>
 

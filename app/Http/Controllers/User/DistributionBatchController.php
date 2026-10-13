@@ -35,6 +35,7 @@ use App\Models\DistributionBatch;
 use App\Models\DistributionBatchDocument;
 use App\Models\DistributionBatchItem;
 use App\Models\Program;
+use App\Models\User;
 use App\Services\Distribution\DistributionBatchDetails;
 use App\Services\Distribution\DistributionReconciliation;
 use Illuminate\Database\Eloquent\Builder;
@@ -188,9 +189,12 @@ class DistributionBatchController extends Controller
         $this->scoped($department, $distributionBatch);
         Gate::authorize('view', $distributionBatch);
 
+        $user = request()->user();
+
         return Inertia::render('user/distributions/show', [
             'department' => $department->only(['id', 'name', 'slug']),
             'batch' => $details->payload($distributionBatch),
+            'can' => $this->abilities($user instanceof User ? $user : null, $distributionBatch),
         ]);
     }
 
@@ -547,5 +551,61 @@ class DistributionBatchController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * Record-level presentation flags. Policies still authorize each request.
+     *
+     * @return array{
+     *     update: bool,
+     *     validate: bool,
+     *     submit: bool,
+     *     approve: bool,
+     *     return: bool,
+     *     reject: bool,
+     *     modify: bool,
+     *     finalize: bool,
+     *     schedule: bool,
+     *     execute: bool,
+     *     complete: bool,
+     *     cancel: bool,
+     *     reopen: bool
+     * }
+     */
+    private function abilities(?User $user, DistributionBatch $batch): array
+    {
+        if (! $user instanceof User) {
+            return [
+                'update' => false,
+                'validate' => false,
+                'submit' => false,
+                'approve' => false,
+                'return' => false,
+                'reject' => false,
+                'modify' => false,
+                'finalize' => false,
+                'schedule' => false,
+                'execute' => false,
+                'complete' => false,
+                'cancel' => false,
+                'reopen' => false,
+            ];
+        }
+
+        return [
+            'update' => $user->can('update', $batch),
+            'validate' => $user->can('validateBatch', $batch),
+            'submit' => $user->can('submit', $batch),
+            'approve' => $user->can('approve', $batch),
+            'return' => $user->can('returnBatch', $batch),
+            'reject' => $user->can('reject', $batch),
+            'modify' => $user->can('modifyBeneficiary', $batch),
+            'finalize' => $user->can('finalize', $batch),
+            'schedule' => $user->can('schedule', $batch),
+            'execute' => $user->can('execute', $batch),
+            'complete' => $user->can('complete', $batch),
+            'cancel' => $user->can('cancel', $batch),
+            'reopen' => $user->can('reopen', $batch),
+        ];
     }
 }

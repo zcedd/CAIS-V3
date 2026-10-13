@@ -1,57 +1,5 @@
 'use client';
 
-import { DataTable } from '@/components/data-table';
-import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
-import { Badge } from '@/components/ui/badge';
-import { slaLabel } from '@/components/user/sla-badge';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { parseAppDateTime } from '@/lib/app-datetime';
-import { cn } from '@/lib/utils';
-import { EMPTY_CELL } from '@/lib/empty-cell';
-import { AssistanceDocumentsSection } from '@/pages/user/assistances/assistance-documents';
-import {
-    AssistanceStatusTimeline,
-    type AssistanceStatusTimelineEntry,
-} from '@/pages/user/assistances/assistance-status-timeline';
-import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
-import {
-    receipt as assistanceReceipt,
-    show as assistanceShow,
-} from '@/routes/user/assistances';
-import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
-import { assign as assignAssistance } from '@/routes/user/programs/assistances';
-import {
-    claim as claimWorkflowTask,
-    complete as completeWorkflowTask,
-} from '@/routes/user/workflow-tasks';
-import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
-import {
-    index as departmentProgramsIndex,
-    show as departmentProgramShow,
-} from '@/routes/user/programs';
-import type { BreadcrumbItem } from '@/types';
-import {
-    ASSISTANCE_ITEM_ORIGIN_LABELS,
-    formatItemQuantity,
-} from '@/types/assistance-item';
-import type {
-    AssistanceItemVariance,
-    AssistanceReleasedItem,
-    AssistanceRequestedItem,
-} from '@/types/assistance-item';
-import type {
-    AssistanceDocumentsPayload,
-    DocumentTypeOption,
-} from '@/types/document';
 import { Form, Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import type { ColumnDef, Table, VisibilityState } from '@tanstack/react-table';
 import {
@@ -66,10 +14,60 @@ import {
     PackageCheck,
     Printer,
     UserRound,
-    type LucideIcon,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { DataTable } from '@/components/data-table';
+import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { slaLabel } from '@/components/user/sla-badge';
+import { parseAppDateTime } from '@/lib/app-datetime';
+import { EMPTY_CELL } from '@/lib/empty-cell';
+import { cn } from '@/lib/utils';
+import { AssistanceDocumentsSection } from '@/pages/user/assistances/assistance-documents';
+import { AssistanceStatusTimeline } from '@/pages/user/assistances/assistance-status-timeline';
+import type { AssistanceStatusTimelineEntry } from '@/pages/user/assistances/assistance-status-timeline';
+import { assistanceStatuses } from '@/pages/user/programs/assistance-data';
+import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
+import {
+    receipt as assistanceReceipt,
+    show as assistanceShow,
+} from '@/routes/user/assistances';
+import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
+import {
+    index as departmentProgramsIndex,
+    show as departmentProgramShow,
+} from '@/routes/user/programs';
+import { assign as assignAssistance } from '@/routes/user/programs/assistances';
+import {
+    claim as claimWorkflowTask,
+    complete as completeWorkflowTask,
+} from '@/routes/user/workflow-tasks';
+import type { BreadcrumbItem } from '@/types';
+import {
+    ASSISTANCE_ITEM_ORIGIN_LABELS,
+    formatItemQuantity,
+} from '@/types/assistance-item';
+import type {
+    AssistanceItemVariance,
+    AssistanceReleasedItem,
+    AssistanceRequestedItem,
+} from '@/types/assistance-item';
+import type {
+    AssistanceDocumentsPayload,
+    DocumentTypeOption,
+} from '@/types/document';
 
 type DepartmentSummary = {
     id: number;
@@ -694,7 +692,9 @@ export default function UserAssistanceShow({
                                         />
                                         <DetailItem
                                             label="SLA"
-                                            value={slaLabel(assistance.sla_state)}
+                                            value={slaLabel(
+                                                assistance.sla_state,
+                                            )}
                                         />
                                     </dl>
                                 </div>
@@ -1116,7 +1116,7 @@ export default function UserAssistanceShow({
                             </p>
                         ) : null}
                         {staff_options.length > 0 &&
-                        assistance.can_assign !== false ? (
+                        assistance.can_assign === true ? (
                             <Form
                                 {...assignAssistance.form.patch({
                                     department: department.slug,

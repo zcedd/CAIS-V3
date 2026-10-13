@@ -187,7 +187,9 @@ export default function UserProgramsIndex({
     document_types?: DocumentTypeOption[];
     workflow_options?: WorkflowOption[];
 }) {
-    const canAssignWorkflow = useCan()(Permission.WorkflowAssign);
+    const { can } = useCan();
+    const canAssignWorkflow = can(Permission.WorkflowAssign);
+    const canExportAssistance = can(Permission.ProgramDownloadAssistance);
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [createOpen, setCreateOpen] = useState(
         () =>
@@ -351,7 +353,8 @@ export default function UserProgramsIndex({
         return () => window.clearTimeout(handle);
     }, [searchQuery, initialSearch, department?.slug, navigateWithFilters]);
 
-    const canCreate = Boolean(department?.slug);
+    const canCreate =
+        Boolean(department?.slug) && can(Permission.ProgramCreate);
     const createCommands = useMemo(
         () =>
             canCreate
@@ -413,15 +416,16 @@ export default function UserProgramsIndex({
                                 : 'Your account is not linked to a department, so there is nothing to show.'}
                         </p>
                     </div>
-                    <Button
-                        type="button"
-                        disabled={!canCreate}
-                        onClick={() => setCreateOpen(true)}
-                        data-tour="programs-create"
-                    >
-                        <Plus className="size-4" />
-                        Propose New Program
-                    </Button>
+                    {canCreate ? (
+                        <Button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                            data-tour="programs-create"
+                        >
+                            <Plus className="size-4" />
+                            Propose New Program
+                        </Button>
+                    ) : null}
                 </div>
                 {reviewQueueCount > 0 ? (
                     <div className="flex items-center justify-between gap-3 border-b border-border py-3 text-sm">
@@ -645,7 +649,7 @@ export default function UserProgramsIndex({
                         : null
                 }
                 exportUrl={
-                    analyticsProgram && department?.slug
+                    canExportAssistance && analyticsProgram && department?.slug
                         ? exportAssistances.url({
                               department: department.slug,
                               program: analyticsProgram.id,

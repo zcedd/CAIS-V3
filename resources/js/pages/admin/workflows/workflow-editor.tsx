@@ -1,5 +1,9 @@
 'use client';
 
+import { Form, router, usePage } from '@inertiajs/react';
+import { Trash2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -24,10 +28,6 @@ import {
     update as updateAdminWorkflow,
     version as versionAdminWorkflow,
 } from '@/routes/admin/workflows';
-import { Form, router, usePage } from '@inertiajs/react';
-import { Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
 
 export type WorkflowDepartmentSummary = {
     id: number;
@@ -231,11 +231,11 @@ export function WorkflowEditor({
         string,
         string | string[] | undefined
     >;
-    const canUpdate = can.update ?? true;
-    const canPublish = can.publish ?? true;
-    const canManage = can.manage ?? true;
-    const canVersion = can.version ?? true;
-    const canDelete = can.delete ?? false;
+    const canUpdate = can?.update ?? false;
+    const canPublish = can?.publish ?? false;
+    const canManage = can?.manage ?? false;
+    const canVersion = can?.version ?? false;
+    const canDelete = can?.delete ?? false;
     const isAdmin = variant === 'admin';
     const assignmentDepartments =
         departments.length > 0 ? departments : [department];
@@ -562,552 +562,532 @@ export function WorkflowEditor({
                                     });
 
                                 return (
-                                <>
-                                    {configurationErrors.length > 0 ? (
-                                        <Alert variant="destructive">
-                                            <AlertTitle>
-                                                Cannot publish workflow.
-                                            </AlertTitle>
-                                            <AlertDescription>
-                                                <p className="mb-2">
-                                                    {
-                                                        configurationErrors.length
-                                                    }{' '}
-                                                    configuration{' '}
-                                                    {configurationErrors.length ===
-                                                    1
-                                                        ? 'error'
-                                                        : 'errors'}
-                                                    :
-                                                </p>
-                                                <ul className="list-disc space-y-1 pl-4">
-                                                    {configurationErrors.map(
-                                                        (message) => (
-                                                        <li key={message}>
-                                                            {message}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </AlertDescription>
-                                        </Alert>
-                                    ) : null}
+                                    <>
+                                        {configurationErrors.length > 0 ? (
+                                            <Alert variant="destructive">
+                                                <AlertTitle>
+                                                    Cannot publish workflow.
+                                                </AlertTitle>
+                                                <AlertDescription>
+                                                    <p className="mb-2">
+                                                        {
+                                                            configurationErrors.length
+                                                        }{' '}
+                                                        configuration{' '}
+                                                        {configurationErrors.length ===
+                                                        1
+                                                            ? 'error'
+                                                            : 'errors'}
+                                                        :
+                                                    </p>
+                                                    <ul className="list-disc space-y-1 pl-4">
+                                                        {configurationErrors.map(
+                                                            (message) => (
+                                                                <li
+                                                                    key={
+                                                                        message
+                                                                    }
+                                                                >
+                                                                    {message}
+                                                                </li>
+                                                            ),
+                                                        )}
+                                                    </ul>
+                                                </AlertDescription>
+                                            </Alert>
+                                        ) : null}
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="workflow-name">
-                                            Name
-                                        </Label>
-                                        <Input
-                                            id="workflow-name"
-                                            value={name}
-                                            onChange={(event) =>
-                                                setName(event.target.value)
-                                            }
-                                        />
-                                        <InputError message={errors.name} />
-                                    </div>
-
-                                    <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="space-y-2">
-                                            <Label htmlFor="workflow-code">
-                                                Code
+                                            <Label htmlFor="workflow-name">
+                                                Name
                                             </Label>
                                             <Input
-                                                id="workflow-code"
-                                                value={code}
+                                                id="workflow-name"
+                                                value={name}
                                                 onChange={(event) =>
-                                                    setCode(
-                                                        event.target.value.toUpperCase(),
+                                                    setName(event.target.value)
+                                                }
+                                            />
+                                            <InputError message={errors.name} />
+                                        </div>
+
+                                        <div className="grid gap-4 sm:grid-cols-2">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workflow-code">
+                                                    Code
+                                                </Label>
+                                                <Input
+                                                    id="workflow-code"
+                                                    value={code}
+                                                    onChange={(event) =>
+                                                        setCode(
+                                                            event.target.value.toUpperCase(),
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={errors.code}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="workflow-version">
+                                                    Version
+                                                </Label>
+                                                <Input
+                                                    id="workflow-version"
+                                                    value={
+                                                        selected.version
+                                                            ? `v${selected.version}`
+                                                            : 'v1'
+                                                    }
+                                                    readOnly
+                                                    disabled
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <Label htmlFor="workflow-description">
+                                                Description
+                                            </Label>
+                                            <Textarea
+                                                id="workflow-description"
+                                                value={description}
+                                                onChange={(event) =>
+                                                    setDescription(
+                                                        event.target.value,
                                                     )
                                                 }
                                             />
-                                            <InputError message={errors.code} />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="workflow-version">
-                                                Version
-                                            </Label>
-                                            <Input
-                                                id="workflow-version"
-                                                value={
-                                                    selected.version
-                                                        ? `v${selected.version}`
-                                                        : 'v1'
-                                                }
-                                                readOnly
-                                                disabled
+                                            <InputError
+                                                message={errors.description}
                                             />
                                         </div>
-                                    </div>
 
-                                    <div className="space-y-2">
-                                        <Label htmlFor="workflow-description">
-                                            Description
-                                        </Label>
-                                        <Textarea
-                                            id="workflow-description"
-                                            value={description}
-                                            onChange={(event) =>
-                                                setDescription(
-                                                    event.target.value,
-                                                )
-                                            }
-                                        />
-                                        <InputError
-                                            message={errors.description}
-                                        />
-                                    </div>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <Input
+                                                type="checkbox"
+                                                className="size-4"
+                                                checked={isDefault}
+                                                onChange={(event) =>
+                                                    setIsDefault(
+                                                        event.target.checked,
+                                                    )
+                                                }
+                                            />
+                                            Use as the department default
+                                            workflow
+                                        </label>
 
-                                    <label className="flex items-center gap-2 text-sm">
-                                        <Input
-                                            type="checkbox"
-                                            className="size-4"
-                                            checked={isDefault}
-                                            onChange={(event) =>
-                                                setIsDefault(
-                                                    event.target.checked,
-                                                )
-                                            }
-                                        />
-                                        Use as the department
-                                        default workflow
-                                    </label>
-
-                                    <div className="space-y-2">
-                                        <Label htmlFor="workflow-staff-entry">
-                                            Starting status for staff encoding
-                                        </Label>
-                                        <Select
-                                            value={staffEntryId}
-                                            onValueChange={setStaffEntryId}
-                                        >
-                                            <SelectTrigger id="workflow-staff-entry">
-                                                <SelectValue placeholder="Select stage" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {statuses.map((status) => (
-                                                    <SelectItem
-                                                        key={status.id}
-                                                        value={String(
-                                                            status.id,
-                                                        )}
-                                                    >
-                                                        {status.name}
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <p className="text-sm text-muted-foreground">
-                                            Status a new request starts in when
-                                            staff encode it.
-                                        </p>
-                                    </div>
-
-                                    <div className="space-y-3">
-                                        <div className="flex items-center justify-between gap-2">
-                                            <div className="space-y-1">
-                                                <Label>Stages</Label>
-                                                <p className="text-sm text-muted-foreground">
-                                                    Each stage is one request
-                                                    status in the path.
-                                                </p>
-                                            </div>
-                                            {addableStatuses.length > 0 ? (
-                                                <Select
-                                                    onValueChange={(value) => {
-                                                        setSteps((current) => [
-                                                            ...current,
-                                                            {
-                                                                request_status_id:
-                                                                    value,
-                                                                code: '',
-                                                                name: '',
-                                                                step_type:
-                                                                    'custom',
-                                                                default_request_sub_status_id:
-                                                                    '',
-                                                                sla_hours: '',
-                                                                assignment_type:
-                                                                    'none',
-                                                                assigned_role:
-                                                                    '',
-                                                                assigned_department_id:
-                                                                    '',
-                                                                assigned_to_id:
-                                                                    'none',
-                                                                automatic_assignment: false,
-                                                                allows_skip_to_deliver: false,
-                                                                is_start: false,
-                                                                is_end: false,
-                                                                transition_status_ids:
-                                                                    [],
-                                                            },
-                                                        ]);
-                                                    }}
-                                                >
-                                                    <SelectTrigger className="h-8 w-48">
-                                                        <SelectValue placeholder="Add stage" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {addableStatuses.map(
-                                                            (status) => (
-                                                                <SelectItem
-                                                                    key={
-                                                                        status.id
-                                                                    }
-                                                                    value={String(
-                                                                        status.id,
-                                                                    )}
-                                                                >
-                                                                    {
-                                                                        status.name
-                                                                    }
-                                                                </SelectItem>
-                                                            ),
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            ) : null}
+                                        <div className="space-y-2">
+                                            <Label htmlFor="workflow-staff-entry">
+                                                Starting status for staff
+                                                encoding
+                                            </Label>
+                                            <Select
+                                                value={staffEntryId}
+                                                onValueChange={setStaffEntryId}
+                                            >
+                                                <SelectTrigger id="workflow-staff-entry">
+                                                    <SelectValue placeholder="Select stage" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {statuses.map((status) => (
+                                                        <SelectItem
+                                                            key={status.id}
+                                                            value={String(
+                                                                status.id,
+                                                            )}
+                                                        >
+                                                            {status.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <p className="text-sm text-muted-foreground">
+                                                Status a new request starts in
+                                                when staff encode it.
+                                            </p>
                                         </div>
-                                        <InputError message={errors.steps} />
 
-                                        {steps.map((step, index) => {
-                                            const statusReasons =
-                                                reasons.filter(
-                                                    (reason) =>
-                                                        String(
-                                                            reason.request_status_id,
-                                                        ) ===
-                                                        step.request_status_id,
-                                                );
-                                            const statusName =
-                                                statuses.find(
-                                                    (status) =>
-                                                        String(status.id) ===
-                                                        step.request_status_id,
-                                                )?.name ?? 'Stage';
+                                        <div className="space-y-3">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="space-y-1">
+                                                    <Label>Stages</Label>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        Each stage is one
+                                                        request status in the
+                                                        path.
+                                                    </p>
+                                                </div>
+                                                {addableStatuses.length > 0 ? (
+                                                    <Select
+                                                        onValueChange={(
+                                                            value,
+                                                        ) => {
+                                                            setSteps(
+                                                                (current) => [
+                                                                    ...current,
+                                                                    {
+                                                                        request_status_id:
+                                                                            value,
+                                                                        code: '',
+                                                                        name: '',
+                                                                        step_type:
+                                                                            'custom',
+                                                                        default_request_sub_status_id:
+                                                                            '',
+                                                                        sla_hours:
+                                                                            '',
+                                                                        assignment_type:
+                                                                            'none',
+                                                                        assigned_role:
+                                                                            '',
+                                                                        assigned_department_id:
+                                                                            '',
+                                                                        assigned_to_id:
+                                                                            'none',
+                                                                        automatic_assignment: false,
+                                                                        allows_skip_to_deliver: false,
+                                                                        is_start: false,
+                                                                        is_end: false,
+                                                                        transition_status_ids:
+                                                                            [],
+                                                                    },
+                                                                ],
+                                                            );
+                                                        }}
+                                                    >
+                                                        <SelectTrigger className="h-8 w-48">
+                                                            <SelectValue placeholder="Add stage" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {addableStatuses.map(
+                                                                (status) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            status.id
+                                                                        }
+                                                                        value={String(
+                                                                            status.id,
+                                                                        )}
+                                                                    >
+                                                                        {
+                                                                            status.name
+                                                                        }
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                ) : null}
+                                            </div>
+                                            <InputError
+                                                message={errors.steps}
+                                            />
 
-                                            return (
-                                                <div
-                                                    key={`${step.request_status_id}-${index}`}
-                                                    className="space-y-3 rounded-lg border p-3"
-                                                >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div>
-                                                            <p className="text-sm text-muted-foreground">
-                                                                Request status
-                                                            </p>
-                                                            <p className="font-medium">
-                                                                {index + 1}.{' '}
-                                                                {statusName}
-                                                            </p>
+                                            {steps.map((step, index) => {
+                                                const statusReasons =
+                                                    reasons.filter(
+                                                        (reason) =>
+                                                            String(
+                                                                reason.request_status_id,
+                                                            ) ===
+                                                            step.request_status_id,
+                                                    );
+                                                const statusName =
+                                                    statuses.find(
+                                                        (status) =>
+                                                            String(
+                                                                status.id,
+                                                            ) ===
+                                                            step.request_status_id,
+                                                    )?.name ?? 'Stage';
+
+                                                return (
+                                                    <div
+                                                        key={`${step.request_status_id}-${index}`}
+                                                        className="space-y-3 rounded-lg border p-3"
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Request
+                                                                    status
+                                                                </p>
+                                                                <p className="font-medium">
+                                                                    {index + 1}.{' '}
+                                                                    {statusName}
+                                                                </p>
+                                                            </div>
+                                                            {steps.length >
+                                                            1 ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() =>
+                                                                        setSteps(
+                                                                            (
+                                                                                current,
+                                                                            ) =>
+                                                                                current.filter(
+                                                                                    (
+                                                                                        _,
+                                                                                        stepIndex,
+                                                                                    ) =>
+                                                                                        stepIndex !==
+                                                                                        index,
+                                                                                ),
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Trash2 className="size-4" />
+                                                                    Remove
+                                                                </Button>
+                                                            ) : null}
                                                         </div>
-                                                        {steps.length > 1 ? (
-                                                            <Button
-                                                                type="button"
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                onClick={() =>
-                                                                    setSteps(
-                                                                        (
-                                                                            current,
-                                                                        ) =>
-                                                                            current.filter(
-                                                                                (
-                                                                                    _,
-                                                                                    stepIndex,
-                                                                                ) =>
-                                                                                    stepIndex !==
-                                                                                    index,
-                                                                            ),
-                                                                    )
-                                                                }
-                                                            >
-                                                                <Trash2 className="size-4" />
-                                                                Remove
-                                                            </Button>
-                                                        ) : null}
-                                                    </div>
-                                                    <div className="grid gap-3 sm:grid-cols-2">
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Stage code
-                                                            </Label>
-                                                            <Input
-                                                                value={
-                                                                    step.code
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            code: event.target.value.toUpperCase(),
-                                                                        },
-                                                                    )
-                                                                }
-                                                                placeholder="VERIFY_BENEFICIARY"
-                                                            />
-                                                            <p className="text-sm text-muted-foreground">
-                                                                Short identifier
-                                                                for this stage.
-                                                            </p>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Stage name
-                                                            </Label>
-                                                            <Input
-                                                                value={
-                                                                    step.name
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            name: event
-                                                                                .target
-                                                                                .value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                                placeholder={
-                                                                    statusName
-                                                                }
-                                                            />
-                                                            <p className="text-sm text-muted-foreground">
-                                                                Name staff see
-                                                                for this stage.
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-4 text-sm">
-                                                        <label className="flex items-center gap-2">
-                                                            <Input
-                                                                type="checkbox"
-                                                                className="size-4"
-                                                                checked={
-                                                                    step.is_start
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            is_start:
-                                                                                event
-                                                                                    .target
-                                                                                    .checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            First stage of the
-                                                            workflow
-                                                        </label>
-                                                        <label className="flex items-center gap-2">
-                                                            <Input
-                                                                type="checkbox"
-                                                                className="size-4"
-                                                                checked={
-                                                                    step.is_end
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            is_end: event
-                                                                                .target
-                                                                                .checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            Last stage of the
-                                                            workflow
-                                                        </label>
-                                                    </div>
-                                                    <div className="grid gap-3 sm:grid-cols-2">
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Reason when the
-                                                                request enters
-                                                            </Label>
-                                                            <Select
-                                                                value={
-                                                                    step.default_request_sub_status_id
-                                                                }
-                                                                onValueChange={(
-                                                                    value,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            default_request_sub_status_id:
-                                                                                value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <SelectTrigger>
-                                                                    <SelectValue placeholder="Select reason" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {statusReasons.map(
-                                                                        (
-                                                                            reason,
-                                                                        ) => (
-                                                                            <SelectItem
-                                                                                key={
-                                                                                    reason.id
-                                                                                }
-                                                                                value={String(
-                                                                                    reason.id,
-                                                                                )}
-                                                                            >
-                                                                                {
-                                                                                    reason.name
-                                                                                }
-                                                                            </SelectItem>
-                                                                        ),
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                            <p className="text-sm text-muted-foreground">
-                                                                Saved when a
-                                                                request moves
-                                                                into this stage.
-                                                            </p>
-                                                        </div>
-                                                        <div className="space-y-2">
-                                                            <Label>
-                                                                Time limit
-                                                                (hours)
-                                                            </Label>
-                                                            <Input
-                                                                type="number"
-                                                                min={1}
-                                                                value={
-                                                                    step.sla_hours
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            sla_hours:
-                                                                                event
+                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                            <div className="space-y-2">
+                                                                <Label>
+                                                                    Stage code
+                                                                </Label>
+                                                                <Input
+                                                                    value={
+                                                                        step.code
+                                                                    }
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
+                                                                        updateStep(
+                                                                            index,
+                                                                            {
+                                                                                code: event.target.value.toUpperCase(),
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                    placeholder="VERIFY_BENEFICIARY"
+                                                                />
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Short
+                                                                    identifier
+                                                                    for this
+                                                                    stage.
+                                                                </p>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>
+                                                                    Stage name
+                                                                </Label>
+                                                                <Input
+                                                                    value={
+                                                                        step.name
+                                                                    }
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
+                                                                        updateStep(
+                                                                            index,
+                                                                            {
+                                                                                name: event
                                                                                     .target
                                                                                     .value,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                    placeholder={
+                                                                        statusName
+                                                                    }
+                                                                />
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Name staff
+                                                                    see for this
+                                                                    stage.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-4 text-sm">
+                                                            <label className="flex items-center gap-2">
+                                                                <Input
+                                                                    type="checkbox"
+                                                                    className="size-4"
+                                                                    checked={
+                                                                        step.is_start
+                                                                    }
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
+                                                                        updateStep(
+                                                                            index,
+                                                                            {
+                                                                                is_start:
+                                                                                    event
+                                                                                        .target
+                                                                                        .checked,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                />
+                                                                First stage of
+                                                                the workflow
+                                                            </label>
+                                                            <label className="flex items-center gap-2">
+                                                                <Input
+                                                                    type="checkbox"
+                                                                    className="size-4"
+                                                                    checked={
+                                                                        step.is_end
+                                                                    }
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
+                                                                        updateStep(
+                                                                            index,
+                                                                            {
+                                                                                is_end: event
+                                                                                    .target
+                                                                                    .checked,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                />
+                                                                Last stage of
+                                                                the workflow
+                                                            </label>
+                                                        </div>
+                                                        <div className="grid gap-3 sm:grid-cols-2">
+                                                            <div className="space-y-2">
+                                                                <Label>
+                                                                    Reason when
+                                                                    the request
+                                                                    enters
+                                                                </Label>
+                                                                <Select
+                                                                    value={
+                                                                        step.default_request_sub_status_id
+                                                                    }
+                                                                    onValueChange={(
+                                                                        value,
+                                                                    ) =>
+                                                                        updateStep(
+                                                                            index,
+                                                                            {
+                                                                                default_request_sub_status_id:
+                                                                                    value,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <SelectTrigger>
+                                                                        <SelectValue placeholder="Select reason" />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {statusReasons.map(
+                                                                            (
+                                                                                reason,
+                                                                            ) => (
+                                                                                <SelectItem
+                                                                                    key={
+                                                                                        reason.id
+                                                                                    }
+                                                                                    value={String(
+                                                                                        reason.id,
+                                                                                    )}
+                                                                                >
+                                                                                    {
+                                                                                        reason.name
+                                                                                    }
+                                                                                </SelectItem>
+                                                                            ),
+                                                                        )}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Saved when a
+                                                                    request
+                                                                    moves into
+                                                                    this stage.
+                                                                </p>
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <Label>
+                                                                    Time limit
+                                                                    (hours)
+                                                                </Label>
+                                                                <Input
+                                                                    type="number"
+                                                                    min={1}
+                                                                    value={
+                                                                        step.sla_hours
+                                                                    }
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) =>
+                                                                        updateStep(
+                                                                            index,
+                                                                            {
+                                                                                sla_hours:
+                                                                                    event
+                                                                                        .target
+                                                                                        .value,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                    placeholder="None"
+                                                                />
+                                                                <p className="text-sm text-muted-foreground">
+                                                                    Leave blank
+                                                                    for no time
+                                                                    limit.
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <Label>
+                                                                Assigned
+                                                                statuses
+                                                            </Label>
+                                                            <MultiSelect
+                                                                options={assignedStatusOptions(
+                                                                    steps,
+                                                                    index,
+                                                                    statuses,
+                                                                )}
+                                                                selected={
+                                                                    step.transition_status_ids
+                                                                }
+                                                                onChange={(
+                                                                    selected,
+                                                                ) =>
+                                                                    updateStep(
+                                                                        index,
+                                                                        {
+                                                                            transition_status_ids:
+                                                                                selected,
                                                                         },
                                                                     )
                                                                 }
-                                                                placeholder="None"
+                                                                placeholder="Assign next statuses"
                                                             />
                                                             <p className="text-sm text-muted-foreground">
-                                                                Leave blank for
-                                                                no time limit.
+                                                                The assignee can
+                                                                only move a
+                                                                request to these
+                                                                statuses. None
+                                                                are assigned
+                                                                until you choose
+                                                                them.
                                                             </p>
                                                         </div>
-                                                    </div>
-                                                    <div className="space-y-2">
-                                                        <Label>
-                                                            Assigned statuses
-                                                        </Label>
-                                                        <MultiSelect
-                                                            options={assignedStatusOptions(
-                                                                steps,
-                                                                index,
-                                                                statuses,
-                                                            )}
-                                                            selected={
-                                                                step.transition_status_ids
-                                                            }
-                                                            onChange={(
-                                                                selected,
-                                                            ) =>
-                                                                updateStep(
-                                                                    index,
-                                                                    {
-                                                                        transition_status_ids:
-                                                                            selected,
-                                                                    },
-                                                                )
-                                                            }
-                                                            placeholder="Assign next statuses"
-                                                        />
-                                                        <p className="text-sm text-muted-foreground">
-                                                            The assignee can
-                                                            only move a request
-                                                            to these statuses.
-                                                            None are assigned
-                                                            until you choose
-                                                            them.
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-4 text-sm">
-                                                        <div className="min-w-56 space-y-2">
-                                                            <Label>
-                                                                Who handles this
-                                                                stage
-                                                            </Label>
-                                                            <Select
-                                                                value={
-                                                                    step.assignment_type
-                                                                }
-                                                                onValueChange={(
-                                                                    value,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            assignment_type:
-                                                                                value,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            >
-                                                                <SelectTrigger>
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    <SelectItem value="none">
-                                                                        Claim
-                                                                        pool
-                                                                    </SelectItem>
-                                                                    <SelectItem value="user">
-                                                                        User
-                                                                    </SelectItem>
-                                                                    <SelectItem value="role">
-                                                                        Role
-                                                                    </SelectItem>
-                                                                    <SelectItem value="department_role">
-                                                                        Department
-                                                                        + role
-                                                                    </SelectItem>
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                        {step.assignment_type ===
-                                                            'role' ||
-                                                        step.assignment_type ===
-                                                            'department_role' ? (
+                                                        <div className="flex flex-wrap gap-4 text-sm">
                                                             <div className="min-w-56 space-y-2">
                                                                 <Label>
-                                                                    Role
+                                                                    Who handles
+                                                                    this stage
                                                                 </Label>
                                                                 <Select
                                                                     value={
-                                                                        step.assigned_role ===
-                                                                        ''
-                                                                            ? 'none'
-                                                                            : step.assigned_role
+                                                                        step.assignment_type
                                                                     }
                                                                     onValueChange={(
                                                                         value,
@@ -1115,221 +1095,272 @@ export function WorkflowEditor({
                                                                         updateStep(
                                                                             index,
                                                                             {
-                                                                                assigned_role:
-                                                                                    value ===
-                                                                                    'none'
-                                                                                        ? ''
-                                                                                        : value,
+                                                                                assignment_type:
+                                                                                    value,
                                                                             },
                                                                         )
                                                                     }
                                                                 >
                                                                     <SelectTrigger>
-                                                                        <SelectValue placeholder="Select role" />
+                                                                        <SelectValue />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
                                                                         <SelectItem value="none">
-                                                                            Select
+                                                                            Claim
+                                                                            pool
+                                                                        </SelectItem>
+                                                                        <SelectItem value="user">
+                                                                            User
+                                                                        </SelectItem>
+                                                                        <SelectItem value="role">
+                                                                            Role
+                                                                        </SelectItem>
+                                                                        <SelectItem value="department_role">
+                                                                            Department
+                                                                            +
                                                                             role
                                                                         </SelectItem>
-                                                                        {role_options.map(
-                                                                            (
-                                                                                role,
-                                                                            ) => (
-                                                                                <SelectItem
-                                                                                    key={
-                                                                                        role.value
-                                                                                    }
-                                                                                    value={
-                                                                                        role.value
-                                                                                    }
-                                                                                >
-                                                                                    {
-                                                                                        role.label
-                                                                                    }
-                                                                                </SelectItem>
-                                                                            ),
-                                                                        )}
                                                                     </SelectContent>
                                                                 </Select>
                                                             </div>
-                                                        ) : null}
-                                                        {step.assignment_type ===
-                                                        'department_role' ? (
-                                                            <div className="min-w-56 space-y-2">
-                                                                <Label>
-                                                                    Department
-                                                                </Label>
-                                                                <Select
-                                                                    value={
-                                                                        step.assigned_department_id ===
-                                                                        ''
-                                                                            ? String(
-                                                                                  department.id,
-                                                                              )
-                                                                            : step.assigned_department_id
+                                                            {step.assignment_type ===
+                                                                'role' ||
+                                                            step.assignment_type ===
+                                                                'department_role' ? (
+                                                                <div className="min-w-56 space-y-2">
+                                                                    <Label>
+                                                                        Role
+                                                                    </Label>
+                                                                    <Select
+                                                                        value={
+                                                                            step.assigned_role ===
+                                                                            ''
+                                                                                ? 'none'
+                                                                                : step.assigned_role
+                                                                        }
+                                                                        onValueChange={(
+                                                                            value,
+                                                                        ) =>
+                                                                            updateStep(
+                                                                                index,
+                                                                                {
+                                                                                    assigned_role:
+                                                                                        value ===
+                                                                                        'none'
+                                                                                            ? ''
+                                                                                            : value,
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Select role" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="none">
+                                                                                Select
+                                                                                role
+                                                                            </SelectItem>
+                                                                            {role_options.map(
+                                                                                (
+                                                                                    role,
+                                                                                ) => (
+                                                                                    <SelectItem
+                                                                                        key={
+                                                                                            role.value
+                                                                                        }
+                                                                                        value={
+                                                                                            role.value
+                                                                                        }
+                                                                                    >
+                                                                                        {
+                                                                                            role.label
+                                                                                        }
+                                                                                    </SelectItem>
+                                                                                ),
+                                                                            )}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            ) : null}
+                                                            {step.assignment_type ===
+                                                            'department_role' ? (
+                                                                <div className="min-w-56 space-y-2">
+                                                                    <Label>
+                                                                        Department
+                                                                    </Label>
+                                                                    <Select
+                                                                        value={
+                                                                            step.assigned_department_id ===
+                                                                            ''
+                                                                                ? String(
+                                                                                      department.id,
+                                                                                  )
+                                                                                : step.assigned_department_id
+                                                                        }
+                                                                        onValueChange={(
+                                                                            value,
+                                                                        ) =>
+                                                                            updateStep(
+                                                                                index,
+                                                                                {
+                                                                                    assigned_department_id:
+                                                                                        value,
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Select department" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {assignmentDepartments.map(
+                                                                                (
+                                                                                    option,
+                                                                                ) => (
+                                                                                    <SelectItem
+                                                                                        key={
+                                                                                            option.id
+                                                                                        }
+                                                                                        value={String(
+                                                                                            option.id,
+                                                                                        )}
+                                                                                    >
+                                                                                        {
+                                                                                            option.name
+                                                                                        }
+                                                                                    </SelectItem>
+                                                                                ),
+                                                                            )}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            ) : null}
+                                                            {step.assignment_type ===
+                                                            'user' ? (
+                                                                <div className="min-w-56 space-y-2">
+                                                                    <Label>
+                                                                        User
+                                                                    </Label>
+                                                                    <Select
+                                                                        value={
+                                                                            step.assigned_to_id
+                                                                        }
+                                                                        onValueChange={(
+                                                                            value,
+                                                                        ) =>
+                                                                            updateStep(
+                                                                                index,
+                                                                                {
+                                                                                    assigned_to_id:
+                                                                                        value,
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                    >
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="None (team queue)" />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            <SelectItem value="none">
+                                                                                None
+                                                                                -
+                                                                                team
+                                                                                queue
+                                                                            </SelectItem>
+                                                                            {staff_options.map(
+                                                                                (
+                                                                                    staff,
+                                                                                ) => (
+                                                                                    <SelectItem
+                                                                                        key={
+                                                                                            staff.id
+                                                                                        }
+                                                                                        value={String(
+                                                                                            staff.id,
+                                                                                        )}
+                                                                                    >
+                                                                                        {
+                                                                                            staff.name
+                                                                                        }
+                                                                                    </SelectItem>
+                                                                                ),
+                                                                            )}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                </div>
+                                                            ) : null}
+                                                            <label className="flex items-center gap-2">
+                                                                <Input
+                                                                    type="checkbox"
+                                                                    className="size-4"
+                                                                    checked={
+                                                                        step.automatic_assignment
                                                                     }
-                                                                    onValueChange={(
-                                                                        value,
+                                                                    onChange={(
+                                                                        event,
                                                                     ) =>
                                                                         updateStep(
                                                                             index,
                                                                             {
-                                                                                assigned_department_id:
-                                                                                    value,
+                                                                                automatic_assignment:
+                                                                                    event
+                                                                                        .target
+                                                                                        .checked,
                                                                             },
                                                                         )
                                                                     }
-                                                                >
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="Select department" />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        {assignmentDepartments.map(
-                                                                            (
-                                                                                option,
-                                                                            ) => (
-                                                                                <SelectItem
-                                                                                    key={
-                                                                                        option.id
-                                                                                    }
-                                                                                    value={String(
-                                                                                        option.id,
-                                                                                    )}
-                                                                                >
-                                                                                    {
-                                                                                        option.name
-                                                                                    }
-                                                                                </SelectItem>
-                                                                            ),
-                                                                        )}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                        ) : null}
-                                                        {step.assignment_type ===
-                                                        'user' ? (
-                                                            <div className="min-w-56 space-y-2">
-                                                                <Label>
-                                                                    User
-                                                                </Label>
-                                                                <Select
-                                                                    value={
-                                                                        step.assigned_to_id
+                                                                />
+                                                                Assign
+                                                                automatically
+                                                                when the request
+                                                                reaches this
+                                                                stage
+                                                            </label>
+                                                            <label className="flex items-center gap-2">
+                                                                <Input
+                                                                    type="checkbox"
+                                                                    className="size-4"
+                                                                    checked={
+                                                                        step.allows_skip_to_deliver
                                                                     }
-                                                                    onValueChange={(
-                                                                        value,
+                                                                    onChange={(
+                                                                        event,
                                                                     ) =>
                                                                         updateStep(
                                                                             index,
                                                                             {
-                                                                                assigned_to_id:
-                                                                                    value,
+                                                                                allows_skip_to_deliver:
+                                                                                    event
+                                                                                        .target
+                                                                                        .checked,
                                                                             },
                                                                         )
                                                                     }
-                                                                >
-                                                                    <SelectTrigger>
-                                                                        <SelectValue placeholder="None (team queue)" />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent>
-                                                                        <SelectItem value="none">
-                                                                            None
-                                                                            -
-                                                                            team
-                                                                            queue
-                                                                        </SelectItem>
-                                                                        {staff_options.map(
-                                                                            (
-                                                                                staff,
-                                                                            ) => (
-                                                                                <SelectItem
-                                                                                    key={
-                                                                                        staff.id
-                                                                                    }
-                                                                                    value={String(
-                                                                                        staff.id,
-                                                                                    )}
-                                                                                >
-                                                                                    {
-                                                                                        staff.name
-                                                                                    }
-                                                                                </SelectItem>
-                                                                            ),
-                                                                        )}
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                        ) : null}
-                                                        <label className="flex items-center gap-2">
-                                                            <Input
-                                                                type="checkbox"
-                                                                className="size-4"
-                                                                checked={
-                                                                    step.automatic_assignment
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            automatic_assignment:
-                                                                                event
-                                                                                    .target
-                                                                                    .checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            Assign automatically
-                                                            when the request
-                                                            reaches this stage
-                                                        </label>
-                                                        <label className="flex items-center gap-2">
-                                                            <Input
-                                                                type="checkbox"
-                                                                className="size-4"
-                                                                checked={
-                                                                    step.allows_skip_to_deliver
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    updateStep(
-                                                                        index,
-                                                                        {
-                                                                            allows_skip_to_deliver:
-                                                                                event
-                                                                                    .target
-                                                                                    .checked,
-                                                                        },
-                                                                    )
-                                                                }
-                                                            />
-                                                            Allow a jump
-                                                            straight to
-                                                            Delivered
-                                                        </label>
+                                                                />
+                                                                Allow a jump
+                                                                straight to
+                                                                Delivered
+                                                            </label>
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                );
+                                            })}
+                                        </div>
 
-                                    <Button
-                                        type="submit"
-                                        disabled={
-                                            processing ||
-                                            selected.is_mutable === false ||
-                                            !canUpdate
-                                        }
-                                    >
-                                        {processing
-                                            ? 'Saving...'
-                                            : 'Save workflow'}
-                                    </Button>
-                                </>
+                                        <Button
+                                            type="submit"
+                                            disabled={
+                                                processing ||
+                                                selected.is_mutable === false ||
+                                                !canUpdate
+                                            }
+                                        >
+                                            {processing
+                                                ? 'Saving...'
+                                                : 'Save workflow'}
+                                        </Button>
+                                    </>
                                 );
                             }}
                         </Form>

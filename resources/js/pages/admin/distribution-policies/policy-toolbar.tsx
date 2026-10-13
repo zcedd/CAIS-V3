@@ -2,6 +2,7 @@
 
 import type { Table, VisibilityState } from '@tanstack/react-table';
 import { Plus, RotateCcw } from 'lucide-react';
+import { Can } from '@/components/auth/can';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Permission } from '@/lib/permissions';
 import type { DistributionPolicy } from '@/pages/admin/distribution-policies/policy-columns';
 
 type DepartmentOption = { id: number; name: string };
@@ -105,10 +107,12 @@ export function DistributionPolicyToolbar({
                     table={table}
                     columnVisibility={columnVisibility}
                 />
-                <Button type="button" onClick={onCreate}>
-                    <Plus className="mr-2 size-4" />
-                    New policy
-                </Button>
+                <Can permission={Permission.DistributionPolicyManage}>
+                    <Button type="button" onClick={onCreate}>
+                        <Plus className="mr-2 size-4" />
+                        New policy
+                    </Button>
+                </Can>
             </div>
         </div>
     );

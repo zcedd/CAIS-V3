@@ -26,8 +26,10 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { BeneficiaryEditDrawer } from '@/components/user/beneficiaries/beneficiary-edit-drawer';
 import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
+import { useCan } from '@/hooks/use-can';
 import { usePageCommands } from '@/lib/command-registry';
 import { EMPTY_CELL } from '@/lib/empty-cell';
+import { Permission } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import {
     BeneficiaryShowTableToolbar,
@@ -286,16 +288,21 @@ export default function UserBeneficiaryShow({
     form_options?: FormOptions;
 }) {
     const [editOpen, setEditOpen] = useState(false);
+    const { can } = useCan();
+    const canEdit = can(Permission.BeneficiaryUpdate);
     const pageCommands = useMemo(
-        () => [
-            {
-                id: 'beneficiary.edit',
-                label: 'Edit beneficiary',
-                icon: Pencil,
-                onSelect: () => setEditOpen(true),
-            },
-        ],
-        [],
+        () =>
+            canEdit
+                ? [
+                      {
+                          id: 'beneficiary.edit',
+                          label: 'Edit beneficiary',
+                          icon: Pencil,
+                          onSelect: () => setEditOpen(true),
+                      },
+                  ]
+                : [],
+        [canEdit],
     );
     usePageCommands(pageCommands);
     const details = beneficiary.details as Record<string, unknown>;
@@ -429,10 +436,12 @@ export default function UserBeneficiaryShow({
                             ) : null}
                         </div>
                     </div>
-                    <Button type="button" onClick={() => setEditOpen(true)}>
-                        <Pencil className="size-4" />
-                        Edit beneficiary
-                    </Button>
+                    {canEdit ? (
+                        <Button type="button" onClick={() => setEditOpen(true)}>
+                            <Pencil className="size-4" />
+                            Edit beneficiary
+                        </Button>
+                    ) : null}
                 </div>
 
                 {/* KPIs */}

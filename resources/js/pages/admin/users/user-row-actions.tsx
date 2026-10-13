@@ -1,5 +1,9 @@
 'use client';
 
+import { router, usePage } from '@inertiajs/react';
+import { Edit, MoreHorizontal, Trash } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -23,10 +27,7 @@ import type {
     AdminRoleOption,
     AdminUserRow,
 } from '@/types/admin-user';
-import { router } from '@inertiajs/react';
-import { Edit, MoreHorizontal, Trash } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
+import type { Auth } from '@/types/auth';
 
 type UserRowActionsProps = {
     user: AdminUserRow;
@@ -41,6 +42,8 @@ export function UserRowActions({
     roleOptions,
     currentUserId,
 }: UserRowActionsProps) {
+    const isSuperAdmin =
+        usePage<{ auth: Auth }>().props.auth.is_super_admin === true;
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -64,6 +67,10 @@ export function UserRowActions({
             },
         });
     };
+
+    if (!isSuperAdmin) {
+        return null;
+    }
 
     return (
         <>

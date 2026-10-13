@@ -1,5 +1,6 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import { Can } from '@/components/auth/can';
 import { DistributionOfferSummary } from '@/components/distribution/composition';
 import type { DistributionOffer } from '@/components/distribution/composition';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { Permission } from '@/lib/permissions';
 import {
     calendar,
     create,
@@ -130,11 +132,13 @@ export default function DistributionsIndex({
                                 Calendar
                             </Link>
                         </Button>
-                        <Button asChild data-tour="distributions-create">
-                            <Link href={create.url(department.slug)}>
-                                New batch
-                            </Link>
-                        </Button>
+                        <Can permission={Permission.DistributionCreate}>
+                            <Button asChild data-tour="distributions-create">
+                                <Link href={create.url(department.slug)}>
+                                    New batch
+                                </Link>
+                            </Button>
+                        </Can>
                     </div>
                 </div>
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Enums\PermissionName;
 use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\User;
@@ -16,7 +17,8 @@ class BulkAssignRequest extends FormRequest
         $department = $this->route('department');
 
         return $department instanceof Department
-            && $this->user()?->department_id === $department->id;
+            && $this->user()?->department_id === $department->id
+            && $this->user()->can(PermissionName::AssistanceAssign->value);
     }
 
     /**

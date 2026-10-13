@@ -1,17 +1,17 @@
 'use client';
 
+import type { RowSelectionState, Table } from '@tanstack/react-table';
+import { ArrowRightLeft, ListChecks } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import { AssistanceBulkStatusDrawer } from '@/pages/user/programs/assistance-bulk-status-drawer';
 import { AssistanceBulkTransferDrawer } from '@/pages/user/programs/assistance-bulk-transfer-drawer';
+import type { UserProgramAssistanceRow } from '@/pages/user/programs/assistance-columns';
 import type {
     AssistanceRequestSubStatusOption,
     AssistanceTransferProgramOption,
 } from '@/pages/user/programs/assistance-toolbar';
 import type { ProgramDocumentRequirementInput } from '@/types/document';
-import { ArrowRightLeft, ListChecks } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import type { RowSelectionState, Table } from '@tanstack/react-table';
 
 type AssistanceBulkActionsBarProps = {
     table: Table<UserProgramAssistanceRow>;
@@ -56,8 +56,9 @@ export function AssistanceBulkActionsBar({
                 (id) =>
                     table
                         .getRowModel()
-                        .flatRows.find((tableRow) => tableRow.original.id === id)
-                        ?.original,
+                        .flatRows.find(
+                            (tableRow) => tableRow.original.id === id,
+                        )?.original,
             )
             .filter(
                 (row): row is UserProgramAssistanceRow => row !== undefined,
@@ -65,7 +66,10 @@ export function AssistanceBulkActionsBar({
     }, [selectedAssistanceIds, table]);
 
     const canAdvanceSelection = useMemo(() => {
-        return selectedRows.every((row) => row.can_advance !== false);
+        return (
+            selectedRows.length > 0 &&
+            selectedRows.every((row) => row.can_advance === true)
+        );
     }, [selectedRows]);
 
     const allowedRequestStatusIds = useMemo(() => {
@@ -111,16 +115,17 @@ export function AssistanceBulkActionsBar({
                     {selectedCount === 1 ? '' : 's'} selected
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                        type="button"
-                        variant="default"
-                        className="h-8"
-                        disabled={!canAdvanceSelection}
-                        onClick={() => setBulkStatusOpen(true)}
-                    >
-                        <ListChecks className="size-4" />
-                        Update status
-                    </Button>
+                    {canAdvanceSelection ? (
+                        <Button
+                            type="button"
+                            variant="default"
+                            className="h-8"
+                            onClick={() => setBulkStatusOpen(true)}
+                        >
+                            <ListChecks className="size-4" />
+                            Update status
+                        </Button>
+                    ) : null}
                     {canTransferAssistance ? (
                         <Button
                             type="button"

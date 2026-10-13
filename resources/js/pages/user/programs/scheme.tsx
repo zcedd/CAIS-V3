@@ -5,14 +5,7 @@ import {
     setLayoutProps,
     WhenVisible,
 } from '@inertiajs/react';
-import {
-    Building2,
-    Pencil,
-    Plus,
-    Send,
-    UserRound,
-    Users,
-} from 'lucide-react';
+import { Building2, Pencil, Plus, Send, UserRound, Users } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
@@ -41,7 +34,9 @@ import type {
 } from '@/components/user/program-card';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
 import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
+import { useCan } from '@/hooks/use-can';
 import { formatProgramPeriod } from '@/lib/format-program-period';
+import { Permission } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
 import {
@@ -229,7 +224,9 @@ export default function UserProgramScheme({
     }, [addBatchOpen]);
 
     const heading = program.name;
-    const canEdit = Boolean(department?.slug);
+    const { can } = useCan();
+    const canEdit = Boolean(department?.slug) && can(Permission.ProgramUpdate);
+    const canExportAssistance = can(Permission.ProgramDownloadAssistance);
     const isClosed = Boolean(program.is_closed);
     const description = program.descriptions?.trim();
     const fundOptions = (funds ?? []).map((fund) => ({
@@ -467,7 +464,7 @@ export default function UserProgramScheme({
                         : null
                 }
                 exportUrl={
-                    analyticsProgram && department?.slug
+                    canExportAssistance && analyticsProgram && department?.slug
                         ? exportAssistances.url({
                               department: department.slug,
                               program: analyticsProgram.id,
