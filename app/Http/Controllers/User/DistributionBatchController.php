@@ -8,6 +8,7 @@ use App\Actions\Distribution\CreateDistributionBatch;
 use App\Actions\Distribution\DecideDistributionBatch;
 use App\Actions\Distribution\DecideDistributionBatchItem;
 use App\Actions\Distribution\FinalizeDistributionBatch;
+use App\Actions\Distribution\OpenIndividualDistribution;
 use App\Actions\Distribution\RecordDistributionRelease;
 use App\Actions\Distribution\ReopenRejectedDistributionBatch;
 use App\Actions\Distribution\ScheduleDistributionBatch;
@@ -16,8 +17,11 @@ use App\Actions\Distribution\StoreDistributionBatchDocument;
 use App\Actions\Distribution\SubmitDistributionBatch;
 use App\Actions\Distribution\UpdateDistributionBatch;
 use App\Actions\Distribution\ValidateDistributionBatch;
+use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionBatchStatus;
+use App\Enums\DistributionType;
 use App\Enums\ProgramApprovalStatus;
+use App\Enums\ProgramDistributionMode;
 use App\Enums\RequestSubStatusCode;
 use App\Exports\User\DistributionBatchExport;
 use App\Http\Controllers\Controller;
@@ -37,6 +41,7 @@ use App\Models\DistributionBatchItem;
 use App\Models\Program;
 use App\Models\User;
 use App\Services\Distribution\DistributionBatchDetails;
+use App\Services\Distribution\DistributionDashboard;
 use App\Services\Distribution\DistributionReconciliation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -51,8 +56,12 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DistributionBatchController extends Controller
 {
-    public function index(Request $request, Department $department, DistributionReconciliation $reconciliation): Response
-    {
+    public function index(
+        Request $request,
+        Department $department,
+        DistributionReconciliation $reconciliation,
+        DistributionDashboard $dashboard,
+    ): Response {
         Gate::authorize('viewAny', [DistributionBatch::class, $department]);
 
         $sort = in_array($request->string('sort')->toString(), ['batch_code', 'scheduled_at', 'status', 'title'], true)
@@ -75,6 +84,13 @@ class DistributionBatchController extends Controller
                 });
             })
             ->when($request->filled('program_id'), fn ($query) => $query->where('program_id', $request->integer('program_id')))
+            ->when(
+                DistributionType::tryFrom($request->string('distribution_type')->toString()) instanceof DistributionType,
+                fn ($query) => $query->where(
+                    'distribution_type',
+                    $request->string('distribution_type')->toString(),
+                ),
+            )
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
             ->when($request->filled('created_by'), fn ($query) => $query->where('created_by', $request->integer('created_by')))
             ->when($request->filled('scheduled_from'), fn ($query) => $query->whereDate('scheduled_at', '>=', $request->string('scheduled_from')->toString()))
@@ -100,6 +116,8 @@ class DistributionBatchController extends Controller
             ->through(fn (DistributionBatch $batch): array => [
                 'id' => $batch->id,
                 'batch_code' => $batch->batch_code,
+                'distribution_type' => $batch->distribution_type?->value ?? DistributionType::Batch->value,
+                'distribution_type_label' => $batch->distribution_type?->label() ?? DistributionType::Batch->label(),
                 'title' => $batch->title,
                 'program' => $batch->program?->name,
                 'scheduled_at' => $batch->scheduled_at?->toIso8601String(),
@@ -115,11 +133,16 @@ class DistributionBatchController extends Controller
         return Inertia::render('user/distributions/index', [
             'department' => $department->only(['id', 'name', 'slug']),
             'batches' => $batches,
+            'summary' => $dashboard->summarize($department),
             'filters' => $request->only([
-                'search', 'program_id', 'status', 'created_by',
+                'search', 'program_id', 'status', 'distribution_type', 'created_by',
                 'scheduled_from', 'scheduled_to', 'approver_id', 'sort', 'direction',
                 'venue', 'personnel_id', 'beneficiary',
             ]),
+            'distribution_types' => collect(DistributionType::cases())->map(fn (DistributionType $type): array => [
+                'value' => $type->value,
+                'label' => $type->label(),
+            ])->all(),
             'statuses' => collect(DistributionBatchStatus::cases())->map(fn (DistributionBatchStatus $status): array => [
                 'value' => $status->value,
                 'label' => $status->label(),
@@ -167,17 +190,42 @@ class DistributionBatchController extends Controller
     {
         Gate::authorize('create', [DistributionBatch::class, $department]);
 
+        $mode = $request->string('mode')->toString() === 'individual' ? 'individual' : 'batch';
+
         return Inertia::render('user/distributions/form', [
             'department' => $department->only(['id', 'name', 'slug']),
             'batch' => null,
-            'programs' => $this->programs($department),
+            'programs' => $this->programs($department, null, $mode),
             'requests' => $this->eligibleRequests($department, $request->integer('program_id')),
+            'mode' => $mode,
+            'prefill_assistance_id' => $request->integer('assistance_id') ?: null,
+            'selected_program_id' => $request->integer('program_id') ?: null,
         ]);
     }
 
-    public function store(StoreDistributionBatchRequest $request, Department $department, CreateDistributionBatch $create): RedirectResponse
-    {
-        $batch = $create($department, $request->user(), $request->validated());
+    public function store(
+        StoreDistributionBatchRequest $request,
+        Department $department,
+        CreateDistributionBatch $create,
+        OpenIndividualDistribution $openIndividual,
+    ): RedirectResponse {
+        $data = $request->validated();
+        $actor = $request->user();
+        $individual = ($data['approval_mode'] ?? null) === DistributionApprovalMode::Beneficiary->value
+            && count($data['assistance_ids']) === 1;
+
+        if ($individual && $actor instanceof User) {
+            $batch = $openIndividual($department, $actor, $data);
+
+            return redirect()
+                ->route('user.distributions.venue', [
+                    'department' => $department,
+                    'distributionBatch' => $batch,
+                ])
+                ->with('success', 'Individual distribution is ready for release.');
+        }
+
+        $batch = $create($department, $actor, $data);
 
         return redirect()
             ->route('user.distributions.show', ['department' => $department, 'distributionBatch' => $batch])
@@ -203,9 +251,13 @@ class DistributionBatchController extends Controller
         $this->scoped($department, $distributionBatch);
         Gate::authorize('update', $distributionBatch);
         $distributionBatch->load('items');
+        $individual = $distributionBatch->approval_mode === DistributionApprovalMode::Beneficiary
+            && $distributionBatch->items->count() === 1;
 
         return Inertia::render('user/distributions/form', [
             'department' => $department->only(['id', 'name', 'slug']),
+            'mode' => $individual ? 'individual' : 'batch',
+            'prefill_assistance_id' => $individual ? $distributionBatch->items->first()?->assistance_id : null,
             'batch' => [
                 'id' => $distributionBatch->id,
                 'program_id' => $distributionBatch->program_id,
@@ -483,10 +535,16 @@ class DistributionBatchController extends Controller
     }
 
     /**
-     * @return list<array{id: int, name: string}>
+     * @return list<array{id: int, name: string, distribution_mode: string}>
      */
-    private function programs(Department $department, ?int $includeProgramId = null): array
+    private function programs(Department $department, ?int $includeProgramId = null, ?string $forMode = null): array
     {
+        $allowed = match ($forMode) {
+            'individual' => [ProgramDistributionMode::Individual->value, ProgramDistributionMode::Both->value],
+            'batch' => [ProgramDistributionMode::Batch->value, ProgramDistributionMode::Both->value],
+            default => null,
+        };
+
         return Program::query()
             ->where('department_id', $department->id)
             ->encodable()
@@ -497,9 +555,22 @@ class DistributionBatchController extends Controller
                     $query->orWhere('id', $includeProgramId);
                 }
             })
+            ->when($allowed !== null, function (Builder $query) use ($allowed, $includeProgramId): void {
+                $query->where(function (Builder $inner) use ($allowed, $includeProgramId): void {
+                    $inner->whereIn('distribution_mode', $allowed);
+
+                    if ($includeProgramId !== null) {
+                        $inner->orWhere('id', $includeProgramId);
+                    }
+                });
+            })
             ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn (Program $program): array => ['id' => $program->id, 'name' => $program->name])
+            ->get(['id', 'name', 'distribution_mode'])
+            ->map(fn (Program $program): array => [
+                'id' => $program->id,
+                'name' => $program->name,
+                'distribution_mode' => $program->resolvedDistributionMode()->value,
+            ])
             ->all();
     }
 

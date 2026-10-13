@@ -131,6 +131,7 @@ type ProgramDetail = {
     is_closed: boolean | null;
     is_organization: boolean | null;
     public_intake?: boolean | null;
+    distribution_mode?: 'individual' | 'batch' | 'both' | null;
     kind?: string | null;
     approval_status?: string | null;
     approval_label?: string | null;
@@ -609,6 +610,13 @@ export default function UserProgramShow({
                                 {isClosed ? 'Closed' : 'Open'}
                             </Badge>
                             <Badge variant="outline">
+                                {program.distribution_mode === 'individual'
+                                    ? 'Individual distribution'
+                                    : program.distribution_mode === 'both'
+                                      ? 'Individual and batch'
+                                      : 'Batch distribution'}
+                            </Badge>
+                            <Badge variant="outline">
                                 {program.is_organization ? (
                                     <Users aria-hidden />
                                 ) : (
@@ -944,6 +952,7 @@ export default function UserProgramShow({
                                     isOrganization={
                                         program.is_organization ?? false
                                     }
+                                    distributionMode={program.distribution_mode}
                                     canCreateAssistance={canCreateAssistance}
                                     modeOfRequestOptions={
                                         resolvedAssistanceTable.mode_of_request_options

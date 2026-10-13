@@ -6,6 +6,7 @@ use App\Actions\Distribution\AssignDistributionPersonnel;
 use App\Actions\Distribution\FinalizeDistributionTransaction;
 use App\Actions\Distribution\StartDistributionTransaction;
 use App\Actions\Distribution\VoidDistributionTransaction;
+use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionEvidenceType;
 use App\Enums\DistributionItemApprovalStatus;
 use App\Enums\DistributionReleaseOutcome;
@@ -28,6 +29,7 @@ use App\Services\Distribution\DistributionAudit;
 use App\Services\Distribution\DistributionEvidenceService;
 use App\Services\Distribution\DistributionReceiptService;
 use App\Services\Distribution\DistributionReconciliation;
+use App\Services\User\AssistanceReceiptPage;
 use App\Support\DecimalAmount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -80,8 +82,16 @@ class DistributionVenueController extends Controller
                 'release_status' => $this->releaseStatus($item),
             ]);
 
+        $releaseOnly = $distributionBatch->approval_mode === DistributionApprovalMode::Beneficiary
+            && DistributionBatchItem::query()->where('distribution_batch_id', $distributionBatch->id)->count() === 1;
         $selected = null;
         $itemId = $request->integer('item');
+
+        if ($releaseOnly && $itemId === 0) {
+            $itemId = (int) DistributionBatchItem::query()
+                ->where('distribution_batch_id', $distributionBatch->id)
+                ->value('id');
+        }
 
         if ($itemId > 0) {
             $item = DistributionBatchItem::query()
@@ -162,6 +172,7 @@ class DistributionVenueController extends Controller
                     ])
                     ->all()
                 : [],
+            'release_only' => $releaseOnly,
             'privacy_notice' => 'Personal information, a live photograph, and a signature or alternative acknowledgment are collected to document the release of government assistance. The lawful basis is the agency\'s delivery of an approved assistance program and the Data Privacy Act of 2012. A camera image, timestamp, or file hash does not by itself prove identity or that the recipient was present.',
             'retention_notice' => (string) config('distribution.evidence_retention'),
         ]);
@@ -269,27 +280,17 @@ class DistributionVenueController extends Controller
         Department $department,
         DistributionBatch $distributionBatch,
         DistributionTransaction $transaction,
+        AssistanceReceiptPage $receiptPage,
     ): Response {
         $this->scoped($department, $distributionBatch);
         $this->transactionBelongs($distributionBatch, $transaction);
         Gate::authorize('view', $distributionBatch);
-        $receipt = $this->currentReceipt($transaction);
+        $this->currentReceipt($transaction);
 
-        return Inertia::render('user/distributions/receipt', [
-            'department' => $department->only(['id', 'name', 'slug']),
-            'batch_id' => $distributionBatch->id,
-            'transaction_id' => $transaction->id,
-            'receipt' => [
-                'id' => $receipt->id,
-                'number' => $receipt->receipt_number,
-                'status' => $receipt->status->value,
-                'status_label' => $receipt->status->label(),
-                'version' => $receipt->version,
-                'reprint_count' => $receipt->reprint_count,
-                'snapshot' => $receipt->snapshot,
-                'verify_url' => route('public.distribution-receipts.verify', ['token' => $receipt->verification_token]),
-            ],
-        ]);
+        return Inertia::render(
+            'user/assistances/receipt',
+            $receiptPage->forTransaction($department, $distributionBatch, $transaction),
+        );
     }
 
     public function receiptPdf(

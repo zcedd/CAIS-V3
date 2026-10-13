@@ -22,7 +22,11 @@ import {
 } from '@/routes/user/distributions';
 
 type DepartmentSummary = { slug: string; name: string };
-type ProgramOption = { id: number; name: string };
+type ProgramOption = {
+    id: number;
+    name: string;
+    distribution_mode?: 'individual' | 'batch' | 'both';
+};
 type RequestRow = {
     id: number;
     beneficiary: string | null;
@@ -51,18 +55,40 @@ export default function DistributionForm({
     batch,
     programs,
     requests,
+    mode = 'batch',
+    prefill_assistance_id = null,
+    selected_program_id = null,
 }: {
     department: DepartmentSummary;
     batch: BatchForm | null;
     programs: ProgramOption[];
     requests: RequestRow[];
+    mode?: 'individual' | 'batch';
+    prefill_assistance_id?: number | null;
+    selected_program_id?: number | null;
 }) {
+    const individual = mode === 'individual';
+    const visibleRequests =
+        individual && prefill_assistance_id
+            ? requests.filter((request) => request.id === prefill_assistance_id)
+            : requests;
     const [programId, setProgramId] = useState(
-        String(batch?.program_id ?? programs[0]?.id ?? ''),
+        String(
+            batch?.program_id ?? selected_program_id ?? programs[0]?.id ?? '',
+        ),
     );
     const [selected, setSelected] = useState<number[]>(
-        batch?.assistance_ids ?? [],
+        batch?.assistance_ids ??
+            (prefill_assistance_id ? [prefill_assistance_id] : []),
     );
+    const selectedProgram = programs.find(
+        (program) => String(program.id) === programId,
+    );
+    const programAllowsMode =
+        programs.length > 0 &&
+        (selectedProgram?.distribution_mode == null ||
+            selectedProgram.distribution_mode === 'both' ||
+            selectedProgram.distribution_mode === mode);
 
     useEffect(() => {
         setLayoutProps({
@@ -78,7 +104,9 @@ export default function DistributionForm({
 
     function loadProgram(nextProgramId: string): void {
         setProgramId(nextProgramId);
-        setSelected([]);
+        setSelected(
+            individual && prefill_assistance_id ? [prefill_assistance_id] : [],
+        );
         const url = batch
             ? edit.url(
                   {
@@ -109,7 +137,11 @@ export default function DistributionForm({
                         scheduled_at: String(form.get('scheduled_at') ?? ''),
                         venue: String(form.get('venue') ?? ''),
                         notes: String(form.get('notes') ?? ''),
-                        assistance_ids: selected,
+                        approval_mode: individual ? 'beneficiary' : 'batch',
+                        assistance_ids:
+                            individual && prefill_assistance_id
+                                ? [prefill_assistance_id]
+                                : selected,
                         lock_version: batch?.lock_version,
                     };
 
@@ -132,10 +164,17 @@ export default function DistributionForm({
                     <h1 className="text-2xl font-semibold">
                         {batch
                             ? 'Edit distribution batch'
-                            : 'New distribution batch'}
+                            : individual
+                              ? 'Individual distribution'
+                              : 'New distribution batch'}
                     </h1>
                     <p className="text-sm text-muted-foreground">
                         {department.name}
+                    </p>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {individual
+                            ? 'Direct release. The assistance request must already be approved. This activity does not need a separate executive batch approval, and creating it does not mark the assistance as received.'
+                            : 'Batch distribution. Executive approval is required before anyone can record a release.'}
                     </p>
                 </div>
 
@@ -156,6 +195,15 @@ export default function DistributionForm({
                             ))}
                         </SelectContent>
                     </Select>
+                    {programs.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            No open program in this department is configured for{' '}
+                            {individual
+                                ? 'individual distribution'
+                                : 'batch distribution'}
+                            . An administrator can change that on the program.
+                        </p>
+                    ) : null}
                 </div>
 
                 <div className="grid gap-2">
@@ -163,7 +211,10 @@ export default function DistributionForm({
                     <Input
                         id="title"
                         name="title"
-                        defaultValue={batch?.title ?? ''}
+                        defaultValue={
+                            batch?.title ??
+                            (individual ? 'Individual distribution' : '')
+                        }
                         required
                     />
                 </div>
@@ -203,13 +254,14 @@ export default function DistributionForm({
                     <legend className="text-sm font-medium">
                         Eligible requests
                     </legend>
-                    {requests.length === 0 && (
+                    {visibleRequests.length === 0 && (
                         <p className="text-sm text-muted-foreground">
-                            Choose a program to list verified requests that are
-                            ready for distribution.
+                            {individual
+                                ? 'This request is not eligible for distribution.'
+                                : 'Choose a program to list verified requests that are ready for distribution.'}
                         </p>
                     )}
-                    {requests.map((request) => (
+                    {visibleRequests.map((request) => (
                         <label
                             key={request.id}
                             className="flex items-start gap-3 rounded-xl p-3 text-sm ring-1 ring-foreground/10"
@@ -217,7 +269,12 @@ export default function DistributionForm({
                             <Checkbox
                                 className="mt-1"
                                 checked={selected.includes(request.id)}
+                                disabled={individual}
                                 onCheckedChange={(checked) => {
+                                    if (individual) {
+                                        return;
+                                    }
+
                                     setSelected((current) =>
                                         checked === true
                                             ? [...current, request.id]
@@ -249,8 +306,12 @@ export default function DistributionForm({
                     />
                 </div>
 
-                <Button type="submit">
-                    {batch ? 'Save batch' : 'Create batch'}
+                <Button type="submit" disabled={!programAllowsMode}>
+                    {batch
+                        ? 'Save distribution'
+                        : individual
+                          ? 'Open individual distribution'
+                          : 'Create batch distribution'}
                 </Button>
             </form>
         </>

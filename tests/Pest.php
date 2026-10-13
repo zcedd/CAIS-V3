@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\ProgramDistributionMode;
 use App\Enums\RequestStatusCode;
 use App\Enums\RequestSubStatusCode;
 use App\Enums\RoleName;
@@ -250,7 +251,9 @@ function distributionFixture(string $kind = 'cash', int $requests = 1): array
     $officer->syncRoles([RoleName::ReleasingOfficer->value]);
     app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-    $program = Program::factory()->forDepartment($department)->create();
+    $program = Program::factory()->forDepartment($department)->create([
+        'distribution_mode' => ProgramDistributionMode::Both,
+    ]);
     $item = Item::factory()->forDepartment($department)->when(
         $kind === 'cash',
         fn ($factory) => $factory->cash(),

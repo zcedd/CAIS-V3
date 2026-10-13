@@ -64,6 +64,7 @@ type ProgramDetail = {
     is_closed: boolean | null;
     is_organization?: boolean | null;
     public_intake?: boolean | null;
+    distribution_mode?: 'individual' | 'batch' | 'both' | null;
     kind?: string | null;
     batch_name?: string | null;
     start_at_input: string | null;
@@ -167,6 +168,9 @@ export function ProgramEditDrawer({
 }: ProgramEditDrawerProps) {
     const { can } = useCan();
     const canAssignWorkflow = can(Permission.WorkflowAssign);
+    const [distributionMode, setDistributionMode] = useState<
+        'individual' | 'batch' | 'both'
+    >(program.distribution_mode ?? 'batch');
     const [startAtOpen, setStartAtOpen] = useState(false);
     const [startAt, setStartAt] = useState<Date | undefined>(() =>
         parseProgramDateInput(program.start_at_input),
@@ -198,6 +202,16 @@ export function ProgramEditDrawer({
         setStartAt(parseProgramDateInput(program.start_at_input));
         setEndAt(parseProgramDateInput(program.end_at_input));
     }, [program.start_at_input, program.end_at_input]);
+
+    const distributionModeSource = program.distribution_mode ?? 'batch';
+    const [trackedDistributionMode, setTrackedDistributionMode] = useState(
+        distributionModeSource,
+    );
+
+    if (distributionModeSource !== trackedDistributionMode) {
+        setTrackedDistributionMode(distributionModeSource);
+        setDistributionMode(distributionModeSource);
+    }
 
     useEffect(() => {
         if (programEdit === undefined) {
@@ -257,6 +271,9 @@ export function ProgramEditDrawer({
                         is_closed: isScheme
                             ? undefined
                             : data.is_closed === '1' || data.is_closed === true,
+                        distribution_mode: isBatch
+                            ? undefined
+                            : distributionMode,
                         public_intake: isScheme
                             ? undefined
                             : program.is_organization
@@ -418,6 +435,56 @@ export function ProgramEditDrawer({
                                     onChange={setDocumentRequirements}
                                     errors={errors}
                                 />
+
+                                {isBatch ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Distribution mode follows the parent
+                                        program
+                                        {program.parent
+                                            ? ` (${program.parent.name})`
+                                            : ''}
+                                        .
+                                    </p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <Label htmlFor="edit-program-distribution-mode">
+                                            Distribution
+                                        </Label>
+                                        <Select
+                                            value={distributionMode}
+                                            onValueChange={(value) =>
+                                                setDistributionMode(
+                                                    value as
+                                                        | 'individual'
+                                                        | 'batch'
+                                                        | 'both',
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="edit-program-distribution-mode">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="batch">
+                                                    Batch distribution
+                                                </SelectItem>
+                                                <SelectItem value="individual">
+                                                    Individual distribution
+                                                </SelectItem>
+                                                <SelectItem value="both">
+                                                    Individual and batch
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-sm text-muted-foreground">
+                                            Changing this does not rewrite
+                                            distributions already created.
+                                        </p>
+                                        <InputError
+                                            message={errors.distribution_mode}
+                                        />
+                                    </div>
+                                )}
 
                                 {isScheme && lockOrganization ? (
                                     <p className="text-sm text-muted-foreground">

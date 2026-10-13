@@ -125,6 +125,7 @@ export type UserProgramAssistanceTableContext = {
     programId: number;
     programName: string;
     isOrganization: boolean;
+    distributionMode?: 'individual' | 'batch' | 'both' | null;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
     programFields: ProgramFieldOption[];
@@ -140,6 +141,7 @@ export function createUserProgramAssistanceColumns({
     programId,
     programName,
     isOrganization,
+    distributionMode = 'batch',
     modeOfRequestOptions,
     programItems,
     programFields,
@@ -154,7 +156,8 @@ export function createUserProgramAssistanceColumns({
             .filter((field) => field.show_in_table)
             .map((field) => ({
                 id: `field_${field.key}`,
-                accessorFn: (row) => row.field_values?.[field.key] ?? EMPTY_CELL,
+                accessorFn: (row) =>
+                    row.field_values?.[field.key] ?? EMPTY_CELL,
                 enableSorting: false,
                 meta: {
                     title: field.label,
@@ -380,7 +383,8 @@ export function createUserProgramAssistanceColumns({
             ),
             cell: ({ row }) => (
                 <span className="text-muted-foreground">
-                    {(row.getValue('encoder_name') as string | null) ?? EMPTY_CELL}
+                    {(row.getValue('encoder_name') as string | null) ??
+                        EMPTY_CELL}
                 </span>
             ),
         },
@@ -465,6 +469,7 @@ export function createUserProgramAssistanceColumns({
                     programId={programId}
                     programName={programName}
                     isOrganization={isOrganization}
+                    distributionMode={distributionMode}
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
                     programFields={programFields}

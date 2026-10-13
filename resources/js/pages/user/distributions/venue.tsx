@@ -140,6 +140,7 @@ type VenueProps = {
     }[];
     privacy_notice: string;
     retention_notice: string;
+    release_only?: boolean;
 };
 
 function routeArgs(department: string, batchId: number) {
@@ -159,21 +160,69 @@ export default function DistributionVenue({
     audit,
     privacy_notice,
     retention_notice,
+    release_only = false,
 }: VenueProps) {
     const args = routeArgs(department.slug, batch.id);
 
     useEffect(() => {
         setLayoutProps({
-            breadcrumbs: [
-                {
-                    title: 'Distributions',
-                    href: distributionsIndex.url(department.slug),
-                },
-                { title: batch.batch_code, href: distributionShow.url(args) },
-                { title: 'Venue desk', href: venue.url(args) },
-            ],
+            breadcrumbs: release_only
+                ? [
+                      {
+                          title: 'Distributions',
+                          href: distributionsIndex.url(department.slug),
+                      },
+                      { title: 'Release', href: venue.url(args) },
+                  ]
+                : [
+                      {
+                          title: 'Distributions',
+                          href: distributionsIndex.url(department.slug),
+                      },
+                      {
+                          title: batch.batch_code,
+                          href: distributionShow.url(args),
+                      },
+                      { title: 'Venue desk', href: venue.url(args) },
+                  ],
         });
-    }, [batch.batch_code, batch.id, department.slug]);
+    }, [batch.batch_code, batch.id, department.slug, release_only]);
+
+    if (release_only) {
+        return (
+            <>
+                <Head title="Release" />
+                <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 md:p-6">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Release
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {batch.program} · {department.name}
+                        </p>
+                    </div>
+                    {selected ? (
+                        <ReleasePanel
+                            department={department.slug}
+                            batchId={batch.id}
+                            batchStatus={batch.status}
+                            selected={selected}
+                            officers={officers}
+                            can={can}
+                            privacyNotice={privacy_notice}
+                            retentionNotice={retention_notice}
+                        />
+                    ) : (
+                        <Card>
+                            <CardContent className="py-8 text-sm text-muted-foreground">
+                                This release has no beneficiary to record.
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </>
+        );
+    }
 
     return (
         <>

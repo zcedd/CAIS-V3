@@ -140,6 +140,8 @@ type Item = {
 type Batch = {
     id: number;
     batch_code: string;
+    distribution_type_label?: string;
+    approval_requirement?: string;
     title: string;
     description: string | null;
     venue: string | null;
@@ -282,6 +284,18 @@ export default function DistributionShow({
                             {batch.program.name} · {department.name} ·{' '}
                             {batch.venue}
                         </p>
+                        {batch.distribution_type_label ? (
+                            <p className="mt-2 text-sm">
+                                <Badge variant="outline">
+                                    {batch.distribution_type_label}
+                                </Badge>
+                                {batch.approval_requirement ? (
+                                    <span className="ml-2 text-muted-foreground">
+                                        {batch.approval_requirement}
+                                    </span>
+                                ) : null}
+                            </p>
+                        ) : null}
                     </div>
                     <Badge variant="outline">{batch.status_label}</Badge>
                 </div>

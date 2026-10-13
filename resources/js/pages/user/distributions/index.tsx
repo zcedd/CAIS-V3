@@ -39,6 +39,7 @@ type DepartmentSummary = {
 type BatchRow = {
     id: number;
     batch_code: string;
+    distribution_type_label: string;
     title: string;
     program: string | null;
     scheduled_at: string | null;
@@ -62,6 +63,31 @@ type Paginator = {
 
 type Option = { value: string; label: string };
 type ProgramOption = { id: number; name: string };
+type DistributionSummary = {
+    total: number;
+    individual: number;
+    batch: number;
+    scheduled: number;
+    pending_approval: number;
+    in_progress: number;
+    completed: number;
+    cancelled: number;
+    beneficiaries_scheduled: number;
+    beneficiaries_released: number;
+};
+
+function SummaryCard({ label, value }: { label: string; value: number }) {
+    return (
+        <Card>
+            <CardContent className="flex flex-col gap-1 p-4">
+                <span className="text-sm text-muted-foreground">{label}</span>
+                <span className="text-2xl font-semibold tabular-nums">
+                    {value}
+                </span>
+            </CardContent>
+        </Card>
+    );
+}
 
 function formatWhen(value: string | null): string {
     if (!value) {
@@ -77,14 +103,18 @@ function formatWhen(value: string | null): string {
 export default function DistributionsIndex({
     department,
     batches,
+    summary,
     filters,
     statuses,
+    distribution_types,
     programs,
 }: {
     department: DepartmentSummary;
     batches: Paginator;
+    summary: DistributionSummary;
     filters: Record<string, string | null>;
     statuses: Option[];
+    distribution_types: Option[];
     programs: ProgramOption[];
 }) {
     const [search, setSearch] = useState(filters.search ?? '');
@@ -115,14 +145,15 @@ export default function DistributionsIndex({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">
-                            Distribution batches
+                            Distributions
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Group eligible requests, send them for approval,
-                            then record the actual release.
+                            Individual distribution releases one approved
+                            request directly. Batch distribution groups requests
+                            and waits for executive approval.
                         </p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <Button
                             variant="outline"
                             asChild
@@ -133,13 +164,58 @@ export default function DistributionsIndex({
                             </Link>
                         </Button>
                         <Can permission={Permission.DistributionCreate}>
+                            <Button
+                                variant="outline"
+                                asChild
+                                data-tour="distributions-create-individual"
+                            >
+                                <Link
+                                    href={create.url(department.slug, {
+                                        query: { mode: 'individual' },
+                                    })}
+                                >
+                                    Individual distribution
+                                </Link>
+                            </Button>
                             <Button asChild data-tour="distributions-create">
-                                <Link href={create.url(department.slug)}>
-                                    New batch
+                                <Link
+                                    href={create.url(department.slug, {
+                                        query: { mode: 'batch' },
+                                    })}
+                                >
+                                    Batch distribution
                                 </Link>
                             </Button>
                         </Can>
                     </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <SummaryCard label="Activities" value={summary.total} />
+                    <SummaryCard
+                        label="Individual"
+                        value={summary.individual}
+                    />
+                    <SummaryCard label="Batch" value={summary.batch} />
+                    <SummaryCard label="Scheduled" value={summary.scheduled} />
+                    <SummaryCard
+                        label="Pending approval"
+                        value={summary.pending_approval}
+                    />
+                    <SummaryCard
+                        label="In progress"
+                        value={summary.in_progress}
+                    />
+                    <SummaryCard label="Completed" value={summary.completed} />
+                    <SummaryCard label="Cancelled" value={summary.cancelled} />
+                    <SummaryCard
+                        label="Beneficiaries scheduled"
+                        value={summary.beneficiaries_scheduled}
+                    />
+                    <SummaryCard
+                        label="Beneficiaries released"
+                        value={summary.beneficiaries_released}
+                    />
                 </div>
 
                 <div
@@ -197,6 +273,29 @@ export default function DistributionsIndex({
                         </SelectContent>
                     </Select>
                     <Select
+                        value={filters.distribution_type || 'all'}
+                        onValueChange={(value) =>
+                            applyFilters({
+                                distribution_type: value === 'all' ? '' : value,
+                            })
+                        }
+                    >
+                        <SelectTrigger
+                            aria-label="Distribution type"
+                            className="w-full"
+                        >
+                            <SelectValue placeholder="All types" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All types</SelectItem>
+                            {distribution_types.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                    {type.label}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    <Select
                         value={filters.program_id || 'all'}
                         onValueChange={(value) =>
                             applyFilters({
@@ -226,7 +325,8 @@ export default function DistributionsIndex({
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Batch</TableHead>
+                                    <TableHead>Reference</TableHead>
+                                    <TableHead>Type</TableHead>
                                     <TableHead>Program</TableHead>
                                     <TableHead>Scheduled</TableHead>
                                     <TableHead>Beneficiaries</TableHead>
@@ -239,9 +339,9 @@ export default function DistributionsIndex({
                                     <TableRow>
                                         <TableCell
                                             className="text-muted-foreground"
-                                            colSpan={6}
+                                            colSpan={7}
                                         >
-                                            No distribution batches match these
+                                            No distributions match these
                                             filters.
                                         </TableCell>
                                     </TableRow>
@@ -261,6 +361,9 @@ export default function DistributionsIndex({
                                             <div className="text-muted-foreground">
                                                 {batch.title}
                                             </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {batch.distribution_type_label}
                                         </TableCell>
                                         <TableCell>{batch.program}</TableCell>
                                         <TableCell>
@@ -289,7 +392,7 @@ export default function DistributionsIndex({
 
                 <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">
-                        {batches.total} batches
+                        {batches.total} distributions
                     </span>
                     <div className="flex gap-2">
                         <Button

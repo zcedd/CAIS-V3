@@ -7,6 +7,7 @@ use App\Enums\DocumentRequirementMilestone;
 use App\Enums\ItemKind;
 use App\Enums\ProgramApprovalAction;
 use App\Enums\ProgramApprovalStatus;
+use App\Enums\ProgramDistributionMode;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
 use App\Enums\RoleName;
@@ -175,6 +176,7 @@ class ProgramService
             'public_intake' => $kind === ProgramKind::Scheme
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
+            'distribution_mode' => $this->distributionMode($validated),
             'kind' => $kind,
             'approval_status' => ProgramApprovalStatus::Draft,
             'workflow_id' => $validated['workflow_id'] ?? null,
@@ -234,6 +236,10 @@ class ProgramService
             'is_closed' => $validated['is_closed'] ?? false,
             'public_intake' => $validated['public_intake'] ?? false,
         ];
+
+        if (array_key_exists('distribution_mode', $validated)) {
+            $payload['distribution_mode'] = $this->distributionMode($validated);
+        }
 
         if (array_key_exists('workflow_id', $validated)) {
             $payload['workflow_id'] = $validated['workflow_id'];
@@ -434,6 +440,7 @@ class ProgramService
                 'is_closed',
                 'is_organization',
                 'public_intake',
+                'distribution_mode',
                 'department_id',
                 'kind',
                 'batch_number',
@@ -798,6 +805,10 @@ class ProgramService
             $payload['workflow_id'] = $validated['workflow_id'];
         }
 
+        if (array_key_exists('distribution_mode', $validated)) {
+            $payload['distribution_mode'] = $this->distributionMode($validated);
+        }
+
         if (! $program->batches()->exists()) {
             $payload['is_organization'] = $validated['is_organization'] ?? $program->is_organization;
         }
@@ -817,6 +828,10 @@ class ProgramService
         }
 
         $this->syncEligibility($program, $validated);
+
+        $program->batches()->update([
+            'distribution_mode' => $program->resolvedDistributionMode()->value,
+        ]);
 
         if ($previousName !== $program->name) {
             $program->batches()->each(function (Program $batch) use ($program): void {
@@ -1006,6 +1021,7 @@ class ProgramService
             'is_closed' => (bool) $program->is_closed,
             'is_organization' => (bool) $program->is_organization,
             'public_intake' => (bool) $program->public_intake,
+            'distribution_mode' => $program->resolvedDistributionMode()->value,
             'kind' => $program->kind instanceof ProgramKind ? $program->kind->value : $program->kind,
             'batch_name' => $program->batch_name,
             'batches_count' => (int) $program->batches_count,
@@ -1397,5 +1413,14 @@ class ProgramService
         }
 
         return Carbon::parse($value)->format('M d, Y');
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function distributionMode(array $validated): ProgramDistributionMode
+    {
+        return ProgramDistributionMode::tryFrom((string) ($validated['distribution_mode'] ?? ''))
+            ?? ProgramDistributionMode::Batch;
     }
 }

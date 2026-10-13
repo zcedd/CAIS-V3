@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Enums\ProgramDistributionMode;
 use App\Enums\ProgramKind;
 use App\Http\Requests\User\Concerns\AuthorizesProgramWorkflowAssignment;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
@@ -56,6 +57,7 @@ class StoreRequest extends FormRequest
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => ['nullable', 'boolean'],
+            'distribution_mode' => ['nullable', Rule::enum(ProgramDistributionMode::class)],
             'kind' => ['nullable', Rule::enum(ProgramKind::class)->only(ProgramKind::creatable())],
             ...$this->publicIntakeRules(),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],

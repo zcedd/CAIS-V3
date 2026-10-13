@@ -207,6 +207,9 @@ export default function UserProgramsIndex({
     const [documentRequirements, setDocumentRequirements] = useState<
         ProgramDocumentRequirementInput[]
     >([]);
+    const [distributionMode, setDistributionMode] = useState<
+        'individual' | 'batch' | 'both'
+    >('batch');
     const [isOrganization, setIsOrganization] = useState(false);
     const [publicIntake, setPublicIntake] = useState(false);
     const [programKind, setProgramKind] = useState<'standalone' | 'scheme'>(
@@ -254,6 +257,7 @@ export default function UserProgramsIndex({
         setSelectedItemIds([]);
         setFields([]);
         setDocumentRequirements([]);
+        setDistributionMode('batch');
         setIsOrganization(false);
         setPublicIntake(false);
         setProgramKind('standalone');
@@ -709,6 +713,7 @@ export default function UserProgramsIndex({
                                         ...requirement,
                                         sort_order: index,
                                     })),
+                                distribution_mode: distributionMode,
                                 is_organization: isOrganization,
                                 public_intake:
                                     programKind === 'standalone' &&
@@ -1141,6 +1146,49 @@ export default function UserProgramsIndex({
                                             />
                                         </div>
                                     ) : null}
+
+                                    <div className="space-y-2">
+                                        <Label htmlFor="program-distribution-mode">
+                                            Distribution
+                                        </Label>
+                                        <Select
+                                            value={distributionMode}
+                                            onValueChange={(value) =>
+                                                setDistributionMode(
+                                                    value as
+                                                        | 'individual'
+                                                        | 'batch'
+                                                        | 'both',
+                                                )
+                                            }
+                                        >
+                                            <SelectTrigger id="program-distribution-mode">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="batch">
+                                                    Batch distribution
+                                                </SelectItem>
+                                                <SelectItem value="individual">
+                                                    Individual distribution
+                                                </SelectItem>
+                                                <SelectItem value="both">
+                                                    Individual and batch
+                                                </SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-sm text-muted-foreground">
+                                            Batch distribution needs executive
+                                            approval. Individual distribution is
+                                            a direct release of an already
+                                            approved request. Existing
+                                            distributions keep the mode they
+                                            were created with.
+                                        </p>
+                                        <InputError
+                                            message={errors.distribution_mode}
+                                        />
+                                    </div>
 
                                     <div
                                         className="flex items-start gap-3"

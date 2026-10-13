@@ -1,6 +1,6 @@
 'use client';
 
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { Printer } from 'lucide-react';
 import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
@@ -17,10 +17,30 @@ import type {
     AssistanceRequestedItem,
 } from '@/types/assistance-item';
 
+type DistributionReceipt = {
+    receipt_number: string;
+    transaction_number: string | null;
+    batch_code: string | null;
+    venue: string | null;
+    distribution_date: string | null;
+    issued_at: string | null;
+    verification_token: string | null;
+    verify_url: string | null;
+    recipient_name: string | null;
+    recipient_type: string | null;
+    acknowledgment_mode: string | null;
+    alternative_reason: string | null;
+    witness: string | null;
+    pdf_url: string | null;
+    reprint_url: string | null;
+    venue_url: string | null;
+};
+
 type ReceiptPayload = {
     assistance_id: number;
     cais_number: string;
     beneficiary_name: string;
+    beneficiary_type: string | null;
     beneficiary_address: string | null;
     beneficiary_id_number: string | null;
     program_name: string;
@@ -35,6 +55,7 @@ type ReceiptPayload = {
     requested_items: AssistanceRequestedItem[];
     released_items: AssistanceReleasedItem[];
     item_variance: AssistanceItemVariance;
+    distribution: DistributionReceipt | null;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -234,6 +255,29 @@ export default function UserAssistanceReceipt({
                             <Printer className="size-4" />
                             Print
                         </Button>
+                        {receipt.distribution?.pdf_url ? (
+                            <Button variant="outline" asChild>
+                                <a href={receipt.distribution.pdf_url}>
+                                    Download PDF
+                                </a>
+                            </Button>
+                        ) : null}
+                        {receipt.distribution?.reprint_url ? (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() =>
+                                    router.post(
+                                        receipt.distribution?.reprint_url ??
+                                            '',
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Record reprint
+                            </Button>
+                        ) : null}
                     </div>
                 </div>
 
@@ -249,7 +293,7 @@ export default function UserAssistanceReceipt({
                         Centralized Assistance Information System
                     </p>
                     <p className="mx-auto w-fit rounded-full border border-border px-3 py-1 font-mono text-[10px] tracking-wide uppercase">
-                        Acknowledgment receipt (AR)
+                        Acknowledgment receipt
                     </p>
                 </header>
 
@@ -258,7 +302,10 @@ export default function UserAssistanceReceipt({
                         <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
                             Receipt number
                         </dt>
-                        <dd className="font-mono">{receipt.cais_number}</dd>
+                        <dd className="font-mono">
+                            {receipt.distribution?.receipt_number ??
+                                receipt.cais_number}
+                        </dd>
                     </div>
                     <div>
                         <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
@@ -278,6 +325,40 @@ export default function UserAssistanceReceipt({
                         </dt>
                         <dd>{receipt.department_name}</dd>
                     </div>
+                    {receipt.distribution?.transaction_number ? (
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Distribution reference
+                            </dt>
+                            <dd className="font-mono">
+                                {receipt.distribution.transaction_number}
+                            </dd>
+                        </div>
+                    ) : null}
+                    {receipt.distribution?.batch_code ? (
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Batch
+                            </dt>
+                            <dd className="font-mono">
+                                {receipt.distribution.batch_code}
+                            </dd>
+                        </div>
+                    ) : null}
+                    {receipt.distribution?.venue ? (
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Venue
+                            </dt>
+                            <dd>{receipt.distribution.venue}</dd>
+                        </div>
+                    ) : null}
+                    <div>
+                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                            Assistance request
+                        </dt>
+                        <dd className="font-mono">#{receipt.assistance_id}</dd>
+                    </div>
                 </dl>
 
                 <section className="grid gap-4 sm:grid-cols-[1fr_7rem]">
@@ -286,6 +367,11 @@ export default function UserAssistanceReceipt({
                             I. Beneficiary & receiver
                         </h2>
                         <p className="font-medium">{receipt.beneficiary_name}</p>
+                        {receipt.beneficiary_type ? (
+                            <p className="text-xs text-muted-foreground print:text-black">
+                                {receipt.beneficiary_type}
+                            </p>
+                        ) : null}
                         <p className="font-mono text-xs">
                             {receipt.beneficiary_id_number ?? receipt.cais_number}
                         </p>
@@ -335,6 +421,67 @@ export default function UserAssistanceReceipt({
                     I acknowledge that I received the assistance listed above
                     from {receipt.department_name}.
                 </p>
+                {receipt.distribution ? (
+                    <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Received by
+                            </dt>
+                            <dd>
+                                {receipt.distribution.recipient_name ??
+                                    receipt.beneficiary_name}
+                                {receipt.distribution.recipient_type
+                                    ? ` (${receipt.distribution.recipient_type})`
+                                    : ''}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Acknowledgment
+                            </dt>
+                            <dd>
+                                {receipt.distribution.acknowledgment_mode ??
+                                    EMPTY_CELL}
+                            </dd>
+                        </div>
+                        {receipt.distribution.alternative_reason ? (
+                            <div className="sm:col-span-2">
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Alternative acknowledgment
+                                </dt>
+                                <dd>
+                                    {receipt.distribution.alternative_reason}
+                                </dd>
+                            </div>
+                        ) : null}
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Acknowledged
+                            </dt>
+                            <dd>
+                                {formatDate(receipt.distribution.issued_at)}
+                            </dd>
+                        </div>
+                        {receipt.distribution.witness ? (
+                            <div>
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Witness
+                                </dt>
+                                <dd>{receipt.distribution.witness}</dd>
+                            </div>
+                        ) : null}
+                        {receipt.distribution.verification_token ? (
+                            <div className="sm:col-span-2">
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Verification code
+                                </dt>
+                                <dd className="font-mono text-xs break-all">
+                                    {receipt.distribution.verification_token}
+                                </dd>
+                            </div>
+                        ) : null}
+                    </dl>
+                ) : null}
 
                 <section className="grid gap-8 pt-6 sm:grid-cols-2">
                     <div className="space-y-8">
@@ -342,7 +489,8 @@ export default function UserAssistanceReceipt({
                             Beneficiary
                         </p>
                         <div className="border-t border-foreground/40 pt-2 text-sm print:border-black">
-                            {receipt.beneficiary_name}
+                            {receipt.distribution?.recipient_name ??
+                                receipt.beneficiary_name}
                         </div>
                     </div>
                     <div className="space-y-8">

@@ -294,7 +294,7 @@ test('beneficiary review can approve return and exclude', function () {
 });
 
 test('amount changes are refused unless the policy allows them', function () {
-    $fixture = distributionFixture(requests: 1);
+    $fixture = distributionFixture(requests: 2);
     $batch = storeDistribution($fixture, 'beneficiary');
     submitDistribution($fixture, $batch);
     $item = $batch->items()->firstOrFail();
@@ -308,7 +308,7 @@ test('amount changes are refused unless the policy allows them', function () {
         ])
         ->assertForbidden();
 
-    $allowedFixture = distributionFixture();
+    $allowedFixture = distributionFixture(requests: 2);
     app(SaveDistributionApprovalPolicy::class)($allowedFixture['governor'], [
         'name' => 'Editable amounts',
         'department_id' => $allowedFixture['department']->id,
@@ -527,7 +527,7 @@ test('a returned batch keeps history and starts a new revision on resubmit', fun
 });
 
 test('the same beneficiary cannot be approved twice for one revision', function () {
-    $fixture = distributionFixture(requests: 1);
+    $fixture = distributionFixture(requests: 2);
     $batch = storeDistribution($fixture, 'beneficiary');
     submitDistribution($fixture, $batch);
     $item = $batch->items()->firstOrFail();

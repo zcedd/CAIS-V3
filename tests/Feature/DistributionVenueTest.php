@@ -99,6 +99,41 @@ function finalizeVenueRelease(array $fixture, DistributionBatch $batch, int $ite
     return $transaction->refresh();
 }
 
+test('a finalized distribution receipt uses the assistance acknowledgment layout', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $transaction = finalizeVenueRelease($fixture, $batch, $batch->items()->firstOrFail()->id);
+    $receipt = $transaction->currentReceipt;
+
+    $this->actingAs($fixture['officer'])
+        ->get(route('user.distributions.transactions.receipt', [
+            'department' => $fixture['department'],
+            'distributionBatch' => $batch,
+            'transaction' => $transaction,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('user/assistances/receipt')
+            ->where('receipt.assistance_id', $fixture['assistances'][0]->id)
+            ->where('receipt.distribution.receipt_number', $receipt?->receipt_number)
+            ->where('receipt.distribution.transaction_number', $transaction->transaction_number)
+            ->where('receipt.distribution.batch_code', $batch->batch_code)
+            ->where('receipt.distribution.venue', 'Covered court')
+            ->where('receipt.beneficiary_name', $batch->items()->firstOrFail()->beneficiary?->name));
+
+    $this->actingAs($fixture['officer'])
+        ->get(route('user.assistances.receipt', [
+            'department' => $fixture['department'],
+            'program' => $fixture['program'],
+            'assistance' => $fixture['assistances'][0],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('receipt.distribution.receipt_number', $receipt?->receipt_number)
+            ->where('receipt.distribution.transaction_number', $transaction->transaction_number));
+});
+
 test('an officer can finalize a release with live photo evidence and a signature', function () {
     Storage::fake('local');
     $fixture = distributionFixture();

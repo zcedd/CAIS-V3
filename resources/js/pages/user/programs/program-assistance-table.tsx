@@ -186,6 +186,7 @@ type ProgramAssistanceTableSectionProps = {
     programId: number;
     programName: string;
     isOrganization: boolean;
+    distributionMode?: 'individual' | 'batch' | 'both' | null;
     canCreateAssistance: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
@@ -308,6 +309,7 @@ export function ProgramAssistanceTableSection({
     programId,
     programName,
     isOrganization,
+    distributionMode = 'batch',
     canCreateAssistance,
     modeOfRequestOptions,
     programItems,
@@ -325,6 +327,7 @@ export function ProgramAssistanceTableSection({
                 programId,
                 programName,
                 isOrganization,
+                distributionMode,
                 modeOfRequestOptions,
                 programItems,
                 programFields,
@@ -339,6 +342,7 @@ export function ProgramAssistanceTableSection({
             programId,
             programName,
             isOrganization,
+            distributionMode,
             modeOfRequestOptions,
             programItems,
             programFields,

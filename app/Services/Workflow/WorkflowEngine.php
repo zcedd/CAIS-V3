@@ -2,6 +2,7 @@
 
 namespace App\Services\Workflow;
 
+use App\Actions\Distribution\AssertDeliveredRequiresDistribution;
 use App\Actions\User\RecalculateAssistanceSla;
 use App\Enums\RequestStatusCode;
 use App\Enums\RequestSubStatusCode;
@@ -32,6 +33,7 @@ class WorkflowEngine
         private WorkflowConditionEvaluator $conditions,
         private WorkflowTaskAssigner $assigner,
         private RecalculateAssistanceSla $recalculateAssistanceSla,
+        private AssertDeliveredRequiresDistribution $assertDeliveredRequiresDistribution,
     ) {}
 
     public function start(Assistance $assistance, ?User $actor = null, bool $requireActive = true): AssistanceWorkflow
@@ -125,6 +127,7 @@ class WorkflowEngine
         array $payload = [],
     ): Assistance {
         $target->loadMissing('requestStatus');
+        ($this->assertDeliveredRequiresDistribution)($assistance, $target);
         $assistance->loadMissing('currentRequestSubStatus.requestStatus');
         $hasCurrentStatus = $assistance->currentRequestSubStatus !== null;
 
@@ -289,6 +292,7 @@ class WorkflowEngine
 
             $destination = $this->destinationStep($assistance, $transition);
             $targetSubStatus = $this->resolveTargetSubStatus($destination, $payload);
+            ($this->assertDeliveredRequiresDistribution)($assistance, $targetSubStatus);
 
             if ($task instanceof WorkflowTask) {
                 $this->completeTask($task, $user, $transition, $payload['remark'] ?? $payload['remarks'] ?? null);
@@ -403,7 +407,8 @@ class WorkflowEngine
 
     public function serializeTransition(WorkflowStepTransition $transition): array
     {
-        $transition->loadMissing(['toStep.requestStatus', 'toStep.defaultSubStatus']);
+        $transition->loadMissing(['toStep.requestStatus', 'toStep.defaultSubStatus', 'toRequestStatus']);
+        $statusCode = $transition->toStep?->requestStatus?->code ?? $transition->toRequestStatus?->code;
 
         return [
             'id' => $transition->id,
@@ -416,6 +421,7 @@ class WorkflowEngine
             'to_step_name' => $transition->toStep?->displayName(),
             'to_request_status_id' => $transition->toStep?->request_status_id
                 ?? $transition->to_request_status_id,
+            'to_request_status_code' => $statusCode instanceof RequestStatusCode ? $statusCode->value : null,
             'to_request_sub_status_id' => $transition->toStep?->default_request_sub_status_id,
         ];
     }

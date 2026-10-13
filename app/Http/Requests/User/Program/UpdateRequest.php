@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Program;
 
+use App\Enums\ProgramDistributionMode;
 use App\Http\Requests\User\Concerns\AuthorizesProgramWorkflowAssignment;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
@@ -64,6 +65,9 @@ class UpdateRequest extends FormRequest
             'start_at' => ['required', 'date'],
             'end_at' => ['nullable', 'date', 'after_or_equal:start_at'],
             'is_organization' => $isBatch ? ['prohibited'] : ['nullable', 'boolean'],
+            'distribution_mode' => $isBatch
+                ? ['prohibited']
+                : ['nullable', Rule::enum(ProgramDistributionMode::class)],
             'is_closed' => $isScheme ? ['prohibited'] : ['nullable', 'boolean'],
             ...$this->publicIntakeRules(),
             'fund_ids' => $isScheme ? ['nullable', 'array'] : ['required', 'array', 'min:1'],

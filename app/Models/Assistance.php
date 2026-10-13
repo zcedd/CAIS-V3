@@ -225,6 +225,11 @@ class Assistance extends Model
         return $this->hasMany(AssistanceItem::class);
     }
 
+    public function distributionBatchItems(): HasMany
+    {
+        return $this->hasMany(DistributionBatchItem::class);
+    }
+
     public function fieldValues(): HasMany
     {
         return $this->hasMany(AssistanceFieldValue::class);

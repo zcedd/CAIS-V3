@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ProgramApprovalStatus;
+use App\Enums\ProgramDistributionMode;
 use App\Enums\ProgramKind;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Database\Eloquent\Builder;
@@ -28,6 +29,7 @@ class Program extends Model
         'is_closed',
         'is_organization',
         'public_intake',
+        'distribution_mode',
         'approval_status',
         'kind',
         'parent_id',
@@ -46,6 +48,7 @@ class Program extends Model
         'is_closed' => false,
         'is_organization' => false,
         'public_intake' => false,
+        'distribution_mode' => ProgramDistributionMode::Batch->value,
     ];
 
     protected $casts = [
@@ -54,6 +57,7 @@ class Program extends Model
         'is_closed' => 'boolean',
         'is_organization' => 'boolean',
         'public_intake' => 'boolean',
+        'distribution_mode' => ProgramDistributionMode::class,
         'approval_status' => ProgramApprovalStatus::class,
         'batch_number' => 'integer',
         'kind' => ProgramKind::class,
@@ -147,6 +151,16 @@ class Program extends Model
     public function distributions(): HasMany
     {
         return $this->hasMany(DistributionBatch::class);
+    }
+
+    public function resolvedDistributionMode(): ProgramDistributionMode
+    {
+        if ($this->distribution_mode instanceof ProgramDistributionMode) {
+            return $this->distribution_mode;
+        }
+
+        return ProgramDistributionMode::tryFrom((string) $this->distribution_mode)
+            ?? ProgramDistributionMode::Batch;
     }
 
     public function resolvedWorkflow(): Workflow

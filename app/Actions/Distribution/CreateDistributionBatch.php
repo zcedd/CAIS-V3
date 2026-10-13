@@ -4,6 +4,7 @@ namespace App\Actions\Distribution;
 
 use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionBatchStatus;
+use App\Enums\DistributionType;
 use App\Enums\ProgramApprovalStatus;
 use App\Models\Department;
 use App\Models\DistributionBatch;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Services\Distribution\DistributionAudit;
 use App\Services\Distribution\DistributionRoster;
 use App\Services\Distribution\DistributionTotals;
+use App\Services\Distribution\ProgramDistributionPolicy;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -21,6 +23,7 @@ class CreateDistributionBatch
         private DistributionRoster $roster,
         private DistributionTotals $totals,
         private DistributionAudit $audit,
+        private ProgramDistributionPolicy $distributionPolicy,
     ) {}
 
     /**
@@ -29,8 +32,10 @@ class CreateDistributionBatch
      *     title: string,
      *     description?: string|null,
      *     scheduled_at: string,
-     *     venue: string,
+     *     venue?: string|null,
      *     notes?: string|null,
+     *     approval_mode?: string|null,
+     *     distribution_type?: string|null,
      *     assistance_ids: list<int>
      * }  $data
      */
@@ -51,6 +56,10 @@ class CreateDistributionBatch
                 ]);
             }
 
+            $distributionType = DistributionType::tryFrom((string) ($data['distribution_type'] ?? ''))
+                ?? DistributionType::Batch;
+            $this->distributionPolicy->assertAllows($program, $distributionType);
+
             $batch = DistributionBatch::query()->create([
                 'batch_code' => $this->nextCode(),
                 'program_id' => $program->id,
@@ -59,7 +68,9 @@ class CreateDistributionBatch
                 'description' => $data['description'] ?? null,
                 'scheduled_at' => $data['scheduled_at'],
                 'venue' => $data['venue'],
-                'approval_mode' => DistributionApprovalMode::Batch,
+                'approval_mode' => DistributionApprovalMode::tryFrom((string) ($data['approval_mode'] ?? ''))
+                    ?? DistributionApprovalMode::Batch,
+                'distribution_type' => $distributionType,
                 'status' => DistributionBatchStatus::Draft,
                 'revision' => 1,
                 'created_by' => $actor->id,

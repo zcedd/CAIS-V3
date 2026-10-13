@@ -48,6 +48,7 @@ class CreateProgramBatch
             'public_intake' => $scheme->is_organization
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
+            'distribution_mode' => $scheme->resolvedDistributionMode(),
             'kind' => ProgramKind::Batch,
             'approval_status' => ProgramApprovalStatus::Draft,
             'parent_id' => $scheme->id,

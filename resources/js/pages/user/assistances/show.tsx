@@ -44,6 +44,8 @@ import {
     receipt as assistanceReceipt,
     show as assistanceShow,
 } from '@/routes/user/assistances';
+import { programAllowsDistribution } from '@/components/user/programs/delivered-distribution-notice';
+import { store as startDistribution } from '@/routes/user/assistances/distribution';
 import { show as beneficiaryShow } from '@/routes/user/beneficiaries';
 import {
     index as departmentProgramsIndex,
@@ -78,6 +80,7 @@ type DepartmentSummary = {
 type ProgramSummary = {
     id: number;
     name: string;
+    distribution_mode?: 'individual' | 'batch' | 'both' | null;
 };
 
 type AssistanceProfile = {
@@ -122,6 +125,7 @@ type AssistanceProfile = {
         to_step_id: number | null;
         to_step_name: string | null;
         to_request_status_id: number | null;
+        to_request_status_code: string | null;
         to_request_sub_status_id: number | null;
     }>;
     date_requested: string | null;
@@ -430,6 +434,8 @@ export default function UserAssistanceShow({
     documents,
     document_types,
     staff_options = [],
+    distribution,
+    can_distribute = false,
 }: {
     department: DepartmentSummary;
     program: ProgramSummary;
@@ -437,7 +443,26 @@ export default function UserAssistanceShow({
     documents: AssistanceDocumentsPayload;
     document_types: DocumentTypeOption[];
     staff_options?: DepartmentStaffOption[];
+    distribution: {
+        state: 'none' | 'active' | 'completed';
+        batch_code: string | null;
+        batch_status_label: string | null;
+        venue: string | null;
+        transaction_number: string | null;
+        receipt_number: string | null;
+        href: string | null;
+        receipt_url: string | null;
+    };
+    can_distribute?: boolean;
 }) {
+    const allowIndividual = programAllowsDistribution(
+        program.distribution_mode,
+        'individual',
+    );
+    const allowBatch = programAllowsDistribution(
+        program.distribution_mode,
+        'batch',
+    );
     const statusOption = assistanceStatuses.find(
         (entry) => entry.value === assistance.status,
     );
@@ -625,6 +650,87 @@ export default function UserAssistanceShow({
                         </Button>
                     </div>
                 </div>
+
+                <section className="rounded-xl border border-border bg-card">
+                    <div className="flex flex-col gap-3 p-4">
+                        <SectionHeading
+                            title="Distribution"
+                            description="Delivered status is recorded only after a distribution transaction and acknowledgment receipt"
+                        />
+                        <p className="text-sm text-muted-foreground">
+                            {distribution.state === 'none'
+                                ? 'No distribution has been started for this request.'
+                                : distribution.state === 'active'
+                                  ? `${distribution.batch_code ?? 'Distribution'} is ${distribution.batch_status_label ?? 'in progress'}${distribution.venue ? ` at ${distribution.venue}` : ''}.`
+                                  : `${distribution.batch_code ?? 'Distribution'} is complete${distribution.receipt_number ? `. Receipt ${distribution.receipt_number}` : ''}.`}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                            {distribution.href ? (
+                                <Button variant="outline" asChild>
+                                    <Link href={distribution.href}>
+                                        {distribution.state === 'active'
+                                            ? 'Continue distribution'
+                                            : 'View distribution'}
+                                    </Link>
+                                </Button>
+                            ) : null}
+                            {distribution.receipt_url ? (
+                                <Button variant="outline" asChild>
+                                    <Link href={distribution.receipt_url}>
+                                        View receipt
+                                    </Link>
+                                </Button>
+                            ) : null}
+                            {distribution.state !== 'completed' &&
+                            can_distribute &&
+                            (allowIndividual || allowBatch) ? (
+                                <>
+                                    {allowIndividual ? (
+                                        <Button
+                                            type="button"
+                                            onClick={() =>
+                                                router.post(
+                                                    startDistribution.url({
+                                                        department:
+                                                            department.slug,
+                                                        program: program.id,
+                                                        assistance:
+                                                            assistance.id,
+                                                    }),
+                                                    { mode: 'individual' },
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        >
+                                            Individual distribution
+                                        </Button>
+                                    ) : null}
+                                    {allowBatch ? (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() =>
+                                                router.post(
+                                                    startDistribution.url({
+                                                        department:
+                                                            department.slug,
+                                                        program: program.id,
+                                                        assistance:
+                                                            assistance.id,
+                                                    }),
+                                                    { mode: 'batch' },
+                                                    { preserveScroll: true },
+                                                )
+                                            }
+                                        >
+                                            Batch distribution
+                                        </Button>
+                                    ) : null}
+                                </>
+                            ) : null}
+                        </div>
+                    </div>
+                </section>
 
                 {/* Overview */}
                 <section
@@ -1063,6 +1169,51 @@ export default function UserAssistanceShow({
                                                     (remark === null ||
                                                         remark.trim() === '')
                                                 ) {
+                                                    return;
+                                                }
+
+                                                if (
+                                                    action.to_request_status_code ===
+                                                    'delivered'
+                                                ) {
+                                                    if (!can_distribute) {
+                                                        toast.error(
+                                                            'Complete a distribution before marking this request delivered.',
+                                                        );
+
+                                                        return;
+                                                    }
+
+                                                    const releaseMode =
+                                                        allowIndividual
+                                                            ? 'individual'
+                                                            : 'batch';
+
+                                                    if (
+                                                        !allowIndividual &&
+                                                        !allowBatch
+                                                    ) {
+                                                        toast.error(
+                                                            'Configure this program distribution mode before releasing assistance.',
+                                                        );
+
+                                                        return;
+                                                    }
+
+                                                    router.post(
+                                                        startDistribution.url({
+                                                            department:
+                                                                department.slug,
+                                                            program: program.id,
+                                                            assistance:
+                                                                assistance.id,
+                                                        }),
+                                                        { mode: releaseMode },
+                                                        {
+                                                            preserveScroll: true,
+                                                        },
+                                                    );
+
                                                     return;
                                                 }
 
