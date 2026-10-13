@@ -7,10 +7,12 @@ use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionApprovalStrategy;
 use App\Enums\RoleName;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\Distribution\DeleteDistributionApprovalPolicyRequest;
 use App\Http\Requests\Admin\Distribution\SaveDistributionApprovalPolicyRequest;
 use App\Models\Department;
 use App\Models\DistributionApprovalPolicy;
 use App\Models\Program;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +23,13 @@ class DistributionApprovalPolicyController extends Controller
     {
         return Inertia::render('admin/distribution-policies/index', [
             'policies' => DistributionApprovalPolicy::query()
-                ->with(['department:id,name', 'program:id,name', 'stages'])
+                ->with([
+                    'department:id,name',
+                    'program:id,name',
+                    'stages' => function (HasMany $query): void {
+                        $query->withCount('tasks');
+                    },
+                ])
                 ->latest('id')
                 ->get()
                 ->map(fn (DistributionApprovalPolicy $policy): array => [
@@ -43,10 +51,12 @@ class DistributionApprovalPolicyController extends Controller
                     'min_amount' => $policy->min_amount,
                     'max_amount' => $policy->max_amount,
                     'stages' => $policy->stages->map(fn ($stage): array => [
+                        'id' => $stage->id,
                         'name' => $stage->name,
                         'sequence' => $stage->sequence,
                         'role_name' => $stage->role_name,
                         'user_id' => $stage->user_id,
+                        'has_tasks' => $stage->tasks_count > 0,
                     ])->all(),
                 ]),
             'departments' => Department::query()->orderBy('name')->get(['id', 'name']),
@@ -81,5 +91,12 @@ class DistributionApprovalPolicyController extends Controller
         $save($request->user(), $request->validated(), $policy);
 
         return back()->with('success', 'Approval policy updated.');
+    }
+
+    public function destroy(DeleteDistributionApprovalPolicyRequest $request, DistributionApprovalPolicy $policy): RedirectResponse
+    {
+        $policy->delete();
+
+        return back()->with('success', 'Approval policy deleted.');
     }
 }
