@@ -713,7 +713,10 @@ export function AssistanceDataTableToolbar({
                             method="post"
                             disableWhileProcessing
                             resetOnSuccess
-                            options={{ preserveScroll: true }}
+                            options={{
+                                preserveScroll: true,
+                                preserveState: true,
+                            }}
                             onError={() => setCreateOpen(true)}
                             transform={(data) => ({
                                 ...data,

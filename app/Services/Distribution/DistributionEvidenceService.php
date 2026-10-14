@@ -11,6 +11,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DistributionEvidenceService
 {
@@ -99,6 +100,29 @@ class DistributionEvidenceService
         }
 
         return $evidence;
+    }
+
+    public function response(DistributionEvidence $evidence): StreamedResponse
+    {
+        return Storage::disk($evidence->disk)->response($evidence->path, null, [
+            'Content-Type' => $evidence->mime_type,
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    public function dataUri(DistributionEvidence $evidence): ?string
+    {
+        $contents = Storage::disk($evidence->disk)->get($evidence->path);
+
+        if (! is_string($contents) || $contents === '') {
+            return null;
+        }
+
+        $mime = is_string($evidence->mime_type) && str_starts_with($evidence->mime_type, 'image/')
+            ? $evidence->mime_type
+            : 'image/jpeg';
+
+        return 'data:'.$mime.';base64,'.base64_encode($contents);
     }
 
     public function assertHash(DistributionEvidence $evidence): bool

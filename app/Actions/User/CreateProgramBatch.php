@@ -54,6 +54,7 @@ class CreateProgramBatch
             'parent_id' => $scheme->id,
             'batch_number' => $nextNumber,
             'batch_name' => $batchName,
+            'workflow_id' => $scheme->resolvedWorkflow()->id,
         ]);
 
         $batch->fund()->attach($validated['fund_ids']);

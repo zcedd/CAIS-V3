@@ -2,6 +2,7 @@
 
 namespace App\Services\User;
 
+use App\Enums\DistributionEvidenceType;
 use App\Enums\DistributionReceiptStatus;
 use App\Enums\DistributionTransactionStatus;
 use App\Enums\RequestStatusCode;
@@ -10,6 +11,7 @@ use App\Models\AssistanceRequestSubStatus;
 use App\Models\Department;
 use App\Models\DistributionAcknowledgmentReceipt;
 use App\Models\DistributionBatch;
+use App\Models\DistributionEvidence;
 use App\Models\DistributionTransaction;
 use App\Models\Individual;
 use App\Models\Program;
@@ -32,7 +34,7 @@ class AssistanceReceiptPage
         $transaction = DistributionTransaction::query()
             ->where('status', DistributionTransactionStatus::Finalized)
             ->whereHas('batchItem', fn ($query) => $query->where('assistance_id', $assistance->id))
-            ->with(['batch.program', 'batch.department', 'currentReceipt', 'releasedBy'])
+            ->with(['batch.program', 'batch.department', 'currentReceipt', 'releasedBy', 'evidence'])
             ->latest('id')
             ->first();
 
@@ -54,6 +56,7 @@ class AssistanceReceiptPage
             'currentReceipt',
             'releasedBy',
             'witnessedBy',
+            'evidence',
         ]);
         $batch->loadMissing('program');
         $assistance = $transaction->batchItem?->assistance;
@@ -96,6 +99,7 @@ class AssistanceReceiptPage
             'program' => $program->id,
             'assistance' => $assistance->id,
         ]);
+        $transaction?->loadMissing('evidence');
         $receipt = $this->issuedReceipt($transaction);
         $snapshot = is_array($receipt?->snapshot) ? $receipt->snapshot : [];
         $verifyUrl = $receipt instanceof DistributionAcknowledgmentReceipt
@@ -143,6 +147,8 @@ class AssistanceReceiptPage
                     'acknowledgment_mode' => $snapshot['acknowledgment_mode'] ?? $transaction?->acknowledgment_mode?->label(),
                     'alternative_reason' => $snapshot['alternative_reason'] ?? $transaction?->alternative_reason,
                     'witness' => $snapshot['witness'] ?? $transaction?->witnessedBy?->name,
+                    'signature_url' => $this->evidenceUrl($department, $program, $assistance, $transaction, DistributionEvidenceType::Signature),
+                    'photo_url' => $this->evidenceUrl($department, $program, $assistance, $transaction, DistributionEvidenceType::LivePhoto),
                     'pdf_url' => $includeDistributionActions && $transaction?->batch instanceof DistributionBatch
                         ? route('user.distributions.transactions.receipt.pdf', [
                             'department' => $department,
@@ -166,6 +172,33 @@ class AssistanceReceiptPage
                 ] : null,
             ],
         ];
+    }
+
+    private function evidenceUrl(
+        Department $department,
+        Program $program,
+        Assistance $assistance,
+        ?DistributionTransaction $transaction,
+        DistributionEvidenceType $type,
+    ): ?string {
+        if (! $transaction instanceof DistributionTransaction) {
+            return null;
+        }
+
+        $evidence = $transaction->evidence->first(
+            fn (DistributionEvidence $row): bool => $row->evidence_type === $type,
+        );
+
+        if (! $evidence instanceof DistributionEvidence) {
+            return null;
+        }
+
+        return route('user.assistances.receipt.evidence', [
+            'department' => $department,
+            'program' => $program,
+            'assistance' => $assistance,
+            'evidence' => $evidence,
+        ]);
     }
 
     private function issuedReceipt(?DistributionTransaction $transaction): ?DistributionAcknowledgmentReceipt

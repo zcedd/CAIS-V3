@@ -21,6 +21,8 @@ use App\Models\ProgramEligibilityRule;
 use App\Models\ProgramField;
 use App\Models\ProgramItemCap;
 use App\Models\User;
+use App\Models\Workflow;
+use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -41,6 +43,7 @@ class ProgramService
         private StockLedgerService $stockLedgerService,
         private CreateProgramBatch $createProgramBatch,
         private WorkflowService $workflowService,
+        private EnsureDepartmentWorkflow $ensureDepartmentWorkflow,
     ) {}
 
     /**
@@ -179,7 +182,10 @@ class ProgramService
             'distribution_mode' => $this->distributionMode($validated),
             'kind' => $kind,
             'approval_status' => ProgramApprovalStatus::Draft,
-            'workflow_id' => $validated['workflow_id'] ?? null,
+            'workflow_id' => $this->workflowIdForAssignment(
+                $department,
+                $validated['workflow_id'] ?? null,
+            ),
         ]);
 
         if ($kind !== ProgramKind::Scheme) {
@@ -242,7 +248,10 @@ class ProgramService
         }
 
         if (array_key_exists('workflow_id', $validated)) {
-            $payload['workflow_id'] = $validated['workflow_id'];
+            $payload['workflow_id'] = $this->workflowIdForAssignment(
+                $this->departmentOf($program),
+                $validated['workflow_id'],
+            );
         }
 
         $program->update($payload);
@@ -802,7 +811,10 @@ class ProgramService
         ];
 
         if (array_key_exists('workflow_id', $validated)) {
-            $payload['workflow_id'] = $validated['workflow_id'];
+            $payload['workflow_id'] = $this->workflowIdForAssignment(
+                $this->departmentOf($program),
+                $validated['workflow_id'],
+            );
         }
 
         if (array_key_exists('distribution_mode', $validated)) {
@@ -865,7 +877,10 @@ class ProgramService
         ];
 
         if (array_key_exists('workflow_id', $validated)) {
-            $payload['workflow_id'] = $validated['workflow_id'];
+            $payload['workflow_id'] = $this->workflowIdForAssignment(
+                $this->departmentOf($program),
+                $validated['workflow_id'],
+            );
         }
 
         $program->update($payload);
@@ -1413,6 +1428,40 @@ class ProgramService
         }
 
         return Carbon::parse($value)->format('M d, Y');
+    }
+
+    private function departmentOf(Program $program): Department
+    {
+        $program->loadMissing('department');
+
+        $department = $program->department;
+
+        if ($department instanceof Department) {
+            return $department;
+        }
+
+        return Department::query()->findOrFail($program->department_id);
+    }
+
+    /**
+     * Pin the program to an explicit workflow, or to the department default.
+     */
+    private function workflowIdForAssignment(Department $department, mixed $workflowId): int
+    {
+        $workflow = null;
+
+        if (is_numeric($workflowId)) {
+            $workflow = Workflow::query()
+                ->where('department_id', $department->id)
+                ->whereKey((int) $workflowId)
+                ->first();
+        }
+
+        if (! $workflow instanceof Workflow) {
+            $workflow = $this->ensureDepartmentWorkflow->defaultFor($department);
+        }
+
+        return $workflow->activeVersion()->id;
     }
 
     /**

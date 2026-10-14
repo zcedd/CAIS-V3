@@ -31,6 +31,8 @@ type DistributionReceipt = {
     acknowledgment_mode: string | null;
     alternative_reason: string | null;
     witness: string | null;
+    signature_url: string | null;
+    photo_url: string | null;
     pdf_url: string | null;
     reprint_url: string | null;
     venue_url: string | null;
@@ -268,8 +270,7 @@ export default function UserAssistanceReceipt({
                                 variant="outline"
                                 onClick={() =>
                                     router.post(
-                                        receipt.distribution?.reprint_url ??
-                                            '',
+                                        receipt.distribution?.reprint_url ?? '',
                                         {},
                                         { preserveScroll: true },
                                     )
@@ -282,233 +283,270 @@ export default function UserAssistanceReceipt({
                 </div>
 
                 <article className="receipt-document space-y-6 rounded-xl border border-border bg-card p-6 text-card-foreground print:border-0 print:bg-white print:text-black">
-                <header className="space-y-2 text-center">
-                    <p className="text-[11px] tracking-wide uppercase">
-                        Republic of the Philippines
-                    </p>
-                    <p className="text-sm font-medium">
-                        {receipt.department_name}
-                    </p>
-                    <p className="text-xs text-muted-foreground print:text-black">
-                        Centralized Assistance Information System
-                    </p>
-                    <p className="mx-auto w-fit rounded-full border border-border px-3 py-1 font-mono text-[10px] tracking-wide uppercase">
-                        Acknowledgment receipt
-                    </p>
-                </header>
-
-                <dl className="grid gap-3 border border-border p-3 text-sm sm:grid-cols-2">
-                    <div>
-                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                            Receipt number
-                        </dt>
-                        <dd className="font-mono">
-                            {receipt.distribution?.receipt_number ??
-                                receipt.cais_number}
-                        </dd>
-                    </div>
-                    <div>
-                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                            Date released
-                        </dt>
-                        <dd>{formatDate(receipt.date_delivered)}</dd>
-                    </div>
-                    <div>
-                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                            Program
-                        </dt>
-                        <dd>{receipt.program_name}</dd>
-                    </div>
-                    <div>
-                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                            Department
-                        </dt>
-                        <dd>{receipt.department_name}</dd>
-                    </div>
-                    {receipt.distribution?.transaction_number ? (
-                        <div>
-                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                Distribution reference
-                            </dt>
-                            <dd className="font-mono">
-                                {receipt.distribution.transaction_number}
-                            </dd>
-                        </div>
-                    ) : null}
-                    {receipt.distribution?.batch_code ? (
-                        <div>
-                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                Batch
-                            </dt>
-                            <dd className="font-mono">
-                                {receipt.distribution.batch_code}
-                            </dd>
-                        </div>
-                    ) : null}
-                    {receipt.distribution?.venue ? (
-                        <div>
-                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                Venue
-                            </dt>
-                            <dd>{receipt.distribution.venue}</dd>
-                        </div>
-                    ) : null}
-                    <div>
-                        <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                            Assistance request
-                        </dt>
-                        <dd className="font-mono">#{receipt.assistance_id}</dd>
-                    </div>
-                </dl>
-
-                <section className="grid gap-4 sm:grid-cols-[1fr_7rem]">
-                    <div className="space-y-1 text-sm">
-                        <h2 className="text-xs font-semibold tracking-wide uppercase">
-                            I. Beneficiary & receiver
-                        </h2>
-                        <p className="font-medium">{receipt.beneficiary_name}</p>
-                        {receipt.beneficiary_type ? (
-                            <p className="text-xs text-muted-foreground print:text-black">
-                                {receipt.beneficiary_type}
-                            </p>
-                        ) : null}
-                        <p className="font-mono text-xs">
-                            {receipt.beneficiary_id_number ?? receipt.cais_number}
+                    <header className="space-y-2 text-center">
+                        <p className="text-[11px] tracking-wide uppercase">
+                            Republic of the Philippines
+                        </p>
+                        <p className="text-sm font-medium">
+                            {receipt.department_name}
                         </p>
                         <p className="text-xs text-muted-foreground print:text-black">
-                            {receipt.beneficiary_address ?? 'No address on file'}
+                            Centralized Assistance Information System
                         </p>
-                    </div>
-                    <div
-                        className="size-28 [&_svg]:size-full"
-                        dangerouslySetInnerHTML={{ __html: receipt.qr_svg }}
-                    />
-                </section>
+                        <p className="mx-auto w-fit rounded-full border border-border px-3 py-1 font-mono text-[10px] tracking-wide uppercase">
+                            Acknowledgment receipt
+                        </p>
+                    </header>
 
-                <section className="space-y-2">
-                    <h2 className="text-xs font-semibold tracking-wide uppercase">
-                        II. Particulars of assistance released
-                    </h2>
-
-                <ReleasedItemsTable items={receipt.released_items} />
-                <p className="text-right font-mono text-sm tabular-nums">
-                    Cash total {formatPeso(receipt.cash_total)}
-                </p>
-                <RequestedItemsTable items={receipt.requested_items} />
-
-                {receipt.item_variance.has_variance ? (
-                    <p className="text-xs text-muted-foreground">
-                        Variance against the request:{' '}
-                        {[
-                            receipt.item_variance.additional_quantity > 0
-                                ? `${receipt.item_variance.additional_quantity} additional`
-                                : null,
-                            receipt.item_variance.substitute_quantity > 0
-                                ? `${receipt.item_variance.substitute_quantity} substitute`
-                                : null,
-                            receipt.item_variance.shortfall_quantity > 0
-                                ? `${receipt.item_variance.shortfall_quantity} not yet released`
-                                : null,
-                        ]
-                            .filter(Boolean)
-                            .join(', ')}
-                        .
-                    </p>
-                ) : null}
-                </section>
-
-                <p className="text-sm italic">
-                    I acknowledge that I received the assistance listed above
-                    from {receipt.department_name}.
-                </p>
-                {receipt.distribution ? (
-                    <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                    <dl className="grid gap-3 border border-border p-3 text-sm sm:grid-cols-2">
                         <div>
                             <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                Received by
+                                Receipt number
                             </dt>
-                            <dd>
-                                {receipt.distribution.recipient_name ??
-                                    receipt.beneficiary_name}
-                                {receipt.distribution.recipient_type
-                                    ? ` (${receipt.distribution.recipient_type})`
-                                    : ''}
+                            <dd className="font-mono">
+                                {receipt.distribution?.receipt_number ??
+                                    receipt.cais_number}
                             </dd>
                         </div>
                         <div>
                             <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                Acknowledgment
+                                Date released
                             </dt>
-                            <dd>
-                                {receipt.distribution.acknowledgment_mode ??
-                                    EMPTY_CELL}
-                            </dd>
+                            <dd>{formatDate(receipt.date_delivered)}</dd>
                         </div>
-                        {receipt.distribution.alternative_reason ? (
-                            <div className="sm:col-span-2">
-                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                    Alternative acknowledgment
-                                </dt>
-                                <dd>
-                                    {receipt.distribution.alternative_reason}
-                                </dd>
-                            </div>
-                        ) : null}
                         <div>
                             <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                Acknowledged
+                                Program
                             </dt>
-                            <dd>
-                                {formatDate(receipt.distribution.issued_at)}
-                            </dd>
+                            <dd>{receipt.program_name}</dd>
                         </div>
-                        {receipt.distribution.witness ? (
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Department
+                            </dt>
+                            <dd>{receipt.department_name}</dd>
+                        </div>
+                        {receipt.distribution?.transaction_number ? (
                             <div>
                                 <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                    Witness
+                                    Distribution reference
                                 </dt>
-                                <dd>{receipt.distribution.witness}</dd>
-                            </div>
-                        ) : null}
-                        {receipt.distribution.verification_token ? (
-                            <div className="sm:col-span-2">
-                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
-                                    Verification code
-                                </dt>
-                                <dd className="font-mono text-xs break-all">
-                                    {receipt.distribution.verification_token}
+                                <dd className="font-mono">
+                                    {receipt.distribution.transaction_number}
                                 </dd>
                             </div>
                         ) : null}
+                        {receipt.distribution?.batch_code ? (
+                            <div>
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Batch
+                                </dt>
+                                <dd className="font-mono">
+                                    {receipt.distribution.batch_code}
+                                </dd>
+                            </div>
+                        ) : null}
+                        {receipt.distribution?.venue ? (
+                            <div>
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Venue
+                                </dt>
+                                <dd>{receipt.distribution.venue}</dd>
+                            </div>
+                        ) : null}
+                        <div>
+                            <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                Assistance request
+                            </dt>
+                            <dd className="font-mono">
+                                #{receipt.assistance_id}
+                            </dd>
+                        </div>
                     </dl>
-                ) : null}
 
-                <section className="grid gap-8 pt-6 sm:grid-cols-2">
-                    <div className="space-y-8">
-                        <p className="text-xs font-medium tracking-wide uppercase">
-                            Beneficiary
-                        </p>
-                        <div className="border-t border-foreground/40 pt-2 text-sm print:border-black">
-                            {receipt.distribution?.recipient_name ??
-                                receipt.beneficiary_name}
+                    <section className="grid gap-4 sm:grid-cols-[1fr_7rem]">
+                        <div className="space-y-1 text-sm">
+                            <h2 className="text-xs font-semibold tracking-wide uppercase">
+                                I. Beneficiary & receiver
+                            </h2>
+                            <p className="font-medium">
+                                {receipt.beneficiary_name}
+                            </p>
+                            {receipt.beneficiary_type ? (
+                                <p className="text-xs text-muted-foreground print:text-black">
+                                    {receipt.beneficiary_type}
+                                </p>
+                            ) : null}
+                            <p className="font-mono text-xs">
+                                {receipt.beneficiary_id_number ??
+                                    receipt.cais_number}
+                            </p>
+                            <p className="text-xs text-muted-foreground print:text-black">
+                                {receipt.beneficiary_address ??
+                                    'No address on file'}
+                            </p>
                         </div>
-                    </div>
-                    <div className="space-y-8">
-                        <p className="text-xs font-medium tracking-wide uppercase">
-                            Releasing officer
-                        </p>
-                        <div className="border-t border-foreground/40 pt-2 text-sm print:border-black">
-                            {receipt.released_by ?? 'Releasing officer'}
-                        </div>
-                    </div>
-                </section>
+                        <div
+                            className="size-28 [&_svg]:size-full"
+                            dangerouslySetInnerHTML={{ __html: receipt.qr_svg }}
+                        />
+                    </section>
 
-                <p className="text-[10px] break-all text-muted-foreground print:text-black">
-                    Assistance profile: {receipt.profile_url}
-                </p>
-                <p className="text-[10px] text-muted-foreground print:text-black">
-                    Printed {formatDate(receipt.printed_at)}
-                </p>
+                    <section className="space-y-2">
+                        <h2 className="text-xs font-semibold tracking-wide uppercase">
+                            II. Particulars of assistance released
+                        </h2>
+
+                        <ReleasedItemsTable items={receipt.released_items} />
+                        <p className="text-right font-mono text-sm tabular-nums">
+                            Cash total {formatPeso(receipt.cash_total)}
+                        </p>
+                        <RequestedItemsTable items={receipt.requested_items} />
+
+                        {receipt.item_variance.has_variance ? (
+                            <p className="text-xs text-muted-foreground">
+                                Variance against the request:{' '}
+                                {[
+                                    receipt.item_variance.additional_quantity >
+                                    0
+                                        ? `${receipt.item_variance.additional_quantity} additional`
+                                        : null,
+                                    receipt.item_variance.substitute_quantity >
+                                    0
+                                        ? `${receipt.item_variance.substitute_quantity} substitute`
+                                        : null,
+                                    receipt.item_variance.shortfall_quantity > 0
+                                        ? `${receipt.item_variance.shortfall_quantity} not yet released`
+                                        : null,
+                                ]
+                                    .filter(Boolean)
+                                    .join(', ')}
+                                .
+                            </p>
+                        ) : null}
+                    </section>
+
+                    <p className="text-sm italic">
+                        I acknowledge that I received the assistance listed
+                        above from {receipt.department_name}.
+                    </p>
+                    {receipt.distribution ? (
+                        <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                            <div>
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Received by
+                                </dt>
+                                <dd>
+                                    {receipt.distribution.recipient_name ??
+                                        receipt.beneficiary_name}
+                                    {receipt.distribution.recipient_type
+                                        ? ` (${receipt.distribution.recipient_type})`
+                                        : ''}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Acknowledgment
+                                </dt>
+                                <dd>
+                                    {receipt.distribution.acknowledgment_mode ??
+                                        EMPTY_CELL}
+                                </dd>
+                            </div>
+                            {receipt.distribution.alternative_reason ? (
+                                <div className="sm:col-span-2">
+                                    <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                        Alternative acknowledgment
+                                    </dt>
+                                    <dd>
+                                        {
+                                            receipt.distribution
+                                                .alternative_reason
+                                        }
+                                    </dd>
+                                </div>
+                            ) : null}
+                            <div>
+                                <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                    Acknowledged
+                                </dt>
+                                <dd>
+                                    {formatDate(receipt.distribution.issued_at)}
+                                </dd>
+                            </div>
+                            {receipt.distribution.witness ? (
+                                <div>
+                                    <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                        Witness
+                                    </dt>
+                                    <dd>{receipt.distribution.witness}</dd>
+                                </div>
+                            ) : null}
+                            {receipt.distribution.verification_token ? (
+                                <div className="sm:col-span-2">
+                                    <dt className="text-[10px] tracking-wide text-muted-foreground uppercase print:text-black">
+                                        Verification code
+                                    </dt>
+                                    <dd className="font-mono text-xs break-all">
+                                        {
+                                            receipt.distribution
+                                                .verification_token
+                                        }
+                                    </dd>
+                                </div>
+                            ) : null}
+                        </dl>
+                    ) : null}
+
+                    <section className="grid items-end gap-8 pt-6 sm:grid-cols-2">
+                        <div>
+                            <p className="text-xs font-medium tracking-wide uppercase">
+                                Beneficiary
+                            </p>
+                            <div className="mt-2 flex h-24 items-end bg-white px-2">
+                                {receipt.distribution?.signature_url ? (
+                                    <img
+                                        src={receipt.distribution.signature_url}
+                                        alt="Beneficiary signature"
+                                        className="max-h-20 max-w-full object-contain object-left-bottom"
+                                    />
+                                ) : null}
+                            </div>
+                            <div className="border-t border-foreground/40 pt-2 text-sm print:border-black">
+                                {receipt.distribution?.recipient_name ??
+                                    receipt.beneficiary_name}
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-xs font-medium tracking-wide uppercase">
+                                Releasing officer
+                            </p>
+                            <div className="mt-2 h-24" />
+                            <div className="border-t border-foreground/40 pt-2 text-sm print:border-black">
+                                {receipt.released_by ?? 'Releasing officer'}
+                            </div>
+                        </div>
+                    </section>
+
+                    {receipt.distribution?.photo_url ? (
+                        <section className="space-y-2">
+                            <h2 className="text-xs font-semibold tracking-wide uppercase">
+                                Proof of delivery
+                            </h2>
+                            <img
+                                src={receipt.distribution.photo_url}
+                                alt="Photo proof of delivery"
+                                className="max-h-80 max-w-sm rounded-md border border-border bg-white object-contain"
+                            />
+                        </section>
+                    ) : null}
+
+                    <p className="text-[10px] break-all text-muted-foreground print:text-black">
+                        Assistance profile: {receipt.profile_url}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground print:text-black">
+                        Printed {formatDate(receipt.printed_at)}
+                    </p>
                 </article>
             </div>
         </>

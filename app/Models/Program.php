@@ -165,21 +165,21 @@ class Program extends Model
 
     public function resolvedWorkflow(): Workflow
     {
+        if ($this->exists && ! array_key_exists('workflow_id', $this->getAttributes())) {
+            return self::query()->findOrFail($this->id)->resolvedWorkflow();
+        }
+
         $this->loadMissing(['workflow.steps.transitions', 'parent.workflow.steps.transitions', 'department']);
 
         if ($this->workflow instanceof Workflow) {
-            return $this->workflow;
+            return $this->workflow->activeVersion();
         }
 
         if ($this->isBatch()) {
             $parent = $this->parent;
 
             if ($parent instanceof self) {
-                $parent->loadMissing(['workflow.steps.transitions']);
-
-                if ($parent->workflow instanceof Workflow) {
-                    return $parent->workflow;
-                }
+                return $parent->resolvedWorkflow();
             }
         }
 
@@ -189,7 +189,7 @@ class Program extends Model
             $department = Department::query()->findOrFail($this->department_id);
         }
 
-        return app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+        return app(EnsureDepartmentWorkflow::class)->defaultFor($department)->activeVersion();
     }
 
     /**

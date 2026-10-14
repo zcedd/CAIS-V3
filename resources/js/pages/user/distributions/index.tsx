@@ -1,34 +1,40 @@
 import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
-import { useEffect, useState } from 'react';
+import {
+    CalendarDays,
+    ClipboardCheck,
+    Layers,
+    Play,
+    UserRound,
+    Users,
+} from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Can } from '@/components/auth/can';
-import { DistributionOfferSummary } from '@/components/distribution/composition';
-import type { DistributionOffer } from '@/components/distribution/composition';
-import { Badge } from '@/components/ui/badge';
+import { DataTable } from '@/components/data-table';
+import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
+import type { ServerPaginationMeta } from '@/components/data-table/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { StatCard } from '@/components/user/stat-card';
 import { Permission } from '@/lib/permissions';
+import { createDistributionColumns } from '@/pages/user/distributions/distribution-columns';
+import type { DistributionBatchRow } from '@/pages/user/distributions/distribution-columns';
+import { DistributionDataTableToolbar } from '@/pages/user/distributions/distribution-toolbar';
+import type {
+    DistributionOption,
+    DistributionProgramOption,
+    DistributionTableFilters,
+} from '@/pages/user/distributions/distribution-toolbar';
 import {
     calendar,
     create,
     index as distributionsIndex,
-    show as distributionShow,
 } from '@/routes/user/distributions';
+import type { BreadcrumbItem } from '@/types';
+
+const DISTRIBUTIONS_TABLE_PARTIAL_PROPS = ['batches', 'filters'] as const;
+const DISTRIBUTIONS_TABLE_SKELETON_COLUMNS = 7;
+const DEFAULT_PER_PAGE = 15;
 
 type DepartmentSummary = {
     id: number;
@@ -36,33 +42,10 @@ type DepartmentSummary = {
     slug: string;
 };
 
-type BatchRow = {
-    id: number;
-    batch_code: string;
-    distribution_type_label: string;
-    title: string;
-    program: string | null;
-    scheduled_at: string | null;
-    status: string;
-    status_label: string;
-    beneficiary_count: number;
-    approved_beneficiary_count: number;
-    approved_cash_total: string;
-    offer: DistributionOffer;
-    creator: string | null;
+type PaginatedBatches = ServerPaginationMeta & {
+    data: DistributionBatchRow[];
 };
 
-type Paginator = {
-    data: BatchRow[];
-    prev_page_url: string | null;
-    next_page_url: string | null;
-    total: number;
-    current_page: number;
-    last_page: number;
-};
-
-type Option = { value: string; label: string };
-type ProgramOption = { id: number; name: string };
 type DistributionSummary = {
     total: number;
     individual: number;
@@ -76,28 +59,125 @@ type DistributionSummary = {
     beneficiaries_released: number;
 };
 
-function SummaryCard({ label, value }: { label: string; value: number }) {
-    return (
-        <Card>
-            <CardContent className="flex flex-col gap-1 p-4">
-                <span className="text-sm text-muted-foreground">{label}</span>
-                <span className="text-2xl font-semibold tabular-nums">
-                    {value}
-                </span>
-            </CardContent>
-        </Card>
+type DistributionFilters = {
+    search?: string | null;
+    program_id?: string | number | null;
+    status?: string | string[] | null;
+    distribution_type?: string | string[] | null;
+    venue?: string | null;
+    beneficiary?: string | null;
+    sort?: string | null;
+    direction?: string | null;
+};
+
+type DistributionListFilters = DistributionTableFilters & {
+    page: number;
+    per_page: number;
+};
+
+function asList(value: string | string[] | null | undefined): string[] {
+    if (Array.isArray(value)) {
+        return value.filter((item) => item !== '');
+    }
+
+    if (typeof value === 'string' && value !== '') {
+        return [value];
+    }
+
+    return [];
+}
+
+function buildDistributionsQuery(
+    filters: DistributionListFilters,
+): Record<string, string | string[]> {
+    const query: Record<string, string | string[]> = {};
+    const search = filters.search.trim();
+    const venue = filters.venue.trim();
+    const beneficiary = filters.beneficiary.trim();
+
+    if (search !== '') {
+        query.search = search;
+    }
+
+    if (venue !== '') {
+        query.venue = venue;
+    }
+
+    if (beneficiary !== '') {
+        query.beneficiary = beneficiary;
+    }
+
+    if (filters.program_id !== '') {
+        query.program_id = filters.program_id;
+    }
+
+    if (filters.status.length > 0) {
+        query.status = filters.status;
+    }
+
+    if (filters.distribution_type.length > 0) {
+        query.distribution_type = filters.distribution_type;
+    }
+
+    if (filters.sort !== 'scheduled_at') {
+        query.sort = filters.sort;
+    }
+
+    if (filters.direction !== 'desc') {
+        query.direction = filters.direction;
+    }
+
+    if (filters.page > 1) {
+        query.page = String(filters.page);
+    }
+
+    if (filters.per_page !== DEFAULT_PER_PAGE) {
+        query.per_page = String(filters.per_page);
+    }
+
+    return query;
+}
+
+function isDistributionsPartialVisit(only?: string[]): boolean {
+    if (!only?.length) {
+        return false;
+    }
+
+    return only.some((prop) =>
+        DISTRIBUTIONS_TABLE_PARTIAL_PROPS.includes(
+            prop as (typeof DISTRIBUTIONS_TABLE_PARTIAL_PROPS)[number],
+        ),
     );
 }
 
-function formatWhen(value: string | null): string {
-    if (!value) {
-        return '—';
+const summaryCards: {
+    key: keyof DistributionSummary;
+    label: string;
+    icon: LucideIcon;
+}[] = [
+    { key: 'total', label: 'Activities', icon: Layers },
+    { key: 'pending_approval', label: 'Pending approval', icon: ClipboardCheck },
+    { key: 'in_progress', label: 'In progress', icon: Play },
+    { key: 'beneficiaries_released', label: 'Beneficiaries released', icon: Users },
+];
+
+function summaryDescription(
+    key: keyof DistributionSummary,
+    summary: DistributionSummary,
+): string {
+    if (key === 'total') {
+        return `${summary.individual.toLocaleString()} individual · ${summary.batch.toLocaleString()} batch`;
     }
 
-    return new Intl.DateTimeFormat('en-PH', {
-        dateStyle: 'medium',
-        timeStyle: 'short',
-    }).format(new Date(value));
+    if (key === 'pending_approval') {
+        return `${summary.scheduled.toLocaleString()} scheduled`;
+    }
+
+    if (key === 'in_progress') {
+        return `${summary.completed.toLocaleString()} completed · ${summary.cancelled.toLocaleString()} cancelled`;
+    }
+
+    return `${summary.beneficiaries_scheduled.toLocaleString()} scheduled`;
 }
 
 export default function DistributionsIndex({
@@ -110,14 +190,44 @@ export default function DistributionsIndex({
     programs,
 }: {
     department: DepartmentSummary;
-    batches: Paginator;
+    batches: PaginatedBatches;
     summary: DistributionSummary;
-    filters: Record<string, string | null>;
-    statuses: Option[];
-    distribution_types: Option[];
-    programs: ProgramOption[];
+    filters: DistributionFilters;
+    statuses: DistributionOption[];
+    distribution_types: DistributionOption[];
+    programs: DistributionProgramOption[];
 }) {
-    const [search, setSearch] = useState(filters.search ?? '');
+    const incomingTableState = {
+        search: filters.search ?? '',
+        program_id:
+            filters.program_id == null || filters.program_id === ''
+                ? ''
+                : String(filters.program_id),
+        status: asList(filters.status),
+        distribution_type: asList(filters.distribution_type),
+        venue: filters.venue ?? '',
+        beneficiary: filters.beneficiary ?? '',
+        sort: filters.sort || 'scheduled_at',
+        direction: (filters.direction === 'asc' ? 'asc' : 'desc') as
+            | 'asc'
+            | 'desc',
+        per_page: batches.per_page,
+    };
+    const incomingSnapshot = JSON.stringify(incomingTableState);
+    const [tableState, setTableState] = useState(incomingTableState);
+    const [syncedSnapshot, setSyncedSnapshot] = useState(incomingSnapshot);
+
+    if (incomingSnapshot !== syncedSnapshot) {
+        setSyncedSnapshot(incomingSnapshot);
+        setTableState(incomingTableState);
+    }
+
+    const [isTableReloading, setIsTableReloading] = useState(false);
+    const tableStateRef = useRef(tableState);
+
+    useEffect(() => {
+        tableStateRef.current = tableState;
+    }, [tableState]);
 
     useEffect(() => {
         setLayoutProps({
@@ -126,31 +236,112 @@ export default function DistributionsIndex({
                     title: 'Distributions',
                     href: distributionsIndex.url(department.slug),
                 },
-            ],
+            ] satisfies BreadcrumbItem[],
         });
     }, [department.slug]);
 
-    function applyFilters(next: Record<string, string>): void {
-        router.get(
-            distributionsIndex.url(department.slug),
-            { ...filters, ...next, search },
-            { preserveState: true, preserveScroll: true },
-        );
-    }
+    useEffect(() => {
+        const removeStart = router.on('start', (event) => {
+            if (isDistributionsPartialVisit(event.detail.visit.only)) {
+                setIsTableReloading(true);
+            }
+        });
+
+        const removeFinish = router.on('finish', () => {
+            setIsTableReloading(false);
+        });
+
+        return () => {
+            removeStart();
+            removeFinish();
+        };
+    }, []);
+
+    const visitTable = useCallback(
+        (
+            overrides: Partial<
+                DistributionTableFilters & {
+                    per_page: number;
+                    page: number;
+                }
+            > = {},
+        ) => {
+            const next: DistributionListFilters = {
+                search: overrides.search ?? tableStateRef.current.search,
+                program_id:
+                    overrides.program_id ?? tableStateRef.current.program_id,
+                status: overrides.status ?? tableStateRef.current.status,
+                distribution_type:
+                    overrides.distribution_type ??
+                    tableStateRef.current.distribution_type,
+                venue: overrides.venue ?? tableStateRef.current.venue,
+                beneficiary:
+                    overrides.beneficiary ?? tableStateRef.current.beneficiary,
+                sort: overrides.sort ?? tableStateRef.current.sort,
+                direction:
+                    overrides.direction ?? tableStateRef.current.direction,
+                page: overrides.page ?? 1,
+                per_page:
+                    overrides.per_page ?? tableStateRef.current.per_page,
+            };
+
+            setTableState({
+                search: next.search,
+                program_id: next.program_id,
+                status: next.status,
+                distribution_type: next.distribution_type,
+                venue: next.venue,
+                beneficiary: next.beneficiary,
+                sort: next.sort,
+                direction: next.direction,
+                per_page: next.per_page,
+            });
+
+            router.cancelAll();
+            router.get(
+                distributionsIndex.url(department.slug, {
+                    query: buildDistributionsQuery(next),
+                }),
+                {},
+                {
+                    preserveState: true,
+                    preserveScroll: true,
+                    replace: true,
+                    only: [...DISTRIBUTIONS_TABLE_PARTIAL_PROPS],
+                },
+            );
+        },
+        [department.slug],
+    );
+
+    const tableFilters: DistributionTableFilters = {
+        search: tableState.search,
+        program_id: tableState.program_id,
+        status: tableState.status,
+        distribution_type: tableState.distribution_type,
+        venue: tableState.venue,
+        beneficiary: tableState.beneficiary,
+        sort: tableState.sort,
+        direction: tableState.direction,
+    };
+
+    const columns = useMemo(
+        () => createDistributionColumns(department.slug),
+        [department.slug],
+    );
 
     return (
         <>
             <Head title="Distributions" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">
                             Distributions
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Individual distribution releases one approved
-                            request directly. Batch distribution groups requests
-                            and waits for executive approval.
+                            Individual releases go out directly. Batch
+                            distributions wait for executive approval.
                         </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -160,6 +351,7 @@ export default function DistributionsIndex({
                             data-tour="distributions-calendar"
                         >
                             <Link href={calendar.url(department.slug)}>
+                                <CalendarDays />
                                 Calendar
                             </Link>
                         </Button>
@@ -174,6 +366,7 @@ export default function DistributionsIndex({
                                         query: { mode: 'individual' },
                                     })}
                                 >
+                                    <UserRound />
                                     Individual distribution
                                 </Link>
                             </Button>
@@ -183,6 +376,7 @@ export default function DistributionsIndex({
                                         query: { mode: 'batch' },
                                     })}
                                 >
+                                    <Layers />
                                     Batch distribution
                                 </Link>
                             </Button>
@@ -190,235 +384,85 @@ export default function DistributionsIndex({
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                    <SummaryCard label="Activities" value={summary.total} />
-                    <SummaryCard
-                        label="Individual"
-                        value={summary.individual}
-                    />
-                    <SummaryCard label="Batch" value={summary.batch} />
-                    <SummaryCard label="Scheduled" value={summary.scheduled} />
-                    <SummaryCard
-                        label="Pending approval"
-                        value={summary.pending_approval}
-                    />
-                    <SummaryCard
-                        label="In progress"
-                        value={summary.in_progress}
-                    />
-                    <SummaryCard label="Completed" value={summary.completed} />
-                    <SummaryCard label="Cancelled" value={summary.cancelled} />
-                    <SummaryCard
-                        label="Beneficiaries scheduled"
-                        value={summary.beneficiaries_scheduled}
-                    />
-                    <SummaryCard
-                        label="Beneficiaries released"
-                        value={summary.beneficiaries_released}
-                    />
-                </div>
-
                 <div
-                    className="grid gap-3 md:grid-cols-4"
-                    data-tour="distributions-filters"
+                    className="grid gap-3 md:grid-cols-2 xl:grid-cols-4"
+                    data-tour="distributions-stats"
                 >
-                    <Input
-                        defaultValue={filters.venue ?? ''}
-                        placeholder="Venue"
-                        aria-label="Venue"
-                        onBlur={(event) =>
-                            applyFilters({ venue: event.target.value })
-                        }
-                    />
-                    <Input
-                        defaultValue={filters.beneficiary ?? ''}
-                        placeholder="Beneficiary name or control number"
-                        aria-label="Beneficiary"
-                        onBlur={(event) =>
-                            applyFilters({ beneficiary: event.target.value })
-                        }
-                    />
-                    <Input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        onKeyDown={(event) => {
-                            if (event.key === 'Enter') {
-                                applyFilters({});
-                            }
-                        }}
-                        placeholder="Search code or title"
-                        aria-label="Search batches"
-                    />
-                    <Select
-                        value={filters.status || 'all'}
-                        onValueChange={(value) =>
-                            applyFilters({
-                                status: value === 'all' ? '' : value,
-                            })
-                        }
-                    >
-                        <SelectTrigger aria-label="Status" className="w-full">
-                            <SelectValue placeholder="All statuses" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All statuses</SelectItem>
-                            {statuses.map((status) => (
-                                <SelectItem
-                                    key={status.value}
-                                    value={status.value}
-                                >
-                                    {status.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Select
-                        value={filters.distribution_type || 'all'}
-                        onValueChange={(value) =>
-                            applyFilters({
-                                distribution_type: value === 'all' ? '' : value,
-                            })
-                        }
-                    >
-                        <SelectTrigger
-                            aria-label="Distribution type"
-                            className="w-full"
-                        >
-                            <SelectValue placeholder="All types" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All types</SelectItem>
-                            {distribution_types.map((type) => (
-                                <SelectItem key={type.value} value={type.value}>
-                                    {type.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Select
-                        value={filters.program_id || 'all'}
-                        onValueChange={(value) =>
-                            applyFilters({
-                                program_id: value === 'all' ? '' : value,
-                            })
-                        }
-                    >
-                        <SelectTrigger aria-label="Program" className="w-full">
-                            <SelectValue placeholder="All programs" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All programs</SelectItem>
-                            {programs.map((program) => (
-                                <SelectItem
-                                    key={program.id}
-                                    value={String(program.id)}
-                                >
-                                    {program.name}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    {summaryCards.map((card) => (
+                        <StatCard
+                            key={card.key}
+                            label={card.label}
+                            value={summary[card.key].toLocaleString()}
+                            description={summaryDescription(card.key, summary)}
+                            icon={card.icon}
+                        />
+                    ))}
                 </div>
 
-                <Card data-tour="distributions-table">
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">Activities</CardTitle>
+                    </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Reference</TableHead>
-                                    <TableHead>Type</TableHead>
-                                    <TableHead>Program</TableHead>
-                                    <TableHead>Scheduled</TableHead>
-                                    <TableHead>Beneficiaries</TableHead>
-                                    <TableHead>Assistance</TableHead>
-                                    <TableHead>Status</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {batches.data.length === 0 && (
-                                    <TableRow>
-                                        <TableCell
-                                            className="text-muted-foreground"
-                                            colSpan={7}
-                                        >
-                                            No distributions match these
-                                            filters.
-                                        </TableCell>
-                                    </TableRow>
+                        <div data-tour="distributions-table">
+                            <DataTable
+                                columns={columns}
+                                data={batches.data}
+                                emptyMessage="No distributions match these filters."
+                                manualPagination
+                                manualSorting
+                                manualFiltering
+                                serverPagination={batches}
+                                serverSorting={{
+                                    sort: tableState.sort,
+                                    direction: tableState.direction,
+                                }}
+                                partialReloadOnly={[
+                                    ...DISTRIBUTIONS_TABLE_PARTIAL_PROPS,
+                                ]}
+                                isLoading={isTableReloading}
+                                loadingFallback={
+                                    <DataTableSkeleton
+                                        columnCount={
+                                            DISTRIBUTIONS_TABLE_SKELETON_COLUMNS
+                                        }
+                                        rowCount={tableState.per_page}
+                                    />
+                                }
+                                onServerSortingChange={(
+                                    columnId,
+                                    nextDirection,
+                                ) => {
+                                    visitTable({
+                                        sort: columnId,
+                                        direction: nextDirection,
+                                        page: 1,
+                                    });
+                                }}
+                                onPerPageChange={(nextPerPage) => {
+                                    visitTable({
+                                        per_page: nextPerPage,
+                                        page: 1,
+                                    });
+                                }}
+                                onPageChange={(page) => {
+                                    visitTable({ page });
+                                }}
+                                toolbar={(table, columnVisibility) => (
+                                    <DistributionDataTableToolbar
+                                        table={table}
+                                        columnVisibility={columnVisibility}
+                                        filters={tableFilters}
+                                        statuses={statuses}
+                                        distributionTypes={distribution_types}
+                                        programs={programs}
+                                        onFiltersChange={visitTable}
+                                    />
                                 )}
-                                {batches.data.map((batch) => (
-                                    <TableRow key={batch.id}>
-                                        <TableCell>
-                                            <Link
-                                                href={distributionShow.url({
-                                                    department: department.slug,
-                                                    distributionBatch: batch.id,
-                                                })}
-                                                className="font-medium underline-offset-4 hover:underline"
-                                            >
-                                                {batch.batch_code}
-                                            </Link>
-                                            <div className="text-muted-foreground">
-                                                {batch.title}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {batch.distribution_type_label}
-                                        </TableCell>
-                                        <TableCell>{batch.program}</TableCell>
-                                        <TableCell>
-                                            {formatWhen(batch.scheduled_at)}
-                                        </TableCell>
-                                        <TableCell>
-                                            {batch.approved_beneficiary_count}/
-                                            {batch.beneficiary_count}
-                                        </TableCell>
-                                        <TableCell className="whitespace-normal">
-                                            <DistributionOfferSummary
-                                                offer={batch.offer}
-                                            />
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">
-                                                {batch.status_label}
-                                            </Badge>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
+                            />
+                        </div>
                     </CardContent>
                 </Card>
-
-                <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                        {batches.total} distributions
-                    </span>
-                    <div className="flex gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={batches.prev_page_url === null}
-                            onClick={() =>
-                                batches.prev_page_url &&
-                                router.visit(batches.prev_page_url)
-                            }
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            disabled={batches.next_page_url === null}
-                            onClick={() =>
-                                batches.next_page_url &&
-                                router.visit(batches.next_page_url)
-                            }
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
             </div>
         </>
     );

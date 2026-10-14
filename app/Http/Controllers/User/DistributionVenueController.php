@@ -34,7 +34,6 @@ use App\Support\DecimalAmount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Activitylog\Models\Activity;
@@ -259,6 +258,7 @@ class DistributionVenueController extends Controller
         DistributionTransaction $transaction,
         DistributionEvidence $evidence,
         DistributionAudit $audit,
+        DistributionEvidenceService $evidenceFiles,
     ): SymfonyResponse {
         $this->scoped($department, $distributionBatch);
         $this->transactionBelongs($distributionBatch, $transaction);
@@ -270,10 +270,7 @@ class DistributionVenueController extends Controller
             'distribution_transaction_id' => $transaction->id,
         ]);
 
-        return Storage::disk($evidence->disk)->response($evidence->path, null, [
-            'Content-Type' => $evidence->mime_type,
-            'Cache-Control' => 'private, no-store',
-        ]);
+        return $evidenceFiles->response($evidence);
     }
 
     public function receipt(

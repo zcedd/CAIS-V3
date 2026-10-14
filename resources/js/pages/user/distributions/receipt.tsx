@@ -1,8 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
-import { pdf } from '@/routes/user/distributions/transactions/receipt';
-import { reprint } from '@/routes/user/distributions/receipts';
 import { venue } from '@/routes/user/distributions';
+import { reprint } from '@/routes/user/distributions/receipts';
+import { pdf } from '@/routes/user/distributions/transactions/receipt';
 
 type ReceiptItem = {
     description?: string;

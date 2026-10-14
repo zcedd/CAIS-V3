@@ -363,7 +363,7 @@ class FinalizeDistributionTransaction
             'released_by' => $actor->name,
             'witness' => $witness?->name,
             'issued_at' => now()->toIso8601String(),
-            'evidence_note' => 'Live photographic evidence, when captured, is stored privately and is not printed on this receipt. A camera image, timestamp, or file hash does not by itself prove identity.',
+            'evidence_note' => 'The signature and photo proof of delivery, when captured, are printed on this receipt. The public verification page does not show them. A camera image or file hash does not by itself prove identity.',
         ];
     }
 }

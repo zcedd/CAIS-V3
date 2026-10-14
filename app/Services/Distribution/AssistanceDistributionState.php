@@ -71,6 +71,14 @@ class AssistanceDistributionState
 
         $this->assertEligible($assistance);
 
+        if ($mode === 'individual') {
+            return route('user.distributions.individual', [
+                'department' => $department,
+                'program_id' => $assistance->program_id,
+                'assistance_id' => $assistance->id,
+            ]);
+        }
+
         return route('user.distributions.create', [
             'department' => $department,
             'program_id' => $assistance->program_id,

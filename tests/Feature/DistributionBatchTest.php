@@ -48,6 +48,24 @@ test('authorized staff can create a distribution batch', function () {
             ->has('batches.data', 1));
 });
 
+test('staff can filter the distribution list by status and page size', function () {
+    $fixture = distributionFixture();
+    storeDistribution($fixture);
+
+    test()->actingAs($fixture['creator'])
+        ->get(route('user.distributions.index', [
+            'department' => $fixture['department'],
+            'status' => DistributionBatchStatus::Draft->value,
+            'per_page' => 10,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('batches.data', 1)
+            ->where('batches.per_page', 10)
+            ->where('filters.status', [DistributionBatchStatus::Draft->value])
+            ->where('filters.distribution_type', []));
+});
+
 test('the create form lists only approved programs', function () {
     $fixture = distributionFixture();
     $draft = Program::factory()->forDepartment($fixture['department'])->create([

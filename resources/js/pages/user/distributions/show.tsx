@@ -1,4 +1,5 @@
 import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
+import { AlertTriangle, CircleAlert, Users } from 'lucide-react';
 import { useEffect, useId, useState } from 'react';
 import { AssistanceLines } from '@/components/distribution/assistance-lines';
 import { DistributionComposition } from '@/components/distribution/composition';
@@ -9,9 +10,9 @@ import {
     StatusDialog,
 } from '@/components/distribution/status-dialog';
 import type { VisitCallbacks } from '@/components/distribution/status-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Field,
@@ -21,7 +22,6 @@ import {
     FieldLabel,
 } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Table,
     TableBody,
@@ -31,6 +31,9 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { CodeChip } from '@/components/user/code-chip';
+import { StatCard } from '@/components/user/stat-card';
+import { formatPeso } from '@/lib/format-peso';
 import {
     cancel,
     complete,
@@ -204,6 +207,17 @@ function routeArgs(department: string, batchId: number) {
     return { department, distributionBatch: batchId };
 }
 
+function formatWhen(value: string | null): string {
+    if (!value) {
+        return '—';
+    }
+
+    return new Intl.DateTimeFormat('en-PH', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
+}
+
 function messageList(value: string | string[] | undefined): string[] {
     if (value == null) {
         return [];
@@ -271,64 +285,105 @@ export default function DistributionShow({
     return (
         <>
             <Head title={batch.batch_code} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                            {batch.batch_code} · Revision {batch.revision}
-                        </p>
-                        <h1 className="text-2xl font-semibold">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="space-y-2">
+                        <h1 className="text-2xl font-semibold tracking-tight">
                             {batch.title}
                         </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {batch.program.name} · {department.name} ·{' '}
-                            {batch.venue}
-                        </p>
-                        {batch.distribution_type_label ? (
-                            <p className="mt-2 text-sm">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <CodeChip>{batch.batch_code}</CodeChip>
+                            <Badge variant="outline">{batch.status_label}</Badge>
+                            {batch.distribution_type_label ? (
                                 <Badge variant="outline">
                                     {batch.distribution_type_label}
                                 </Badge>
-                                {batch.approval_requirement ? (
-                                    <span className="ml-2 text-muted-foreground">
-                                        {batch.approval_requirement}
-                                    </span>
-                                ) : null}
-                            </p>
-                        ) : null}
+                            ) : null}
+                            <Badge variant="outline">
+                                Revision {batch.revision}
+                            </Badge>
+                            {batch.program.name ? (
+                                <Badge variant="outline">
+                                    {batch.program.name}
+                                </Badge>
+                            ) : null}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            {department.name}
+                            {batch.venue ? ` · ${batch.venue}` : ''}
+                            {batch.scheduled_at
+                                ? ` · ${formatWhen(batch.scheduled_at)}`
+                                : ''}
+                            {batch.approval_requirement
+                                ? ` · ${batch.approval_requirement}`
+                                : ''}
+                        </p>
                     </div>
-                    <Badge variant="outline">{batch.status_label}</Badge>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <Summary
-                        label="Beneficiaries"
-                        value={`${batch.approved_beneficiary_count} approved / ${batch.beneficiary_count}`}
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        label="Approved beneficiaries"
+                        value={`${batch.approved_beneficiary_count}/${batch.beneficiary_count}`}
+                        description="Approved of the roster"
+                        icon={Users}
+                    />
+                    <StatCard
+                        label="Served"
+                        value={batch.reconciliation.served_beneficiaries.toLocaleString()}
+                        description={`${batch.reconciliation.partial_beneficiaries.toLocaleString()} partial`}
+                    />
+                    <StatCard
+                        label="Unserved"
+                        value={batch.reconciliation.unserved_beneficiaries.toLocaleString()}
+                        description={`${batch.reconciliation.absent_beneficiaries.toLocaleString()} absent · ${batch.reconciliation.excluded_beneficiaries.toLocaleString()} excluded`}
+                    />
+                    <StatCard
+                        label="Remaining cash"
+                        value={formatPeso(batch.reconciliation.remaining_cash)}
+                        description={`Approved ${formatPeso(batch.reconciliation.approved_cash)}`}
                     />
                 </div>
+
                 <DistributionComposition
                     composition={batch.reconciliation.composition}
                 />
 
-                {batch.finalization_label && (
-                    <p className="text-sm">{batch.finalization_label}</p>
-                )}
+                {batch.finalization_label ? (
+                    <p className="text-sm text-muted-foreground">
+                        {batch.finalization_label}
+                    </p>
+                ) : null}
 
-                {validationErrors.length > 0 && (
-                    <ul className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
-                        {validationErrors.map((error) => (
-                            <li key={error}>{error}</li>
-                        ))}
-                    </ul>
-                )}
+                {validationErrors.length > 0 ? (
+                    <Alert variant="destructive">
+                        <CircleAlert />
+                        <AlertTitle>This batch needs attention</AlertTitle>
+                        <AlertDescription>
+                            <ul className="flex flex-col gap-1">
+                                {validationErrors.map((error) => (
+                                    <li key={error}>{error}</li>
+                                ))}
+                            </ul>
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
 
-                {(batch.validation_summary?.warnings ?? []).length > 0 && (
-                    <ul className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-                        {batch.validation_summary?.warnings?.map((warning) => (
-                            <li key={warning}>{warning}</li>
-                        ))}
-                    </ul>
-                )}
+                {(batch.validation_summary?.warnings ?? []).length > 0 ? (
+                    <Alert>
+                        <AlertTriangle />
+                        <AlertTitle>Review warnings</AlertTitle>
+                        <AlertDescription>
+                            <ul className="flex flex-col gap-1">
+                                {batch.validation_summary?.warnings?.map(
+                                    (warning) => (
+                                        <li key={warning}>{warning}</li>
+                                    ),
+                                )}
+                            </ul>
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
 
                 <div className="flex flex-wrap gap-2">
                     {can.update &&
@@ -516,8 +571,16 @@ export default function DistributionShow({
                         </div>
                     )}
 
-                <Card>
-                    <CardContent>
+                <section className="rounded-xl border border-border bg-card">
+                    <div className="flex flex-col gap-4 p-4">
+                        <div className="space-y-1">
+                            <h2 className="text-[15px] font-semibold tracking-tight">
+                                Roster
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Beneficiaries included in this distribution.
+                            </p>
+                        </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -710,58 +773,79 @@ export default function DistributionShow({
                                 ))}
                             </TableBody>
                         </Table>
-                    </CardContent>
-                </Card>
+                    </div>
+                </section>
 
-                <section className="grid gap-3 md:grid-cols-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Reconciliation</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="mt-2 text-sm">
-                                <li>
-                                    Approved{' '}
+                <section className="grid gap-4 lg:grid-cols-2">
+                    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+                        <h2 className="text-[15px] font-semibold tracking-tight">
+                            Reconciliation
+                        </h2>
+                        <dl className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <dt className="text-xs text-muted-foreground">
+                                    Approved
+                                </dt>
+                                <dd className="font-medium tabular-nums">
                                     {
                                         batch.reconciliation
                                             .approved_beneficiaries
                                     }
-                                </li>
-                                <li>
-                                    Served{' '}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground">
+                                    Served
+                                </dt>
+                                <dd className="font-medium tabular-nums">
                                     {batch.reconciliation.served_beneficiaries}
-                                </li>
-                                <li>
-                                    Partial{' '}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground">
+                                    Partial
+                                </dt>
+                                <dd className="font-medium tabular-nums">
                                     {batch.reconciliation.partial_beneficiaries}
-                                </li>
-                                <li>
-                                    Absent{' '}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground">
+                                    Absent
+                                </dt>
+                                <dd className="font-medium tabular-nums">
                                     {batch.reconciliation.absent_beneficiaries}
-                                </li>
-                                <li>
-                                    Excluded{' '}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground">
+                                    Excluded
+                                </dt>
+                                <dd className="font-medium tabular-nums">
                                     {
                                         batch.reconciliation
                                             .excluded_beneficiaries
                                     }
-                                </li>
-                                <li>
-                                    Unserved{' '}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt className="text-xs text-muted-foreground">
+                                    Unserved
+                                </dt>
+                                <dd className="font-medium tabular-nums">
                                     {
                                         batch.reconciliation
                                             .unserved_beneficiaries
                                     }
-                                </li>
-                            </ul>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Approval history</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="mt-2 space-y-2">
+                                </dd>
+                            </div>
+                        </dl>
+                    </section>
+                    <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+                        <h2 className="text-[15px] font-semibold tracking-tight">
+                            Approval history
+                        </h2>
+                        <ul className="flex flex-col gap-2 text-sm">
                                 {batch.decisions.map((decision) => (
                                     <li key={decision.id}>
                                         Rev {decision.revision}:{' '}
@@ -782,7 +866,7 @@ export default function DistributionShow({
                                         </li>
                                     ))}
                             </ul>
-                            <div className="mt-3 flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 {[
                                     'roster',
                                     'acknowledgements',
@@ -790,80 +874,82 @@ export default function DistributionShow({
                                     'releases',
                                     'reconciliation',
                                 ].map((report) => (
-                                    <a
+                                    <Button
                                         key={report}
-                                        className="underline"
-                                        href={exportReport.url({
-                                            ...args,
-                                            report,
-                                        })}
+                                        variant="outline"
+                                        size="sm"
+                                        asChild
                                     >
-                                        {report}
-                                    </a>
+                                        <a
+                                            href={exportReport.url({
+                                                ...args,
+                                                report,
+                                            })}
+                                        >
+                                            {report}
+                                        </a>
+                                    </Button>
                                 ))}
                             </div>
-                        </CardContent>
-                    </Card>
+                    </section>
                 </section>
 
-                {can.update ? (
-                    <form
-                        className="flex flex-wrap items-end gap-2"
-                        onSubmit={(event) => {
-                            event.preventDefault();
-                            const data = new FormData(event.currentTarget);
-                            router.post(storeDocument.url(args), data, {
-                                forceFormData: true,
-                                preserveScroll: true,
-                            });
-                        }}
-                    >
-                        <div className="grid gap-2 text-sm">
-                            <Label htmlFor="supporting-document">
-                                Supporting document
-                            </Label>
-                            <Input
-                                id="supporting-document"
-                                type="file"
-                                name="file"
-                                required
-                            />
-                        </div>
-                        <Button type="submit" variant="outline">
-                            Attach
-                        </Button>
-                    </form>
-                ) : null}
-                {batch.documents.length > 0 ? (
-                    <ul className="text-sm">
-                        {batch.documents.map((document) => (
-                            <li key={document.id}>
-                                <a
-                                    className="underline"
-                                    href={documentShow.url({
-                                        ...args,
-                                        distributionDocument: document.id,
-                                    })}
-                                >
-                                    {document.original_name}
-                                </a>
-                            </li>
-                        ))}
-                    </ul>
-                ) : null}
+                <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+                    <h2 className="text-[15px] font-semibold tracking-tight">
+                        Supporting documents
+                    </h2>
+                    {can.update ? (
+                        <form
+                            className="flex flex-wrap items-end gap-2"
+                            onSubmit={(event) => {
+                                event.preventDefault();
+                                const data = new FormData(event.currentTarget);
+                                router.post(storeDocument.url(args), data, {
+                                    forceFormData: true,
+                                    preserveScroll: true,
+                                });
+                            }}
+                        >
+                            <Field className="max-w-sm">
+                                <FieldLabel htmlFor="supporting-document">
+                                    File
+                                </FieldLabel>
+                                <Input
+                                    id="supporting-document"
+                                    type="file"
+                                    name="file"
+                                    required
+                                />
+                            </Field>
+                            <Button type="submit" variant="outline">
+                                Attach
+                            </Button>
+                        </form>
+                    ) : null}
+                    {batch.documents.length > 0 ? (
+                        <ul className="flex flex-col gap-1 text-sm">
+                            {batch.documents.map((document) => (
+                                <li key={document.id}>
+                                    <a
+                                        className="underline-offset-4 hover:underline"
+                                        href={documentShow.url({
+                                            ...args,
+                                            distributionDocument: document.id,
+                                        })}
+                                    >
+                                        {document.original_name}
+                                    </a>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground italic">
+                            No documents attached
+                        </p>
+                    )}
+                </section>
             </div>
         </>
-    );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-    return (
-        <Card size="sm">
-            <CardHeader>
-                <CardTitle className="text-muted-foreground">{label}</CardTitle>
-            </CardHeader>
-            <CardContent className="font-medium">{value}</CardContent>
-        </Card>
     );
 }
 

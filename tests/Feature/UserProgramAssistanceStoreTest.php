@@ -1,5 +1,8 @@
 <?php
 
+use App\Actions\Admin\CreateWorkflowVersion;
+use App\Enums\ProgramKind;
+use App\Enums\WorkflowStatus;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -11,6 +14,7 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\RequestSubStatus;
 use App\Models\User;
+use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 
@@ -302,4 +306,75 @@ test('users cannot create assistance for another department program', function (
         ->assertNotFound();
 
     expect(Assistance::query()->count())->toBe(0);
+});
+
+test('adding assistance uses the active workflow when the program points at a retired version', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+    $current = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+    $replacement = app(CreateWorkflowVersion::class)($current);
+    $current->forceFill([
+        'status' => WorkflowStatus::Inactive,
+        'is_default' => false,
+    ])->save();
+    $replacement->forceFill([
+        'status' => WorkflowStatus::Active,
+        'is_default' => true,
+    ])->save();
+
+    $program = Program::create([
+        'name' => 'Alpha Program',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'end_at' => null,
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+        'workflow_id' => $current->id,
+    ]);
+    $batch = Program::create([
+        'name' => 'Alpha Program - Day 1',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+        'kind' => ProgramKind::Batch,
+        'parent_id' => $program->id,
+    ]);
+
+    ['item' => $item, 'beneficiary' => $beneficiary, 'mode' => $mode] = createAssistanceStoreFixtures(
+        $department,
+        $program,
+    );
+
+    expect($program->fresh()->resolvedWorkflow()->id)->toBe($replacement->id)
+        ->and($batch->fresh()->resolvedWorkflow()->id)->toBe($replacement->id);
+
+    $this->actingAs($user)
+        ->from(route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]))
+        ->post(route('user.programs.assistances.store', [
+            'department' => $department->slug,
+            'program' => $program->id,
+        ]), [
+            'beneficiary_id' => $beneficiary->id,
+            'mode_of_request_id' => $mode->id,
+            'recorded_at' => now()->toDateString(),
+            'item_details' => [
+                [
+                    'item_id' => $item->id,
+                    'quantity' => 1,
+                    'specification' => null,
+                ],
+            ],
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect(Assistance::query()->first()?->workflow_id)->toBe($replacement->id);
 });

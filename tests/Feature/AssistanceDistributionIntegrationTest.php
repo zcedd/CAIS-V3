@@ -22,28 +22,26 @@ test('an assistance profile opens individual distribution on the release form', 
         ]), ['mode' => 'individual'])
         ->assertSessionHasNoErrors();
 
-    $batch = DistributionBatch::query()->latest('id')->firstOrFail();
-
-    $response->assertRedirect(route('user.distributions.venue', [
+    $response->assertRedirect(route('user.distributions.individual', [
         'department' => $fixture['department'],
-        'distributionBatch' => $batch,
-        'item' => $batch->items()->value('id'),
+        'program_id' => $fixture['program']->id,
+        'assistance_id' => $assistance->id,
     ]));
 
-    expect($batch->status)->toBe(DistributionBatchStatus::InProgress)
-        ->and($batch->approval_mode->value)->toBe('beneficiary')
-        ->and($batch->items)->toHaveCount(1);
+    expect(DistributionBatch::query()->count())->toBe(0);
 
     $this->actingAs($user)
-        ->get(route('user.distributions.venue', [
+        ->get(route('user.distributions.individual', [
             'department' => $fixture['department'],
-            'distributionBatch' => $batch,
+            'program_id' => $fixture['program']->id,
+            'assistance_id' => $assistance->id,
         ]))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('user/distributions/venue')
-            ->where('release_only', true)
-            ->where('selected.assistance_id', $assistance->id));
+            ->component('user/distributions/form')
+            ->where('mode', 'individual')
+            ->where('prefill_assistance_id', $assistance->id)
+            ->where('selected_program_id', $fixture['program']->id));
 });
 
 test('an individual distribution opens for release without executive approval', function () {

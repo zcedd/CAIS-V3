@@ -68,6 +68,17 @@ class DistributionBatchController extends Controller
             ? $request->string('sort')->toString()
             : 'scheduled_at';
         $direction = $request->string('direction')->toString() === 'asc' ? 'asc' : 'desc';
+        $perPage = in_array($request->integer('per_page'), [10, 15, 20, 25, 30, 40, 50], true)
+            ? $request->integer('per_page')
+            : 15;
+        $statuses = array_values(array_filter(
+            $this->queryList($request, 'status'),
+            fn (string $status): bool => DistributionBatchStatus::tryFrom($status) instanceof DistributionBatchStatus,
+        ));
+        $types = array_values(array_filter(
+            $this->queryList($request, 'distribution_type'),
+            fn (string $type): bool => DistributionType::tryFrom($type) instanceof DistributionType,
+        ));
 
         $batches = DistributionBatch::query()
             ->with([
@@ -84,14 +95,8 @@ class DistributionBatchController extends Controller
                 });
             })
             ->when($request->filled('program_id'), fn ($query) => $query->where('program_id', $request->integer('program_id')))
-            ->when(
-                DistributionType::tryFrom($request->string('distribution_type')->toString()) instanceof DistributionType,
-                fn ($query) => $query->where(
-                    'distribution_type',
-                    $request->string('distribution_type')->toString(),
-                ),
-            )
-            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->string('status')->toString()))
+            ->when($types !== [], fn (Builder $query) => $query->whereIn('distribution_type', $types))
+            ->when($statuses !== [], fn (Builder $query) => $query->whereIn('status', $statuses))
             ->when($request->filled('created_by'), fn ($query) => $query->where('created_by', $request->integer('created_by')))
             ->when($request->filled('scheduled_from'), fn ($query) => $query->whereDate('scheduled_at', '>=', $request->string('scheduled_from')->toString()))
             ->when($request->filled('scheduled_to'), fn ($query) => $query->whereDate('scheduled_at', '<=', $request->string('scheduled_to')->toString()))
@@ -111,7 +116,7 @@ class DistributionBatchController extends Controller
                 $query->whereHas('decisions', fn ($decisions) => $decisions->where('actor_id', $request->integer('approver_id')));
             })
             ->orderBy($sort, $direction)
-            ->paginate(15)
+            ->paginate($perPage)
             ->withQueryString()
             ->through(fn (DistributionBatch $batch): array => [
                 'id' => $batch->id,
@@ -134,11 +139,16 @@ class DistributionBatchController extends Controller
             'department' => $department->only(['id', 'name', 'slug']),
             'batches' => $batches,
             'summary' => $dashboard->summarize($department),
-            'filters' => $request->only([
-                'search', 'program_id', 'status', 'distribution_type', 'created_by',
-                'scheduled_from', 'scheduled_to', 'approver_id', 'sort', 'direction',
-                'venue', 'personnel_id', 'beneficiary',
-            ]),
+            'filters' => [
+                'search' => $request->string('search')->trim()->toString(),
+                'program_id' => $request->filled('program_id') ? (string) $request->integer('program_id') : '',
+                'status' => $statuses,
+                'distribution_type' => $types,
+                'venue' => $request->string('venue')->trim()->toString(),
+                'beneficiary' => $request->string('beneficiary')->trim()->toString(),
+                'sort' => $sort,
+                'direction' => $direction,
+            ],
             'distribution_types' => collect(DistributionType::cases())->map(fn (DistributionType $type): array => [
                 'value' => $type->value,
                 'label' => $type->label(),
@@ -184,6 +194,13 @@ class DistributionBatchController extends Controller
             'month' => $month->format('Y-m'),
             'batches' => $batches,
         ]);
+    }
+
+    public function createIndividual(Request $request, Department $department): Response
+    {
+        $request->merge(['mode' => 'individual']);
+
+        return $this->create($request, $department);
     }
 
     public function create(Request $request, Department $department): Response
@@ -622,6 +639,32 @@ class DistributionBatchController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function queryList(Request $request, string $key): array
+    {
+        $value = $request->input($key);
+
+        if (is_string($value)) {
+            return $value === '' ? [] : [$value];
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $items = [];
+
+        foreach ($value as $item) {
+            if (is_string($item) && $item !== '') {
+                $items[] = $item;
+            }
+        }
+
+        return $items;
     }
 
     /**

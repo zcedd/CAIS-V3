@@ -2,8 +2,10 @@
 
 namespace App\Services\Distribution;
 
+use App\Enums\DistributionEvidenceType;
 use App\Enums\DistributionReceiptStatus;
 use App\Models\DistributionAcknowledgmentReceipt;
+use App\Models\DistributionEvidence;
 use App\Models\DistributionTransaction;
 use App\Models\User;
 use App\Support\QrCodeSvg;
@@ -17,6 +19,7 @@ class DistributionReceiptService
     public function __construct(
         private DistributionReferenceNumbers $numbers,
         private DistributionAudit $audit,
+        private DistributionEvidenceService $evidence,
     ) {}
 
     /**
@@ -130,23 +133,41 @@ class DistributionReceiptService
         });
     }
 
-    public function pdf(DistributionAcknowledgmentReceipt $receipt): string
+    public function html(DistributionAcknowledgmentReceipt $receipt): string
     {
+        $receipt->loadMissing('transaction.evidence');
         $snapshot = $receipt->snapshot ?? [];
         $verifyUrl = route('public.distribution-receipts.verify', ['token' => $receipt->verification_token]);
+
+        return view('pdf.distribution-receipt', [
+            'receipt' => $snapshot,
+            'status' => $receipt->status->label(),
+            'qrSvg' => QrCodeSvg::fromString($verifyUrl),
+            'signatureSrc' => $this->evidenceDataUri($receipt, DistributionEvidenceType::Signature),
+            'photoSrc' => $this->evidenceDataUri($receipt, DistributionEvidenceType::LivePhoto),
+        ])->render();
+    }
+
+    public function pdf(DistributionAcknowledgmentReceipt $receipt): string
+    {
         $options = new Options;
         $options->set('isRemoteEnabled', false);
         $options->set('isHtml5ParserEnabled', true);
         $dompdf = new Dompdf($options);
-        $dompdf->loadHtml(view('pdf.distribution-receipt', [
-            'receipt' => $snapshot,
-            'status' => $receipt->status->label(),
-            'qrSvg' => QrCodeSvg::fromString($verifyUrl),
-        ])->render());
+        $dompdf->loadHtml($this->html($receipt));
         $dompdf->setPaper('A4');
         $dompdf->render();
 
         return $dompdf->output();
+    }
+
+    private function evidenceDataUri(DistributionAcknowledgmentReceipt $receipt, DistributionEvidenceType $type): ?string
+    {
+        $evidence = $receipt->transaction?->evidence->first(
+            fn (DistributionEvidence $row): bool => $row->evidence_type === $type,
+        );
+
+        return $evidence instanceof DistributionEvidence ? $this->evidence->dataUri($evidence) : null;
     }
 
     /**
