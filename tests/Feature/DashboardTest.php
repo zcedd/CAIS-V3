@@ -1,7 +1,9 @@
 <?php
 
+use App\Enums\RoleName;
 use App\Models\Department;
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -24,6 +26,33 @@ test('authenticated users without a department can visit the dashboard empty sta
     $response->assertInertia(fn (Assert $page) => $page
         ->component('dashboard')
         ->where('noDepartment', true));
+});
+
+test('an executive without a department is redirected to the executive dashboard', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $user = User::factory()->create([
+        'department_id' => null,
+    ]);
+    $user->syncRoles([RoleName::Executive->value]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertRedirect(route('executive.dashboard'));
+});
+
+test('an executive with a department is redirected to the department dashboard', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $department = Department::create(['name' => 'Department A']);
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+    $user->syncRoles([RoleName::Executive->value]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertRedirect(route('user.dashboard.index', ['department' => $department->slug]));
 });
 
 test('authenticated users with a department are redirected to the department dashboard', function () {

@@ -108,65 +108,74 @@ export function useAppNavItems(): AppNavItems {
 
     const mainNavItems = useMemo((): NavItem[] => {
         const slug = props.auth.user?.department?.slug;
+        const seesExecutiveNav =
+            props.auth.office_roles?.includes('executive') ||
+            can(Permission.ProgramApprove);
 
-        const items: NavItem[] = [
+        if (!slug) {
+            if (seesExecutiveNav) {
+                return [];
+            }
+
+            return [
+                {
+                    title: 'Dashboard',
+                    href: dashboard(),
+                    icon: LayoutGrid,
+                },
+            ];
+        }
+
+        const departmentItems: NavItem[] = [
             {
-                title: 'Dashboard',
-                href: slug ? departmentDashboardIndex(slug) : dashboard(),
-                icon: LayoutGrid,
+                title: 'Programs',
+                href: departmentProgramsIndex(slug),
+                icon: FolderKanban,
+                permission: Permission.ProgramViewAny,
+            },
+            {
+                title: 'Distributions',
+                href: departmentDistributionsIndex(slug),
+                icon: CalendarDays,
+                permission: Permission.DistributionViewAny,
+            },
+            {
+                title: 'Queue',
+                href: departmentQueueIndex(slug),
+                icon: Inbox,
+                permission: Permission.AssistanceViewAny,
+            },
+            {
+                title: 'Beneficiaries',
+                href: departmentBeneficiariesIndex(slug),
+                icon: Users,
+                permission: Permission.BeneficiaryViewAny,
+            },
+            {
+                title: 'Items',
+                href: departmentItemsIndex(slug),
+                icon: Package,
+                permission: Permission.ItemViewAny,
+            },
+            {
+                title: 'Funds',
+                href: departmentFundsIndex(slug),
+                icon: Landmark,
+                permission: Permission.FundViewAny,
             },
         ];
 
-        if (slug) {
-            const departmentItems: NavItem[] = [
-                {
-                    title: 'Programs',
-                    href: departmentProgramsIndex(slug),
-                    icon: FolderKanban,
-                    permission: Permission.ProgramViewAny,
-                },
-                {
-                    title: 'Distributions',
-                    href: departmentDistributionsIndex(slug),
-                    icon: CalendarDays,
-                    permission: Permission.DistributionViewAny,
-                },
-                {
-                    title: 'Queue',
-                    href: departmentQueueIndex(slug),
-                    icon: Inbox,
-                    permission: Permission.AssistanceViewAny,
-                },
-                {
-                    title: 'Beneficiaries',
-                    href: departmentBeneficiariesIndex(slug),
-                    icon: Users,
-                    permission: Permission.BeneficiaryViewAny,
-                },
-                {
-                    title: 'Items',
-                    href: departmentItemsIndex(slug),
-                    icon: Package,
-                    permission: Permission.ItemViewAny,
-                },
-                {
-                    title: 'Funds',
-                    href: departmentFundsIndex(slug),
-                    icon: Landmark,
-                    permission: Permission.FundViewAny,
-                },
-            ];
-
-            items.push(
-                ...departmentItems.filter(
-                    (item) =>
-                        item.permission === undefined || can(item.permission),
-                ),
-            );
-        }
-
-        return items;
-    }, [can, props.auth.user]);
+        return [
+            {
+                title: 'Dashboard',
+                href: departmentDashboardIndex(slug),
+                icon: LayoutGrid,
+            },
+            ...departmentItems.filter(
+                (item) => item.permission === undefined || can(item.permission),
+            ),
+        ];
+    }, [can, props.auth.office_roles, props.auth.user]);
 
     return {
         mainNavItems,

@@ -1,13 +1,13 @@
 import { Link, usePage } from '@inertiajs/react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
-import { NavTourButton } from '@/components/nav-tour-button';
-import { NavUser } from '@/components/nav-user';
 import {
     NavAdministration,
     NavExecutive,
     NavMain,
 } from '@/components/nav-main';
+import { NavTourButton } from '@/components/nav-tour-button';
+import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
     SidebarContent,
@@ -20,6 +20,7 @@ import {
 import { useAppNavItems } from '@/hooks/use-app-nav-items';
 import { useCloseMobileSidebar } from '@/hooks/use-close-mobile-sidebar';
 import { dashboard } from '@/routes';
+import { dashboard as executiveDashboard } from '@/routes/executive';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import type { Auth } from '@/types/auth';
 
@@ -36,6 +37,12 @@ export function AppSidebar() {
         footerNavItems,
     } = useAppNavItems();
     const closeMobileSidebar = useCloseMobileSidebar();
+    const departmentSlug = props.auth.user?.department?.slug;
+    const homeHref = departmentSlug
+        ? departmentDashboardIndex(departmentSlug)
+        : executiveNavItems.length > 0
+          ? executiveDashboard()
+          : dashboard();
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">
@@ -49,13 +56,7 @@ export function AppSidebar() {
                             className="h-auto min-h-12"
                         >
                             <Link
-                                href={
-                                    props.auth.user?.department?.slug
-                                        ? departmentDashboardIndex(
-                                              props.auth.user.department.slug,
-                                          )
-                                        : dashboard()
-                                }
+                                href={homeHref}
                                 prefetch
                                 onClick={closeMobileSidebar}
                                 data-tour="sidebar-logo"
@@ -71,7 +72,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                {mainNavItems.length > 0 && <NavMain items={mainNavItems} />}
                 {executiveNavItems.length > 0 && (
                     <NavExecutive items={executiveNavItems} />
                 )}
