@@ -44,7 +44,7 @@ export type AppNavItems = {
 
 export function useAppNavItems(): AppNavItems {
     const { props } = usePage<NavPageProps>();
-    const can = useCan();
+    const { can } = useCan();
 
     const footerNavItems = useMemo((): NavItem[] => {
         const slug = props.auth.user?.department?.slug;

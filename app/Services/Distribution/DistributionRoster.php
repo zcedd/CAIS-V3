@@ -89,16 +89,16 @@ class DistributionRoster
             $itemErrors = [];
             $itemWarnings = [];
 
+            $label = $this->requestLabel($item);
+
             if ($item->lines->isEmpty()) {
-                $itemErrors[] = 'This request has no assistance left to release.';
+                $itemErrors[] = $label.' has no assistance left to release.';
             }
 
             if ($item->assistance instanceof Assistance && $item->assistance->was_delivered) {
-                $itemErrors[] = 'This request is already delivered.';
-            }
-
-            if ($item->assistance instanceof Assistance && ! $this->hasEligibleStatus($item->assistance)) {
-                $itemErrors[] = 'This request is not verified, approved, or ready for release.';
+                $itemErrors[] = $label.' is already delivered.';
+            } elseif ($item->assistance instanceof Assistance && ! $this->hasEligibleStatus($item->assistance)) {
+                $itemErrors[] = $label.' is not verified, approved, or ready for release.';
             }
 
             if ($item->assistance?->beneficiary !== null && $item->assistance instanceof Assistance) {
@@ -224,6 +224,13 @@ class DistributionRoster
                 'assistance_ids' => 'Only verified, approved, or ready-for-release requests can be added.',
             ]);
         }
+    }
+
+    private function requestLabel(DistributionBatchItem $item): string
+    {
+        $name = $item->assistance?->beneficiary?->name;
+
+        return is_string($name) && $name !== '' ? $name : 'This request';
     }
 
     private function hasEligibleStatus(Assistance $assistance): bool

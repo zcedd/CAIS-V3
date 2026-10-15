@@ -1,4 +1,4 @@
-import { Head, Link, router, setLayoutProps } from '@inertiajs/react';
+import { Head, Link, router, setLayoutProps, usePage } from '@inertiajs/react';
 import { useEffect, useId, useState } from 'react';
 import { AssistanceLines } from '@/components/distribution/assistance-lines';
 import { DistributionComposition } from '@/components/distribution/composition';
@@ -70,6 +70,38 @@ type VisitData = {
 };
 
 type DepartmentSummary = { slug: string; name: string };
+
+type DistributionAbilities = {
+    update: boolean;
+    validate: boolean;
+    submit: boolean;
+    approve: boolean;
+    return: boolean;
+    reject: boolean;
+    modify: boolean;
+    finalize: boolean;
+    schedule: boolean;
+    execute: boolean;
+    complete: boolean;
+    cancel: boolean;
+    reopen: boolean;
+};
+
+const closedAbilities: DistributionAbilities = {
+    update: false,
+    validate: false,
+    submit: false,
+    approve: false,
+    return: false,
+    reject: false,
+    modify: false,
+    finalize: false,
+    schedule: false,
+    execute: false,
+    complete: false,
+    cancel: false,
+    reopen: false,
+};
 
 type Line = {
     id: number;
@@ -170,15 +202,43 @@ function routeArgs(department: string, batchId: number) {
     return { department, distributionBatch: batchId };
 }
 
+function messageList(value: string | string[] | undefined): string[] {
+    if (value == null) {
+        return [];
+    }
+
+    return (Array.isArray(value) ? value : [value]).filter(
+        (message) => message !== '',
+    );
+}
+
 export default function DistributionShow({
     department,
     batch,
+    can = closedAbilities,
 }: {
     department: DepartmentSummary;
     batch: Batch;
+    can?: DistributionAbilities;
 }) {
     const [selected, setSelected] = useState<number[]>([]);
     const args = routeArgs(department.slug, batch.id);
+    const batchDecisions = [
+        can.approve ? { value: 'approved', label: 'Approve' } : null,
+        can.return ? { value: 'returned', label: 'Return' } : null,
+        can.reject ? { value: 'rejected', label: 'Reject' } : null,
+    ].filter(
+        (choice): choice is { value: string; label: string } => choice !== null,
+    );
+    const pageErrors = (usePage().props.errors ?? {}) as Record<
+        string,
+        string | string[]
+    >;
+    const validationErrors = [
+        ...messageList(pageErrors.roster),
+        ...messageList(pageErrors.status),
+        ...(batch.validation_summary?.errors ?? []),
+    ].filter((message, index, messages) => messages.indexOf(message) === index);
 
     useEffect(() => {
         setLayoutProps({
@@ -240,6 +300,14 @@ export default function DistributionShow({
                     <p className="text-sm">{batch.finalization_label}</p>
                 )}
 
+                {validationErrors.length > 0 && (
+                    <ul className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm">
+                        {validationErrors.map((error) => (
+                            <li key={error}>{error}</li>
+                        ))}
+                    </ul>
+                )}
+
                 {(batch.validation_summary?.warnings ?? []).length > 0 && (
                     <ul className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
                         {batch.validation_summary?.warnings?.map((warning) => (
@@ -249,23 +317,25 @@ export default function DistributionShow({
                 )}
 
                 <div className="flex flex-wrap gap-2">
-                    {['draft', 'returned'].includes(batch.status) && (
-                        <Button variant="outline" asChild>
-                            <Link href={edit.url(args)}>Edit roster</Link>
-                        </Button>
-                    )}
-                    {['draft', 'returned'].includes(batch.status) && (
-                        <ConfirmActionButton
-                            label="Validate"
-                            title="Validate this batch?"
-                            description="The roster is checked before it can be submitted for approval."
-                            status="For validation"
-                            onConfirm={(visit) =>
-                                post(validate.url(args), {}, visit)
-                            }
-                        />
-                    )}
-                    {batch.status === 'for_validation' && (
+                    {can.update &&
+                        ['draft', 'returned'].includes(batch.status) && (
+                            <Button variant="outline" asChild>
+                                <Link href={edit.url(args)}>Edit roster</Link>
+                            </Button>
+                        )}
+                    {can.validate &&
+                        ['draft', 'returned'].includes(batch.status) && (
+                            <ConfirmActionButton
+                                label="Validate"
+                                title="Validate this batch?"
+                                description="The roster is checked before it can be submitted for approval."
+                                status="For validation"
+                                onConfirm={(visit) =>
+                                    post(validate.url(args), {}, visit)
+                                }
+                            />
+                        )}
+                    {can.submit && batch.status === 'for_validation' && (
                         <ConfirmActionButton
                             label="Submit for approval"
                             title="Submit this batch for approval?"
@@ -276,7 +346,7 @@ export default function DistributionShow({
                             }
                         />
                     )}
-                    {batch.status === 'approved' && (
+                    {can.schedule && batch.status === 'approved' && (
                         <ScheduleForm
                             onSubmit={(
                                 scheduledAt,
@@ -297,7 +367,8 @@ export default function DistributionShow({
                             }
                         />
                     )}
-                    {batch.status === 'rejected' &&
+                    {can.reopen &&
+                        batch.status === 'rejected' &&
                         batch.policy?.allow_resubmit_after_reject && (
                             <ConfirmActionButton
                                 label="Reopen as draft"
@@ -311,7 +382,7 @@ export default function DistributionShow({
                                 }
                             />
                         )}
-                    {batch.status === 'scheduled' && (
+                    {can.execute && batch.status === 'scheduled' && (
                         <ConfirmActionButton
                             label="Start distribution"
                             title="Start this distribution?"
@@ -328,7 +399,7 @@ export default function DistributionShow({
                             <Link href={venue.url(args)}>Venue desk</Link>
                         </Button>
                     )}
-                    {batch.status === 'in_progress' && (
+                    {can.complete && batch.status === 'in_progress' && (
                         <ConfirmActionButton
                             label="Complete"
                             title="Complete this distribution?"
@@ -341,88 +412,95 @@ export default function DistributionShow({
                             }
                         />
                     )}
-                    {![
-                        'completed',
-                        'cancelled',
-                        'rejected',
-                        'in_progress',
-                    ].includes(batch.status) && (
-                        <CancelForm
-                            onSubmit={(reason, visit) =>
-                                post(
-                                    cancel.url(args),
-                                    {
-                                        reason,
-                                        lock_version: batch.lock_version,
-                                    },
-                                    visit,
-                                )
-                            }
-                        />
-                    )}
+                    {can.cancel &&
+                        ![
+                            'completed',
+                            'cancelled',
+                            'rejected',
+                            'in_progress',
+                        ].includes(batch.status) && (
+                            <CancelForm
+                                onSubmit={(reason, visit) =>
+                                    post(
+                                        cancel.url(args),
+                                        {
+                                            reason,
+                                            lock_version: batch.lock_version,
+                                        },
+                                        visit,
+                                    )
+                                }
+                            />
+                        )}
                 </div>
 
-                {batch.status === 'for_approval' && (
-                    <div className="flex flex-wrap gap-2">
-                        <DistributionDecisionDialog
-                            triggerLabel="Approve whole batch"
-                            title="Approve the whole batch"
-                            description="Approve, return, or reject every beneficiary still on this batch."
-                            choices={[
-                                { value: 'approved', label: 'Approve' },
-                                { value: 'returned', label: 'Return' },
-                                { value: 'rejected', label: 'Reject' },
-                            ]}
-                            reasonRequired={['returned', 'rejected']}
-                            onDecide={(payload, visit) =>
-                                post(
-                                    decide.url(args),
-                                    {
-                                        decision: payload.decision,
-                                        remarks: payload.remarks,
-                                        lock_version: batch.lock_version,
-                                    },
-                                    visit,
-                                )
-                            }
-                        />
-                        <ConfirmActionButton
-                            label="Approve selected"
-                            buttonVariant="outline"
-                            title="Approve selected beneficiaries?"
-                            description={`Approve ${selected.length} selected ${selected.length === 1 ? 'beneficiary' : 'beneficiaries'}.`}
-                            status="Approved"
-                            statusVariant="default"
-                            disabled={selected.length === 0}
-                            onConfirm={(visit) =>
-                                post(
-                                    bulkDecide.url(args),
-                                    {
-                                        item_ids: selected,
-                                        decision: 'approved',
-                                    },
-                                    {
-                                        ...visit,
-                                        onSuccess: () => {
-                                            visit.onSuccess?.();
-                                            setSelected([]);
-                                        },
-                                    },
-                                )
-                            }
-                        />
-                        <ConfirmActionButton
-                            label="Finalize review"
-                            title="Finalize this review?"
-                            description="Lock in the individual beneficiary decisions."
-                            status="Finalized"
-                            statusVariant="default"
-                            onConfirm={(visit) =>
-                                post(finalize.url(args), {}, visit)
-                            }
-                        />
-                    </div>
-                )}
+                {batch.status === 'for_approval' &&
+                    (batchDecisions.length > 0 ||
+                        can.approve ||
+                        can.finalize) && (
+                        <div className="flex flex-wrap gap-2">
+                            {batchDecisions.length > 0 ? (
+                                <DistributionDecisionDialog
+                                    triggerLabel="Approve whole batch"
+                                    title="Approve the whole batch"
+                                    description="Approve, return, or reject every beneficiary still on this batch."
+                                    choices={batchDecisions}
+                                    reasonRequired={['returned', 'rejected']}
+                                    onDecide={(payload, visit) =>
+                                        post(
+                                            decide.url(args),
+                                            {
+                                                decision: payload.decision,
+                                                remarks: payload.remarks,
+                                                lock_version:
+                                                    batch.lock_version,
+                                            },
+                                            visit,
+                                        )
+                                    }
+                                />
+                            ) : null}
+                            {can.approve ? (
+                                <ConfirmActionButton
+                                    label="Approve selected"
+                                    buttonVariant="outline"
+                                    title="Approve selected beneficiaries?"
+                                    description={`Approve ${selected.length} selected ${selected.length === 1 ? 'beneficiary' : 'beneficiaries'}.`}
+                                    status="Approved"
+                                    statusVariant="default"
+                                    disabled={selected.length === 0}
+                                    onConfirm={(visit) =>
+                                        post(
+                                            bulkDecide.url(args),
+                                            {
+                                                item_ids: selected,
+                                                decision: 'approved',
+                                            },
+                                            {
+                                                ...visit,
+                                                onSuccess: () => {
+                                                    visit.onSuccess?.();
+                                                    setSelected([]);
+                                                },
+                                            },
+                                        )
+                                    }
+                                />
+                            ) : null}
+                            {can.finalize ? (
+                                <ConfirmActionButton
+                                    label="Finalize review"
+                                    title="Finalize this review?"
+                                    description="Lock in the individual beneficiary decisions."
+                                    status="Finalized"
+                                    statusVariant="default"
+                                    onConfirm={(visit) =>
+                                        post(finalize.url(args), {}, visit)
+                                    }
+                                />
+                            ) : null}
+                        </div>
+                    )}
 
                 <Card>
                     <CardContent>
@@ -442,8 +520,9 @@ export default function DistributionShow({
                                         className="align-top"
                                     >
                                         <TableCell className="whitespace-normal">
-                                            {batch.status ===
-                                                'for_approval' &&
+                                            {can.approve &&
+                                                batch.status ===
+                                                    'for_approval' &&
                                                 item.approval_status ===
                                                     'pending' && (
                                                     <Checkbox
@@ -485,6 +564,11 @@ export default function DistributionShow({
                                             <AssistanceLines
                                                 lines={item.lines}
                                             />
+                                            {item.request_status && (
+                                                <div className="text-muted-foreground">
+                                                    {item.request_status}
+                                                </div>
+                                            )}
                                             {item.warnings.map((warning) => (
                                                 <div
                                                     key={warning}
@@ -503,7 +587,9 @@ export default function DistributionShow({
                                                     {item.exclusion_reason}
                                                 </div>
                                             )}
-                                            {batch.status === 'for_approval' &&
+                                            {can.approve &&
+                                                batch.status ===
+                                                    'for_approval' &&
                                                 item.approval_status ===
                                                     'pending' && (
                                                     <DistributionDecisionDialog
@@ -531,6 +617,7 @@ export default function DistributionShow({
                                                             'excluded',
                                                         ]}
                                                         lines={
+                                                            can.modify &&
                                                             batch.policy
                                                                 ?.allow_amount_modification
                                                                 ? item.lines.map(
@@ -583,7 +670,9 @@ export default function DistributionShow({
                                                         : ''}
                                                 </div>
                                             ))}
-                                            {batch.status === 'in_progress' &&
+                                            {can.execute &&
+                                                batch.status ===
+                                                    'in_progress' &&
                                                 item.distributable &&
                                                 item.releases.length === 0 && (
                                                     <ReleaseForm
@@ -703,31 +792,35 @@ export default function DistributionShow({
                     </Card>
                 </section>
 
-                <form
-                    className="flex flex-wrap items-end gap-2"
-                    onSubmit={(event) => {
-                        event.preventDefault();
-                        const data = new FormData(event.currentTarget);
-                        router.post(storeDocument.url(args), data, {
-                            forceFormData: true,
-                            preserveScroll: true,
-                        });
-                    }}
-                >
-                    <div className="grid gap-2 text-sm">
-                        <Label htmlFor="supporting-document">
-                            Supporting document
-                        </Label>
-                        <Input
-                            id="supporting-document"
-                            type="file"
-                            name="file"
-                            required
-                        />
-                    </div>
-                    <Button type="submit" variant="outline">
-                        Attach
-                    </Button>
+                {can.update ? (
+                    <form
+                        className="flex flex-wrap items-end gap-2"
+                        onSubmit={(event) => {
+                            event.preventDefault();
+                            const data = new FormData(event.currentTarget);
+                            router.post(storeDocument.url(args), data, {
+                                forceFormData: true,
+                                preserveScroll: true,
+                            });
+                        }}
+                    >
+                        <div className="grid gap-2 text-sm">
+                            <Label htmlFor="supporting-document">
+                                Supporting document
+                            </Label>
+                            <Input
+                                id="supporting-document"
+                                type="file"
+                                name="file"
+                                required
+                            />
+                        </div>
+                        <Button type="submit" variant="outline">
+                            Attach
+                        </Button>
+                    </form>
+                ) : null}
+                {batch.documents.length > 0 ? (
                     <ul className="text-sm">
                         {batch.documents.map((document) => (
                             <li key={document.id}>
@@ -743,7 +836,7 @@ export default function DistributionShow({
                             </li>
                         ))}
                     </ul>
-                </form>
+                ) : null}
             </div>
         </>
     );

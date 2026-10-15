@@ -80,6 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('distribution-policies', [AdminDistributionApprovalPolicyController::class, 'index'])->name('distribution-policies.index');
         Route::post('distribution-policies', [AdminDistributionApprovalPolicyController::class, 'store'])->name('distribution-policies.store');
         Route::put('distribution-policies/{policy}', [AdminDistributionApprovalPolicyController::class, 'update'])->name('distribution-policies.update');
+        Route::delete('distribution-policies/{policy}', [AdminDistributionApprovalPolicyController::class, 'destroy'])->name('distribution-policies.destroy');
     });
 
     Route::prefix('{department}')->middleware(EnsureUserBelongsToDepartment::class)->group(function () {

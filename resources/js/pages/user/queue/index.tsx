@@ -25,7 +25,9 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SlaBadge } from '@/components/user/sla-badge';
+import { useCan } from '@/hooks/use-can';
 import { EMPTY_CELL } from '@/lib/empty-cell';
+import { Permission } from '@/lib/permissions';
 import type { DepartmentStaffOption } from '@/pages/user/programs/assistance-toolbar';
 import { PayoutDesk } from '@/pages/user/queue/payout-desk';
 import type { QueueSelection } from '@/pages/user/queue/payout-desk';
@@ -297,7 +299,7 @@ function createQueueColumns(
             cell: ({ row }) =>
                 tab === 'team' &&
                 row.original.assigned_to_id === null &&
-                row.original.can_claim !== false ? (
+                row.original.can_claim === true ? (
                     <Button
                         type="button"
                         size="sm"
@@ -469,6 +471,8 @@ export default function UserQueueIndex({
     staff_options: DepartmentStaffOption[];
     selected?: QueueSelection | null;
 }) {
+    const { can } = useCan();
+    const canAssign = can(Permission.AssistanceAssign);
     const [deskView, setDeskView] = useState(true);
     const [tableState, setTableState] = useState({
         tab: initialTab,
@@ -729,7 +733,7 @@ export default function UserQueueIndex({
                                         table,
                                         selectedCount,
                                     }) =>
-                                        selectedCount > 0 ? (
+                                        canAssign && selectedCount > 0 ? (
                                             <Form
                                                 {...bulkAssignQueue.form.patch(
                                                     department.slug,

@@ -28,7 +28,9 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { UnspscCodeCombobox } from '@/components/unspsc-code-combobox';
+import { useCan } from '@/hooks/use-can';
 import { usePageCommands } from '@/lib/command-registry';
+import { Permission } from '@/lib/permissions';
 import {
     applyCreateDrawerOpenChange,
     useCreateDrawerTourLock,
@@ -73,23 +75,29 @@ export function ItemDataTableToolbar({
     onFiltersChange,
     onItemCreated,
 }: ItemDataTableToolbarProps) {
+    const { can } = useCan();
+    const canCreate = can(Permission.ItemCreate);
     const [searchQuery, setSearchQuery] = useState(filters.search);
     const [createOpen, setCreateOpen] = useState(
         () =>
+            canCreate &&
             typeof window !== 'undefined' &&
             new URLSearchParams(window.location.search).get('create') === '1',
     );
     const createCommands = useMemo(
-        () => [
-            {
-                id: 'item.create',
-                label: 'Add item',
-                icon: Plus,
-                keywords: 'create item inventory',
-                onSelect: () => setCreateOpen(true),
-            },
-        ],
-        [],
+        () =>
+            canCreate
+                ? [
+                      {
+                          id: 'item.create',
+                          label: 'Add item',
+                          icon: Plus,
+                          keywords: 'create item inventory',
+                          onSelect: () => setCreateOpen(true),
+                      },
+                  ]
+                : [],
+        [canCreate],
     );
     usePageCommands(createCommands);
 
@@ -193,14 +201,16 @@ export function ItemDataTableToolbar({
                         table={table}
                         columnVisibility={columnVisibility}
                     />
-                    <Button
-                        type="button"
-                        onClick={() => setCreateOpen(true)}
-                        data-tour="items-create"
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        New item
-                    </Button>
+                    {canCreate ? (
+                        <Button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                            data-tour="items-create"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            New item
+                        </Button>
+                    ) : null}
                 </div>
             </div>
 

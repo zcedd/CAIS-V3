@@ -1,3 +1,7 @@
+import { Form } from '@inertiajs/react';
+import { Copy } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { ProgramDocumentRequirementsEditor } from '@/components/program-document-requirements-editor';
 import {
@@ -27,6 +31,9 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ProgramDatePicker } from '@/components/user/programs/program-date-picker';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
+import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
 import { show as publicApplyShow } from '@/routes/public/apply';
 import { update as updateProgram } from '@/routes/user/programs';
 import type {
@@ -36,13 +43,6 @@ import type {
 import type { ProgramEligibilityFormValue } from '@/types/eligibility';
 import { emptyProgramEligibility } from '@/types/eligibility';
 import type { ProgramFieldDefinition } from '@/types/program-field';
-import type { WorkflowOption } from '@/pages/user/programs/assistance-toolbar';
-import { Form } from '@inertiajs/react';
-import { Copy } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
-import { useCan } from '@/hooks/use-can';
-import { Permission } from '@/lib/permissions';
 
 type DepartmentSummary = {
     id: number;
@@ -165,7 +165,8 @@ export function ProgramEditDrawer({
     onClose,
     lockOrganization = false,
 }: ProgramEditDrawerProps) {
-    const canAssignWorkflow = useCan()(Permission.WorkflowAssign);
+    const { can } = useCan();
+    const canAssignWorkflow = can(Permission.WorkflowAssign);
     const [startAtOpen, setStartAtOpen] = useState(false);
     const [startAt, setStartAt] = useState<Date | undefined>(() =>
         parseProgramDateInput(program.start_at_input),

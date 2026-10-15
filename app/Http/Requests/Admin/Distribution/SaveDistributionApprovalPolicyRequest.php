@@ -36,6 +36,7 @@ class SaveDistributionApprovalPolicyRequest extends FormRequest
             'max_amount' => ['nullable', 'numeric', 'min:0'],
             'is_active' => ['sometimes', 'boolean'],
             'stages' => ['required', 'array', 'min:1'],
+            'stages.*.id' => ['sometimes', 'nullable', 'integer'],
             'stages.*.name' => ['required', 'string', 'max:255'],
             'stages.*.sequence' => ['required', 'integer', 'min:1'],
             'stages.*.role_name' => ['nullable', 'string', 'max:255'],

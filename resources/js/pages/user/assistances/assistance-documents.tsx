@@ -1,5 +1,16 @@
 'use client';
 
+import { Form, router } from '@inertiajs/react';
+import {
+    CheckCircle2,
+    Circle,
+    FileText,
+    ImageIcon,
+    Trash2,
+    Upload,
+} from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,6 +24,8 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import {
     destroy as destroyDocument,
@@ -24,17 +37,6 @@ import type {
     AssistanceDocumentsPayload,
     DocumentTypeOption,
 } from '@/types/document';
-import { Form, router } from '@inertiajs/react';
-import {
-    CheckCircle2,
-    Circle,
-    FileText,
-    ImageIcon,
-    Trash2,
-    Upload,
-} from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 function formatFileSize(bytes: number): string {
     if (bytes < 1024) {
@@ -59,6 +61,8 @@ function DocumentFileRow({
     programId: number;
     assistanceId: number;
 }) {
+    const { can } = useCan();
+    const canUpdate = can(Permission.AssistanceUpdate);
     const href = showDocument.url({
         department: departmentSlug,
         program: programId,
@@ -80,7 +84,8 @@ function DocumentFileRow({
             }),
             {
                 preserveScroll: true,
-                onSuccess: () => toast.success('Document removed successfully.'),
+                onSuccess: () =>
+                    toast.success('Document removed successfully.'),
                 onError: () => toast.error('Could not remove the document.'),
             },
         );
@@ -114,16 +119,18 @@ function DocumentFileRow({
                     </p>
                 ) : null}
             </div>
-            <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 text-muted-foreground"
-                onClick={remove}
-                aria-label={`Remove ${document.original_name}`}
-            >
-                <Trash2 className="size-4" />
-            </Button>
+            {canUpdate ? (
+                <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 text-muted-foreground"
+                    onClick={remove}
+                    aria-label={`Remove ${document.original_name}`}
+                >
+                    <Trash2 className="size-4" />
+                </Button>
+            ) : null}
         </li>
     );
 }
@@ -141,6 +148,8 @@ export function AssistanceDocumentsSection({
     documents: AssistanceDocumentsPayload;
     documentTypes: DocumentTypeOption[];
 }) {
+    const { can } = useCan();
+    const canUpdate = can(Permission.AssistanceUpdate);
     const [documentTypeId, setDocumentTypeId] = useState(
         documentTypes[0] ? String(documentTypes[0].id) : '',
     );
@@ -175,7 +184,9 @@ export function AssistanceDocumentsSection({
                     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
                         Missing required documents:{' '}
                         {missing
-                            .map((item) => `${item.name} (before ${item.stage})`)
+                            .map(
+                                (item) => `${item.name} (before ${item.stage})`,
+                            )
                             .join(', ')}
                         .
                     </div>
@@ -242,7 +253,7 @@ export function AssistanceDocumentsSection({
 
                 {documents.additional_documents.length > 0 ? (
                     <div className="space-y-2">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
                             Additional files
                         </p>
                         <ul className="space-y-2">
@@ -259,110 +270,114 @@ export function AssistanceDocumentsSection({
                     </div>
                 ) : null}
 
-                <Form
-                    {...storeDocument.form({
-                        department: departmentSlug,
-                        program: programId,
-                        assistance: assistanceId,
-                    })}
-                    encType="multipart/form-data"
-                    resetOnSuccess
-                    options={{ preserveScroll: true }}
-                    transform={(data) => ({
-                        ...data,
-                        document_type_id: Number(documentTypeId),
-                    })}
-                    onSuccess={() =>
-                        toast.success('Document uploaded successfully.')
-                    }
-                    onError={() =>
-                        toast.error(
-                            'Could not upload the document. Check the file type and size.',
-                        )
-                    }
-                    className="space-y-3 rounded-xl border border-dashed p-3"
-                >
-                    {({ errors, processing, progress }) => (
-                        <>
-                            <div className="flex items-center gap-2">
-                                <Upload className="size-4 text-muted-foreground" />
-                                <p className="text-sm font-medium">
-                                    Upload a document
-                                </p>
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="assistance-document-type">
-                                        Type
-                                    </Label>
-                                    <Select
-                                        value={documentTypeId}
-                                        onValueChange={setDocumentTypeId}
-                                    >
-                                        <SelectTrigger
-                                            id="assistance-document-type"
-                                            className="w-full"
+                {canUpdate ? (
+                    <Form
+                        {...storeDocument.form({
+                            department: departmentSlug,
+                            program: programId,
+                            assistance: assistanceId,
+                        })}
+                        encType="multipart/form-data"
+                        resetOnSuccess
+                        options={{ preserveScroll: true }}
+                        transform={(data) => ({
+                            ...data,
+                            document_type_id: Number(documentTypeId),
+                        })}
+                        onSuccess={() =>
+                            toast.success('Document uploaded successfully.')
+                        }
+                        onError={() =>
+                            toast.error(
+                                'Could not upload the document. Check the file type and size.',
+                            )
+                        }
+                        className="space-y-3 rounded-xl border border-dashed p-3"
+                    >
+                        {({ errors, processing, progress }) => (
+                            <>
+                                <div className="flex items-center gap-2">
+                                    <Upload className="size-4 text-muted-foreground" />
+                                    <p className="text-sm font-medium">
+                                        Upload a document
+                                    </p>
+                                </div>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="assistance-document-type">
+                                            Type
+                                        </Label>
+                                        <Select
+                                            value={documentTypeId}
+                                            onValueChange={setDocumentTypeId}
                                         >
-                                            <SelectValue placeholder="Select type" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {documentTypes.map((type) => (
-                                                <SelectItem
-                                                    key={type.id}
-                                                    value={String(type.id)}
-                                                >
-                                                    {type.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <InputError
-                                        message={errors.document_type_id}
-                                    />
+                                            <SelectTrigger
+                                                id="assistance-document-type"
+                                                className="w-full"
+                                            >
+                                                <SelectValue placeholder="Select type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {documentTypes.map((type) => (
+                                                    <SelectItem
+                                                        key={type.id}
+                                                        value={String(type.id)}
+                                                    >
+                                                        {type.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError
+                                            message={errors.document_type_id}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="assistance-document-file">
+                                            File
+                                        </Label>
+                                        <Input
+                                            id="assistance-document-file"
+                                            name="file"
+                                            type="file"
+                                            accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                                        />
+                                        <InputError message={errors.file} />
+                                    </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="assistance-document-file">
-                                        File
+                                    <Label htmlFor="assistance-document-notes">
+                                        Notes
                                     </Label>
-                                    <Input
-                                        id="assistance-document-file"
-                                        name="file"
-                                        type="file"
-                                        accept=".jpg,.jpeg,.png,.webp,.pdf,image/jpeg,image/png,image/webp,application/pdf"
+                                    <Textarea
+                                        id="assistance-document-notes"
+                                        name="notes"
+                                        rows={2}
+                                        placeholder="Optional notes about this file"
                                     />
-                                    <InputError message={errors.file} />
+                                    <InputError message={errors.notes} />
                                 </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="assistance-document-notes">
-                                    Notes
-                                </Label>
-                                <Textarea
-                                    id="assistance-document-notes"
-                                    name="notes"
-                                    rows={2}
-                                    placeholder="Optional notes about this file"
-                                />
-                                <InputError message={errors.notes} />
-                            </div>
-                            {progress ? (
-                                <p
-                                    className={cn(
-                                        'text-xs tabular-nums text-muted-foreground',
-                                    )}
+                                {progress ? (
+                                    <p
+                                        className={cn(
+                                            'text-xs text-muted-foreground tabular-nums',
+                                        )}
+                                    >
+                                        Uploading {progress.percentage}%
+                                    </p>
+                                ) : null}
+                                <Button
+                                    type="submit"
+                                    disabled={
+                                        processing || documentTypeId === ''
+                                    }
                                 >
-                                    Uploading {progress.percentage}%
-                                </p>
-                            ) : null}
-                            <Button
-                                type="submit"
-                                disabled={processing || documentTypeId === ''}
-                            >
-                                {processing ? 'Uploading...' : 'Upload'}
-                            </Button>
-                        </>
-                    )}
-                </Form>
+                                    {processing ? 'Uploading...' : 'Upload'}
+                                </Button>
+                            </>
+                        )}
+                    </Form>
+                ) : null}
             </div>
         </section>
     );

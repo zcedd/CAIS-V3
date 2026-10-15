@@ -1,5 +1,10 @@
 'use client';
 
+import { Form, usePage } from '@inertiajs/react';
+import type { Table, VisibilityState } from '@tanstack/react-table';
+import { Plus, RotateCcw, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { DataTableFacetedFilter } from '@/components/data-table/data-table-faceted-filter';
 import { DataTableViewOptions } from '@/components/data-table/data-table-view-options';
 import { Button } from '@/components/ui/button';
@@ -28,11 +33,7 @@ import type {
     AdminUserRow,
     AdminUserTableFilters,
 } from '@/types/admin-user';
-import { Form } from '@inertiajs/react';
-import type { Table, VisibilityState } from '@tanstack/react-table';
-import { Plus, RotateCcw, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { toast } from 'sonner';
+import type { Auth } from '@/types/auth';
 
 interface AdminUserToolbarProps {
     table: Table<AdminUserRow>;
@@ -55,6 +56,8 @@ export function AdminUserToolbar({
     onFiltersChange,
     onUserCreated,
 }: AdminUserToolbarProps) {
+    const isSuperAdmin =
+        usePage<{ auth: Auth }>().props.auth.is_super_admin === true;
     const [searchQuery, setSearchQuery] = useState(filters.search);
     const [createOpen, setCreateOpen] = useState(false);
     const [createFormKey, setCreateFormKey] = useState(0);
@@ -161,10 +164,15 @@ export function AdminUserToolbar({
                         table={table}
                         columnVisibility={columnVisibility}
                     />
-                    <Button type="button" onClick={() => setCreateOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create user
-                    </Button>
+                    {isSuperAdmin ? (
+                        <Button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create user
+                        </Button>
+                    ) : null}
                 </div>
             </div>
 
@@ -206,10 +214,7 @@ export function AdminUserToolbar({
                                     idPrefix="create-user"
                                 />
                                 <DrawerFooter className="px-0">
-                                    <Button
-                                        type="submit"
-                                        disabled={processing}
-                                    >
+                                    <Button type="submit" disabled={processing}>
                                         {processing
                                             ? 'Creating...'
                                             : 'Create user'}

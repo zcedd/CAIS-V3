@@ -1,5 +1,9 @@
 'use client';
 
+import { router } from '@inertiajs/react';
+import { Edit, MoreHorizontal, Trash } from 'lucide-react';
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -16,13 +20,11 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useCan } from '@/hooks/use-can';
+import { Permission } from '@/lib/permissions';
 import { FundEditDrawer } from '@/pages/user/funds/fund-edit-drawer';
 import { destroy as destroyFund } from '@/routes/user/funds';
 import type { FundRow } from '@/types/fund';
-import { router } from '@inertiajs/react';
-import { Edit, MoreHorizontal, Trash } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from 'sonner';
 
 type FundRowActionsProps = {
     fund: FundRow;
@@ -30,6 +32,9 @@ type FundRowActionsProps = {
 };
 
 export function FundRowActions({ fund, departmentSlug }: FundRowActionsProps) {
+    const { can } = useCan();
+    const canEdit = can(Permission.FundUpdate);
+    const canDelete = can(Permission.FundDelete);
     const [editOpen, setEditOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -59,6 +64,10 @@ export function FundRowActions({ fund, departmentSlug }: FundRowActionsProps) {
         );
     };
 
+    if (!canEdit && !canDelete) {
+        return null;
+    }
+
     return (
         <>
             <DropdownMenu>
@@ -72,20 +81,24 @@ export function FundRowActions({ fund, departmentSlug }: FundRowActionsProps) {
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-[160px]">
-                    <DropdownMenuItem onSelect={() => setEditOpen(true)}>
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit fund
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={(event) => {
-                            event.preventDefault();
-                            setDeleteOpen(true);
-                        }}
-                    >
-                        <Trash className="mr-2 h-4 w-4" />
-                        Delete fund
-                    </DropdownMenuItem>
+                    {canEdit ? (
+                        <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit fund
+                        </DropdownMenuItem>
+                    ) : null}
+                    {canDelete ? (
+                        <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={(event) => {
+                                event.preventDefault();
+                                setDeleteOpen(true);
+                            }}
+                        >
+                            <Trash className="mr-2 h-4 w-4" />
+                            Delete fund
+                        </DropdownMenuItem>
+                    ) : null}
                 </DropdownMenuContent>
             </DropdownMenu>
 

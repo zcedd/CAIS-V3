@@ -31,6 +31,7 @@ import { CodeChip } from '@/components/user/code-chip';
 import { ProgramAnalyticsDialog } from '@/components/user/program-analytics-dialog';
 import type { ProgramCardMetric } from '@/components/user/program-card';
 import { ProgramApprovalSubmit } from '@/components/user/programs/program-approval-submit';
+import { useCan } from '@/hooks/use-can';
 import { usePageCommands } from '@/lib/command-registry';
 import type { PageCommand } from '@/lib/command-registry';
 import { formatPeso } from '@/lib/format-peso';
@@ -38,6 +39,7 @@ import {
     formatProgramDate,
     formatProgramPeriod,
 } from '@/lib/format-program-period';
+import { Permission } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
 import type {
     AssistanceModeOption,
@@ -494,11 +496,13 @@ export default function UserProgramShow({
         (sum, fund) => sum + (fund.amount ?? 0),
         0,
     );
-    const canEdit = Boolean(department?.slug);
+    const { can } = useCan();
+    const canEdit = Boolean(department?.slug) && can(Permission.ProgramUpdate);
+    const canExportAssistance = can(Permission.ProgramDownloadAssistance);
     const pageCommands = useMemo(() => {
         const commands: PageCommand[] = [];
 
-        if (department?.slug) {
+        if (canEdit) {
             commands.push({
                 id: 'program.edit',
                 label: 'Edit program',
@@ -514,7 +518,7 @@ export default function UserProgramShow({
             onSelect: () => setAnalyticsOpen(true),
         });
 
-        if (department?.slug) {
+        if (canExportAssistance && department?.slug) {
             const exportUrl = exportAssistances.url({
                 department: department.slug,
                 program: program.id,
@@ -542,9 +546,13 @@ export default function UserProgramShow({
         });
 
         return commands;
-    }, [department, program.id]);
+    }, [canEdit, canExportAssistance, department, program.id]);
     usePageCommands(pageCommands);
-    const canCreateAssistance = Boolean(department?.slug && !program.is_closed);
+    const canCreateAssistance = Boolean(
+        department?.slug &&
+        !program.is_closed &&
+        can(Permission.AssistanceCreate),
+    );
     const liveAssistanceTable = {
         assistances,
         mode_options,
@@ -564,6 +572,7 @@ export default function UserProgramShow({
     const canTransferAssistance = Boolean(
         department?.slug &&
         !program.is_closed &&
+        can(Permission.AssistanceUpdate) &&
         (resolvedAssistanceTable?.transfer_program_options.length ?? 0) > 0,
     );
     const isClosed = Boolean(program.is_closed);
@@ -954,9 +963,7 @@ export default function UserProgramShow({
                                     canTransferAssistance={
                                         canTransferAssistance
                                     }
-                                    documentRequirements={
-                                        document_requirements
-                                    }
+                                    documentRequirements={document_requirements}
                                     onVisitTable={visitTable}
                                 />
                             </Suspense>
@@ -986,7 +993,7 @@ export default function UserProgramShow({
                         : null
                 }
                 exportUrl={
-                    department?.slug
+                    canExportAssistance && department?.slug
                         ? exportAssistances.url({
                               department: department.slug,
                               program: program.id,

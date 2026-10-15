@@ -95,7 +95,7 @@ class DistributionBatch extends Model
 
     public function policy(): BelongsTo
     {
-        return $this->belongsTo(DistributionApprovalPolicy::class, 'distribution_approval_policy_id');
+        return $this->belongsTo(DistributionApprovalPolicy::class, 'distribution_approval_policy_id')->withTrashed();
     }
 
     public function creator(): BelongsTo

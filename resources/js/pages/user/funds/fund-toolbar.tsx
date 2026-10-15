@@ -20,7 +20,9 @@ import {
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useCan } from '@/hooks/use-can';
 import { usePageCommands } from '@/lib/command-registry';
+import { Permission } from '@/lib/permissions';
 import {
     applyCreateDrawerOpenChange,
     useCreateDrawerTourLock,
@@ -60,23 +62,29 @@ export function FundDataTableToolbar({
     onFiltersChange,
     onFundCreated,
 }: FundDataTableToolbarProps) {
+    const { can } = useCan();
+    const canCreate = can(Permission.FundCreate);
     const [searchQuery, setSearchQuery] = useState(filters.search);
     const [createOpen, setCreateOpen] = useState(
         () =>
+            canCreate &&
             typeof window !== 'undefined' &&
             new URLSearchParams(window.location.search).get('create') === '1',
     );
     const createCommands = useMemo(
-        () => [
-            {
-                id: 'fund.create',
-                label: 'Add fund',
-                icon: Plus,
-                keywords: 'create fund',
-                onSelect: () => setCreateOpen(true),
-            },
-        ],
-        [],
+        () =>
+            canCreate
+                ? [
+                      {
+                          id: 'fund.create',
+                          label: 'Add fund',
+                          icon: Plus,
+                          keywords: 'create fund',
+                          onSelect: () => setCreateOpen(true),
+                      },
+                  ]
+                : [],
+        [canCreate],
     );
     usePageCommands(createCommands);
 
@@ -171,14 +179,16 @@ export function FundDataTableToolbar({
                         table={table}
                         columnVisibility={columnVisibility}
                     />
-                    <Button
-                        type="button"
-                        onClick={() => setCreateOpen(true)}
-                        data-tour="funds-create"
-                    >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create fund
-                    </Button>
+                    {canCreate ? (
+                        <Button
+                            type="button"
+                            onClick={() => setCreateOpen(true)}
+                            data-tour="funds-create"
+                        >
+                            <Plus className="mr-2 h-4 w-4" />
+                            Create fund
+                        </Button>
+                    ) : null}
                 </div>
             </div>
 

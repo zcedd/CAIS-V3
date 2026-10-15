@@ -19,7 +19,7 @@ class ValidateDistributionBatch
 
     public function __invoke(DistributionBatch $batch, User $actor): DistributionBatch
     {
-        return DB::transaction(function () use ($batch, $actor): DistributionBatch {
+        $batch = DB::transaction(function () use ($batch, $actor): DistributionBatch {
             $batch = DistributionBatch::query()->whereKey($batch->id)->lockForUpdate()->firstOrFail();
             $inspection = $this->roster->inspect($batch);
             $batch->forceFill([
@@ -27,9 +27,7 @@ class ValidateDistributionBatch
             ])->save();
 
             if ($inspection['errors'] !== []) {
-                throw ValidationException::withMessages([
-                    'roster' => $inspection['errors'],
-                ]);
+                return $batch;
             }
 
             if ($batch->status === DistributionBatchStatus::ForValidation) {
@@ -38,5 +36,15 @@ class ValidateDistributionBatch
 
             return $this->workflow->move($batch->refresh(), DistributionBatchStatus::ForValidation, $actor);
         });
+
+        $errors = $batch->validation_summary['errors'] ?? [];
+
+        if ($errors !== []) {
+            throw ValidationException::withMessages([
+                'roster' => $errors,
+            ]);
+        }
+
+        return $batch;
     }
 }

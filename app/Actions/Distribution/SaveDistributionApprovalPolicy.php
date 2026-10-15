@@ -4,7 +4,10 @@ namespace App\Actions\Distribution;
 
 use App\Enums\DistributionApprovalStrategy;
 use App\Models\DistributionApprovalPolicy;
+use App\Models\DistributionApprovalStage;
+use App\Models\DistributionApprovalTask;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -26,7 +29,7 @@ class SaveDistributionApprovalPolicy
      *     min_amount?: string|null,
      *     max_amount?: string|null,
      *     is_active?: bool,
-     *     stages: list<array{name: string, sequence: int, role_name?: string|null, user_id?: int|null}>
+     *     stages: list<array{id?: int|null, name: string, sequence: int, role_name?: string|null, user_id?: int|null}>
      * }  $data
      */
     public function __invoke(User $actor, array $data, ?DistributionApprovalPolicy $policy = null): DistributionApprovalPolicy
@@ -73,18 +76,79 @@ class SaveDistributionApprovalPolicy
                 $policy = DistributionApprovalPolicy::query()->create($attributes);
             }
 
-            $policy->stages()->delete();
-
-            foreach ($data['stages'] as $stage) {
-                $policy->stages()->create([
-                    'name' => $stage['name'],
-                    'sequence' => $stage['sequence'],
-                    'role_name' => $stage['role_name'] ?? null,
-                    'user_id' => $stage['user_id'] ?? null,
-                ]);
-            }
+            $this->syncStages($policy, $data['stages']);
 
             return $policy->load('stages');
         });
+    }
+
+    /**
+     * @param  list<array{id?: int|null, name: string, sequence: int, role_name?: string|null, user_id?: int|null}>  $stages
+     */
+    private function syncStages(DistributionApprovalPolicy $policy, array $stages): void
+    {
+        /** @var Collection<int, DistributionApprovalStage> $existing */
+        $existing = $policy->stages()->get()->keyBy('id');
+        /** @var Collection<int, array{name: string, sequence: int, role_name: string|null, user_id: int|null}> $kept */
+        $kept = collect();
+        $creates = [];
+
+        foreach ($stages as $stage) {
+            $attributes = [
+                'name' => $stage['name'],
+                'sequence' => $stage['sequence'],
+                'role_name' => $stage['role_name'] ?? null,
+                'user_id' => $stage['user_id'] ?? null,
+            ];
+            $id = isset($stage['id']) ? (int) $stage['id'] : null;
+
+            if ($id === null || $id === 0) {
+                $creates[] = $attributes;
+
+                continue;
+            }
+
+            if (! $existing->has($id)) {
+                throw ValidationException::withMessages([
+                    'stages' => 'One of the stages does not belong to this policy.',
+                ]);
+            }
+
+            if ($kept->has($id)) {
+                throw ValidationException::withMessages([
+                    'stages' => 'Each stage can only be saved once.',
+                ]);
+            }
+
+            $kept->put($id, $attributes);
+        }
+
+        $removed = $existing->reject(
+            fn (DistributionApprovalStage $stage): bool => $kept->has($stage->id),
+        );
+
+        if ($removed->isNotEmpty() && DistributionApprovalTask::query()
+            ->whereIn('distribution_approval_stage_id', $removed->modelKeys())
+            ->exists()) {
+            throw ValidationException::withMessages([
+                'stages' => 'A stage that already has approval tasks cannot be removed.',
+            ]);
+        }
+
+        foreach ($existing as $stage) {
+            $stage->update(['sequence' => $stage->sequence + 30000]);
+        }
+
+        foreach ($kept as $id => $attributes) {
+            $existing->get($id)?->update($attributes);
+        }
+
+        foreach ($creates as $attributes) {
+            $policy->stages()->create($attributes);
+        }
+
+        if ($removed->isNotEmpty()) {
+            $policy->stages()->whereKey($removed->modelKeys())->delete();
+        }
     }
 }
