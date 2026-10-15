@@ -22,16 +22,17 @@ import { CodeChip } from '@/components/user/code-chip';
 import { StatCard } from '@/components/user/stat-card';
 import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
-import {
-    decide,
-    finalize,
-    index,
-    show,
-} from '@/routes/executive/distributions';
-import {
-    bulkDecide,
-    decide as decideItem,
-} from '@/routes/executive/distributions/items';
+
+type DistributionActions = {
+    queue_url: string;
+    show_url: string;
+    decide_url: string;
+    bulk_decide_url: string | null;
+    finalize_url: string | null;
+    item_decide_urls: Record<string, string>;
+    can_finalize: boolean;
+    can_decide_items: boolean;
+};
 
 type VisitData = {
     [key: string]:
@@ -112,12 +113,20 @@ type Batch = {
     };
 };
 
-export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
+export default function ExecutiveDistributionShow({
+    batch,
+    actions,
+}: {
+    batch: Batch;
+    actions: DistributionActions;
+}) {
     const [selected, setSelected] = useState<number[]>([]);
     const { can } = useCan();
     const canApprove = can(Permission.DistributionApprove);
-    const canFinalize = can(Permission.DistributionFinalize);
+    const canFinalize =
+        actions.can_finalize && can(Permission.DistributionFinalize);
     const canModify = can(Permission.DistributionModifyBeneficiary);
+    const canDecideItems = actions.can_decide_items && canApprove;
     const batchDecisions = [
         canApprove ? { value: 'approved', label: 'Approve' } : null,
         can(Permission.DistributionReturn)
@@ -133,11 +142,11 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
     useEffect(() => {
         setLayoutProps({
             breadcrumbs: [
-                { title: 'Distributions', href: index.url() },
-                { title: batch.batch_code, href: show.url(batch.id) },
+                { title: 'Distributions', href: actions.queue_url },
+                { title: batch.batch_code, href: actions.show_url },
             ],
         });
-    }, [batch.batch_code, batch.id]);
+    }, [actions.queue_url, actions.show_url, batch.batch_code]);
 
     function post(
         url: string,
@@ -162,7 +171,9 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                             Revision {batch.revision}
                         </Badge>
                         {batch.program.name ? (
-                            <Badge variant="outline">{batch.program.name}</Badge>
+                            <Badge variant="outline">
+                                {batch.program.name}
+                            </Badge>
                         ) : null}
                         {batch.department.name ? (
                             <Badge variant="outline">
@@ -235,7 +246,7 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                     reasonRequired={['returned', 'rejected']}
                                     onDecide={(payload, visit) =>
                                         post(
-                                            decide.url(batch.id),
+                                            actions.decide_url,
                                             {
                                                 decision: payload.decision,
                                                 remarks: payload.remarks,
@@ -247,7 +258,7 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                     }
                                 />
                             ) : null}
-                            {canApprove ? (
+                            {canDecideItems && actions.bulk_decide_url ? (
                                 <ConfirmActionButton
                                     label="Approve selected"
                                     buttonVariant="outline"
@@ -258,7 +269,7 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                     disabled={selected.length === 0}
                                     onConfirm={(visit) =>
                                         post(
-                                            bulkDecide.url(batch.id),
+                                            actions.bulk_decide_url ?? '',
                                             {
                                                 item_ids: selected,
                                                 decision: 'approved',
@@ -274,7 +285,7 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                     }
                                 />
                             ) : null}
-                            {canFinalize ? (
+                            {canFinalize && actions.finalize_url ? (
                                 <ConfirmActionButton
                                     label="Finalize review"
                                     title="Finalize this review?"
@@ -282,7 +293,11 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                     status="Finalized"
                                     statusVariant="default"
                                     onConfirm={(visit) =>
-                                        post(finalize.url(batch.id), {}, visit)
+                                        post(
+                                            actions.finalize_url ?? '',
+                                            {},
+                                            visit,
+                                        )
                                     }
                                 />
                             ) : null}
@@ -314,7 +329,7 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                         className="align-top"
                                     >
                                         <TableCell className="whitespace-normal">
-                                            {canApprove &&
+                                            {canDecideItems &&
                                                 item.approval_status ===
                                                     'pending' &&
                                                 batch.status ===
@@ -377,7 +392,10 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                                     {item.exclusion_reason}
                                                 </div>
                                             )}
-                                            {canApprove &&
+                                            {canDecideItems &&
+                                                actions.item_decide_urls[
+                                                    String(item.id)
+                                                ] &&
                                                 batch.status ===
                                                     'for_approval' &&
                                                 item.approval_status ===
@@ -432,11 +450,12 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                                             visit,
                                                         ) =>
                                                             post(
-                                                                decideItem.url({
-                                                                    distributionBatch:
-                                                                        batch.id,
-                                                                    item: item.id,
-                                                                }),
+                                                                actions
+                                                                    .item_decide_urls[
+                                                                    String(
+                                                                        item.id,
+                                                                    )
+                                                                ] ?? '',
                                                                 {
                                                                     decision:
                                                                         payload.decision,
@@ -464,24 +483,22 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                         Approval history
                     </h2>
                     <ul className="flex flex-col gap-2 text-sm">
-                            {batch.tasks
-                                .filter(
-                                    (task) => task.revision === batch.revision,
-                                )
-                                .map((task) => (
-                                    <li key={task.id}>
-                                        {task.stage}: {task.status}
-                                    </li>
-                                ))}
-                            {batch.decisions.map((decision) => (
-                                <li key={decision.id}>
-                                    Rev {decision.revision}: {decision.decision}{' '}
-                                    by {decision.actor}
-                                    {decision.remarks
-                                        ? ` — ${decision.remarks}`
-                                        : ''}
+                        {batch.tasks
+                            .filter((task) => task.revision === batch.revision)
+                            .map((task) => (
+                                <li key={task.id}>
+                                    {task.stage}: {task.status}
                                 </li>
                             ))}
+                        {batch.decisions.map((decision) => (
+                            <li key={decision.id}>
+                                Rev {decision.revision}: {decision.decision} by{' '}
+                                {decision.actor}
+                                {decision.remarks
+                                    ? ` — ${decision.remarks}`
+                                    : ''}
+                            </li>
+                        ))}
                     </ul>
                 </section>
             </div>

@@ -1,18 +1,25 @@
 import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { Check, Undo2 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ProgramDecisionDialog } from '@/components/user/programs/program-decision-dialog';
 import type { ProgramDecisionAction } from '@/components/user/programs/program-decision-dialog';
-import {
-    approve as approveProgram,
-    index as governorProgramsIndex,
-    returnMethod as returnProgram,
-    show as governorProgramShow,
-} from '@/routes/executive/programs';
 import type { BreadcrumbItem } from '@/types';
+
+type ProgramReview = {
+    mode: 'endorse' | 'approve';
+    audience: string;
+    index_url: string;
+    show_url: string;
+    positive_url: string;
+    return_url: string;
+    awaiting_status: string;
+    positive_action: Extract<ProgramDecisionAction, 'endorse' | 'approve'>;
+    positive_label: string;
+};
 
 type GovernorProgram = {
     id: number;
@@ -117,10 +124,12 @@ function EmptyDetail({ children }: { children: ReactNode }) {
 
 export default function GovernorProgramShow({
     program,
+    review,
 }: {
     program: GovernorProgram;
+    review: ProgramReview;
 }) {
-    const canDecide = program.approval_status === 'awaiting_governor';
+    const canDecide = program.approval_status === review.awaiting_status;
     const description = program.descriptions?.trim();
     const hasEligibility =
         program.eligibility.cooldown_days !== null ||
@@ -128,23 +137,23 @@ export default function GovernorProgramShow({
         program.eligibility.item_caps.length > 0;
     const [decision, setDecision] = useState<Extract<
         ProgramDecisionAction,
-        'approve' | 'return'
+        'endorse' | 'approve' | 'return'
     > | null>(null);
 
     useEffect(() => {
         const breadcrumbs: BreadcrumbItem[] = [
             {
-                title: 'Executive',
-                href: governorProgramsIndex(),
+                title: review.audience,
+                href: review.index_url,
             },
             {
                 title: program.name,
-                href: governorProgramShow(program.id),
+                href: review.show_url,
             },
         ];
 
         setLayoutProps({ breadcrumbs });
-    }, [program.id, program.name]);
+    }, [program.name, review.audience, review.index_url, review.show_url]);
 
     return (
         <>
@@ -188,9 +197,7 @@ export default function GovernorProgramShow({
                         </div>
                     </div>
                     <Button variant="outline" asChild>
-                        <Link href={governorProgramsIndex()}>
-                            Back to programs
-                        </Link>
+                        <Link href={review.index_url}>Back to programs</Link>
                     </Button>
                 </div>
 
@@ -198,10 +205,10 @@ export default function GovernorProgramShow({
                     <div className="flex gap-2">
                         <Button
                             type="button"
-                            onClick={() => setDecision('approve')}
+                            onClick={() => setDecision(review.positive_action)}
                         >
                             <Check data-icon="inline-start" />
-                            Approve
+                            {review.positive_label}
                         </Button>
                         <Button
                             type="button"
@@ -222,11 +229,11 @@ export default function GovernorProgramShow({
                         }
                     }}
                     programName={program.name}
-                    action={decision ?? 'approve'}
+                    action={decision ?? review.positive_action}
                     url={
                         decision === 'return'
-                            ? returnProgram.url(program.id)
-                            : approveProgram.url(program.id)
+                            ? review.return_url
+                            : review.positive_url
                     }
                 />
 

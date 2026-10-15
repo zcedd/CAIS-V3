@@ -5,6 +5,7 @@ namespace App\Enums;
 enum ProgramApprovalStatus: string
 {
     case Draft = 'draft';
+    case AwaitingAdministrator = 'awaiting_administrator';
     case AwaitingGovernor = 'awaiting_governor';
     case Approved = 'approved';
     case Returned = 'returned';
@@ -21,6 +22,7 @@ enum ProgramApprovalStatus: string
     {
         return match ($this) {
             self::Draft => 'Draft',
+            self::AwaitingAdministrator => 'Awaiting administrator',
             self::AwaitingGovernor => 'Awaiting executive',
             self::Approved => 'Approved',
             self::Returned => 'Returned',

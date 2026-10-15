@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\DistributionApprovalStrategy;
 use App\Enums\ProgramDistributionMode;
 use App\Enums\RequestStatusCode;
 use App\Enums\RequestSubStatusCode;
@@ -8,6 +9,7 @@ use App\Enums\StockMovementType;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\Department;
+use App\Models\DistributionApprovalPolicy;
 use App\Models\DistributionBatch;
 use App\Models\Individual;
 use App\Models\Item;
@@ -241,6 +243,8 @@ function withoutResourceRoles(User $user): User
 function distributionFixture(string $kind = 'cash', int $requests = 1): array
 {
     $department = Department::create(['name' => 'Social Welfare '.uniqid()]);
+    seedRolesAndPermissions();
+
     $creator = User::factory()->create(['department_id' => $department->id]);
     $creator->syncRoles([RoleName::Program->value]);
     $governor = User::factory()->create(['department_id' => null]);
@@ -260,6 +264,20 @@ function distributionFixture(string $kind = 'cash', int $requests = 1): array
         fn ($factory) => $factory,
     )->create(['name' => $kind === 'cash' ? 'Cash aid' : 'Rice']);
     $program->item()->attach($item->id);
+
+    // Existing distribution tests decide as the executive. The product default has an administrator stage first.
+    $executivePolicy = DistributionApprovalPolicy::query()->create([
+        'name' => 'Fixture executive approval',
+        'department_id' => $department->id,
+        'program_id' => $program->id,
+        'strategy' => DistributionApprovalStrategy::Sequential,
+        'created_by' => $creator->id,
+    ]);
+    $executivePolicy->stages()->create([
+        'sequence' => 1,
+        'name' => 'Executive approval',
+        'role_name' => RoleName::Executive->value,
+    ]);
 
     $assistances = [];
 

@@ -114,6 +114,12 @@ class DistributionApprovalPolicyResolver
 
         $policy->stages()->create([
             'sequence' => 1,
+            'name' => 'Administrator endorsement',
+            'role_name' => RoleName::Administrator->value,
+        ]);
+
+        $policy->stages()->create([
+            'sequence' => 2,
             'name' => 'Executive approval',
             'role_name' => RoleName::Executive->value,
         ]);

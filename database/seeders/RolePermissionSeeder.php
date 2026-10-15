@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Enums\PermissionName;
 use App\Enums\RoleName;
+use App\Models\DistributionApprovalPolicy;
 use App\Models\DistributionApprovalStage;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Schema;
@@ -70,7 +71,7 @@ class RolePermissionSeeder extends Seeder
         $head = Role::findOrCreate(RoleName::Head->value, 'web');
         $head->syncPermissions(PermissionName::values());
 
-        foreach ([RoleName::Executive, RoleName::DepartmentHead, RoleName::ReleasingOfficer] as $roleName) {
+        foreach ([RoleName::Executive, RoleName::Administrator, RoleName::DepartmentHead, RoleName::ReleasingOfficer] as $roleName) {
             $role = Role::findOrCreate($roleName->value, 'web');
             $role->syncPermissions(
                 array_map(
@@ -85,6 +86,7 @@ class RolePermissionSeeder extends Seeder
             Role::findByName(RoleName::Executive->value, 'web'),
         );
         $this->renameDistributionStageRole('governor', RoleName::Executive->value);
+        $this->insertAdministratorStageOnDefaultPolicies();
         $this->migrateLegacyAdminUsers($superAdmin);
         $this->deleteLegacyRoles();
         $this->deleteLegacyPermissions();
@@ -116,6 +118,41 @@ class RolePermissionSeeder extends Seeder
         }
 
         $legacy->delete();
+    }
+
+    private function insertAdministratorStageOnDefaultPolicies(): void
+    {
+        if (! Schema::hasTable('distribution_approval_policies') || ! Schema::hasTable('distribution_approval_stages')) {
+            return;
+        }
+
+        DistributionApprovalPolicy::query()
+            ->where('name', 'Default executive approval')
+            ->where('is_active', true)
+            ->whereNull('program_id')
+            ->whereNull('approval_mode')
+            ->with('stages')
+            ->get()
+            ->each(function (DistributionApprovalPolicy $policy): void {
+                $stages = $policy->stages;
+
+                if ($stages->count() !== 1) {
+                    return;
+                }
+
+                $stage = $stages->first();
+
+                if ($stage === null || $stage->role_name !== RoleName::Executive->value) {
+                    return;
+                }
+
+                $stage->update(['sequence' => 2]);
+                $policy->stages()->create([
+                    'sequence' => 1,
+                    'name' => 'Administrator endorsement',
+                    'role_name' => RoleName::Administrator->value,
+                ]);
+            });
     }
 
     private function renameDistributionStageRole(string $from, string $to): void

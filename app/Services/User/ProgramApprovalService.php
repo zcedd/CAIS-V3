@@ -10,6 +10,7 @@ use App\Models\ProgramApprovalEvent;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator as ProgramPaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\ValidationException;
@@ -20,7 +21,7 @@ class ProgramApprovalService
     {
         if ($program->isScheme()) {
             throw ValidationException::withMessages([
-                'program' => 'Submit each batch separately for executive approval.',
+                'program' => 'Submit each batch separately for approval.',
             ]);
         }
 
@@ -35,15 +36,27 @@ class ProgramApprovalService
 
         DB::transaction(function () use ($program, $actor, $remark): void {
             $program->update([
-                'approval_status' => ProgramApprovalStatus::AwaitingGovernor,
+                'approval_status' => ProgramApprovalStatus::AwaitingAdministrator,
             ]);
             $this->record($program, $actor, ProgramApprovalAction::Submitted, $remark);
         });
     }
 
+    public function endorse(Program $program, User $actor, ?string $remark): void
+    {
+        $this->assertAwaitingAdministrator($program);
+
+        DB::transaction(function () use ($program, $actor, $remark): void {
+            $program->update([
+                'approval_status' => ProgramApprovalStatus::AwaitingGovernor,
+            ]);
+            $this->record($program, $actor, ProgramApprovalAction::Endorsed, $remark);
+        });
+    }
+
     public function approve(Program $program, User $actor, ?string $remark): void
     {
-        $this->assertAwaiting($program);
+        $this->assertAwaitingGovernor($program);
 
         DB::transaction(function () use ($program, $actor, $remark): void {
             $program->update([
@@ -55,7 +68,7 @@ class ProgramApprovalService
 
     public function returnToDepartment(Program $program, User $actor, ?string $remark): void
     {
-        $this->assertAwaiting($program);
+        $this->assertReturnable($program);
 
         DB::transaction(function () use ($program, $actor, $remark): void {
             $program->update([
@@ -95,6 +108,13 @@ class ProgramApprovalService
             ->all();
     }
 
+    public function awaitingAdministratorCount(): int
+    {
+        return Program::query()
+            ->where('approval_status', ProgramApprovalStatus::AwaitingAdministrator->value)
+            ->count();
+    }
+
     public function awaitingGovernorCount(): int
     {
         return Program::query()
@@ -108,7 +128,7 @@ class ProgramApprovalService
      * @param  list<string>  $types
      * @param  list<string>  $statuses
      * @param  list<int>  $departmentIds
-     * @return array{all: int, draft: int, awaiting_governor: int, approved: int, returned: int}
+     * @return array{all: int, draft: int, awaiting_administrator: int, awaiting_governor: int, approved: int, returned: int}
      */
     public function approvalCounts(
         string $search,
@@ -157,6 +177,7 @@ class ProgramApprovalService
         return [
             'all' => (int) (clone $base)->count(),
             'draft' => (int) ($rows[ProgramApprovalStatus::Draft->value] ?? 0),
+            'awaiting_administrator' => (int) ($rows[ProgramApprovalStatus::AwaitingAdministrator->value] ?? 0),
             'awaiting_governor' => (int) ($rows[ProgramApprovalStatus::AwaitingGovernor->value] ?? 0),
             'approved' => (int) ($rows[ProgramApprovalStatus::Approved->value] ?? 0),
             'returned' => (int) ($rows[ProgramApprovalStatus::Returned->value] ?? 0),
@@ -255,6 +276,7 @@ class ProgramApprovalService
                     'approval_status' => $status->value,
                     'approval_label' => $status->label(),
                     'can_approve' => Gate::allows('approve', $program),
+                    'can_endorse' => Gate::allows('endorse', $program),
                     'department' => $program->department === null ? null : [
                         'id' => $program->department->id,
                         'name' => $program->department->name,
@@ -288,11 +310,56 @@ class ProgramApprovalService
         ];
     }
 
-    private function assertAwaiting(Program $program): void
+    /**
+     * @param  ProgramPaginator<int, array<string, mixed>>  $programs
+     * @return ProgramPaginator<int, array<string, mixed>>
+     */
+    public function withDecisionUrls(
+        ProgramPaginator $programs,
+        string $showRoute,
+        string $positiveRoute,
+        string $returnRoute,
+    ): ProgramPaginator {
+        $programs->setCollection(
+            $programs->getCollection()->map(function (array $program) use ($showRoute, $positiveRoute, $returnRoute): array {
+                $id = $program['id'];
+                $program['show_url'] = route($showRoute, $id);
+                $program['positive_url'] = route($positiveRoute, $id);
+                $program['return_url'] = route($returnRoute, $id);
+
+                return $program;
+            }),
+        );
+
+        return $programs;
+    }
+
+    private function assertAwaitingAdministrator(Program $program): void
+    {
+        if ($program->approval_status !== ProgramApprovalStatus::AwaitingAdministrator) {
+            throw ValidationException::withMessages([
+                'program' => 'This program is not awaiting administrator endorsement.',
+            ]);
+        }
+    }
+
+    private function assertAwaitingGovernor(Program $program): void
     {
         if ($program->approval_status !== ProgramApprovalStatus::AwaitingGovernor) {
             throw ValidationException::withMessages([
                 'program' => 'This program is not awaiting executive approval.',
+            ]);
+        }
+    }
+
+    private function assertReturnable(Program $program): void
+    {
+        if (! in_array($program->approval_status, [
+            ProgramApprovalStatus::AwaitingAdministrator,
+            ProgramApprovalStatus::AwaitingGovernor,
+        ], true)) {
+            throw ValidationException::withMessages([
+                'program' => 'This program is not awaiting a decision.',
             ]);
         }
     }

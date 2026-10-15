@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAdministrator;
 use App\Http\Middleware\EnsureExecutive;
 use App\Http\Middleware\EnsureSuperAdmin;
 use App\Http\Middleware\HandleAppearance;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'super-admin' => EnsureSuperAdmin::class,
             'executive' => EnsureExecutive::class,
+            'administrator' => EnsureAdministrator::class,
         ]);
 
         $middleware->web(append: [

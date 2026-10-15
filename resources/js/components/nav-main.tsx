@@ -76,7 +76,13 @@ export function NavAdministration({ items = [] }: { items: NavItem[] }) {
     );
 }
 
-export function NavExecutive({ items = [] }: { items: NavItem[] }) {
+export function NavExecutive({
+    items = [],
+    label = 'Executive',
+}: {
+    items: NavItem[];
+    label?: string;
+}) {
     const { isCurrentOrParentUrl } = useCurrentUrl();
     const closeMobileSidebar = useCloseMobileSidebar();
 
@@ -84,7 +90,7 @@ export function NavExecutive({ items = [] }: { items: NavItem[] }) {
         <>
             <SidebarSeparator />
             <SidebarGroup className="px-2 py-0">
-                <SidebarGroupLabel>Executive</SidebarGroupLabel>
+                <SidebarGroupLabel>{label}</SidebarGroupLabel>
                 <SidebarMenu data-tour="sidebar-nav">
                     {items.map((item) => (
                         <SidebarMenuItem key={item.title}>

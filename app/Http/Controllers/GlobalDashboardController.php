@@ -12,7 +12,7 @@ use Inertia\Response;
 class GlobalDashboardController extends Controller
 {
     /**
-     * Redirect authenticated users to their department dashboard, executives without a department to the executive dashboard, or show an empty state.
+     * Redirect authenticated users to their department dashboard, executives without a department to the executive dashboard, administrators without a department to their program queue, or show an empty state.
      */
     public function __invoke(Request $request): Response|RedirectResponse
     {
@@ -25,6 +25,10 @@ class GlobalDashboardController extends Controller
 
         if ($user instanceof User && $user->hasRole(RoleName::Executive)) {
             return redirect()->route('executive.dashboard');
+        }
+
+        if ($user instanceof User && $user->hasRole(RoleName::Administrator)) {
+            return redirect()->route('administrator.programs.index');
         }
 
         return Inertia::render('dashboard', [

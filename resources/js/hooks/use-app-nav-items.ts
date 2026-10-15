@@ -16,6 +16,8 @@ import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
 import { dashboard } from '@/routes';
 import { index as adminUsersIndex } from '@/routes/admin/users';
+import { index as administratorDistributionsIndex } from '@/routes/administrator/distributions';
+import { index as administratorProgramsIndex } from '@/routes/administrator/programs';
 import { dashboard as executiveDashboard } from '@/routes/executive';
 import { index as executiveDistributionsIndex } from '@/routes/executive/distributions';
 import { index as executiveProgramsIndex } from '@/routes/executive/programs';
@@ -38,6 +40,7 @@ type NavPageProps = {
 export type AppNavItems = {
     mainNavItems: NavItem[];
     executiveNavItems: NavItem[];
+    administratorNavItems: NavItem[];
     administrationNavItems: NavItem[];
     footerNavItems: NavItem[];
 };
@@ -106,14 +109,35 @@ export function useAppNavItems(): AppNavItems {
         return items;
     }, [props.auth.office_roles, can]);
 
+    const administratorNavItems = useMemo((): NavItem[] => {
+        if (!props.auth.office_roles?.includes('administrator')) {
+            return [];
+        }
+
+        return [
+            {
+                title: 'Programs',
+                href: administratorProgramsIndex(),
+                icon: Stamp,
+            },
+            {
+                title: 'Distributions',
+                href: administratorDistributionsIndex(),
+                icon: CalendarDays,
+            },
+        ];
+    }, [props.auth.office_roles]);
+
     const mainNavItems = useMemo((): NavItem[] => {
         const slug = props.auth.user?.department?.slug;
         const seesExecutiveNav =
             props.auth.office_roles?.includes('executive') ||
             can(Permission.ProgramApprove);
+        const seesAdministratorNav =
+            props.auth.office_roles?.includes('administrator');
 
         if (!slug) {
-            if (seesExecutiveNav) {
+            if (seesExecutiveNav || seesAdministratorNav) {
                 return [];
             }
 
@@ -180,6 +204,7 @@ export function useAppNavItems(): AppNavItems {
     return {
         mainNavItems,
         executiveNavItems,
+        administratorNavItems,
         administrationNavItems,
         footerNavItems,
     };

@@ -3,6 +3,8 @@
 use App\Http\Controllers\Admin\DistributionApprovalPolicyController as AdminDistributionApprovalPolicyController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
+use App\Http\Controllers\Administrator\DistributionApprovalController as AdministratorDistributionApprovalController;
+use App\Http\Controllers\Administrator\ProgramController as AdministratorProgramController;
 use App\Http\Controllers\Executive\DashboardController as ExecutiveDashboardController;
 use App\Http\Controllers\Executive\DistributionApprovalController;
 use App\Http\Controllers\Executive\ProgramAnalyticsController as ExecutiveProgramAnalyticsController;
@@ -53,6 +55,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('distributions/{distributionBatch}/items/bulk-decide', [DistributionApprovalController::class, 'bulkDecide'])->name('distributions.items.bulk-decide');
         Route::post('distributions/{distributionBatch}/items/{item}/decide', [DistributionApprovalController::class, 'decideItem'])->name('distributions.items.decide');
         Route::post('distributions/{distributionBatch}/finalize', [DistributionApprovalController::class, 'finalize'])->name('distributions.finalize');
+    });
+
+    Route::middleware('administrator')->prefix('administrator')->name('administrator.')->group(function () {
+        Route::get('programs', [AdministratorProgramController::class, 'index'])->name('programs.index');
+        Route::get('programs/{program}', [AdministratorProgramController::class, 'show'])->name('programs.show');
+        Route::post('programs/{program}/endorse', [AdministratorProgramController::class, 'endorse'])->name('programs.endorse');
+        Route::post('programs/{program}/return', [AdministratorProgramController::class, 'returnToDepartment'])->name('programs.return');
+        Route::get('distributions', [AdministratorDistributionApprovalController::class, 'index'])->name('distributions.index');
+        Route::get('distributions/{distributionBatch}', [AdministratorDistributionApprovalController::class, 'show'])->name('distributions.show');
+        Route::post('distributions/{distributionBatch}/decide', [AdministratorDistributionApprovalController::class, 'decide'])->name('distributions.decide');
     });
 
     Route::middleware('super-admin')->prefix('admin')->name('admin.')->group(function () {

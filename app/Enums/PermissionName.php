@@ -20,6 +20,7 @@ enum PermissionName: string
     case ProgramDelete = 'program.delete';
     case ProgramDownloadAssistance = 'program.downloadAssistance';
     case ProgramSubmit = 'program.submit';
+    case ProgramEndorse = 'program.endorse';
     case ProgramApprove = 'program.approve';
 
     case BeneficiaryViewAny = 'beneficiary.viewAny';
@@ -108,6 +109,7 @@ enum PermissionName: string
             RoleName::Head => self::cases(),
             RoleName::SuperAdmin => self::cases(),
             RoleName::Executive => self::executivePermissions(),
+            RoleName::Administrator => self::administratorPermissions(),
             RoleName::DepartmentHead => self::departmentHeadPermissions(),
             RoleName::ReleasingOfficer => self::releasingOfficerPermissions(),
         };
@@ -131,6 +133,7 @@ enum PermissionName: string
             self::ProgramDelete => 'Delete programs',
             self::ProgramDownloadAssistance => 'Download assistance and receipts',
             self::ProgramSubmit => 'Submit a program for executive approval',
+            self::ProgramEndorse => 'Endorse or return a program',
             self::ProgramApprove => 'Approve or return a program',
             self::BeneficiaryViewAny => 'View beneficiaries',
             self::BeneficiaryView => 'View a beneficiary',
@@ -186,6 +189,23 @@ enum PermissionName: string
             self::DistributionWaiveLivePhoto => 'Waive live photo evidence',
             self::DepartmentSupervise => 'Supervise the department',
         };
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function administratorPermissions(): array
+    {
+        return [
+            self::ProgramViewAny,
+            self::ProgramView,
+            self::ProgramEndorse,
+            self::DistributionViewAny,
+            self::DistributionView,
+            self::DistributionApprove,
+            self::DistributionReturn,
+            self::DistributionReject,
+        ];
     }
 
     /**

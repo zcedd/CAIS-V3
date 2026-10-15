@@ -3,12 +3,7 @@ import { useEffect } from 'react';
 import { DistributionOfferSummary } from '@/components/distribution/composition';
 import type { DistributionOffer } from '@/components/distribution/composition';
 import { Badge } from '@/components/ui/badge';
-import {
-    Card,
-    CardContent,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
     Table,
     TableBody,
@@ -17,12 +12,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { index, show } from '@/routes/executive/distributions';
-
 type TaskRow = {
     task_id: number;
     stage: string | null;
     batch_id: number | null;
+    show_url: string | null;
     batch_code: string | null;
     title: string | null;
     program: string | null;
@@ -35,14 +29,16 @@ type TaskRow = {
 
 export default function ExecutiveDistributionsIndex({
     tasks,
+    inbox_url: inboxUrl,
 }: {
     tasks: TaskRow[];
+    inbox_url: string;
 }) {
     useEffect(() => {
         setLayoutProps({
-            breadcrumbs: [{ title: 'Distributions', href: index.url() }],
+            breadcrumbs: [{ title: 'Distributions', href: inboxUrl }],
         });
-    }, []);
+    }, [inboxUrl]);
 
     return (
         <>
@@ -88,11 +84,9 @@ export default function ExecutiveDistributionsIndex({
                                 {tasks.map((task) => (
                                     <TableRow key={task.task_id}>
                                         <TableCell>
-                                            {task.batch_id ? (
+                                            {task.show_url ? (
                                                 <Link
-                                                    href={show.url(
-                                                        task.batch_id,
-                                                    )}
+                                                    href={task.show_url}
                                                     className="font-medium hover:underline"
                                                 >
                                                     {task.batch_code}

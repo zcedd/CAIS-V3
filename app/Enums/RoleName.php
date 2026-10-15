@@ -6,6 +6,7 @@ enum RoleName: string
 {
     case SuperAdmin = 'super-admin';
     case Executive = 'executive';
+    case Administrator = 'administrator';
     case DepartmentHead = 'department-head';
     case ReleasingOfficer = 'releasing-officer';
     case Assistance = 'assistance';
@@ -56,8 +57,23 @@ enum RoleName: string
         return [
             self::SuperAdmin,
             self::Executive,
+            self::Administrator,
             self::DepartmentHead,
             self::ReleasingOfficer,
+        ];
+    }
+
+    /**
+     * Roles that review records from every department.
+     *
+     * @return list<string>
+     */
+    public static function provinceWideValues(): array
+    {
+        return [
+            self::SuperAdmin->value,
+            self::Executive->value,
+            self::Administrator->value,
         ];
     }
 
@@ -74,6 +90,7 @@ enum RoleName: string
         return match ($this) {
             self::SuperAdmin => 'Super admin',
             self::Executive => 'Executive',
+            self::Administrator => 'Administrator',
             self::DepartmentHead => 'Department head',
             self::ReleasingOfficer => 'Releasing officer',
             self::Assistance => 'Assistance',
@@ -92,6 +109,7 @@ enum RoleName: string
         return match ($this) {
             self::SuperAdmin => 'Supreme',
             self::Executive => 'Executive',
+            self::Administrator => 'Administrator',
             self::DepartmentHead => 'Dept head',
             self::ReleasingOfficer => 'Field op',
             default => 'Staff',
@@ -103,6 +121,7 @@ enum RoleName: string
         return match ($this) {
             self::SuperAdmin => 'Highest authority in the system. Full access across modules, overrides, and user clearances.',
             self::Executive => 'Reviews program details and approves the program.',
+            self::Administrator => 'Endorses programs and distribution batches for executive approval.',
             self::DepartmentHead => 'Formulates assistance programs and submits them for executive approval.',
             self::ReleasingOfficer => 'Enrolls beneficiaries and releases assistance after the executive approves it.',
             default => $this->label(),

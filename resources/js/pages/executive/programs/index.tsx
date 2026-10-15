@@ -15,28 +15,36 @@ import type { ProgramDecisionAction } from '@/components/user/programs/program-d
 import { StatusPillTabs } from '@/components/user/status-pill-tabs';
 import { cn } from '@/lib/utils';
 import type { ProgramListRow } from '@/pages/user/programs/program-folder-card';
-import {
-    analytics as executiveProgramAnalytics,
-    approve as approveProgram,
-    index as executiveProgramsIndex,
-    returnMethod as returnProgram,
-    show as executiveProgramShow,
-} from '@/routes/executive/programs';
+import { analytics as executiveProgramAnalytics } from '@/routes/executive/programs';
 import { exportMethod as exportAssistances } from '@/routes/user/programs/assistances';
 import type { BreadcrumbItem } from '@/types';
 
 type ApprovalCounts = {
     all: number;
     draft: number;
+    awaiting_administrator: number;
     awaiting_governor: number;
     approved: number;
     returned: number;
+};
+
+type ProgramReview = {
+    mode: 'endorse' | 'approve';
+    audience: string;
+    index_url: string;
+    awaiting_status: string;
+    positive_action: 'endorse' | 'approve';
+    positive_label: string;
 };
 
 type ExecutiveProgramRow = ProgramListRow & {
     approval_status: string;
     approval_label: string;
     can_approve?: boolean;
+    can_endorse?: boolean;
+    show_url?: string;
+    positive_url?: string;
+    return_url?: string;
     department: { id: number; name: string; slug: string } | null;
 };
 
@@ -113,6 +121,7 @@ export default function GovernorProgramsIndex({
     awaiting_count,
     approval_counts: approvalCounts,
     program_metrics: programMetrics = {},
+    review,
 }: {
     programs: PaginatedPrograms;
     search: string;
@@ -125,25 +134,26 @@ export default function GovernorProgramsIndex({
     awaiting_count: number;
     approval_counts: ApprovalCounts;
     program_metrics?: Record<string, ProgramCardMetric>;
+    review: ProgramReview;
 }) {
     const [searchQuery, setSearchQuery] = useState(initialSearch);
     const [analyticsProgram, setAnalyticsProgram] =
         useState<ExecutiveProgramRow | null>(null);
     const [decision, setDecision] = useState<{
         program: ExecutiveProgramRow;
-        action: Extract<ProgramDecisionAction, 'approve' | 'return'>;
+        action: ProgramDecisionAction;
     } | null>(null);
 
     useEffect(() => {
         setLayoutProps({
             breadcrumbs: [
                 {
-                    title: 'Executive',
-                    href: executiveProgramsIndex(),
+                    title: review.audience,
+                    href: review.index_url,
                 },
             ] satisfies BreadcrumbItem[],
         });
-    }, []);
+    }, [review.audience, review.index_url]);
 
     useEffect(() => {
         setSearchQuery(initialSearch);
@@ -161,26 +171,22 @@ export default function GovernorProgramsIndex({
                 per_page: overrides.per_page ?? initialPerPage,
             };
 
-            router.get(
-                executiveProgramsIndex.url({ query: buildProgramsQuery(next) }),
-                {},
-                {
-                    preserveState: true,
-                    replace: true,
-                    only: [
-                        'programs',
-                        'search',
-                        'type',
-                        'status',
-                        'approval',
-                        'department',
-                        'per_page',
-                        'awaiting_count',
-                        'approval_counts',
-                        'program_metrics',
-                    ],
-                },
-            );
+            router.get(review.index_url, buildProgramsQuery(next), {
+                preserveState: true,
+                replace: true,
+                only: [
+                    'programs',
+                    'search',
+                    'type',
+                    'status',
+                    'approval',
+                    'department',
+                    'per_page',
+                    'awaiting_count',
+                    'approval_counts',
+                    'program_metrics',
+                ],
+            });
         },
         [
             searchQuery,
@@ -189,6 +195,7 @@ export default function GovernorProgramsIndex({
             initialApproval,
             initialDepartment,
             initialPerPage,
+            review.index_url,
         ],
     );
 
@@ -216,7 +223,7 @@ export default function GovernorProgramsIndex({
 
     return (
         <>
-            <Head title="Executive" />
+            <Head title={review.audience} />
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -224,7 +231,10 @@ export default function GovernorProgramsIndex({
                             Programs
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            {awaiting_count} awaiting executive approval
+                            {awaiting_count}{' '}
+                            {review.mode === 'endorse'
+                                ? 'awaiting endorsement'
+                                : 'awaiting executive approval'}
                         </p>
                     </div>
                 </div>
@@ -232,15 +242,23 @@ export default function GovernorProgramsIndex({
                     <NoticeBanner
                         tone="amber"
                         icon={ClipboardCheck}
-                        title="Programs awaiting executive approval"
-                        description={`${awaiting_count} endorsed ${awaiting_count === 1 ? 'program is' : 'programs are'} waiting for a decision.`}
+                        title={
+                            review.mode === 'endorse'
+                                ? 'Programs awaiting administrator endorsement'
+                                : 'Programs awaiting executive approval'
+                        }
+                        description={
+                            review.mode === 'endorse'
+                                ? `${awaiting_count} submitted ${awaiting_count === 1 ? 'program is' : 'programs are'} waiting for endorsement.`
+                                : `${awaiting_count} endorsed ${awaiting_count === 1 ? 'program is' : 'programs are'} waiting for a decision.`
+                        }
                         action={
                             <Button
                                 type="button"
                                 size="sm"
                                 onClick={() =>
                                     navigateWithFilters({
-                                        approval: ['awaiting_governor'],
+                                        approval: [review.awaiting_status],
                                     })
                                 }
                             >
@@ -268,6 +286,12 @@ export default function GovernorProgramsIndex({
                                 label: 'Approved & Active',
                                 count: approvalCounts.approved,
                                 dotClassName: 'bg-emerald-500',
+                            },
+                            {
+                                value: 'awaiting_administrator',
+                                label: 'Awaiting administrator',
+                                count: approvalCounts.awaiting_administrator,
+                                dotClassName: 'bg-sky-500',
                             },
                             {
                                 value: 'awaiting_governor',
@@ -364,14 +388,23 @@ export default function GovernorProgramsIndex({
                                         metrics={
                                             programMetrics[String(program.id)]
                                         }
-                                        href={executiveProgramShow.url(
-                                            program.id,
-                                        )}
-                                        onInspect={() =>
-                                            setAnalyticsProgram(program)
+                                        href={
+                                            program.show_url ?? review.index_url
+                                        }
+                                        onInspect={
+                                            review.mode === 'approve'
+                                                ? () =>
+                                                      setAnalyticsProgram(
+                                                          program,
+                                                      )
+                                                : undefined
                                         }
                                         actions={
-                                            program.can_approve ? (
+                                            (
+                                                review.mode === 'endorse'
+                                                    ? program.can_endorse
+                                                    : program.can_approve
+                                            ) ? (
                                                 <div className="flex gap-2">
                                                     <Button
                                                         type="button"
@@ -379,12 +412,12 @@ export default function GovernorProgramsIndex({
                                                         onClick={() =>
                                                             setDecision({
                                                                 program,
-                                                                action: 'approve',
+                                                                action: review.positive_action,
                                                             })
                                                         }
                                                     >
                                                         <Check data-icon="inline-start" />
-                                                        Approve
+                                                        {review.positive_label}
                                                     </Button>
                                                     <Button
                                                         type="button"
@@ -430,13 +463,13 @@ export default function GovernorProgramsIndex({
                     }
                 }}
                 programName={decision?.program.name ?? ''}
-                action={decision?.action ?? 'approve'}
+                action={decision?.action ?? review.positive_action}
                 url={
                     decision === null
                         ? ''
-                        : decision.action === 'approve'
-                          ? approveProgram.url(decision.program.id)
-                          : returnProgram.url(decision.program.id)
+                        : decision.action === 'return'
+                          ? (decision.program.return_url ?? '')
+                          : (decision.program.positive_url ?? '')
                 }
             />
             <ProgramAnalyticsDialog

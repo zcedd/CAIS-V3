@@ -14,6 +14,7 @@ export const Permission = {
     ProgramDelete: 'program.delete',
     ProgramDownloadAssistance: 'program.downloadAssistance',
     ProgramSubmit: 'program.submit',
+    ProgramEndorse: 'program.endorse',
     ProgramApprove: 'program.approve',
     BeneficiaryViewAny: 'beneficiary.viewAny',
     BeneficiaryView: 'beneficiary.view',

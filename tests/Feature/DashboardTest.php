@@ -41,6 +41,19 @@ test('an executive without a department is redirected to the executive dashboard
         ->assertRedirect(route('executive.dashboard'));
 });
 
+test('an administrator without a department is redirected to the administrator program queue', function () {
+    $this->seed(RolePermissionSeeder::class);
+
+    $user = User::factory()->create([
+        'department_id' => null,
+    ]);
+    $user->syncRoles([RoleName::Administrator->value]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertRedirect(route('administrator.programs.index'));
+});
+
 test('an executive with a department is redirected to the department dashboard', function () {
     $this->seed(RolePermissionSeeder::class);
 
