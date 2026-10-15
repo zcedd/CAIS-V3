@@ -48,11 +48,13 @@ class CreateProgramBatch
             'public_intake' => $scheme->is_organization
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
+            'distribution_mode' => $scheme->resolvedDistributionMode(),
             'kind' => ProgramKind::Batch,
             'approval_status' => ProgramApprovalStatus::Draft,
             'parent_id' => $scheme->id,
             'batch_number' => $nextNumber,
             'batch_name' => $batchName,
+            'workflow_id' => $scheme->resolvedWorkflow()->id,
         ]);
 
         $batch->fund()->attach($validated['fund_ids']);

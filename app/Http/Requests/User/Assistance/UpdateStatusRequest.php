@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\User\Assistance;
 
+use App\Actions\Distribution\AssertDeliveredRequiresDistribution;
 use App\Enums\AssistanceItemOrigin;
 use App\Enums\RequestStatusCode;
 use App\Http\Requests\User\Concerns\EnsuresAssistanceBelongsToProgram;
@@ -126,6 +127,11 @@ class UpdateStatusRequest extends FormRequest
                 if (! $this->isDeliveredSubStatus()) {
                     return;
                 }
+
+                $validator->errors()->add(
+                    'request_sub_status_id',
+                    AssertDeliveredRequiresDistribution::MESSAGE,
+                );
 
                 $deliveredItems = $this->input('delivered_items', []);
                 $extraItems = $this->input('extra_items', []);

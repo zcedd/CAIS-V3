@@ -3,6 +3,7 @@
 namespace App\Services\Distribution;
 
 use App\Enums\DistributionItemApprovalStatus;
+use App\Enums\DistributionType;
 use App\Models\DistributionBatch;
 use App\Models\DistributionBatchItem;
 
@@ -35,6 +36,9 @@ class DistributionBatchDetails
         return [
             'id' => $batch->id,
             'batch_code' => $batch->batch_code,
+            'distribution_type' => $batch->distribution_type?->value ?? DistributionType::Batch->value,
+            'distribution_type_label' => $batch->distribution_type?->label() ?? DistributionType::Batch->label(),
+            'approval_requirement' => ($batch->distribution_type ?? DistributionType::Batch)->approvalLabel(),
             'title' => $batch->title,
             'description' => $batch->description,
             'venue' => $batch->venue,

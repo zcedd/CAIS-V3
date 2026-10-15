@@ -16,6 +16,7 @@ use App\Models\DistributionBatchItem;
 use App\Models\DistributionBatchItemLine;
 use App\Models\DistributionReleaseRecord;
 use App\Models\DistributionTransaction;
+use App\Models\Individual;
 use App\Models\User;
 use App\Services\Distribution\DistributionAudit;
 use App\Services\Distribution\DistributionReceiptService;
@@ -313,8 +314,19 @@ class FinalizeDistributionTransaction
         string $receiptNumber,
         array $lines,
     ): array {
-        $item->loadMissing('beneficiary', 'assistance');
+        $item->loadMissing([
+            'beneficiary.beneficiable' => function ($morphTo): void {
+                $morphTo->morphWith([
+                    Individual::class => ['address.city', 'beneficiaryIdentification'],
+                ]);
+            },
+            'assistance',
+        ]);
         $batch->loadMissing('program', 'department');
+        $individual = $item->beneficiary?->beneficiable instanceof Individual
+            ? $item->beneficiary->beneficiable
+            : null;
+        $address = $individual?->address;
         $total = '0.00';
 
         foreach ($lines as $line) {
@@ -334,6 +346,12 @@ class FinalizeDistributionTransaction
             'recipient_type' => $transaction->received_by_type?->label(),
             'representative_relationship' => $transaction->representative_relationship,
             'beneficiary_reference' => $item->beneficiary?->cais_number,
+            'beneficiary_name' => $item->beneficiary?->name,
+            'beneficiary_type' => $item->beneficiary ? class_basename((string) $item->beneficiary->beneficiable_type) : null,
+            'beneficiary_address' => $address === null
+                ? null
+                : collect([$address->name, $address->city?->name])->filter()->implode(', '),
+            'beneficiary_id_number' => $individual?->beneficiaryIdentification->first()?->number,
             'assistance_id' => $item->assistance_id,
             'distribution_date' => $batch->scheduled_at?->toDateString(),
             'venue' => $batch->venue,
@@ -345,7 +363,7 @@ class FinalizeDistributionTransaction
             'released_by' => $actor->name,
             'witness' => $witness?->name,
             'issued_at' => now()->toIso8601String(),
-            'evidence_note' => 'Live photographic evidence, when captured, is stored privately and is not printed on this receipt. A camera image, timestamp, or file hash does not by itself prove identity.',
+            'evidence_note' => 'The signature and photo proof of delivery, when captured, are printed on this receipt. The public verification page does not show them. A camera image or file hash does not by itself prove identity.',
         ];
     }
 }

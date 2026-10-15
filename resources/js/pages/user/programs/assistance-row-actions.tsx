@@ -56,6 +56,7 @@ interface AssistanceDataTableRowActionsProps {
     programId: number;
     programName: string;
     isOrganization: boolean;
+    distributionMode?: 'individual' | 'batch' | 'both' | null;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
     programFields: ProgramFieldOption[];
@@ -72,6 +73,7 @@ export function AssistanceDataTableRowActions({
     programId,
     programName,
     isOrganization,
+    distributionMode = 'batch',
     modeOfRequestOptions,
     programItems,
     programFields,
@@ -271,6 +273,7 @@ export function AssistanceDataTableRowActions({
                 canAdvance={canAdvance}
                 allowedRequestStatusIds={record.allowed_request_status_ids}
                 documentRequirements={documentRequirements}
+                distributionMode={distributionMode}
                 onUpdated={onAssistanceUpdated}
             />
 

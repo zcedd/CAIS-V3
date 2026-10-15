@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProgramDistributionMode;
 use App\Enums\ProgramKind;
 use App\Models\Department;
 use App\Models\Program;
@@ -31,6 +32,7 @@ class ProgramFactory extends Factory
             'is_closed' => false,
             'is_organization' => false,
             'public_intake' => false,
+            'distribution_mode' => ProgramDistributionMode::Batch->value,
             'kind' => ProgramKind::Standalone->value,
             'parent_id' => null,
             'batch_number' => null,
@@ -74,6 +76,7 @@ class ProgramFactory extends Factory
                 'parent_id' => $parent->id,
                 'department_id' => $parent->department_id,
                 'is_organization' => $parent->is_organization,
+                'distribution_mode' => $parent->resolvedDistributionMode()->value,
                 'batch_number' => $nextNumber,
                 'batch_name' => $batchName,
                 'name' => Program::composeBatchDisplayName($parent->name, $batchName),

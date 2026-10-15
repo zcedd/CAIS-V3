@@ -7,6 +7,7 @@ import {
 import type { DistributionCompositionData } from '@/components/distribution/composition';
 import { StatusDialog } from '@/components/distribution/status-dialog';
 import type { VisitCallbacks } from '@/components/distribution/status-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -27,7 +28,10 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { CodeChip } from '@/components/user/code-chip';
+import { StatCard } from '@/components/user/stat-card';
 import { formatPeso } from '@/lib/format-peso';
+import { cn } from '@/lib/utils';
 import {
     index as distributionsIndex,
     show as distributionShow,
@@ -140,6 +144,7 @@ type VenueProps = {
     }[];
     privacy_notice: string;
     retention_notice: string;
+    release_only?: boolean;
 };
 
 function routeArgs(department: string, batchId: number) {
@@ -159,96 +164,152 @@ export default function DistributionVenue({
     audit,
     privacy_notice,
     retention_notice,
+    release_only = false,
 }: VenueProps) {
     const args = routeArgs(department.slug, batch.id);
 
     useEffect(() => {
+        const breadcrumbArgs = routeArgs(department.slug, batch.id);
+
         setLayoutProps({
-            breadcrumbs: [
-                {
-                    title: 'Distributions',
-                    href: distributionsIndex.url(department.slug),
-                },
-                { title: batch.batch_code, href: distributionShow.url(args) },
-                { title: 'Venue desk', href: venue.url(args) },
-            ],
+            breadcrumbs: release_only
+                ? [
+                      {
+                          title: 'Distributions',
+                          href: distributionsIndex.url(department.slug),
+                      },
+                      { title: 'Release', href: venue.url(breadcrumbArgs) },
+                  ]
+                : [
+                      {
+                          title: 'Distributions',
+                          href: distributionsIndex.url(department.slug),
+                      },
+                      {
+                          title: batch.batch_code,
+                          href: distributionShow.url(breadcrumbArgs),
+                      },
+                      {
+                          title: 'Venue desk',
+                          href: venue.url(breadcrumbArgs),
+                      },
+                  ],
         });
-    }, [batch.batch_code, batch.id, department.slug]);
+    }, [batch.batch_code, batch.id, department.slug, release_only]);
+
+    if (release_only) {
+        return (
+            <>
+                <Head title="Release" />
+                <div className="mx-auto flex h-full min-w-0 w-full max-w-3xl flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Release
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {batch.program} · {department.name}
+                            {batch.venue ? ` · ${batch.venue}` : ''}
+                            {batch.scheduled_at
+                                ? ` · ${new Intl.DateTimeFormat('en-PH', {
+                                      dateStyle: 'medium',
+                                      timeStyle: 'short',
+                                  }).format(new Date(batch.scheduled_at))}`
+                                : ''}
+                        </p>
+                    </div>
+                    {selected ? (
+                        <ReleasePanel
+                            department={department.slug}
+                            batchId={batch.id}
+                            batchStatus={batch.status}
+                            selected={selected}
+                            officers={officers}
+                            can={can}
+                            privacyNotice={privacy_notice}
+                            retentionNotice={retention_notice}
+                        />
+                    ) : (
+                        <Card>
+                            <CardContent className="py-8 text-sm text-muted-foreground">
+                                This release has no beneficiary to record.
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </>
+        );
+    }
 
     return (
         <>
             <Head title={`${batch.batch_code} venue`} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                            {batch.batch_code}
-                        </p>
-                        <h1 className="text-2xl font-semibold tracking-tight">
-                            {batch.title}
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {batch.program} · {department.name} ·{' '}
-                            {batch.venue ?? 'Venue not set'}
-                        </p>
-                        {batch.venue_details && (
-                            <p className="text-sm text-muted-foreground">
-                                {batch.venue_details}
-                            </p>
-                        )}
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        {batch.title}
+                    </h1>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <CodeChip>{batch.batch_code}</CodeChip>
+                        <Badge variant="outline">{batch.status_label}</Badge>
+                        {batch.program ? (
+                            <Badge variant="outline">{batch.program}</Badge>
+                        ) : null}
                     </div>
-                    <span className="rounded-md border px-2 py-1 text-sm">
-                        {batch.status_label}
-                    </span>
+                    <p className="text-sm text-muted-foreground">
+                        {department.name}
+                        {batch.venue ? ` · ${batch.venue}` : ' · Venue not set'}
+                    </p>
+                    {batch.venue_details ? (
+                        <p className="text-sm text-muted-foreground">
+                            {batch.venue_details}
+                        </p>
+                    ) : null}
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Release progress</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-col gap-4">
-                        <Progress
-                            value={batch.progress}
-                            aria-label="Completed releases"
-                        />
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            <Stat
-                                label="Eligible"
-                                value={summary.approved_beneficiaries}
-                            />
-                            <Stat
-                                label="Completed"
-                                value={summary.served_beneficiaries}
-                            />
-                            <Stat
-                                label="Partial"
-                                value={summary.partial_beneficiaries}
-                            />
-                            <Stat
-                                label="Pending"
-                                value={summary.unserved_beneficiaries}
-                            />
-                            <Stat
-                                label="Excluded"
-                                value={summary.excluded_beneficiaries}
-                            />
-                            <Stat
-                                label="Absent"
-                                value={summary.absent_beneficiaries}
-                            />
-                            <Stat
-                                label="Voided releases"
-                                value={summary.voided_transactions}
-                            />
-                        </div>
-                        <DistributionComposition
-                            composition={summary.composition}
-                        />
-                        <p className="text-sm text-muted-foreground">
-                            Excluded beneficiaries are not counted as released.
-                        </p>
-                    </CardContent>
-                </Card>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                    <StatCard
+                        label="Eligible"
+                        value={summary.approved_beneficiaries.toLocaleString()}
+                    />
+                    <StatCard
+                        label="Completed"
+                        value={summary.served_beneficiaries.toLocaleString()}
+                    />
+                    <StatCard
+                        label="Partial"
+                        value={summary.partial_beneficiaries.toLocaleString()}
+                    />
+                    <StatCard
+                        label="Pending"
+                        value={summary.unserved_beneficiaries.toLocaleString()}
+                    />
+                    <StatCard
+                        label="Excluded"
+                        value={summary.excluded_beneficiaries.toLocaleString()}
+                    />
+                    <StatCard
+                        label="Absent"
+                        value={summary.absent_beneficiaries.toLocaleString()}
+                    />
+                    <StatCard
+                        label="Voided releases"
+                        value={summary.voided_transactions.toLocaleString()}
+                    />
+                </div>
+
+                <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+                    <h2 className="text-[15px] font-semibold tracking-tight">
+                        Release progress
+                    </h2>
+                    <Progress
+                        value={batch.progress}
+                        aria-label="Completed releases"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                        Excluded beneficiaries are not counted as released.
+                    </p>
+                    <DistributionComposition composition={summary.composition} />
+                </section>
 
                 {can.assign && (
                     <PersonnelForm
@@ -265,7 +326,7 @@ export default function DistributionVenue({
                 )}
 
                 <form
-                    className="flex flex-wrap gap-2"
+                    className="flex flex-wrap items-center gap-2"
                     onSubmit={(event) => {
                         event.preventDefault();
                         const form = new FormData(event.currentTarget);
@@ -281,7 +342,7 @@ export default function DistributionVenue({
                         defaultValue={filters.q ?? ''}
                         placeholder="Name, control number, or request ID"
                         aria-label="Find a beneficiary"
-                        className="max-w-md"
+                        className="h-9 max-w-md"
                     />
                     <Button type="submit" variant="outline">
                         Search
@@ -303,7 +364,10 @@ export default function DistributionVenue({
                                             item: row.id,
                                         },
                                     })}
-                                    className="rounded-md border px-3 py-2 text-sm hover:bg-muted"
+                                    className={cn(
+                                        'rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted',
+                                        selected?.id === row.id && 'bg-muted',
+                                    )}
                                 >
                                     <span className="block font-medium">
                                         {row.name}
@@ -316,15 +380,43 @@ export default function DistributionVenue({
                                 </Link>
                             ))}
                             <div className="flex gap-2">
-                                {beneficiaries.prev_page_url && (
-                                    <Link href={beneficiaries.prev_page_url}>
+                                {beneficiaries.prev_page_url ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        asChild
+                                    >
+                                        <Link href={beneficiaries.prev_page_url}>
+                                            Previous
+                                        </Link>
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled
+                                    >
                                         Previous
-                                    </Link>
+                                    </Button>
                                 )}
-                                {beneficiaries.next_page_url && (
-                                    <Link href={beneficiaries.next_page_url}>
+                                {beneficiaries.next_page_url ? (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        asChild
+                                    >
+                                        <Link href={beneficiaries.next_page_url}>
+                                            Next
+                                        </Link>
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        disabled
+                                    >
                                         Next
-                                    </Link>
+                                    </Button>
                                 )}
                             </div>
                         </CardContent>
@@ -370,15 +462,6 @@ export default function DistributionVenue({
     );
 }
 
-function Stat({ label, value }: { label: string; value: string | number }) {
-    return (
-        <div className="rounded-md border px-3 py-2">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="text-lg font-semibold">{value}</p>
-        </div>
-    );
-}
-
 function PersonnelForm({
     officers,
     selected,
@@ -392,7 +475,7 @@ function PersonnelForm({
 
     return (
         <form
-            className="flex flex-col gap-3 rounded-md border p-4"
+            className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
             onSubmit={(event) => {
                 event.preventDefault();
                 onSubmit(ids);

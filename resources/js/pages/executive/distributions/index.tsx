@@ -3,7 +3,12 @@ import { useEffect } from 'react';
 import { DistributionOfferSummary } from '@/components/distribution/composition';
 import type { DistributionOffer } from '@/components/distribution/composition';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import {
     Table,
     TableBody,
@@ -42,15 +47,22 @@ export default function ExecutiveDistributionsIndex({
     return (
         <>
             <Head title="Approval inbox" />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div>
-                    <h1 className="text-2xl font-semibold">Approval inbox</h1>
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Approval inbox
+                    </h1>
                     <p className="text-sm text-muted-foreground">
                         Pending distribution decisions assigned to you.
                     </p>
                 </div>
 
                 <Card>
+                    <CardHeader>
+                        <CardTitle className="text-lg">
+                            Pending decisions
+                        </CardTitle>
+                    </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
@@ -81,7 +93,7 @@ export default function ExecutiveDistributionsIndex({
                                                     href={show.url(
                                                         task.batch_id,
                                                     )}
-                                                    className="font-medium underline-offset-4 hover:underline"
+                                                    className="font-medium hover:underline"
                                                 >
                                                     {task.batch_code}
                                                 </Link>

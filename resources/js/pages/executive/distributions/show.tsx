@@ -1,4 +1,5 @@
 import { Head, router, setLayoutProps } from '@inertiajs/react';
+import { AlertTriangle, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { AssistanceLines } from '@/components/distribution/assistance-lines';
 import { DistributionComposition } from '@/components/distribution/composition';
@@ -6,8 +7,8 @@ import type { DistributionCompositionData } from '@/components/distribution/comp
 import { DistributionDecisionDialog } from '@/components/distribution/decision-dialog';
 import { ConfirmActionButton } from '@/components/distribution/status-dialog';
 import type { VisitCallbacks } from '@/components/distribution/status-dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Table,
@@ -17,6 +18,8 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
+import { CodeChip } from '@/components/user/code-chip';
+import { StatCard } from '@/components/user/stat-card';
 import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
 import {
@@ -147,34 +150,50 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
     return (
         <>
             <Head title={batch.batch_code} />
-            <div className="flex flex-col gap-6 p-4 md:p-6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                        <p className="text-sm text-muted-foreground">
-                            {batch.batch_code} · Revision {batch.revision}
-                        </p>
-                        <h1 className="text-2xl font-semibold">
-                            {batch.title}
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            {batch.program.name} · {batch.department.name} ·{' '}
-                            {batch.venue}
-                        </p>
+            <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+                <div className="space-y-2">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        {batch.title}
+                    </h1>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <CodeChip>{batch.batch_code}</CodeChip>
+                        <Badge variant="outline">{batch.status_label}</Badge>
+                        <Badge variant="outline">
+                            Revision {batch.revision}
+                        </Badge>
+                        {batch.program.name ? (
+                            <Badge variant="outline">{batch.program.name}</Badge>
+                        ) : null}
+                        {batch.department.name ? (
+                            <Badge variant="outline">
+                                {batch.department.name}
+                            </Badge>
+                        ) : null}
                     </div>
-                    <Badge variant="outline">{batch.status_label}</Badge>
+                    <p className="text-sm text-muted-foreground">
+                        {batch.venue ?? 'Venue not set'}
+                        {batch.scheduled_at
+                            ? ` · ${new Intl.DateTimeFormat('en-PH', {
+                                  dateStyle: 'medium',
+                                  timeStyle: 'short',
+                              }).format(new Date(batch.scheduled_at))}`
+                            : ''}
+                    </p>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                    <Summary
-                        label="Beneficiaries"
-                        value={`${batch.approved_beneficiary_count} / ${batch.beneficiary_count}`}
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    <StatCard
+                        label="Approved beneficiaries"
+                        value={`${batch.approved_beneficiary_count}/${batch.beneficiary_count}`}
+                        description="Approved of the roster"
+                        icon={Users}
                     />
                 </div>
                 <DistributionComposition
                     composition={batch.reconciliation.composition}
                 />
 
-                {batch.policy && (
+                {batch.policy ? (
                     <p className="text-sm text-muted-foreground">
                         {batch.policy.name} · {batch.policy.strategy}
                         {batch.policy.allow_partial_finalization
@@ -184,13 +203,23 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                             ? ` · ${batch.finalization_label}`
                             : ''}
                     </p>
-                )}
+                ) : null}
 
-                {(batch.validation_summary?.warnings ?? []).map((warning) => (
-                    <p key={warning} className="text-sm text-amber-700">
-                        {warning}
-                    </p>
-                ))}
+                {(batch.validation_summary?.warnings ?? []).length > 0 ? (
+                    <Alert>
+                        <AlertTriangle />
+                        <AlertTitle>Review warnings</AlertTitle>
+                        <AlertDescription>
+                            <ul className="flex flex-col gap-1">
+                                {(batch.validation_summary?.warnings ?? []).map(
+                                    (warning) => (
+                                        <li key={warning}>{warning}</li>
+                                    ),
+                                )}
+                            </ul>
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
 
                 {batch.status === 'for_approval' &&
                     (batchDecisions.length > 0 ||
@@ -260,8 +289,16 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                         </div>
                     )}
 
-                <Card>
-                    <CardContent>
+                <section className="rounded-xl border border-border bg-card">
+                    <div className="flex flex-col gap-4 p-4">
+                        <div className="space-y-1">
+                            <h2 className="text-[15px] font-semibold tracking-tight">
+                                Roster
+                            </h2>
+                            <p className="text-xs text-muted-foreground">
+                                Beneficiaries included in this distribution.
+                            </p>
+                        </div>
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -419,15 +456,14 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                 ))}
                             </TableBody>
                         </Table>
-                    </CardContent>
-                </Card>
+                    </div>
+                </section>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>History</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <ul className="space-y-1 text-sm">
+                <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
+                    <h2 className="text-[15px] font-semibold tracking-tight">
+                        Approval history
+                    </h2>
+                    <ul className="flex flex-col gap-2 text-sm">
                             {batch.tasks
                                 .filter(
                                     (task) => task.revision === batch.revision,
@@ -446,23 +482,9 @@ export default function ExecutiveDistributionShow({ batch }: { batch: Batch }) {
                                         : ''}
                                 </li>
                             ))}
-                        </ul>
-                    </CardContent>
-                </Card>
+                    </ul>
+                </section>
             </div>
         </>
-    );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-    return (
-        <Card size="sm">
-            <CardHeader>
-                <CardTitle className="text-muted-foreground">{label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="font-medium">{value}</div>
-            </CardContent>
-        </Card>
     );
 }

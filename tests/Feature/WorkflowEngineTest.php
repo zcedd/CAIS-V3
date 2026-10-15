@@ -197,7 +197,7 @@ test('completing an already completed task fails', function () {
         ->toThrow(ValidationException::class);
 });
 
-test('walk-in workflow allows submitted to delivered', function () {
+test('walk-in workflow cannot mark a request delivered without a distribution', function () {
     ['department' => $department, 'user' => $user, 'program' => $program, 'beneficiary' => $beneficiary, 'mode' => $mode, 'item' => $item] = workflowEngineContext();
 
     $walkIn = app(EnsureDepartmentWorkflow::class)->create(
@@ -235,14 +235,14 @@ test('walk-in workflow allows submitted to delivered', function () {
     $engine = app(WorkflowEngine::class);
     $engine->start($assistance, $user, false);
 
-    $engine->executeByTargetSubStatus(
+    expect(fn () => $engine->executeByTargetSubStatus(
         $assistance->refresh(),
         RequestSubStatus::query()->findOrFail(catalogReasonId(RequestSubStatusCode::Delivered)),
         $user,
-    );
+    ))->toThrow(ValidationException::class);
 
-    expect($assistance->refresh()->currentRequestSubStatus?->request_status_id)
-        ->toBe(catalogParentId(RequestStatusCode::Delivered));
+    expect($assistance->refresh()->currentRequestSubStatus?->code)
+        ->not->toBe(RequestSubStatusCode::Delivered);
 });
 
 test('start refuses a deactivated workflow', function () {

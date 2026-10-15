@@ -7,6 +7,7 @@ use App\Enums\DocumentRequirementMilestone;
 use App\Enums\ItemKind;
 use App\Enums\ProgramApprovalAction;
 use App\Enums\ProgramApprovalStatus;
+use App\Enums\ProgramDistributionMode;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
 use App\Enums\RoleName;
@@ -20,6 +21,8 @@ use App\Models\ProgramEligibilityRule;
 use App\Models\ProgramField;
 use App\Models\ProgramItemCap;
 use App\Models\User;
+use App\Models\Workflow;
+use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -40,6 +43,7 @@ class ProgramService
         private StockLedgerService $stockLedgerService,
         private CreateProgramBatch $createProgramBatch,
         private WorkflowService $workflowService,
+        private EnsureDepartmentWorkflow $ensureDepartmentWorkflow,
     ) {}
 
     /**
@@ -175,9 +179,13 @@ class ProgramService
             'public_intake' => $kind === ProgramKind::Scheme
                 ? false
                 : (bool) ($validated['public_intake'] ?? false),
+            'distribution_mode' => $this->distributionMode($validated),
             'kind' => $kind,
             'approval_status' => ProgramApprovalStatus::Draft,
-            'workflow_id' => $validated['workflow_id'] ?? null,
+            'workflow_id' => $this->workflowIdForAssignment(
+                $department,
+                $validated['workflow_id'] ?? null,
+            ),
         ]);
 
         if ($kind !== ProgramKind::Scheme) {
@@ -235,8 +243,15 @@ class ProgramService
             'public_intake' => $validated['public_intake'] ?? false,
         ];
 
+        if (array_key_exists('distribution_mode', $validated)) {
+            $payload['distribution_mode'] = $this->distributionMode($validated);
+        }
+
         if (array_key_exists('workflow_id', $validated)) {
-            $payload['workflow_id'] = $validated['workflow_id'];
+            $payload['workflow_id'] = $this->workflowIdForAssignment(
+                $this->departmentOf($program),
+                $validated['workflow_id'],
+            );
         }
 
         $program->update($payload);
@@ -434,6 +449,7 @@ class ProgramService
                 'is_closed',
                 'is_organization',
                 'public_intake',
+                'distribution_mode',
                 'department_id',
                 'kind',
                 'batch_number',
@@ -795,7 +811,14 @@ class ProgramService
         ];
 
         if (array_key_exists('workflow_id', $validated)) {
-            $payload['workflow_id'] = $validated['workflow_id'];
+            $payload['workflow_id'] = $this->workflowIdForAssignment(
+                $this->departmentOf($program),
+                $validated['workflow_id'],
+            );
+        }
+
+        if (array_key_exists('distribution_mode', $validated)) {
+            $payload['distribution_mode'] = $this->distributionMode($validated);
         }
 
         if (! $program->batches()->exists()) {
@@ -817,6 +840,10 @@ class ProgramService
         }
 
         $this->syncEligibility($program, $validated);
+
+        $program->batches()->update([
+            'distribution_mode' => $program->resolvedDistributionMode()->value,
+        ]);
 
         if ($previousName !== $program->name) {
             $program->batches()->each(function (Program $batch) use ($program): void {
@@ -850,7 +877,10 @@ class ProgramService
         ];
 
         if (array_key_exists('workflow_id', $validated)) {
-            $payload['workflow_id'] = $validated['workflow_id'];
+            $payload['workflow_id'] = $this->workflowIdForAssignment(
+                $this->departmentOf($program),
+                $validated['workflow_id'],
+            );
         }
 
         $program->update($payload);
@@ -1006,6 +1036,7 @@ class ProgramService
             'is_closed' => (bool) $program->is_closed,
             'is_organization' => (bool) $program->is_organization,
             'public_intake' => (bool) $program->public_intake,
+            'distribution_mode' => $program->resolvedDistributionMode()->value,
             'kind' => $program->kind instanceof ProgramKind ? $program->kind->value : $program->kind,
             'batch_name' => $program->batch_name,
             'batches_count' => (int) $program->batches_count,
@@ -1397,5 +1428,48 @@ class ProgramService
         }
 
         return Carbon::parse($value)->format('M d, Y');
+    }
+
+    private function departmentOf(Program $program): Department
+    {
+        $program->loadMissing('department');
+
+        $department = $program->department;
+
+        if ($department instanceof Department) {
+            return $department;
+        }
+
+        return Department::query()->findOrFail($program->department_id);
+    }
+
+    /**
+     * Pin the program to an explicit workflow, or to the department default.
+     */
+    private function workflowIdForAssignment(Department $department, mixed $workflowId): int
+    {
+        $workflow = null;
+
+        if (is_numeric($workflowId)) {
+            $workflow = Workflow::query()
+                ->where('department_id', $department->id)
+                ->whereKey((int) $workflowId)
+                ->first();
+        }
+
+        if (! $workflow instanceof Workflow) {
+            $workflow = $this->ensureDepartmentWorkflow->defaultFor($department);
+        }
+
+        return $workflow->activeVersion()->id;
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function distributionMode(array $validated): ProgramDistributionMode
+    {
+        return ProgramDistributionMode::tryFrom((string) ($validated['distribution_mode'] ?? ''))
+            ?? ProgramDistributionMode::Batch;
     }
 }

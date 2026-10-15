@@ -48,6 +48,24 @@ test('authorized staff can create a distribution batch', function () {
             ->has('batches.data', 1));
 });
 
+test('staff can filter the distribution list by status and page size', function () {
+    $fixture = distributionFixture();
+    storeDistribution($fixture);
+
+    test()->actingAs($fixture['creator'])
+        ->get(route('user.distributions.index', [
+            'department' => $fixture['department'],
+            'status' => DistributionBatchStatus::Draft->value,
+            'per_page' => 10,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('batches.data', 1)
+            ->where('batches.per_page', 10)
+            ->where('filters.status', [DistributionBatchStatus::Draft->value])
+            ->where('filters.distribution_type', []));
+});
+
 test('the create form lists only approved programs', function () {
     $fixture = distributionFixture();
     $draft = Program::factory()->forDepartment($fixture['department'])->create([
@@ -294,7 +312,7 @@ test('beneficiary review can approve return and exclude', function () {
 });
 
 test('amount changes are refused unless the policy allows them', function () {
-    $fixture = distributionFixture(requests: 1);
+    $fixture = distributionFixture(requests: 2);
     $batch = storeDistribution($fixture, 'beneficiary');
     submitDistribution($fixture, $batch);
     $item = $batch->items()->firstOrFail();
@@ -308,7 +326,7 @@ test('amount changes are refused unless the policy allows them', function () {
         ])
         ->assertForbidden();
 
-    $allowedFixture = distributionFixture();
+    $allowedFixture = distributionFixture(requests: 2);
     app(SaveDistributionApprovalPolicy::class)($allowedFixture['governor'], [
         'name' => 'Editable amounts',
         'department_id' => $allowedFixture['department']->id,
@@ -527,7 +545,7 @@ test('a returned batch keeps history and starts a new revision on resubmit', fun
 });
 
 test('the same beneficiary cannot be approved twice for one revision', function () {
-    $fixture = distributionFixture(requests: 1);
+    $fixture = distributionFixture(requests: 2);
     $batch = storeDistribution($fixture, 'beneficiary');
     submitDistribution($fixture, $batch);
     $item = $batch->items()->firstOrFail();

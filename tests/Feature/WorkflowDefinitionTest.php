@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Workflow;
 use App\Models\WorkflowStep;
 use App\Models\WorkflowStepTransition;
+use App\Services\Admin\WorkflowService;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use App\Services\Workflow\PublishWorkflowValidator;
 use App\Services\Workflow\RequestStatusCatalog;
@@ -176,6 +177,32 @@ test('publishing a valid draft marks it published without activating it', functi
 
     expect($draft->refresh()->status)->toBe(WorkflowStatus::Published)
         ->and($workflow->refresh()->status)->toBe(WorkflowStatus::Active);
+});
+
+test('activating a workflow moves programs onto that version', function () {
+    seedRolesAndPermissions();
+    $department = Department::create(['name' => 'Move Programs Department']);
+    $current = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+    $replacement = app(CreateWorkflowVersion::class)($current);
+    $program = Program::create([
+        'name' => 'Medical Assistance',
+        'descriptions' => 'Details',
+        'start_at' => now()->toDateString(),
+        'department_id' => $department->id,
+        'is_closed' => false,
+        'is_organization' => false,
+        'workflow_id' => $current->id,
+    ]);
+
+    $replacement->forceFill(['status' => WorkflowStatus::Published])->save();
+
+    app(WorkflowService::class)->activate($replacement->refresh());
+
+    expect($replacement->refresh()->status)->toBe(WorkflowStatus::Active)
+        ->and($replacement->is_default)->toBeTrue()
+        ->and($current->refresh()->status)->toBe(WorkflowStatus::Inactive)
+        ->and($current->is_default)->toBeFalse()
+        ->and($program->refresh()->workflow_id)->toBe($replacement->id);
 });
 
 test('activating a published workflow retires the previous active version', function () {

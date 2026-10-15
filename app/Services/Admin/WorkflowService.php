@@ -184,6 +184,18 @@ class WorkflowService
         $this->assertPublishable($workflow);
 
         return DB::transaction(function () use ($workflow): Workflow {
+            $previousIds = Workflow::query()
+                ->where('department_id', $workflow->department_id)
+                ->where('code', $workflow->code)
+                ->whereKeyNot($workflow->id)
+                ->pluck('id');
+
+            $inheritsDefault = (bool) $workflow->is_default
+                || Workflow::query()
+                    ->whereIn('id', $previousIds)
+                    ->where('is_default', true)
+                    ->exists();
+
             Workflow::query()
                 ->where('department_id', $workflow->department_id)
                 ->where('code', $workflow->code)
@@ -191,8 +203,22 @@ class WorkflowService
                 ->where('status', WorkflowStatus::Active)
                 ->update(['status' => WorkflowStatus::Inactive]);
 
+            if ($inheritsDefault && $previousIds->isNotEmpty()) {
+                Workflow::query()
+                    ->whereIn('id', $previousIds)
+                    ->update(['is_default' => false]);
+            }
+
+            if ($previousIds->isNotEmpty()) {
+                Program::query()
+                    ->withTrashed()
+                    ->whereIn('workflow_id', $previousIds)
+                    ->update(['workflow_id' => $workflow->id]);
+            }
+
             $workflow->forceFill([
                 'status' => WorkflowStatus::Active,
+                'is_default' => $inheritsDefault,
             ])->save();
 
             return $workflow->refresh();

@@ -5,6 +5,7 @@ use App\Enums\DocumentRequirementMilestone;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
 use App\Enums\StockMovementType;
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
 use App\Models\AssistanceRequestSubStatus;
@@ -21,7 +22,9 @@ use App\Models\ProgramField;
 use App\Models\ProgramItemCap;
 use App\Models\User;
 use App\Services\User\DashboardService;
+use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -166,6 +169,60 @@ test('creating a parent program can include the first batch', function () {
         ->and($batch->fields()->pluck('label')->all())->toBe(['School']);
 });
 
+test('creating a program with a batch assigns the department default workflow', function () {
+    ['department' => $department, 'user' => $user, 'fund' => $fund, 'item' => $item] = createProgramBatchContext();
+    $defaultWorkflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+
+    $this->actingAs($user)
+        ->post(route('user.programs.store', ['department' => $department->slug]), [
+            'name' => 'Food Pack Distribution',
+            'descriptions' => 'Relief goods',
+            'start_at' => '2026-10-14',
+            'kind' => ProgramKind::Scheme->value,
+            'item_ids' => [$item->id],
+            'first_batch' => [
+                'batch_name' => 'Laoag',
+                'start_at' => '2026-10-14',
+                'fund_ids' => [$fund->id],
+            ],
+        ])
+        ->assertRedirect();
+
+    $scheme = Program::query()->where('kind', ProgramKind::Scheme)->first();
+    $batch = Program::query()->where('kind', ProgramKind::Batch)->first();
+
+    expect($scheme?->workflow_id)->toBe($defaultWorkflow->id)
+        ->and($batch?->workflow_id)->toBe($defaultWorkflow->id);
+});
+
+test('opening a batch profile loads request statuses', function () {
+    ['department' => $department, 'user' => $user] = createProgramBatchContext();
+    $defaultWorkflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+    $scheme = Program::factory()->scheme()->forDepartment($department)->create([
+        'workflow_id' => $defaultWorkflow->id,
+    ]);
+    $batch = Program::factory()->batch($scheme)->create();
+
+    $headers = [
+        'X-Inertia' => 'true',
+        'X-Inertia-Partial-Component' => 'user/programs/show',
+        'X-Inertia-Partial-Data' => 'request_sub_status_options',
+    ];
+    $version = app(HandleInertiaRequests::class)->version(Request::create('/'));
+
+    if (is_string($version)) {
+        $headers['X-Inertia-Version'] = $version;
+    }
+
+    $this->actingAs($user)
+        ->withHeaders($headers)
+        ->get(route('user.programs.show', [
+            'department' => $department->slug,
+            'program' => $batch->id,
+        ]))
+        ->assertOk();
+});
+
 test('adding a batch copies items fields and documents from the parent', function () {
     ['department' => $department, 'user' => $user, 'fund' => $fund, 'item' => $item] = createProgramBatchContext();
 
@@ -223,7 +280,7 @@ test('the programs index lists parents only', function () {
     $this->actingAs($user)
         ->get(route('user.programs.index', ['department' => $department->slug]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('user/programs/index')
             ->has('programs.data', 2)
             ->where('programs.data.0.name', $standalone->name)
@@ -244,7 +301,7 @@ test('searching a batch name returns the parent program on the index', function 
             'search' => 'Q3 Run',
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('user/programs/index')
             ->has('programs.data', 1)
             ->where('programs.data.0.id', $scheme->id));
@@ -262,7 +319,7 @@ test('the parent program show page lists batches and does not include the assist
             'program' => $scheme->id,
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
+        ->assertInertia(fn (Assert $page) => $page
             ->component('user/programs/scheme')
             ->where('program.kind', ProgramKind::Scheme->value)
             ->has('batches', 1)
@@ -642,8 +699,8 @@ test('dashboard program filter on a parent includes batch assistances', function
             'program' => [$scheme->id],
         ]))
         ->assertOk()
-        ->assertInertia(fn(Assert $page) => $page
-            ->loadDeferredProps('kpis', fn($reload) => $reload
+        ->assertInertia(fn (Assert $page) => $page
+            ->loadDeferredProps('kpis', fn ($reload) => $reload
                 ->where('summary.total_requests', 1)));
 });
 

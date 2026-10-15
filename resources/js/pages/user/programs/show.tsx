@@ -55,12 +55,17 @@ import type {
 } from '@/pages/user/programs/assistance-toolbar';
 import {
     ASSISTANCE_TABLE_DEFER_GROUP_PROPS,
+    ASSISTANCE_TABLE_PARTIAL_PROPS,
     ASSISTANCE_TABLE_SKELETON_COLUMNS,
     buildTableQuery,
     isAssistancesPartialVisit,
     isAssistancesTableReady,
 } from '@/pages/user/programs/program-assistance-table';
-import type { PaginatedAssistances } from '@/pages/user/programs/program-assistance-table';
+import type {
+    AssistanceTableVisitOptions,
+    AssistanceTableVisitOverrides,
+    PaginatedAssistances,
+} from '@/pages/user/programs/program-assistance-table';
 import {
     ProgramShowMetrics,
     ProgramShowMetricsSkeleton,
@@ -131,6 +136,7 @@ type ProgramDetail = {
     is_closed: boolean | null;
     is_organization: boolean | null;
     public_intake?: boolean | null;
+    distribution_mode?: 'individual' | 'batch' | 'both' | null;
     kind?: string | null;
     approval_status?: string | null;
     approval_label?: string | null;
@@ -341,7 +347,31 @@ export default function UserProgramShow({
                 programId: program.id,
                 table: liveAssistanceTable,
             });
+
+            return;
         }
+
+        if (assistances === undefined) {
+            return;
+        }
+
+        setAssistanceTableSnapshot((current) => {
+            if (current === null || current.programId !== program.id) {
+                return current;
+            }
+
+            if (current.table.assistances === assistances) {
+                return current;
+            }
+
+            return {
+                programId: program.id,
+                table: {
+                    ...current.table,
+                    assistances,
+                },
+            };
+        });
     }, [
         program.id,
         assistances,
@@ -447,14 +477,8 @@ export default function UserProgramShow({
 
     const visitTable = useCallback(
         (
-            overrides: Partial<
-                AssistanceTableFilters & {
-                    sort: string;
-                    direction: 'asc' | 'desc';
-                    per_page: number;
-                    page: number;
-                }
-            > = {},
+            overrides: AssistanceTableVisitOverrides = {},
+            options?: AssistanceTableVisitOptions,
         ) => {
             if (!department?.slug) {
                 return;
@@ -474,7 +498,9 @@ export default function UserProgramShow({
                 {
                     preserveState: true,
                     preserveScroll: true,
-                    only: ['assistances'],
+                    only: options?.refreshDeferred
+                        ? [...ASSISTANCE_TABLE_DEFER_GROUP_PROPS]
+                        : [...ASSISTANCE_TABLE_PARTIAL_PROPS],
                 },
             );
         },
@@ -607,6 +633,13 @@ export default function UserProgramShow({
                                 )}
                             >
                                 {isClosed ? 'Closed' : 'Open'}
+                            </Badge>
+                            <Badge variant="outline">
+                                {program.distribution_mode === 'individual'
+                                    ? 'Individual distribution'
+                                    : program.distribution_mode === 'both'
+                                      ? 'Individual and batch'
+                                      : 'Batch distribution'}
                             </Badge>
                             <Badge variant="outline">
                                 {program.is_organization ? (
@@ -944,6 +977,7 @@ export default function UserProgramShow({
                                     isOrganization={
                                         program.is_organization ?? false
                                     }
+                                    distributionMode={program.distribution_mode}
                                     canCreateAssistance={canCreateAssistance}
                                     modeOfRequestOptions={
                                         resolvedAssistanceTable.mode_of_request_options

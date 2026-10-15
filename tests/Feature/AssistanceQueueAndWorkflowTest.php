@@ -292,7 +292,7 @@ test('standard workflow rejects skipping from submitted to delivered', function 
         ->assertSessionHasErrors('request_sub_status_id');
 });
 
-test('walk-in workflow allows submitted to delivered', function () {
+test('walk-in workflow cannot mark a request delivered without a distribution', function () {
     ['department' => $department, 'encoder' => $user, 'program' => $program, 'beneficiary' => $beneficiary, 'mode' => $mode] = createQueueAssistanceContext();
 
     $walkIn = app(EnsureDepartmentWorkflow::class)->create(
@@ -354,11 +354,13 @@ test('walk-in workflow allows submitted to delivered', function () {
                 ],
             ],
         ])
-        ->assertSessionHasNoErrors()
-        ->assertRedirect();
+        ->assertSessionHasErrors([
+            'request_sub_status_id' => 'Complete an individual or batch distribution before marking this request delivered.',
+        ]);
 
     expect($assistance->refresh()->current_request_sub_status_id)
-        ->toBe(catalogReasonId(RequestSubStatusCode::Delivered));
+        ->toBe(catalogReasonId(RequestSubStatusCode::AwaitingReview))
+        ->and((bool) $assistanceItem->refresh()->is_received)->toBeFalse();
 });
 
 test('cannot move to a stage that is not in the program workflow', function () {

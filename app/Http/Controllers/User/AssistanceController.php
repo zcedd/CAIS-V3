@@ -27,8 +27,10 @@ use App\Http\Requests\User\Assistance\UpdateStatusRequest;
 use App\Models\Assistance;
 use App\Models\Beneficiary;
 use App\Models\Department;
+use App\Models\DistributionBatch;
 use App\Models\Program;
 use App\Models\User;
+use App\Services\Distribution\AssistanceDistributionState;
 use App\Services\User\AssistanceDocumentService;
 use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\AssistanceService;
@@ -334,6 +336,7 @@ class AssistanceController extends Controller
         Department $department,
         Program $program,
         Assistance $assistance,
+        AssistanceDistributionState $distributionState,
     ): Response {
         $assistance->load([
             'beneficiary:id,name,cais_number,beneficiable_type,beneficiable_id',
@@ -392,7 +395,11 @@ class AssistanceController extends Controller
 
         return Inertia::render('user/assistances/show', [
             'department' => $department->only(['id', 'name', 'slug']),
-            'program' => $program->only(['id', 'name']),
+            'program' => [
+                'id' => $program->id,
+                'name' => $program->name,
+                'distribution_mode' => $program->resolvedDistributionMode()->value,
+            ],
             'assistance' => [
                 'id' => $assistance->id,
                 'cais_number' => $caisNumber,
@@ -474,6 +481,8 @@ class AssistanceController extends Controller
             'staff_options' => $this->assistanceService->departmentStaffForSelect($program),
             'documents' => $this->assistanceDocumentService->profilePayload($assistance),
             'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            'distribution' => $distributionState->summarize($department, $assistance),
+            'can_distribute' => $request->user()?->can('create', [DistributionBatch::class, $department]) ?? false,
         ]);
     }
 }

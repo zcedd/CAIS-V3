@@ -252,7 +252,7 @@ test('updating assistance status keeps the instant of an offset recorded time', 
         ->and(Carbon::parse($latestSubStatus->recorded_at)->equalTo($recordedAt))->toBeTrue();
 });
 
-test('updating to delivered status requires and marks the selected assistance items as received', function () {
+test('delivered status cannot be recorded without a distribution', function () {
     $statuses = seedProgramAssistanceStatusCatalog();
     $department = Department::create(['name' => 'Department A']);
 
@@ -360,32 +360,21 @@ test('updating to delivered status requires and marks the selected assistance it
     );
 
     $response->assertRedirect($programShowUrl);
-    $response->assertSessionHasNoErrors();
+    $response->assertSessionHasErrors([
+        'request_sub_status_id' => 'Complete an individual or batch distribution before marking this request delivered.',
+    ]);
 
     $riceAssistanceItem->refresh();
     $milkAssistanceItem->refresh();
     $assistance->refresh();
 
-    $deliveredMilkItem = AssistanceItem::query()
-        ->where('assistance_id', $assistance->id)
-        ->where('item_id', $milkItem->id)
-        ->where('is_received', true)
-        ->first();
-
-    expect((bool) $riceAssistanceItem->is_received)->toBeTrue()
+    expect((bool) $riceAssistanceItem->is_received)->toBeFalse()
         ->and($riceAssistanceItem->quantity)->toBe(2)
-        ->and($riceAssistanceItem->specification)->toBe('Premium grade')
         ->and((bool) $milkAssistanceItem->is_received)->toBeFalse()
-        ->and($milkAssistanceItem->quantity)->toBe(2)
-        ->and($milkAssistanceItem->requested_quantity)->toBe(2)
-        ->and($deliveredMilkItem)->not->toBeNull()
-        ->and($deliveredMilkItem->quantity)->toBe(3)
-        ->and($deliveredMilkItem->requested_quantity)->toBe(3)
-        ->and($deliveredMilkItem->origin)->toBe(AssistanceItemOrigin::Requested)
-        ->and($deliveredMilkItem->specification)->toBe('Powdered')
-        ->and($assistance->date_delivered?->toDateTimeString())->toBe('2026-05-15 11:45:00')
-        ->and((bool) $assistance->was_delivered)->toBeTrue()
-        ->and($assistance->current_request_sub_status_id)->toBe($statuses['delivered']);
+        ->and($milkAssistanceItem->quantity)->toBe(5)
+        ->and($assistance->date_delivered)->toBeNull()
+        ->and((bool) $assistance->was_delivered)->toBeFalse()
+        ->and($assistance->current_request_sub_status_id)->not->toBe($statuses['delivered']);
 });
 
 test('delivered status update requires delivered items', function () {

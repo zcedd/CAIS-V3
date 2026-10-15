@@ -6,6 +6,7 @@ use App\Models\Item;
 use App\Models\ItemUnitMeasurement;
 use App\Models\Program;
 use App\Models\User;
+use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -95,6 +96,31 @@ test('authenticated users can create programs for their department', function ()
         'program_id' => $program->id,
         'item_id' => $item->id,
     ]);
+});
+
+test('creating a program assigns the department default workflow', function () {
+    $department = Department::create(['name' => 'Department A']);
+    $defaultWorkflow = app(EnsureDepartmentWorkflow::class)->defaultFor($department);
+
+    $user = User::factory()->create([
+        'department_id' => $department->id,
+    ]);
+
+    ['fund' => $fund, 'item' => $item] = createDepartmentFundAndItem($department);
+
+    $this->actingAs($user)->from(route('user.programs.index', [
+        'department' => $department->slug,
+    ]))->post(route('user.programs.store', ['department' => $department->slug]), [
+        'name' => 'Default Workflow Program',
+        'descriptions' => 'Uses the department default workflow',
+        'start_at' => '2026-01-01',
+        'fund_ids' => [$fund->id],
+        'item_ids' => [$item->id],
+    ])->assertRedirect(route('user.programs.index', ['department' => $department->slug]));
+
+    $program = Program::query()->where('name', 'Default Workflow Program')->first();
+
+    expect($program?->workflow_id)->toBe($defaultWorkflow->id);
 });
 
 test('authenticated users cannot create programs for another department', function () {

@@ -5,6 +5,7 @@ use App\Enums\RequestSubStatusCode;
 use App\Enums\StockMovementType;
 use App\Models\Assistance;
 use App\Models\AssistanceItem;
+use App\Models\AssistanceRequestSubStatus;
 use App\Models\Beneficiary;
 use App\Models\Department;
 use App\Models\Item;
@@ -15,6 +16,7 @@ use App\Models\Program;
 use App\Models\ProgramItemStock;
 use App\Models\StockMovement;
 use App\Models\User;
+use App\Services\User\StockLedgerService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
@@ -93,26 +95,28 @@ function seedDeliverableAssistance(): array
 
 function deliverAssistance(array $context, int $quantity = 4): void
 {
-    test()->actingAs($context['user'])->patch(
-        route('user.programs.assistances.status.update', [
-            'department' => $context['department']->slug,
-            'program' => $context['program']->id,
-            'assistance' => $context['assistance']->id,
-        ]),
-        [
-            'request_sub_status_id' => $context['delivered'],
-            'recorded_at' => now()->toDateTimeString(),
-            'delivered_items' => [
-                [
-                    'assistance_item_id' => $context['assistanceItem']->id,
-                    'quantity' => $quantity,
-                ],
-            ],
-        ],
-    )->assertSessionHasNoErrors();
+    $assistanceItem = $context['assistanceItem'];
+    $assistanceItem->update([
+        'is_received' => true,
+        'quantity' => $quantity,
+        'requested_quantity' => $quantity,
+    ]);
+
+    app(StockLedgerService::class)->issue(
+        $assistanceItem->refresh(),
+        $context['program'],
+        $context['user'],
+    );
+
+    AssistanceRequestSubStatus::query()->create([
+        'assistance_id' => $context['assistance']->id,
+        'request_sub_status_id' => $context['delivered'],
+        'recorded_by' => $context['user']->id,
+        'recorded_at' => now(),
+    ]);
 }
 
-test('delivery deducts requested additional and substitute quantities from program stock', function () {
+test('the status endpoint does not issue stock when marking a request delivered', function () {
     $context = seedDeliverableAssistance();
     $oil = Item::create([
         'name' => 'Oil',
@@ -146,13 +150,13 @@ test('delivery deducts requested additional and substitute quantities from progr
                 ],
             ],
         ],
-    )->assertSessionHasNoErrors();
+    )->assertSessionHasErrors('request_sub_status_id');
 
-    expect(ProgramItemStock::query()->where('item_id', $context['item']->id)->value('remaining'))->toBe(8)
-        ->and(ProgramItemStock::query()->where('item_id', $oil->id)->value('remaining'))->toBe(4);
+    expect(ProgramItemStock::query()->where('item_id', $context['item']->id)->value('remaining'))->toBe(10)
+        ->and(ProgramItemStock::query()->where('item_id', $oil->id)->value('remaining'))->toBe(5);
 });
 
-test('delivery deducts substitute quantities from program stock', function () {
+test('the status endpoint does not issue substitute stock when marking a request delivered', function () {
     $context = seedDeliverableAssistance();
     $oil = Item::create([
         'name' => 'Oil',
@@ -181,14 +185,14 @@ test('delivery deducts substitute quantities from program stock', function () {
                 ],
             ],
         ],
-    )->assertSessionHasNoErrors();
+    )->assertSessionHasErrors('request_sub_status_id');
 
     expect(ProgramItemStock::query()->where('item_id', $context['item']->id)->value('remaining'))->toBe(10)
-        ->and(ProgramItemStock::query()->where('item_id', $oil->id)->value('remaining'))->toBe(3)
-        ->and(StockMovement::query()->where('type', StockMovementType::Issue)->sum('quantity'))->toBe(2);
+        ->and(ProgramItemStock::query()->where('item_id', $oil->id)->value('remaining'))->toBe(5)
+        ->and(StockMovement::query()->where('type', StockMovementType::Issue)->count())->toBe(0);
 });
 
-test('delivery is blocked when the program allocation is insufficient', function () {
+test('the status endpoint refuses delivery before stock is checked', function () {
     $context = seedDeliverableAssistance();
 
     test()->actingAs($context['user'])->from(route('user.programs.show', [
@@ -218,7 +222,7 @@ test('delivery is blocked when the program allocation is insufficient', function
                 ],
             ],
         ],
-    )->assertSessionHasErrors('delivered_items');
+    )->assertSessionHasErrors('request_sub_status_id');
 });
 
 test('denying a delivered assistance restores stock', function () {

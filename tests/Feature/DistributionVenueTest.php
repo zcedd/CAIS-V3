@@ -11,6 +11,7 @@ use App\Models\DistributionReleaseRecord;
 use App\Models\DistributionTransaction;
 use App\Models\User;
 use App\Services\Distribution\DistributionEvidenceService;
+use App\Services\Distribution\DistributionReceiptService;
 use App\Services\Distribution\DistributionReconciliation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -98,6 +99,156 @@ function finalizeVenueRelease(array $fixture, DistributionBatch $batch, int $ite
 
     return $transaction->refresh();
 }
+
+test('a finalized distribution receipt uses the assistance acknowledgment layout', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $transaction = finalizeVenueRelease($fixture, $batch, $batch->items()->firstOrFail()->id);
+    $receipt = $transaction->currentReceipt;
+
+    $this->actingAs($fixture['officer'])
+        ->get(route('user.distributions.transactions.receipt', [
+            'department' => $fixture['department'],
+            'distributionBatch' => $batch,
+            'transaction' => $transaction,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('user/assistances/receipt')
+            ->where('receipt.assistance_id', $fixture['assistances'][0]->id)
+            ->where('receipt.distribution.receipt_number', $receipt?->receipt_number)
+            ->where('receipt.distribution.transaction_number', $transaction->transaction_number)
+            ->where('receipt.distribution.batch_code', $batch->batch_code)
+            ->where('receipt.distribution.venue', 'Covered court')
+            ->where('receipt.beneficiary_name', $batch->items()->firstOrFail()->beneficiary?->name)
+            ->where('receipt.distribution.signature_url', route('user.assistances.receipt.evidence', [
+                'department' => $fixture['department'],
+                'program' => $fixture['program'],
+                'assistance' => $fixture['assistances'][0],
+                'evidence' => $transaction->evidence()->where('evidence_type', 'signature')->firstOrFail(),
+            ]))
+            ->where('receipt.distribution.photo_url', route('user.assistances.receipt.evidence', [
+                'department' => $fixture['department'],
+                'program' => $fixture['program'],
+                'assistance' => $fixture['assistances'][0],
+                'evidence' => $transaction->evidence()->where('evidence_type', 'live_photo')->firstOrFail(),
+            ])));
+
+    $this->actingAs($fixture['officer'])
+        ->get(route('user.assistances.receipt', [
+            'department' => $fixture['department'],
+            'program' => $fixture['program'],
+            'assistance' => $fixture['assistances'][0],
+        ]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('receipt.distribution.receipt_number', $receipt?->receipt_number)
+            ->where('receipt.distribution.transaction_number', $transaction->transaction_number)
+            ->where('receipt.distribution.signature_url', route('user.assistances.receipt.evidence', [
+                'department' => $fixture['department'],
+                'program' => $fixture['program'],
+                'assistance' => $fixture['assistances'][0],
+                'evidence' => $transaction->evidence()->where('evidence_type', 'signature')->firstOrFail(),
+            ]))
+            ->where('receipt.distribution.photo_url', route('user.assistances.receipt.evidence', [
+                'department' => $fixture['department'],
+                'program' => $fixture['program'],
+                'assistance' => $fixture['assistances'][0],
+                'evidence' => $transaction->evidence()->where('evidence_type', 'live_photo')->firstOrFail(),
+            ])));
+});
+
+test('an acknowledgment receipt includes the signature and photo proof of delivery', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $transaction = finalizeVenueRelease($fixture, $batch, $batch->items()->firstOrFail()->id);
+    $signature = $transaction->evidence()->where('evidence_type', 'signature')->firstOrFail();
+    $photo = $transaction->evidence()->where('evidence_type', 'live_photo')->firstOrFail();
+    $evidenceRoute = [
+        'department' => $fixture['department'],
+        'program' => $fixture['program'],
+        'assistance' => $fixture['assistances'][0],
+    ];
+
+    $this->actingAs($fixture['officer'])
+        ->get(route('user.assistances.receipt.evidence', [...$evidenceRoute, 'evidence' => $signature]))
+        ->assertOk()
+        ->assertHeader('content-type', $signature->mime_type);
+
+    $this->actingAs($fixture['officer'])
+        ->get(route('user.assistances.receipt.evidence', [...$evidenceRoute, 'evidence' => $photo]))
+        ->assertOk()
+        ->assertHeader('content-type', $photo->mime_type);
+
+    $receipt = $transaction->currentReceipt()->firstOrFail();
+    $html = app(DistributionReceiptService::class)->html($receipt);
+
+    expect($html)
+        ->toContain('BENEFICIARY')
+        ->toContain('Proof of delivery')
+        ->toContain('data:image/');
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'distribution',
+        'event' => 'evidence_viewed',
+    ]);
+});
+
+test('acknowledgment receipt evidence from another release is not found', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture(requests: 2);
+    $batch = openCashDistribution($fixture);
+    $items = $batch->items()->orderBy('id')->get();
+    finalizeVenueRelease($fixture, $batch, $items[0]->id);
+    $secondLine = $items[1]->lines()->firstOrFail();
+    $second = finalizeVenueRelease($fixture, $batch, $items[1]->id, [
+        'lines' => [[
+            'id' => $secondLine->id,
+            'actual_amount' => (string) $secondLine->approved_amount,
+        ]],
+    ]);
+    $otherPhoto = $second->evidence()->where('evidence_type', 'live_photo')->firstOrFail();
+
+    $this->actingAs($fixture['officer'])
+        ->get(route('user.assistances.receipt.evidence', [
+            'department' => $fixture['department'],
+            'program' => $fixture['program'],
+            'assistance' => $fixture['assistances'][0],
+            'evidence' => $otherPhoto,
+        ]))
+        ->assertNotFound();
+});
+
+test('users who cannot view the assistance cannot open receipt evidence', function () {
+    Storage::fake('local');
+    $fixture = distributionFixture();
+    $batch = openCashDistribution($fixture);
+    $transaction = finalizeVenueRelease($fixture, $batch, $batch->items()->firstOrFail()->id);
+    $signature = $transaction->evidence()->where('evidence_type', 'signature')->firstOrFail();
+    $stranger = User::factory()->create(['department_id' => $fixture['department']->id]);
+    $stranger->syncRoles([RoleName::Beneficiary->value]);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
+    auth()->logout();
+
+    $this->get(route('user.assistances.receipt.evidence', [
+        'department' => $fixture['department'],
+        'program' => $fixture['program'],
+        'assistance' => $fixture['assistances'][0],
+        'evidence' => $signature,
+    ]))->assertRedirect(route('login'));
+
+    test()->actingAs($stranger)
+        ->get(route('user.assistances.receipt.evidence', [
+            'department' => $fixture['department'],
+            'program' => $fixture['program'],
+            'assistance' => $fixture['assistances'][0],
+            'evidence' => $signature,
+        ]))
+        ->assertForbidden();
+});
 
 test('an officer can finalize a release with live photo evidence and a signature', function () {
     Storage::fake('local');
@@ -408,7 +559,9 @@ test('public receipt verification hides personal evidence', function () {
             ->component('public/distributions/verify')
             ->where('receipt.receipt_number', $receipt->receipt_number)
             ->missing('receipt.snapshot')
-            ->missing('receipt.beneficiary_reference'))
+            ->missing('receipt.beneficiary_reference')
+            ->missing('receipt.signature_url')
+            ->missing('receipt.photo_url'))
         ->assertDontSee($item->beneficiary->cais_number);
 });
 

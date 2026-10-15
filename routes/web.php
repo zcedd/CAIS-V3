@@ -9,6 +9,7 @@ use App\Http\Controllers\Executive\ProgramAnalyticsController as ExecutiveProgra
 use App\Http\Controllers\Executive\ProgramController as ExecutiveProgramController;
 use App\Http\Controllers\GlobalDashboardController;
 use App\Http\Controllers\User\AssistanceController as UserAssistanceController;
+use App\Http\Controllers\User\AssistanceDistributionController as UserAssistanceDistributionController;
 use App\Http\Controllers\User\AssistanceDocumentController as UserAssistanceDocumentController;
 use App\Http\Controllers\User\AssistanceQueueController as UserAssistanceQueueController;
 use App\Http\Controllers\User\AssistanceReceiptController as UserAssistanceReceiptController;
@@ -107,6 +108,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('distributions', [UserDistributionBatchController::class, 'index'])->name('user.distributions.index');
         Route::get('distributions/calendar', [UserDistributionBatchController::class, 'calendar'])->name('user.distributions.calendar');
         Route::get('distributions/create', [UserDistributionBatchController::class, 'create'])->name('user.distributions.create');
+        Route::get('distributions/individual', [UserDistributionBatchController::class, 'createIndividual'])->name('user.distributions.individual');
         Route::post('distributions', [UserDistributionBatchController::class, 'store'])->name('user.distributions.store');
         Route::get('distributions/{distributionBatch}', [UserDistributionBatchController::class, 'show'])->name('user.distributions.show');
         Route::get('distributions/{distributionBatch}/edit', [UserDistributionBatchController::class, 'edit'])->name('user.distributions.edit');
@@ -172,10 +174,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::put('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'update'])->name('user.programs.assistances.update');
             Route::delete('programs/{program}/assistances/{assistance}', [UserAssistanceController::class, 'destroy'])->name('user.programs.assistances.destroy');
             Route::patch('programs/{program}/assistances/{assistance}/status', [UserAssistanceController::class, 'updateStatus'])->name('user.programs.assistances.status.update');
+            Route::post('programs/{program}/assistances/{assistance}/distribution', [UserAssistanceDistributionController::class, 'store'])->name('user.assistances.distribution.store');
             Route::patch('programs/{program}/assistances/{assistance}/assign', [UserAssistanceController::class, 'assign'])->name('user.programs.assistances.assign');
             Route::patch('programs/{program}/assistances/{assistance}/claim', [UserAssistanceController::class, 'claim'])->name('user.programs.assistances.claim');
             Route::patch('programs/{program}/assistances/{assistance}/transfer', [UserAssistanceController::class, 'transfer'])->name('user.programs.assistances.transfer');
             Route::get('programs/{program}/assistances/{assistance}/receipt', [UserAssistanceReceiptController::class, 'show'])->name('user.assistances.receipt');
+            Route::get('programs/{program}/assistances/{assistance}/receipt/evidence/{evidence}', [UserAssistanceReceiptController::class, 'evidence'])->name('user.assistances.receipt.evidence')->withoutScopedBindings();
             Route::post('programs/{program}/assistances/{assistance}/documents', [UserAssistanceDocumentController::class, 'store'])->name('user.assistances.documents.store');
             Route::get('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'show'])->name('user.assistances.documents.show');
             Route::delete('programs/{program}/assistances/{assistance}/documents/{document}', [UserAssistanceDocumentController::class, 'destroy'])->name('user.assistances.documents.destroy');

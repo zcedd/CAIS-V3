@@ -37,6 +37,19 @@ export const ASSISTANCE_TABLE_DEFER_GROUP_PROPS = [
 
 export const ASSISTANCE_TABLE_SKELETON_COLUMNS = 14;
 
+export type AssistanceTableVisitOverrides = Partial<
+    AssistanceTableFilters & {
+        sort: string;
+        direction: 'asc' | 'desc';
+        per_page: number;
+        page: number;
+    }
+>;
+
+export type AssistanceTableVisitOptions = {
+    refreshDeferred?: boolean;
+};
+
 export type PaginatedAssistances = {
     data: UserProgramAssistanceRow[];
     current_page: number;
@@ -164,14 +177,8 @@ type ProgramAssistanceTableProps = {
     canTransferAssistance: boolean;
     documentRequirements: ProgramDocumentRequirementInput[];
     onVisitTable: (
-        overrides: Partial<
-            AssistanceTableFilters & {
-                sort: string;
-                direction: 'asc' | 'desc';
-                per_page: number;
-                page: number;
-            }
-        >,
+        overrides: AssistanceTableVisitOverrides,
+        options?: AssistanceTableVisitOptions,
     ) => void;
 };
 
@@ -186,6 +193,7 @@ type ProgramAssistanceTableSectionProps = {
     programId: number;
     programName: string;
     isOrganization: boolean;
+    distributionMode?: 'individual' | 'batch' | 'both' | null;
     canCreateAssistance: boolean;
     modeOfRequestOptions: AssistanceModeOption[];
     programItems: AssistanceProgramItemOption[];
@@ -265,7 +273,9 @@ function ProgramAssistanceTable({
                     transferProgramOptions={transferProgramOptions}
                     canTransferAssistance={canTransferAssistance}
                     documentRequirements={documentRequirements}
-                    onBulkStatusUpdated={() => onVisitTable({})}
+                    onBulkStatusUpdated={() =>
+                        onVisitTable({ page: 1 }, { refreshDeferred: true })
+                    }
                 />
             )}
             toolbar={(table, columnVisibility) => (
@@ -286,7 +296,9 @@ function ProgramAssistanceTable({
                     modeOfRequestOptions={modeOfRequestOptions}
                     programItems={programItems}
                     programFields={programFields}
-                    onAssistanceCreated={() => onVisitTable({ page: 1 })}
+                    onAssistanceCreated={() =>
+                        onVisitTable({ page: 1 }, { refreshDeferred: true })
+                    }
                 />
             )}
             initialColumnVisibility={
@@ -308,6 +320,7 @@ export function ProgramAssistanceTableSection({
     programId,
     programName,
     isOrganization,
+    distributionMode = 'batch',
     canCreateAssistance,
     modeOfRequestOptions,
     programItems,
@@ -325,6 +338,7 @@ export function ProgramAssistanceTableSection({
                 programId,
                 programName,
                 isOrganization,
+                distributionMode,
                 modeOfRequestOptions,
                 programItems,
                 programFields,
@@ -332,13 +346,15 @@ export function ProgramAssistanceTableSection({
                 transferProgramOptions,
                 canTransferAssistance,
                 documentRequirements,
-                onAssistanceUpdated: () => onVisitTable({ page: 1 }),
+                onAssistanceUpdated: () =>
+                    onVisitTable({ page: 1 }, { refreshDeferred: true }),
             }),
         [
             departmentSlug,
             programId,
             programName,
             isOrganization,
+            distributionMode,
             modeOfRequestOptions,
             programItems,
             programFields,

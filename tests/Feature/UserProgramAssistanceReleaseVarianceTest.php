@@ -132,7 +132,7 @@ function releaseAssistanceItems(object $test, array $context, array $payload): T
     );
 }
 
-test('an additional item is released on its own line without touching the request', function () {
+test('an additional item cannot be released by marking the request delivered', function () {
     $context = seedAssistanceAwaitingRelease();
 
     $response = releaseAssistanceItems($this, $context, [
@@ -154,25 +154,13 @@ test('an additional item is released on its own line without touching the reques
         ],
     ]);
 
-    $response->assertSessionHasNoErrors();
+    $response->assertSessionHasErrors('request_sub_status_id');
 
-    $requestedRice = $context['requested_rice']->fresh();
-    $additionalOil = AssistanceItem::query()
-        ->where('assistance_id', $context['assistance']->id)
-        ->where('item_id', $context['oil_item']->id)
-        ->sole();
-
-    expect($requestedRice->is_received)->toBeTrue()
-        ->and($requestedRice->requested_quantity)->toBe(2)
-        ->and($additionalOil->origin)->toBe(AssistanceItemOrigin::Additional)
-        ->and($additionalOil->is_received)->toBeTrue()
-        ->and($additionalOil->quantity)->toBe(1)
-        ->and($additionalOil->requested_quantity)->toBe(0)
-        ->and($additionalOil->fulfillment_reason)->toBe('leftover pack')
-        ->and($additionalOil->substituted_for_assistance_item_id)->toBeNull();
+    expect($context['requested_rice']->fresh()->is_received)->toBeFalse()
+        ->and(AssistanceItem::query()->where('item_id', $context['oil_item']->id)->exists())->toBeFalse();
 });
 
-test('a substitute retires the requested line it replaces instead of deleting it', function () {
+test('a substitute cannot be recorded by marking the request delivered', function () {
     $context = seedAssistanceAwaitingRelease();
 
     $response = releaseAssistanceItems($this, $context, [
@@ -189,25 +177,13 @@ test('a substitute retires the requested line it replaces instead of deleting it
         ],
     ]);
 
-    $response->assertSessionHasNoErrors();
+    $response->assertSessionHasErrors('request_sub_status_id');
 
-    $requestedRice = $context['requested_rice']->fresh();
-    $substituteNoodles = AssistanceItem::query()
-        ->where('assistance_id', $context['assistance']->id)
-        ->where('item_id', $context['noodles_item']->id)
-        ->sole();
-
-    expect($requestedRice->is_received)->toBeFalse()
-        ->and($requestedRice->quantity)->toBe(2)
-        ->and($requestedRice->requested_quantity)->toBe(2)
-        ->and($requestedRice->isSubstituted())->toBeTrue()
-        ->and($substituteNoodles->origin)->toBe(AssistanceItemOrigin::Substitute)
-        ->and($substituteNoodles->is_received)->toBeTrue()
-        ->and($substituteNoodles->requested_quantity)->toBe(0)
-        ->and($substituteNoodles->substituted_for_assistance_item_id)->toBe($requestedRice->id);
+    expect($context['requested_rice']->fresh()->isSubstituted())->toBeFalse()
+        ->and(AssistanceItem::query()->where('item_id', $context['noodles_item']->id)->exists())->toBeFalse();
 });
 
-test('substituting a requested line wins when that line was also selected for full release', function () {
+test('selecting a line for release and substitution still cannot mark the request delivered', function () {
     $context = seedAssistanceAwaitingRelease();
 
     $response = releaseAssistanceItems($this, $context, [
@@ -230,25 +206,11 @@ test('substituting a requested line wins when that line was also selected for fu
         ],
     ]);
 
-    $response->assertSessionHasNoErrors();
+    $response->assertSessionHasErrors('request_sub_status_id');
 
-    $requestedRice = $context['requested_rice']->fresh();
-    $substituteNoodles = AssistanceItem::query()
-        ->where('assistance_id', $context['assistance']->id)
-        ->where('item_id', $context['noodles_item']->id)
-        ->sole();
-
-    expect($requestedRice->is_received)->toBeFalse()
-        ->and($requestedRice->isSubstituted())->toBeTrue()
-        ->and($substituteNoodles->origin)->toBe(AssistanceItemOrigin::Substitute)
-        ->and($substituteNoodles->is_received)->toBeTrue()
-        ->and(
-            AssistanceItem::query()
-                ->where('assistance_id', $context['assistance']->id)
-                ->where('item_id', $context['rice_item']->id)
-                ->where('is_received', true)
-                ->exists(),
-        )->toBeFalse();
+    expect($context['requested_rice']->fresh()->is_received)->toBeFalse()
+        ->and($context['requested_rice']->fresh()->isSubstituted())->toBeFalse()
+        ->and(AssistanceItem::query()->where('item_id', $context['noodles_item']->id)->exists())->toBeFalse();
 });
 
 test('releasing more than the outstanding requested quantity is rejected', function () {
@@ -342,7 +304,7 @@ test('unrequested items cannot be attached to a status other than delivered', fu
     ])->assertSessionHasErrors('extra_items');
 });
 
-test('a substituted requested line can no longer be released', function () {
+test('a delivered status update cannot release a requested line', function () {
     $context = seedAssistanceAwaitingRelease();
 
     releaseAssistanceItems($this, $context, [
@@ -357,7 +319,7 @@ test('a substituted requested line can no longer be released', function () {
                 'substituted_for_assistance_item_id' => $context['requested_rice']->id,
             ],
         ],
-    ])->assertSessionHasNoErrors();
+    ])->assertSessionHasErrors('request_sub_status_id');
 
     releaseAssistanceItems($this, $context, [
         'request_sub_status_id' => $context['delivered_sub_status_id'],
@@ -368,30 +330,34 @@ test('a substituted requested line can no longer be released', function () {
                 'quantity' => 2,
             ],
         ],
-    ])->assertSessionHasErrors('delivered_items.0.assistance_item_id');
+    ])->assertSessionHasErrors('request_sub_status_id');
+
+    expect($context['requested_rice']->fresh()->is_received)->toBeFalse();
 });
 
 test('the assistance profile groups requested against released items', function () {
     $context = seedAssistanceAwaitingRelease();
-
-    releaseAssistanceItems($this, $context, [
-        'request_sub_status_id' => $context['delivered_sub_status_id'],
-        'recorded_at' => '2026-05-15',
-        'delivered_items' => [
-            [
-                'assistance_item_id' => $context['requested_rice']->id,
-                'quantity' => 1,
-            ],
-        ],
-        'extra_items' => [
-            [
-                'origin' => AssistanceItemOrigin::Additional->value,
-                'item_id' => $context['oil_item']->id,
-                'quantity' => 3,
-                'fulfillment_reason' => 'leftover pack',
-            ],
-        ],
-    ])->assertSessionHasNoErrors();
+    $context['requested_rice']->update([
+        'quantity' => 1,
+        'requested_quantity' => 1,
+    ]);
+    AssistanceItem::query()->create([
+        'assistance_id' => $context['assistance']->id,
+        'item_id' => $context['rice_item']->id,
+        'origin' => AssistanceItemOrigin::Requested->value,
+        'quantity' => 1,
+        'requested_quantity' => 1,
+        'is_received' => true,
+    ]);
+    AssistanceItem::query()->create([
+        'assistance_id' => $context['assistance']->id,
+        'item_id' => $context['oil_item']->id,
+        'origin' => AssistanceItemOrigin::Additional->value,
+        'quantity' => 3,
+        'requested_quantity' => 0,
+        'fulfillment_reason' => 'leftover pack',
+        'is_received' => true,
+    ]);
 
     $this->actingAs($context['user'])
         ->get(route('user.assistances.show', [

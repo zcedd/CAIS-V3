@@ -15,7 +15,6 @@ use App\Models\ModeOfRequest;
 use App\Models\Program;
 use App\Models\StockMovement;
 use App\Models\User;
-use App\Services\User\AssistanceItemFulfillmentService;
 use App\Services\User\ProgramService;
 use App\Services\Workflow\EnsureDepartmentWorkflow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -194,7 +193,7 @@ test('goods without stock can change to cash', function () {
     expect($item->fresh()->kind)->toBe(ItemKind::Cash);
 });
 
-test('cash and service assistances can be encoded and delivered without warehouse stock', function () {
+test('cash and service assistances cannot be marked delivered without a distribution', function () {
     $context = itemKindCatalogContext();
     $cash = Item::factory()->forDepartment($context['department'])->cash()->create([
         'name' => 'Burial assistance',
@@ -279,25 +278,11 @@ test('cash and service assistances can be encoded and delivered without warehous
                 ],
             ],
         ])
-        ->assertSessionHasNoErrors();
+        ->assertSessionHasErrors('request_sub_status_id');
 
     expect(StockMovement::query()->count())->toBe(0)
-        ->and($cashLine->fresh()->is_received)->toBeTrue()
-        ->and($serviceLine->fresh()->is_received)->toBeTrue();
-
-    $assistance->load([
-        'assistanceItem.item.unitMeasurement',
-    ]);
-
-    $summary = app(AssistanceItemFulfillmentService::class)->summarize(
-        $assistance->assistanceItem,
-    );
-
-    expect($summary['requested'][0]['kind'])->toBe(ItemKind::Cash)
-        ->and($summary['requested'][0]['requested_quantity'])->toBe(5000)
-        ->and($summary['released'][0]['kind'])->toBe(ItemKind::Cash)
-        ->and($summary['released'][0]['quantity'])->toBe(5000)
-        ->and($summary['released'][1]['kind'])->toBe(ItemKind::Service);
+        ->and((bool) $cashLine->fresh()->is_received)->toBeFalse()
+        ->and((bool) $serviceLine->fresh()->is_received)->toBeFalse();
 });
 
 test('program item options expose kind and omit remaining for cash', function () {

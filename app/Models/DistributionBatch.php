@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionFinalizationScope;
+use App\Enums\DistributionType;
 use Database\Factories\DistributionBatchFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -32,6 +33,7 @@ class DistributionBatch extends Model
         'venue_latitude',
         'venue_longitude',
         'approval_mode',
+        'distribution_type',
         'status',
         'revision',
         'lock_version',
@@ -71,6 +73,7 @@ class DistributionBatch extends Model
             'venue_longitude' => 'decimal:7',
             'cancelled_at' => 'datetime',
             'approval_mode' => DistributionApprovalMode::class,
+            'distribution_type' => DistributionType::class,
             'status' => DistributionBatchStatus::class,
             'finalization_scope' => DistributionFinalizationScope::class,
             'validation_summary' => 'array',

@@ -147,6 +147,33 @@ class Workflow extends Model
             ?? $this->steps()->orderBy('sort_order')->orderBy('id')->first();
     }
 
+    /**
+     * The version new requests should follow.
+     * Requests already in progress keep the version they started on.
+     */
+    public function activeVersion(): self
+    {
+        if ($this->status === WorkflowStatus::Active) {
+            $this->loadMissing('steps.transitions');
+
+            return $this;
+        }
+
+        $active = self::query()
+            ->with('steps.transitions')
+            ->where('department_id', $this->department_id)
+            ->where('code', $this->code)
+            ->where('status', WorkflowStatus::Active)
+            ->orderByDesc('version')
+            ->first();
+
+        if ($active instanceof self) {
+            return $active;
+        }
+
+        return $this;
+    }
+
     public function isMutable(): bool
     {
         $status = $this->status instanceof WorkflowStatus
