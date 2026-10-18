@@ -111,7 +111,10 @@ enum PermissionName: string
             RoleName::Executive => self::executivePermissions(),
             RoleName::Administrator => self::administratorPermissions(),
             RoleName::DepartmentHead => self::departmentHeadPermissions(),
+            RoleName::Encoder => self::encoderPermissions(),
+            RoleName::Verifier => self::verifierPermissions(),
             RoleName::ReleasingOfficer => self::releasingOfficerPermissions(),
+            RoleName::InventoryOfficer => self::inventoryOfficerPermissions(),
         };
     }
 
@@ -290,6 +293,46 @@ enum PermissionName: string
     }
 
     /**
+     * Encodes assistance onto a program, including the beneficiary the request is for.
+     *
+     * @return list<self>
+     */
+    public static function encoderPermissions(): array
+    {
+        return [
+            self::ProgramViewAny,
+            self::ProgramView,
+            self::AssistanceViewAny,
+            self::AssistanceView,
+            self::AssistanceCreate,
+            self::BeneficiaryViewAny,
+            self::BeneficiaryView,
+            self::BeneficiaryCreate,
+        ];
+    }
+
+    /**
+     * Reviews a request, updates its record, and advances its status through verification.
+     *
+     * @return list<self>
+     */
+    public static function verifierPermissions(): array
+    {
+        return [
+            self::ProgramViewAny,
+            self::ProgramView,
+            self::AssistanceViewAny,
+            self::AssistanceView,
+            self::AssistanceUpdate,
+            self::AssistanceAdvance,
+            self::BeneficiaryViewAny,
+            self::BeneficiaryView,
+        ];
+    }
+
+    /**
+     * Operates a distribution without program or batch approval authority.
+     *
      * @return list<self>
      */
     public static function releasingOfficerPermissions(): array
@@ -312,14 +355,31 @@ enum PermissionName: string
             self::ItemView,
             self::DistributionViewAny,
             self::DistributionView,
+            self::DistributionCreate,
+            self::DistributionUpdate,
+            self::DistributionValidate,
+            self::DistributionSubmit,
+            self::DistributionSchedule,
             self::DistributionExecute,
             self::DistributionReconcile,
             self::DistributionComplete,
+            self::DistributionCancel,
             self::DistributionViewEvidence,
             self::DistributionDownloadEvidence,
             self::DistributionIssueReceipt,
             self::DistributionReprintReceipt,
+            self::DistributionVoidTransaction,
+            self::DistributionViewAudit,
+            self::DistributionAssignPersonnel,
         ];
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function inventoryOfficerPermissions(): array
+    {
+        return self::forResource('item');
     }
 
     /**

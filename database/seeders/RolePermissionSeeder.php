@@ -71,7 +71,15 @@ class RolePermissionSeeder extends Seeder
         $head = Role::findOrCreate(RoleName::Head->value, 'web');
         $head->syncPermissions(PermissionName::values());
 
-        foreach ([RoleName::Executive, RoleName::Administrator, RoleName::DepartmentHead, RoleName::ReleasingOfficer] as $roleName) {
+        foreach ([
+            RoleName::Executive,
+            RoleName::Administrator,
+            RoleName::DepartmentHead,
+            RoleName::Encoder,
+            RoleName::Verifier,
+            RoleName::ReleasingOfficer,
+            RoleName::InventoryOfficer,
+        ] as $roleName) {
             $role = Role::findOrCreate($roleName->value, 'web');
             $role->syncPermissions(
                 array_map(

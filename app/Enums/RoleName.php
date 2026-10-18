@@ -8,7 +8,10 @@ enum RoleName: string
     case Executive = 'executive';
     case Administrator = 'administrator';
     case DepartmentHead = 'department-head';
+    case Encoder = 'encoder';
+    case Verifier = 'verifier';
     case ReleasingOfficer = 'releasing-officer';
+    case InventoryOfficer = 'inventory-officer';
     case Assistance = 'assistance';
     case Program = 'program';
     case Beneficiary = 'beneficiary';
@@ -59,7 +62,10 @@ enum RoleName: string
             self::Executive,
             self::Administrator,
             self::DepartmentHead,
+            self::Encoder,
+            self::Verifier,
             self::ReleasingOfficer,
+            self::InventoryOfficer,
         ];
     }
 
@@ -92,7 +98,10 @@ enum RoleName: string
             self::Executive => 'Executive',
             self::Administrator => 'Administrator',
             self::DepartmentHead => 'Department head',
+            self::Encoder => 'Encoder',
+            self::Verifier => 'Verifier',
             self::ReleasingOfficer => 'Releasing officer',
+            self::InventoryOfficer => 'Inventory officer',
             self::Assistance => 'Assistance',
             self::Program => 'Program',
             self::Beneficiary => 'Beneficiary',
@@ -111,7 +120,10 @@ enum RoleName: string
             self::Executive => 'Executive',
             self::Administrator => 'Administrator',
             self::DepartmentHead => 'Dept head',
+            self::Encoder => 'Field op',
+            self::Verifier => 'Field op',
             self::ReleasingOfficer => 'Field op',
+            self::InventoryOfficer => 'Field op',
             default => 'Staff',
         };
     }
@@ -123,7 +135,10 @@ enum RoleName: string
             self::Executive => 'Reviews program details and approves the program.',
             self::Administrator => 'Endorses programs and distribution batches for executive approval.',
             self::DepartmentHead => 'Formulates assistance programs and submits them for executive approval.',
-            self::ReleasingOfficer => 'Enrolls beneficiaries and releases assistance after the executive approves it.',
+            self::Encoder => 'Encodes assistance requests onto a department program.',
+            self::Verifier => 'Updates assistance status and verifies requests.',
+            self::ReleasingOfficer => 'Manages distribution batches and releases assistance after approval.',
+            self::InventoryOfficer => 'Manages department items and stock.',
             default => $this->label(),
         };
     }

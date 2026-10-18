@@ -3,6 +3,26 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+const OPEN_NESTED_POPUP_SELECTOR = [
+  "select-content",
+  "popover-content",
+  "dropdown-menu-content",
+  "dropdown-menu-sub-content",
+]
+  .map((slot) => `[data-slot="${slot}"][data-state="open"]`)
+  .join(", ")
+
+function hasOpenNestedPopup(target: EventTarget | null): boolean {
+  if (
+    target instanceof Element &&
+    target.closest(OPEN_NESTED_POPUP_SELECTOR)
+  ) {
+    return true
+  }
+
+  return document.querySelector(OPEN_NESTED_POPUP_SELECTOR) !== null
+}
+
 function Drawer({
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
@@ -46,8 +66,31 @@ function DrawerOverlay({
 function DrawerContent({
   className,
   children,
+  onPointerDownOutside,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Content>) {
+  const blockOutsideDismissRef = React.useRef(false)
+
+  React.useEffect(() => {
+    const rememberNestedPopupInteraction = (event: PointerEvent) => {
+      blockOutsideDismissRef.current = hasOpenNestedPopup(event.target)
+    }
+
+    document.addEventListener(
+      "pointerdown",
+      rememberNestedPopupInteraction,
+      true
+    )
+
+    return () => {
+      document.removeEventListener(
+        "pointerdown",
+        rememberNestedPopupInteraction,
+        true
+      )
+    }
+  }, [])
+
   return (
     <DrawerPortal data-slot="drawer-portal">
       <DrawerOverlay />
@@ -58,6 +101,13 @@ function DrawerContent({
           className
         )}
         {...props}
+        onPointerDownOutside={(event) => {
+          onPointerDownOutside?.(event)
+
+          if (blockOutsideDismissRef.current) {
+            event.preventDefault()
+          }
+        }}
       >
         <div className="mx-auto mt-4 hidden h-1.5 w-[100px] shrink-0 rounded-full bg-muted group-data-[vaul-drawer-direction=bottom]/drawer-content:block" />
         {children}

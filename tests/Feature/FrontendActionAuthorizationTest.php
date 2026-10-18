@@ -73,11 +73,11 @@ test('distribution show shares only the abilities the current user holds', funct
         ->get(route('user.distributions.show', [$fixture['department'], $batch]))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->where('can.update', false)
+            ->where('can.update', true)
             ->where('can.approve', false)
             ->where('can.execute', true)
             ->where('can.complete', true)
-            ->where('can.cancel', false));
+            ->where('can.cancel', true));
 });
 
 test('a user without assign permission cannot bulk assign assistance', function () {

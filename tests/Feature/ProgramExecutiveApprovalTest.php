@@ -28,6 +28,9 @@ test('the seeder grants office roles only their permissions', function () {
     $administrator = Role::findByName(RoleName::Administrator->value);
     $head = Role::findByName(RoleName::DepartmentHead->value);
     $officer = Role::findByName(RoleName::ReleasingOfficer->value);
+    $encoder = Role::findByName(RoleName::Encoder->value);
+    $verifier = Role::findByName(RoleName::Verifier->value);
+    $inventoryOfficer = Role::findByName(RoleName::InventoryOfficer->value);
 
     expect($governor->permissions->pluck('name')->all())
         ->toContain(PermissionName::ProgramApprove->value)
@@ -41,9 +44,20 @@ test('the seeder grants office roles only their permissions', function () {
         ->not->toContain(PermissionName::ProgramApprove->value)
         ->not->toContain(PermissionName::AssistanceAdvance->value)
         ->and($officer->permissions->pluck('name')->all())
-        ->toContain(PermissionName::AssistanceAdvance->value)
+        ->toContain(PermissionName::DistributionCreate->value)
+        ->toContain(PermissionName::DistributionExecute->value)
+        ->not->toContain(PermissionName::DistributionApprove->value)
         ->not->toContain(PermissionName::ProgramSubmit->value)
-        ->not->toContain(PermissionName::ProgramApprove->value);
+        ->not->toContain(PermissionName::ProgramApprove->value)
+        ->and($encoder->permissions->pluck('name')->all())
+        ->toContain(PermissionName::AssistanceCreate->value)
+        ->not->toContain(PermissionName::AssistanceAdvance->value)
+        ->and($verifier->permissions->pluck('name')->all())
+        ->toContain(PermissionName::AssistanceAdvance->value)
+        ->not->toContain(PermissionName::AssistanceCreate->value)
+        ->and($inventoryOfficer->permissions->pluck('name')->all())
+        ->toContain(PermissionName::ItemUpdate->value)
+        ->not->toContain(PermissionName::AssistanceCreate->value);
 });
 
 test('the executive program list uses the department program cards', function () {
