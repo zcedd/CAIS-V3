@@ -2,6 +2,8 @@
 
 CAIS is the Centralized Assistance Information System. A department uses it to record who asked for help, what they asked for, and what was actually released.
 
+The steps for each job are in the [user manual](user-manual.md).
+
 Two groups use it.
 
 - **Applicants** open a public page. They do not need an account.
@@ -115,20 +117,9 @@ Your account menu holds profile, security, and appearance.
 
 ### What each role can do
 
-A person can hold more than one role. The sidebar and the buttons follow those roles.
+A person can hold more than one role. The sidebar and the buttons follow those roles. The [user manual](user-manual.md) walks through each job: department head, encoder, verifier, releasing officer, inventory officer, administrator, executive, and super admin.
 
-| Role | Typical work |
-| --- | --- |
-| Assistance | View, encode, edit, assign, claim, and move requests |
-| Program | Create and update programs, and export their request lists |
-| Beneficiary | Add and update people and organizations |
-| Item | Maintain the item list and stock |
-| Fund | Maintain funds |
-| Workflow | Work with the department’s workflow tasks, including assign and reassign |
-| Head | Every staff action in the department |
-| Super admin | Create staff accounts, and build, publish, and activate workflows |
-
-You only see another department’s records if you are a super admin. Everyone else stays in the department on their account.
+You only see another department’s records if you are a super admin, an administrator, or an executive. Everyone else stays in the department on their account.
 
 ## Set up a program before requests arrive
 
