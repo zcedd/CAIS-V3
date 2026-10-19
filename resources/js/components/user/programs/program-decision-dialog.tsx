@@ -14,7 +14,11 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
-export type ProgramDecisionAction = 'endorse' | 'approve' | 'return';
+export type ProgramDecisionAction =
+    | 'submit'
+    | 'endorse'
+    | 'approve'
+    | 'return';
 
 const copy: Record<
     ProgramDecisionAction,
@@ -27,11 +31,19 @@ const copy: Record<
         variant: 'default' | 'outline';
     }
 > = {
+    submit: {
+        title: 'Submit for recommendation?',
+        description: 'will be locked for review until an administrator recommends it.',
+        confirm: 'Submit for recommendation',
+        success: 'Program submitted for recommendation.',
+        placeholder: 'Add a remark (optional)',
+        variant: 'default',
+    },
     endorse: {
-        title: 'Endorse & forward to Governor?',
-        description: 'will be locked for review until the Governor decides.',
-        confirm: 'Endorse & forward',
-        success: 'Program endorsed and forwarded to the Governor.',
+        title: 'Recommend for approval?',
+        description: 'will be sent to the executive for approval.',
+        confirm: 'Recommend for approval',
+        success: 'Program recommended for approval.',
         placeholder: 'Add a remark (optional)',
         variant: 'default',
     },

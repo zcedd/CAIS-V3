@@ -8,6 +8,8 @@ import {
 import { Building2, Pencil, Plus, Send, UserRound, Users } from 'lucide-react';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { ProgramAttachmentList } from '@/components/program-attachments-field';
+import type { ProgramAttachment } from '@/components/program-attachments-field';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -99,6 +101,7 @@ type ProgramDetail = {
     approval_label?: string | null;
     can_submit_approval?: boolean;
     department_id: number;
+    attachments?: ProgramAttachment[];
 };
 
 type ProgramEditRelations = {
@@ -345,6 +348,9 @@ export default function UserProgramScheme({
                         >
                             {description || 'No description'}
                         </p>
+                        <ProgramAttachmentList
+                            attachments={program.attachments}
+                        />
                         <p className="text-sm text-muted-foreground tabular-nums">
                             {formatProgramPeriod(
                                 program.start_at,
@@ -415,8 +421,8 @@ export default function UserProgramScheme({
                                                         }
                                                     >
                                                         <Send data-icon="inline-start" />
-                                                        Endorse & Forward to
-                                                        Governor
+                                                        Submit for
+                                                        recommendation
                                                     </Button>
                                                 ) : null
                                             }
@@ -437,7 +443,7 @@ export default function UserProgramScheme({
                     }
                 }}
                 programName={endorseProgram?.name ?? ''}
-                action="endorse"
+                action="submit"
                 url={
                     endorseProgram && department?.slug
                         ? submitProgramApproval.url({

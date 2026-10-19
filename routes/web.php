@@ -26,6 +26,7 @@ use App\Http\Controllers\User\ItemStockController as UserItemStockController;
 use App\Http\Controllers\User\NotificationController as UserNotificationController;
 use App\Http\Controllers\User\ProgramAnalyticsController as UserProgramAnalyticsController;
 use App\Http\Controllers\User\ProgramApprovalController as UserProgramApprovalController;
+use App\Http\Controllers\User\ProgramAttachmentController as UserProgramAttachmentController;
 use App\Http\Controllers\User\ProgramBatchController as UserProgramBatchController;
 use App\Http\Controllers\User\ProgramController as UserProgramController;
 use App\Http\Controllers\User\UnspscCodeController as UserUnspscCodeController;
@@ -41,6 +42,10 @@ require __DIR__.'/public.php';
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', GlobalDashboardController::class)->name('dashboard');
+
+    Route::get('programs/{program}/attachments/{attachment}', [UserProgramAttachmentController::class, 'show'])
+        ->name('programs.attachments.show')
+        ->scopeBindings();
 
     Route::middleware('executive')->prefix('executive')->name('executive.')->group(function () {
         Route::get('dashboard', [ExecutiveDashboardController::class, 'index'])->name('dashboard');

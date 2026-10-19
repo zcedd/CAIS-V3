@@ -6,6 +6,7 @@ import { DataTableFacetedFilter } from '@/components/data-table/data-table-facet
 import type { ServerPaginationMeta } from '@/components/data-table/types';
 import InputError from '@/components/input-error';
 import { ProgramDocumentRequirementsEditor } from '@/components/program-document-requirements-editor';
+import { ProgramAttachmentsField } from '@/components/program-attachments-field';
 import {
     ProgramEligibilityFields,
     eligibilityPayloadFromForm,
@@ -231,6 +232,7 @@ export default function UserProgramsIndex({
         emptyProgramEligibility(),
     );
     const [workflowId, setWorkflowId] = useState('default');
+    const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
     const [analyticsProgram, setAnalyticsProgram] = useState<ProgramRow | null>(
         null,
     );
@@ -271,6 +273,7 @@ export default function UserProgramsIndex({
         setFirstBatchEndAtOpen(false);
         setEligibility(emptyProgramEligibility());
         setWorkflowId('default');
+        setAttachmentFiles([]);
     };
 
     useEffect(() => {
@@ -601,8 +604,8 @@ export default function UserProgramsIndex({
                                                     }
                                                 >
                                                     <Send data-icon="inline-start" />
-                                                    Endorse & Forward to
-                                                    Governor
+                                                    Submit for
+                                                    recommendation
                                                 </Button>
                                             ) : null
                                         }
@@ -634,7 +637,7 @@ export default function UserProgramsIndex({
                     }
                 }}
                 programName={endorseProgram?.name ?? ''}
-                action="endorse"
+                action="submit"
                 url={
                     endorseProgram && department?.slug
                         ? submitProgramApproval.url({
@@ -695,6 +698,7 @@ export default function UserProgramsIndex({
                                 department: department.slug,
                             })}
                             method="post"
+                            encType="multipart/form-data"
                             disableWhileProcessing
                             resetOnSuccess
                             transform={(data) => ({
@@ -750,6 +754,7 @@ export default function UserProgramsIndex({
                                     eligibility,
                                     selectedItemIds,
                                 ),
+                                attachments: attachmentFiles,
                                 ...(canAssignWorkflow
                                     ? {
                                           workflow_id:
@@ -800,6 +805,12 @@ export default function UserProgramsIndex({
                                             message={errors.descriptions}
                                         />
                                     </div>
+
+                                    <ProgramAttachmentsField
+                                        files={attachmentFiles}
+                                        onFilesChange={setAttachmentFiles}
+                                        errors={errors}
+                                    />
 
                                     <div className="space-y-2">
                                         <Label>Program type</Label>

@@ -63,7 +63,7 @@ class ProgramController extends Controller
                 'index_url' => route('administrator.programs.index'),
                 'awaiting_status' => ProgramApprovalStatus::AwaitingAdministrator->value,
                 'positive_action' => 'endorse',
-                'positive_label' => 'Endorse',
+                'positive_label' => 'Recommend for approval',
             ],
         ]);
     }
@@ -84,7 +84,7 @@ class ProgramController extends Controller
                 'return_url' => route('administrator.programs.return', $program),
                 'awaiting_status' => ProgramApprovalStatus::AwaitingAdministrator->value,
                 'positive_action' => 'endorse',
-                'positive_label' => 'Endorse',
+                'positive_label' => 'Recommend for approval',
             ],
         ]);
     }
@@ -101,7 +101,7 @@ class ProgramController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Program endorsed.',
+            'message' => 'Program recommended for approval.',
         ]);
 
         return redirect()->back();

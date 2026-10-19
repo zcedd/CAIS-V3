@@ -128,6 +128,11 @@ class Program extends Model
         return $this->hasMany(ProgramDocumentRequirement::class)->orderBy('sort_order')->orderBy('id');
     }
 
+    public function attachments(): HasMany
+    {
+        return $this->hasMany(ProgramAttachment::class)->orderBy('id');
+    }
+
     public function eligibilityRule(): HasOne
     {
         return $this->hasOne(ProgramEligibilityRule::class);

@@ -2,6 +2,8 @@ import { Head, Link, setLayoutProps } from '@inertiajs/react';
 import { Check, Undo2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
+import { ProgramAttachmentList } from '@/components/program-attachments-field';
+import type { ProgramAttachment } from '@/components/program-attachments-field';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,6 +63,7 @@ type GovernorProgram = {
         is_required: boolean;
         required_before_label: string;
     }>;
+    attachments: ProgramAttachment[];
     eligibility: {
         cooldown_days: number | null;
         requirements: string[];
@@ -379,6 +382,17 @@ export default function GovernorProgramShow({
                                         ),
                                     )}
                                 </ul>
+                            )}
+                        </DetailBlock>
+
+                        <DetailBlock title="Attachments">
+                            {program.attachments.length === 0 ? (
+                                <EmptyDetail>No attachments</EmptyDetail>
+                            ) : (
+                                <ProgramAttachmentList
+                                    attachments={program.attachments}
+                                    showHeading={false}
+                                />
                             )}
                         </DetailBlock>
 

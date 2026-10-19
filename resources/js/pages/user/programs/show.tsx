@@ -21,6 +21,8 @@ import {
     useState,
 } from 'react';
 import { toast } from 'sonner';
+import { ProgramAttachmentList } from '@/components/program-attachments-field';
+import type { ProgramAttachment } from '@/components/program-attachments-field';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -144,6 +146,7 @@ type ProgramDetail = {
     batch_name?: string | null;
     department_id: number;
     parent?: { id: number; name: string } | null;
+    attachments?: ProgramAttachment[];
 };
 
 type ProgramEditRelations = {
@@ -770,6 +773,9 @@ export default function UserProgramShow({
                         >
                             {description || 'No description'}
                         </p>
+                        <ProgramAttachmentList
+                            attachments={program.attachments}
+                        />
                         <div className="space-y-2">
                             <p className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                                 <CalendarRange className="size-3.5" />

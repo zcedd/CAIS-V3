@@ -3,6 +3,8 @@ import { Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import InputError from '@/components/input-error';
+import { ProgramAttachmentsField } from '@/components/program-attachments-field';
+import type { ProgramAttachment } from '@/components/program-attachments-field';
 import { ProgramDocumentRequirementsEditor } from '@/components/program-document-requirements-editor';
 import {
     ProgramEligibilityFields,
@@ -88,6 +90,7 @@ type ProgramEditRelations = {
     document_requirements?: ProgramDocumentRequirementInput[];
     eligibility?: ProgramEligibilityPayload;
     workflow_id?: number | null;
+    attachments?: ProgramAttachment[];
 };
 
 function formatDateForSubmit(date: Date | undefined): string | undefined {
@@ -197,6 +200,10 @@ export function ProgramEditDrawer({
     const [workflowId, setWorkflowId] = useState(
         programEdit?.workflow_id ? String(programEdit.workflow_id) : 'default',
     );
+    const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+    const [removedAttachmentIds, setRemovedAttachmentIds] = useState<number[]>(
+        [],
+    );
 
     useEffect(() => {
         setStartAt(parseProgramDateInput(program.start_at_input));
@@ -228,6 +235,8 @@ export function ProgramEditDrawer({
                 ? String(programEdit.workflow_id)
                 : 'default',
         );
+        setAttachmentFiles([]);
+        setRemovedAttachmentIds([]);
     }, [programEdit]);
 
     const fundOptions = funds.map((fund) => ({
@@ -259,6 +268,7 @@ export function ProgramEditDrawer({
                         program: program.id,
                     })}
                     method="put"
+                    encType="multipart/form-data"
                     disableWhileProcessing
                     options={{
                         preserveScroll: true,
@@ -309,6 +319,12 @@ export function ProgramEditDrawer({
                                           : Number(workflowId),
                               }
                             : {}),
+                        ...(isBatch
+                            ? {}
+                            : {
+                                  attachments: attachmentFiles,
+                                  remove_attachment_ids: removedAttachmentIds,
+                              }),
                     })}
                     onSuccess={() => {
                         onClose();
@@ -372,6 +388,19 @@ export function ProgramEditDrawer({
                                     />
                                     <InputError message={errors.descriptions} />
                                 </div>
+
+                                {isBatch ? null : (
+                                    <ProgramAttachmentsField
+                                        files={attachmentFiles}
+                                        onFilesChange={setAttachmentFiles}
+                                        existing={programEdit?.attachments}
+                                        removedIds={removedAttachmentIds}
+                                        onRemovedIdsChange={
+                                            setRemovedAttachmentIds
+                                        }
+                                        errors={errors}
+                                    />
+                                )}
 
                                 <ProgramDatePicker
                                     id="edit-program-start-at"

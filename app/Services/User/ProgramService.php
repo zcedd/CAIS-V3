@@ -3,6 +3,7 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Actions\User\StoreProgramAttachments;
 use App\Enums\DocumentRequirementMilestone;
 use App\Enums\ItemKind;
 use App\Enums\ProgramApprovalAction;
@@ -16,6 +17,7 @@ use App\Models\Fund;
 use App\Models\Individual;
 use App\Models\Item;
 use App\Models\Program;
+use App\Models\ProgramAttachment;
 use App\Models\ProgramDocumentRequirement;
 use App\Models\ProgramEligibilityRule;
 use App\Models\ProgramField;
@@ -27,6 +29,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -44,6 +47,7 @@ class ProgramService
         private CreateProgramBatch $createProgramBatch,
         private WorkflowService $workflowService,
         private EnsureDepartmentWorkflow $ensureDepartmentWorkflow,
+        private StoreProgramAttachments $storeProgramAttachments,
     ) {}
 
     /**
@@ -213,6 +217,7 @@ class ProgramService
             ($this->createProgramBatch)($program, $validated['first_batch']);
         }
 
+        $this->syncAttachments($program, $validated);
         $this->forgetDashboardFilterOptions($department->id);
 
         return $program->refresh();
@@ -273,6 +278,7 @@ class ProgramService
         }
 
         $this->syncEligibility($program, $validated);
+        $this->syncAttachments($program, $validated);
         $this->forgetDashboardFilterOptions($program->department_id);
     }
 
@@ -339,6 +345,7 @@ class ProgramService
      *     items: list<array{id: int, name: string, unit: string|null}>,
      *     fields: list<array{id: int, label: string, type_label: string, is_required: bool, options: list<string>|null}>,
      *     document_requirements: list<array{id: int, name: string, is_required: bool, required_before_label: string}>,
+     *     attachments: list<array{id: int, original_name: string, size: int, url: string}>,
      *     eligibility: array{
      *         cooldown_days: int|null,
      *         requirements: list<string>,
@@ -354,6 +361,7 @@ class ProgramService
             'item.unitMeasurement:id,name',
             'fields',
             'documentRequirements.documentType:id,name',
+            'attachments',
         ]);
 
         $parent = $program->parent;
@@ -412,6 +420,7 @@ class ProgramService
                 })
                 ->values()
                 ->all(),
+            'attachments' => $this->attachmentRows($program),
             'eligibility' => $this->executiveEligibility($program),
         ];
     }
@@ -472,6 +481,7 @@ class ProgramService
                     'name' => $parent->name,
                 ]
                 : null,
+            'attachments' => $this->attachmentRows($program),
         ];
     }
 
@@ -509,7 +519,51 @@ class ProgramService
             'document_requirements' => $this->documentRequirementsPayload($program),
             'eligibility' => $this->eligibilityPayload($program),
             'workflow_id' => $program->workflow_id,
+            'attachments' => $this->attachmentRows($program),
         ];
+    }
+
+    /**
+     * @return list<array{id: int, original_name: string, size: int, url: string}>
+     */
+    public function attachmentRows(Program $program): array
+    {
+        $program->loadMissing('attachments');
+
+        return $program->attachments
+            ->map(fn (ProgramAttachment $attachment): array => [
+                'id' => $attachment->id,
+                'original_name' => $attachment->original_name,
+                'size' => $attachment->size,
+                'url' => route('programs.attachments.show', [
+                    'program' => $program,
+                    'attachment' => $attachment,
+                ]),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncAttachments(Program $program, array $validated): void
+    {
+        $removeIds = $validated['remove_attachment_ids'] ?? [];
+
+        if (is_array($removeIds) && $removeIds !== []) {
+            $this->storeProgramAttachments->remove(
+                $program,
+                array_map(static fn (mixed $id): int => (int) $id, $removeIds),
+            );
+        }
+
+        $files = $validated['attachments'] ?? [];
+        $user = Auth::user();
+
+        if ($user instanceof User && is_array($files) && $files !== []) {
+            $this->storeProgramAttachments->store($program, $user, $files);
+        }
     }
 
     /**
@@ -842,6 +896,7 @@ class ProgramService
         }
 
         $this->syncEligibility($program, $validated);
+        $this->syncAttachments($program, $validated);
 
         $program->batches()->update([
             'distribution_mode' => $program->resolvedDistributionMode()->value,
