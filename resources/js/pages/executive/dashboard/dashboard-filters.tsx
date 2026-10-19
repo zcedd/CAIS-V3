@@ -2,6 +2,7 @@ import { router } from '@inertiajs/react';
 import { useCallback } from 'react';
 import { DashboardFiltersDrawer } from '@/pages/user/dashboard/dashboard-filters-drawer';
 import type { DashboardDrawerField } from '@/pages/user/dashboard/dashboard-filters-drawer';
+import { dashboard as administratorDashboard } from '@/routes/administrator';
 import { dashboard as executiveDashboard } from '@/routes/executive';
 import {
     buildDashboardQuery,
@@ -26,6 +27,7 @@ type ExecutiveFilterOptions = DashboardFilterOptions & {
 type DashboardFiltersProps = {
     filters: ExecutiveDashboardFilters;
     filterOptions: ExecutiveFilterOptions;
+    audience?: 'executive' | 'administrator';
 };
 
 function buildExecutiveDashboardQuery(
@@ -65,13 +67,17 @@ const DEMOGRAPHIC_FIELDS: DashboardDrawerField<
 export function DashboardFiltersButton({
     filters,
     filterOptions,
+    audience = 'executive',
 }: DashboardFiltersProps) {
+    const dashboard =
+        audience === 'administrator' ? administratorDashboard : executiveDashboard;
+
     const navigateWithFilters = useCallback(
         (overrides: Partial<ExecutiveDashboardFilters> = {}) => {
             const next = { ...filters, ...overrides };
 
             router.get(
-                executiveDashboard.url({
+                dashboard.url({
                     query: buildExecutiveDashboardQuery(next),
                 }),
                 {},
@@ -82,7 +88,7 @@ export function DashboardFiltersButton({
                 },
             );
         },
-        [filters],
+        [dashboard, filters],
     );
 
     const organizationOnly =

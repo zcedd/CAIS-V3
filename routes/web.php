@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\DistributionApprovalPolicyController as AdminDistributionApprovalPolicyController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
+use App\Http\Controllers\Administrator\DashboardController as AdministratorDashboardController;
 use App\Http\Controllers\Administrator\DistributionApprovalController as AdministratorDistributionApprovalController;
 use App\Http\Controllers\Administrator\ProgramController as AdministratorProgramController;
 use App\Http\Controllers\Executive\DashboardController as ExecutiveDashboardController;
@@ -63,6 +64,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::middleware('administrator')->prefix('administrator')->name('administrator.')->group(function () {
+        Route::get('dashboard', [AdministratorDashboardController::class, 'index'])->name('dashboard');
         Route::get('programs', [AdministratorProgramController::class, 'index'])->name('programs.index');
         Route::get('programs/{program}', [AdministratorProgramController::class, 'show'])->name('programs.show');
         Route::post('programs/{program}/endorse', [AdministratorProgramController::class, 'endorse'])->name('programs.endorse');

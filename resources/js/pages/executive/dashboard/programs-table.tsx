@@ -9,6 +9,7 @@ import {
     TableRow,
 } from '@/components/ui/table';
 import { DashboardChartCard } from '@/pages/user/dashboard/dashboard-charts';
+import { show as administratorProgramShow } from '@/routes/administrator/programs';
 import { show as executiveProgramShow } from '@/routes/executive/programs';
 import type { DashboardProgramRow } from '@/types/dashboard';
 
@@ -18,9 +19,18 @@ type ExecutiveProgramRow = DashboardProgramRow & {
 
 type ProgramsTableProps = {
     data: ExecutiveProgramRow[];
+    audience?: 'executive' | 'administrator';
 };
 
-export function ProgramsTable({ data }: ProgramsTableProps) {
+export function ProgramsTable({
+    data,
+    audience = 'executive',
+}: ProgramsTableProps) {
+    const programShow =
+        audience === 'administrator'
+            ? administratorProgramShow
+            : executiveProgramShow;
+
     return (
         <div className="flex flex-col gap-4">
             <DashboardChartCard
@@ -62,9 +72,7 @@ export function ProgramsTable({ data }: ProgramsTableProps) {
                                 <TableRow key={row.id}>
                                     <TableCell>
                                         <Link
-                                            href={executiveProgramShow.url(
-                                                row.id,
-                                            )}
+                                            href={programShow.url(row.id)}
                                             prefetch
                                             className="font-medium text-primary hover:underline"
                                         >

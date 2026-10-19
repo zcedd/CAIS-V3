@@ -12,6 +12,7 @@ use App\Enums\ProgramDistributionMode;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
 use App\Enums\RoleName;
+use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Individual;
@@ -330,22 +331,29 @@ class ProgramService
     }
 
     /**
-     * Program configuration the executive reviews, without beneficiaries.
+     * Full program record shown to the executive and the administrator.
      *
      * @return array{
      *     start_at: string|null,
      *     end_at: string|null,
+     *     start_at_input: string|null,
+     *     end_at_input: string|null,
      *     is_closed: bool,
      *     is_organization: bool,
      *     public_intake: bool,
+     *     distribution_mode: string,
+     *     distribution_mode_label: string,
+     *     workflow_name: string,
      *     kind_label: string|null,
      *     batch_name: string|null,
      *     parent: array{id: int, name: string}|null,
      *     funds: list<array{id: int, name: string, year: string|null, amount: float|null}>,
      *     items: list<array{id: int, name: string, unit: string|null}>,
+     *     stock: list<array{id: int, program_id: int, program_name: string, item_id: int, item_name: string, unit: string|null, remaining: int, on_hand: int, threshold: int|null, is_low: bool}>,
      *     fields: list<array{id: int, label: string, type_label: string, is_required: bool, options: list<string>|null}>,
      *     document_requirements: list<array{id: int, name: string, is_required: bool, required_before_label: string}>,
      *     attachments: list<array{id: int, original_name: string, size: int, url: string}>,
+     *     batches: list<array<string, mixed>>,
      *     eligibility: array{
      *         cooldown_days: int|null,
      *         requirements: list<string>,
@@ -366,13 +374,19 @@ class ProgramService
 
         $parent = $program->parent;
         $kind = $program->kind;
+        $distribution = $this->reviewDistribution($program);
 
         return [
             'start_at' => $this->programDateLabel($program->getRawOriginal('start_at')),
             'end_at' => $this->programDateLabel($program->getRawOriginal('end_at')),
+            'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
+            'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
             'is_closed' => (bool) $program->is_closed,
             'is_organization' => (bool) $program->is_organization,
             'public_intake' => (bool) $program->public_intake,
+            'distribution_mode' => $distribution['distribution_mode'],
+            'distribution_mode_label' => $distribution['distribution_mode_label'],
+            'workflow_name' => $this->reviewWorkflowName($program),
             'kind_label' => $kind instanceof ProgramKind ? $kind->label() : null,
             'batch_name' => $program->batch_name,
             'parent' => $parent instanceof Program
@@ -421,8 +435,79 @@ class ProgramService
                 ->values()
                 ->all(),
             'attachments' => $this->attachmentRows($program),
+            'stock' => $this->stockLedgerService->programStockTable($program),
+            'batches' => $program->isScheme() ? $this->schemeBatchesPayload($program) : [],
             'eligibility' => $this->executiveEligibility($program),
         ];
+    }
+
+    /**
+     * Assistance records on this program, including a scheme's batches.
+     */
+    public function reviewAssistances(Program $program, int $perPage = 15): LengthAwarePaginator
+    {
+        $programIds = $program->isScheme()
+            ? $program->batches()->pluck('id')->all()
+            : [$program->id];
+
+        return Assistance::query()
+            ->whereIn('program_id', $programIds)
+            ->with([
+                'beneficiary:id,cais_number,name',
+                'currentRequestSubStatus:id,name',
+                'modeOfRequest:id,name',
+                'program:id,name,batch_name',
+            ])
+            ->latest('id')
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(static function (Assistance $assistance): array {
+                return [
+                    'id' => $assistance->id,
+                    'cais_number' => $assistance->beneficiary?->cais_number,
+                    'beneficiary_name' => $assistance->beneficiary?->name ?? 'Unknown',
+                    'status' => $assistance->currentRequestSubStatus?->name ?? 'Unrequested',
+                    'mode_of_request' => $assistance->modeOfRequest?->name,
+                    'date_requested' => $assistance->date_requested?->format('M d, Y'),
+                    'date_delivered' => $assistance->date_delivered?->format('M d, Y'),
+                    'batch_name' => $assistance->program?->batch_name,
+                ];
+            });
+    }
+
+    /**
+     * @return array{distribution_mode: string, distribution_mode_label: string}
+     */
+    private function reviewDistribution(Program $program): array
+    {
+        $source = $program;
+
+        if ($program->isBatch()) {
+            $program->loadMissing('parent');
+
+            if ($program->parent instanceof Program) {
+                $source = $program->parent;
+            }
+        }
+
+        $mode = $source->resolvedDistributionMode();
+
+        return [
+            'distribution_mode' => $mode->value,
+            'distribution_mode_label' => $mode->label(),
+        ];
+    }
+
+    private function reviewWorkflowName(Program $program): string
+    {
+        $program->loadMissing(['workflow:id,name', 'parent.workflow:id,name']);
+        $workflow = $program->workflow;
+
+        if (! $workflow instanceof Workflow && $program->isBatch()) {
+            $workflow = $program->parent?->workflow;
+        }
+
+        return $workflow instanceof Workflow ? $workflow->name : 'Department default';
     }
 
     /**

@@ -16,6 +16,7 @@ import { useCan } from '@/hooks/use-can';
 import { Permission } from '@/lib/permissions';
 import { dashboard } from '@/routes';
 import { index as adminUsersIndex } from '@/routes/admin/users';
+import { dashboard as administratorDashboard } from '@/routes/administrator';
 import { index as administratorDistributionsIndex } from '@/routes/administrator/distributions';
 import { index as administratorProgramsIndex } from '@/routes/administrator/programs';
 import { dashboard as executiveDashboard } from '@/routes/executive';
@@ -115,6 +116,11 @@ export function useAppNavItems(): AppNavItems {
         }
 
         return [
+            {
+                title: 'Dashboard',
+                href: administratorDashboard(),
+                icon: LayoutGrid,
+            },
             {
                 title: 'Programs',
                 href: administratorProgramsIndex(),

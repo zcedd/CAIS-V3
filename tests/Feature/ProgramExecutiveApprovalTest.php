@@ -173,10 +173,15 @@ test('returning a program leaves beneficiary statuses unchanged', function () {
         ->and($verified->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::Verified);
 });
 
-test('an executive sees program details without beneficiaries', function () {
+test('an executive and an administrator see the full program', function (string $audience) {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
     $head = officeUser(RoleName::DepartmentHead, $department);
-    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
+    $viewer = $audience === 'executive'
+        ? officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']))
+        : administratorUser();
+    $showRoute = $audience === 'executive'
+        ? 'executive.programs.show'
+        : 'administrator.programs.show';
     $program = draftProgram($department);
     verifiedAssistance($program, $head, 'CAIS-100', 'Juan Dela Cruz');
     $fund = Fund::factory()->create([
@@ -207,16 +212,19 @@ test('an executive sees program details without beneficiaries', function () {
         'require_indigenous' => false,
     ]);
 
-    $this->actingAs($governor)
-        ->get(route('executive.programs.show', $program))
+    $this->actingAs($viewer)
+        ->get(route($showRoute, $program))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('executive/programs/show')
             ->where('program.name', 'Relief Program')
             ->where('program.descriptions', 'Household relief')
             ->where('program.start_at', now()->format('M d, Y'))
+            ->where('program.distribution_mode_label', 'Batch distribution')
+            ->where('program.workflow_name', 'Department default')
             ->where('program.funds.0.name', 'Calamity Fund')
             ->where('program.items.0.name', 'Rice')
+            ->where('program.stock.0.item_name', 'Rice')
             ->where('program.fields.0.label', 'Household size')
             ->where('program.fields.0.is_required', true)
             ->where('program.document_requirements.0.name', 'Barangay certificate')
@@ -225,7 +233,18 @@ test('an executive sees program details without beneficiaries', function () {
             ->where('program.eligibility.requirements.0', 'PWD only')
             ->where('program.department.name', $department->name)
             ->missing('beneficiaries'));
-});
+
+    $this->actingAs($viewer)
+        ->get(
+            route($showRoute, $program),
+            inertiaPartialHeaders('executive/programs/show', ['assistances', 'summary']),
+        )
+        ->assertOk()
+        ->assertJsonPath('props.assistances.data.0.beneficiary_name', 'Juan Dela Cruz')
+        ->assertJsonPath('props.assistances.data.0.cais_number', 'CAIS-100')
+        ->assertJsonPath('props.assistances.data.0.status', 'Verified')
+        ->assertJsonPath('props.summary.total_requests', 1);
+})->with(['executive', 'administrator']);
 
 test('a releasing officer and a department head cannot approve a program', function (RoleName $role) {
     $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);

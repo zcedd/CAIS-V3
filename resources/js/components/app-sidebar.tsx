@@ -20,7 +20,7 @@ import {
 import { useAppNavItems } from '@/hooks/use-app-nav-items';
 import { useCloseMobileSidebar } from '@/hooks/use-close-mobile-sidebar';
 import { dashboard } from '@/routes';
-import { index as administratorProgramsIndex } from '@/routes/administrator/programs';
+import { dashboard as administratorDashboard } from '@/routes/administrator';
 import { dashboard as executiveDashboard } from '@/routes/executive';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import type { Auth } from '@/types/auth';
@@ -45,7 +45,7 @@ export function AppSidebar() {
         : executiveNavItems.length > 0
           ? executiveDashboard()
           : administratorNavItems.length > 0
-            ? administratorProgramsIndex()
+            ? administratorDashboard()
             : dashboard();
 
     return (
