@@ -17,7 +17,9 @@ use App\Models\Program;
 use App\Models\ProgramDocumentRequirement;
 use App\Models\ProgramField;
 use App\Models\User;
+use App\Notifications\ProgramDecisionNotification;
 use Database\Seeders\RolePermissionSeeder;
+use Illuminate\Support\Facades\Notification;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Permission\Models\Role;
 
@@ -323,6 +325,93 @@ test('only a department head can endorse a program from the department index', f
             ->where('programs.data.0.can_submit_approval', false));
 });
 
+test('approving a program notifies the department head', function () {
+    Notification::fake();
+
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::DepartmentHead, $department);
+    $secondHead = officeUser(RoleName::DepartmentHead, $department);
+    $encoder = officeUser(RoleName::Encoder, $department);
+    $otherHead = officeUser(RoleName::DepartmentHead, Department::create(['name' => 'Provincial Veterinary Office']));
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
+    $program = draftProgram($department);
+    $program->update(['approval_status' => ProgramApprovalStatus::AwaitingGovernor]);
+
+    $this->actingAs($governor)
+        ->post(route('executive.programs.approve', $program))
+        ->assertRedirect();
+
+    $expected = [
+        'title' => 'Program approved',
+        'message' => $governor->name.' approved '.$program->name.'.',
+        'program_id' => $program->id,
+        'url' => route('user.programs.show', [$department, $program]),
+    ];
+
+    Notification::assertSentTo(
+        $head,
+        ProgramDecisionNotification::class,
+        fn (ProgramDecisionNotification $notification): bool => programDecisionMatches($notification, $head, $expected),
+    );
+    Notification::assertSentTo(
+        $secondHead,
+        ProgramDecisionNotification::class,
+        fn (ProgramDecisionNotification $notification): bool => programDecisionMatches($notification, $secondHead, $expected),
+    );
+    Notification::assertNotSentTo($encoder, ProgramDecisionNotification::class);
+    Notification::assertNotSentTo($otherHead, ProgramDecisionNotification::class);
+    Notification::assertNotSentTo($governor, ProgramDecisionNotification::class);
+});
+
+test('returning a program notifies the department head', function () {
+    Notification::fake();
+
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::DepartmentHead, $department);
+    $governor = officeUser(RoleName::Executive, Department::create(['name' => 'Office Of The Governor']));
+    $program = draftProgram($department);
+    $program->update(['approval_status' => ProgramApprovalStatus::AwaitingGovernor]);
+
+    $this->actingAs($governor)
+        ->post(route('executive.programs.return', $program), [
+            'remark' => 'Add the missing household list.',
+        ])
+        ->assertRedirect();
+
+    Notification::assertSentTo(
+        $head,
+        ProgramDecisionNotification::class,
+        fn (ProgramDecisionNotification $notification): bool => programDecisionMatches($notification, $head, [
+            'title' => 'Program returned',
+            'message' => $governor->name.' returned '.$program->name.'. Add the missing household list.',
+            'program_id' => $program->id,
+            'url' => route('user.programs.show', [$department, $program]),
+        ]),
+    );
+});
+
+test('an administrator return notifies the department head', function () {
+    Notification::fake();
+
+    $department = Department::create(['name' => 'Provincial Social Welfare And Development Office']);
+    $head = officeUser(RoleName::DepartmentHead, $department);
+    $program = draftProgram($department);
+    $program->update(['approval_status' => ProgramApprovalStatus::AwaitingAdministrator]);
+
+    $this->actingAs(administratorUser())
+        ->post(route('administrator.programs.return', $program), [
+            'remark' => 'Clarify the fund source.',
+        ])
+        ->assertRedirect();
+
+    Notification::assertSentTo($head, ProgramDecisionNotification::class, function (ProgramDecisionNotification $notification) use ($head): bool {
+        $data = $notification->toArray($head);
+
+        return $data['title'] === 'Program returned'
+            && str_contains((string) $data['message'], 'Clarify the fund source.');
+    });
+});
+
 function administratorUser(): User
 {
     seedRolesAndPermissions();
@@ -333,6 +422,19 @@ function administratorUser(): User
     $user->syncRoles([RoleName::Administrator->value]);
 
     return $user->fresh() ?? $user;
+}
+
+/**
+ * @param  array{title: string, message: string, program_id: int, url: string}  $expected
+ */
+function programDecisionMatches(ProgramDecisionNotification $notification, User $head, array $expected): bool
+{
+    $data = $notification->toArray($head);
+
+    return $data['title'] === $expected['title']
+        && $data['message'] === $expected['message']
+        && $data['program_id'] === $expected['program_id']
+        && $data['url'] === $expected['url'];
 }
 
 function officeUser(RoleName $role, Department $department): User

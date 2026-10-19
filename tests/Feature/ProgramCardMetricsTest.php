@@ -87,6 +87,36 @@ test('program cards sum budget cash and demographics including scheme batches', 
         ->and($metrics['submitted_at'])->not->toBeNull();
 });
 
+test('the endorsement trail includes returns and remarks', function () {
+    $department = Department::create(['name' => 'Social Welfare']);
+    $user = User::factory()->create(['department_id' => $department->id]);
+    $program = Program::factory()->standalone()->create([
+        'department_id' => $department->id,
+    ]);
+
+    ProgramApprovalEvent::query()->create([
+        'program_id' => $program->id,
+        'user_id' => $user->id,
+        'action' => ProgramApprovalAction::Submitted,
+        'remark' => 'Ready for review.',
+    ]);
+    ProgramApprovalEvent::query()->create([
+        'program_id' => $program->id,
+        'user_id' => $user->id,
+        'action' => ProgramApprovalAction::Returned,
+        'remark' => 'Add the household list.',
+    ]);
+
+    $trail = app(ProgramService::class)->cardMetrics(collect([$program]))[$program->id]['approval_trail'];
+
+    expect($trail)->toHaveCount(2)
+        ->and($trail[0]['action'])->toBe(ProgramApprovalAction::Submitted->value)
+        ->and($trail[0]['remark'])->toBe('Ready for review.')
+        ->and($trail[1]['action'])->toBe(ProgramApprovalAction::Returned->value)
+        ->and($trail[1]['label'])->toBe('Returned')
+        ->and($trail[1]['remark'])->toBe('Add the household list.');
+});
+
 test('department program analytics returns the summary and forbids another department', function () {
     $department = Department::create(['name' => 'Social Welfare']);
     $other = Department::create(['name' => 'Veterinary']);

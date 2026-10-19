@@ -1211,6 +1211,7 @@ class ProgramService
             'individuals' => 0,
             'submitted_at' => null,
             'approved_at' => null,
+            'approval_trail' => [],
         ];
     }
 
@@ -1451,29 +1452,44 @@ class ProgramService
 
         $rows = DB::table('program_approval_events')
             ->whereIn('program_id', $scopeIds)
-            ->whereIn('action', [
-                ProgramApprovalAction::Submitted->value,
-                ProgramApprovalAction::Approved->value,
-            ])
-            ->select('program_id', 'action')
-            ->selectRaw('MAX(created_at) as happened_at')
-            ->groupBy('program_id', 'action')
-            ->get();
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get(['program_id', 'action', 'remark', 'created_at']);
 
         foreach ($rows as $row) {
             $rootId = $childToRoot[(int) $row->program_id] ?? null;
 
-            if ($rootId === null || ! isset($metrics[$rootId]) || $row->happened_at === null) {
+            if ($rootId === null || ! isset($metrics[$rootId]) || $row->created_at === null) {
                 continue;
             }
 
-            $key = $row->action === ProgramApprovalAction::Approved->value
+            $action = ProgramApprovalAction::tryFrom((string) $row->action);
+
+            if (! $action instanceof ProgramApprovalAction) {
+                continue;
+            }
+
+            $happenedAt = (string) $row->created_at;
+            $remark = is_string($row->remark) ? trim($row->remark) : '';
+            $metrics[$rootId]['approval_trail'][] = [
+                'action' => $action->value,
+                'label' => $action->trailLabel(),
+                'done_label' => $action->trailDoneLabel(),
+                'remark' => $remark === '' ? null : $remark,
+                'happened_at' => $happenedAt,
+            ];
+
+            if (! in_array($action, [ProgramApprovalAction::Submitted, ProgramApprovalAction::Approved], true)) {
+                continue;
+            }
+
+            $key = $action === ProgramApprovalAction::Approved
                 ? 'approved_at'
                 : 'submitted_at';
             $current = $metrics[$rootId][$key];
 
-            if ($current === null || $row->happened_at > $current) {
-                $metrics[$rootId][$key] = (string) $row->happened_at;
+            if ($current === null || $happenedAt > $current) {
+                $metrics[$rootId][$key] = $happenedAt;
             }
         }
     }
