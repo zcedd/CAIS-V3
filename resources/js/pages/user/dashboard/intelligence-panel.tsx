@@ -1,4 +1,3 @@
-import { Banknote, Package, Truck, Users } from 'lucide-react';
 import type { ReactNode } from 'react';
 import {
     Bar,
@@ -60,25 +59,21 @@ export function IntelligencePanel({
                     label="Total cash disbursed"
                     value={formatPeso(summary.cash_disbursed)}
                     description="Released cash assistance"
-                    icon={Banknote}
                 />
                 <StatCard
                     label="In-kind packages"
                     value={summary.goods_released.toLocaleString()}
                     description="Goods quantity released"
-                    icon={Package}
                 />
                 <StatCard
                     label="Registered heads"
                     value={summary.unique_beneficiaries.toLocaleString()}
                     description="Distinct beneficiaries in these filters"
-                    icon={Users}
                 />
                 <StatCard
                     label="Delivered requests"
                     value={summary.delivered_requests.toLocaleString()}
                     description={`${summary.total_requests.toLocaleString()} requests in view`}
-                    icon={Truck}
                 />
             </div>
 

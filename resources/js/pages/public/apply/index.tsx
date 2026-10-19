@@ -1,7 +1,7 @@
+import { Head, Link } from '@inertiajs/react';
 import { formatProgramPeriod } from '@/lib/format-program-period';
 import { show as applyShow } from '@/routes/public/apply';
 import { index as trackIndex } from '@/routes/public/track';
-import { Head, Link } from '@inertiajs/react';
 
 type CatalogProgram = {
     id: number;
@@ -25,8 +25,8 @@ export default function PublicApplyIndex({
     return (
         <>
             <Head title="Apply for assistance" />
-            <div className="space-y-6">
-                <div className="space-y-2">
+            <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Apply for assistance
                     </h1>
@@ -47,11 +47,11 @@ export default function PublicApplyIndex({
                         No programs are accepting public applications right now.
                     </p>
                 ) : (
-                    <div className="space-y-8">
+                    <div className="flex flex-col gap-8">
                         {departments.map((department) => (
                             <section
                                 key={department.department_name}
-                                className="space-y-3"
+                                className="flex flex-col gap-3"
                             >
                                 <h2 className="text-sm font-semibold tracking-tight">
                                     {department.department_name}
@@ -61,27 +61,34 @@ export default function PublicApplyIndex({
                                         <li key={program.id}>
                                             <Link
                                                 href={applyShow.url(program.id)}
-                                                className="block rounded-xl border border-border bg-card p-4 transition-colors hover:border-foreground/25 hover:bg-muted/30"
+                                                className="flex items-start justify-between gap-4 rounded-xl border border-border bg-card p-4 transition-colors hover:border-foreground/25 hover:bg-muted/30"
                                             >
-                                                <p className="font-medium">
-                                                    {program.name}
-                                                </p>
-                                                {program.batch_name ? (
-                                                    <p className="text-xs text-muted-foreground">
-                                                        {program.batch_name}
-                                                    </p>
-                                                ) : null}
-                                                <p className="mt-1 text-xs text-muted-foreground">
-                                                    {formatProgramPeriod(
-                                                        program.start_at,
-                                                        program.end_at,
-                                                    )}
-                                                </p>
-                                                {program.descriptions ? (
-                                                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
-                                                        {program.descriptions}
-                                                    </p>
-                                                ) : null}
+                                                <span className="flex min-w-0 flex-col gap-1">
+                                                    <span className="font-medium">
+                                                        {program.name}
+                                                    </span>
+                                                    <span className="text-sm text-muted-foreground">
+                                                        {formatProgramPeriod(
+                                                            program.start_at,
+                                                            program.end_at,
+                                                        )}
+                                                    </span>
+                                                    {program.batch_name ? (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {program.batch_name}
+                                                        </span>
+                                                    ) : null}
+                                                    {program.descriptions ? (
+                                                        <span className="line-clamp-2 text-sm text-muted-foreground">
+                                                            {
+                                                                program.descriptions
+                                                            }
+                                                        </span>
+                                                    ) : null}
+                                                </span>
+                                                <span className="shrink-0 text-sm font-medium text-primary">
+                                                    Apply
+                                                </span>
                                             </Link>
                                         </li>
                                     ))}

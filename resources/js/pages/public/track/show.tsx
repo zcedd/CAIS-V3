@@ -1,7 +1,8 @@
+import { Head, Link } from '@inertiajs/react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { show as applyShow } from '@/routes/public/apply';
 import { index as trackIndex } from '@/routes/public/track';
-import { Head, Link } from '@inertiajs/react';
 
 type TrackedRequest = {
     id: number;
@@ -26,13 +27,16 @@ export default function PublicTrackShow({
     return (
         <>
             <Head title="Request status" />
-            <div className="space-y-6">
-                <div className="space-y-1">
+            <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-1">
                     <h1 className="text-2xl font-semibold tracking-tight">
                         Request status
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        {beneficiary_name} · {cais_number}
+                        {beneficiary_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                        {cais_number}
                     </p>
                 </div>
 
@@ -41,23 +45,34 @@ export default function PublicTrackShow({
                         No public requests were found for this CAIS number.
                     </p>
                 ) : (
-                    <ul className="space-y-3">
+                    <ul className="flex flex-col gap-3">
                         {requests.map((request) => (
                             <li
                                 key={request.id}
-                                className="rounded-xl border border-border bg-card p-4"
+                                className="flex flex-col gap-2 rounded-xl border border-border bg-card p-4"
                             >
                                 <p className="font-medium">
                                     {request.program_name}
                                 </p>
-                                <p className="text-sm text-muted-foreground">
+                                <Badge variant="secondary" className="w-fit">
                                     {request.status}
-                                    {request.date_requested
-                                        ? ` · Requested ${request.date_requested}`
-                                        : ''}
+                                </Badge>
+                                {request.date_requested ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        Requested {request.date_requested}
+                                    </p>
+                                ) : null}
+                                <p className="text-sm text-muted-foreground">
+                                    {request.can_resume
+                                        ? 'You can continue this draft.'
+                                        : 'Staff are reviewing this request.'}
                                 </p>
                                 {request.can_resume ? (
-                                    <Button asChild className="mt-3" size="sm">
+                                    <Button
+                                        asChild
+                                        className="mt-1 w-fit"
+                                        size="sm"
+                                    >
                                         <Link
                                             href={applyShow.url(
                                                 request.program_id,
@@ -78,7 +93,7 @@ export default function PublicTrackShow({
                     </ul>
                 )}
 
-                <Button variant="outline" asChild>
+                <Button variant="outline" className="w-fit" asChild>
                     <Link href={trackIndex.url()}>Look up another request</Link>
                 </Button>
             </div>

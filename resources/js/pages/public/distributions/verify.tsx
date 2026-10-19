@@ -1,4 +1,5 @@
 import { Head } from '@inertiajs/react';
+import { Badge } from '@/components/ui/badge';
 
 type PublicItem = {
     description: string;
@@ -22,33 +23,63 @@ export default function PublicReceiptVerification({
         issued_at: string | null;
     };
 }) {
+    const fields = [
+        { label: 'Receipt', value: receipt.receipt_number },
+        { label: 'Program', value: receipt.program },
+        { label: 'Department', value: receipt.department },
+        { label: 'Venue', value: receipt.venue },
+        { label: 'Date', value: receipt.distribution_date ?? '—' },
+        { label: 'Issued', value: receipt.issued_at ?? '—' },
+    ];
+
     return (
         <>
             <Head title="Receipt verification" />
-            <div className="flex flex-col gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold tracking-tight">Receipt verification</h1>
+            <div className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                    <h1 className="text-2xl font-semibold tracking-tight">
+                        Receipt verification
+                    </h1>
                     <p className="text-sm text-muted-foreground">
-                        This page confirms a receipt number and the assistance that was released. It does not show photographs, signatures, or a full beneficiary profile.
+                        This page confirms a receipt number and the assistance
+                        that was released. It does not show photographs,
+                        signatures, or a full beneficiary profile.
                     </p>
                 </div>
-                <dl className="grid gap-2 text-sm">
-                    <div><dt className="text-muted-foreground">Receipt</dt><dd>{receipt.receipt_number}</dd></div>
-                    <div><dt className="text-muted-foreground">Status</dt><dd>{receipt.status_label}</dd></div>
-                    <div><dt className="text-muted-foreground">Program</dt><dd>{receipt.program}</dd></div>
-                    <div><dt className="text-muted-foreground">Department</dt><dd>{receipt.department}</dd></div>
-                    <div><dt className="text-muted-foreground">Venue</dt><dd>{receipt.venue}</dd></div>
-                    <div><dt className="text-muted-foreground">Date</dt><dd>{receipt.distribution_date ?? '—'}</dd></div>
-                    <div><dt className="text-muted-foreground">Issued</dt><dd>{receipt.issued_at ?? '—'}</dd></div>
+                <dl className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
+                    <div className="flex flex-col gap-1">
+                        <dt className="text-sm text-muted-foreground">
+                            Status
+                        </dt>
+                        <dd>
+                            <Badge variant="secondary">
+                                {receipt.status_label}
+                            </Badge>
+                        </dd>
+                    </div>
+                    {fields.map((field) => (
+                        <div key={field.label} className="flex flex-col gap-1">
+                            <dt className="text-sm text-muted-foreground">
+                                {field.label}
+                            </dt>
+                            <dd className="text-sm">{field.value}</dd>
+                        </div>
+                    ))}
                 </dl>
-                <ul className="flex flex-col gap-1 text-sm">
+                <ul className="flex flex-col gap-2 text-sm">
                     {receipt.items.map((item, index) => (
                         <li key={`${item.description}-${index}`}>
-                            {item.description}: {item.quantity ?? item.amount ?? '—'} {item.unit ?? ''}
+                            {item.description}:{' '}
+                            {item.quantity ?? item.amount ?? '—'}{' '}
+                            {item.unit ?? ''}
                         </li>
                     ))}
                 </ul>
-                {receipt.total_amount && <p className="text-sm">Total amount: {receipt.total_amount}</p>}
+                {receipt.total_amount ? (
+                    <p className="text-sm">
+                        Total amount: {receipt.total_amount}
+                    </p>
+                ) : null}
             </div>
         </>
     );

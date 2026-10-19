@@ -1,13 +1,24 @@
-import { AssistanceFieldInputs } from '@/components/assistance-field-inputs';
+import { Head, useForm } from '@inertiajs/react';
+import { useMemo, useState } from 'react';
 import { AddressCascadeSelect } from '@/components/address-cascade-select';
-import { NameSuffixSelect } from '@/components/name-suffix-select';
+import { AssistanceFieldInputs } from '@/components/assistance-field-inputs';
 import InputError from '@/components/input-error';
+import { NameSuffixSelect } from '@/components/name-suffix-select';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Field,
+    FieldDescription,
+    FieldGroup,
+    FieldLabel,
+    FieldLegend,
+    FieldSet,
+} from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
     SelectTrigger,
     SelectValue,
@@ -20,8 +31,6 @@ import {
 } from '@/routes/public/apply';
 import type { FormOptions } from '@/types/beneficiary';
 import type { ProgramFieldOption } from '@/types/program-field';
-import { Head, useForm } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
 
 type ProgramItem = {
     id: number;
@@ -162,7 +171,9 @@ export default function PublicApplyShow({
             });
 
             if (!response.ok) {
-                setMatchError('Could not check for existing records. Try again.');
+                setMatchError(
+                    'Could not check for existing records. Try again.',
+                );
 
                 return;
             }
@@ -212,14 +223,40 @@ export default function PublicApplyShow({
         post(applyStore.url(program.id));
     }
 
+    const showMatchStep = step === 'match' || matches.length > 0;
+    const steps = [
+        { id: 'identity' as const, label: 'Your details' },
+        ...(showMatchStep
+            ? [{ id: 'match' as const, label: 'Confirm identity' }]
+            : []),
+        { id: 'request' as const, label: 'Request' },
+    ];
+
+    function backFromRequest(): void {
+        if (matches.length > 0) {
+            setStep('match');
+
+            return;
+        }
+
+        setStep('identity');
+    }
+
+    const serverErrors = errors as typeof errors & {
+        item_details?: string;
+        eligibility?: string;
+    };
+
     return (
         <>
             <Head title={program.name} />
-            <div className={cn('space-y-6', kiosk && 'text-base')}>
-                <div className="space-y-1">
-                    <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                        {program.department_name}
-                    </p>
+            <div className={cn('flex flex-col gap-6', kiosk && 'text-base')}>
+                <div className="flex flex-col gap-2">
+                    {program.department_name ? (
+                        <p className="text-sm text-muted-foreground">
+                            {program.department_name}
+                        </p>
+                    ) : null}
                     <h1 className="text-2xl font-semibold tracking-tight">
                         {program.name}
                     </h1>
@@ -228,169 +265,262 @@ export default function PublicApplyShow({
                             {program.descriptions}
                         </p>
                     ) : null}
+                    <ol className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                        {steps.map((item, index) => {
+                            const current = item.id === step;
+
+                            return (
+                                <li
+                                    key={item.id}
+                                    aria-current={current ? 'step' : undefined}
+                                    className={cn(
+                                        current
+                                            ? 'font-medium text-foreground'
+                                            : 'text-muted-foreground',
+                                    )}
+                                >
+                                    {index + 1}. {item.label}
+                                </li>
+                            );
+                        })}
+                    </ol>
                 </div>
 
                 {step === 'identity' ? (
-                    <div className="space-y-4">
-                        <h2 className="text-lg font-medium">Your details</h2>
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="space-y-2">
-                                <Label htmlFor="first_name">First name</Label>
-                                <Input
-                                    id="first_name"
-                                    value={data.first_name}
-                                    onChange={(event) =>
-                                        setData('first_name', event.target.value)
-                                    }
-                                />
-                                <InputError message={errors.first_name} />
+                    <div className="flex flex-col gap-6">
+                        <FieldSet>
+                            <FieldLegend>Your details</FieldLegend>
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <Field>
+                                    <FieldLabel htmlFor="first_name">
+                                        First name
+                                    </FieldLabel>
+                                    <Input
+                                        id="first_name"
+                                        value={data.first_name}
+                                        onChange={(event) =>
+                                            setData(
+                                                'first_name',
+                                                event.target.value,
+                                            )
+                                        }
+                                        aria-invalid={
+                                            errors.first_name ? true : undefined
+                                        }
+                                    />
+                                    <InputError message={errors.first_name} />
+                                </Field>
+                                <Field>
+                                    <FieldLabel htmlFor="middle_name">
+                                        Middle name
+                                    </FieldLabel>
+                                    <Input
+                                        id="middle_name"
+                                        value={data.middle_name}
+                                        onChange={(event) =>
+                                            setData(
+                                                'middle_name',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </Field>
+                                <Field>
+                                    <FieldLabel htmlFor="last_name">
+                                        Last name
+                                    </FieldLabel>
+                                    <Input
+                                        id="last_name"
+                                        value={data.last_name}
+                                        onChange={(event) =>
+                                            setData(
+                                                'last_name',
+                                                event.target.value,
+                                            )
+                                        }
+                                        aria-invalid={
+                                            errors.last_name ? true : undefined
+                                        }
+                                    />
+                                    <InputError message={errors.last_name} />
+                                </Field>
+                                <Field>
+                                    <FieldLabel htmlFor="suffix">
+                                        Suffix
+                                    </FieldLabel>
+                                    <NameSuffixSelect
+                                        id="suffix"
+                                        value={data.suffix ?? ''}
+                                        options={form_options.suffixes}
+                                        onValueChange={(suffix) =>
+                                            setData('suffix', suffix)
+                                        }
+                                    />
+                                    <InputError message={errors.suffix} />
+                                </Field>
+                                <Field>
+                                    <FieldLabel htmlFor="birthday">
+                                        Birthday
+                                    </FieldLabel>
+                                    <Input
+                                        id="birthday"
+                                        type="date"
+                                        value={data.birthday}
+                                        onChange={(event) =>
+                                            setData(
+                                                'birthday',
+                                                event.target.value,
+                                            )
+                                        }
+                                        aria-invalid={
+                                            errors.birthday ? true : undefined
+                                        }
+                                    />
+                                    <InputError message={errors.birthday} />
+                                </Field>
+                                <Field>
+                                    <FieldLabel htmlFor="sex">Sex</FieldLabel>
+                                    <Select
+                                        value={data.sex}
+                                        onValueChange={(value) =>
+                                            setData('sex', value ?? '')
+                                        }
+                                    >
+                                        <SelectTrigger
+                                            id="sex"
+                                            aria-invalid={
+                                                errors.sex ? true : undefined
+                                            }
+                                        >
+                                            <SelectValue placeholder="Select" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectGroup>
+                                                <SelectItem value="Male">
+                                                    Male
+                                                </SelectItem>
+                                                <SelectItem value="Female">
+                                                    Female
+                                                </SelectItem>
+                                            </SelectGroup>
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError message={errors.sex} />
+                                </Field>
+                                <Field className="sm:col-span-2">
+                                    <FieldLabel htmlFor="mobile_number">
+                                        Mobile number
+                                    </FieldLabel>
+                                    <Input
+                                        id="mobile_number"
+                                        value={data.mobile_number}
+                                        onChange={(event) =>
+                                            setData(
+                                                'mobile_number',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </Field>
                             </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="middle_name">Middle name</Label>
-                                <Input
-                                    id="middle_name"
-                                    value={data.middle_name}
-                                    onChange={(event) =>
-                                        setData('middle_name', event.target.value)
-                                    }
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="last_name">Last name</Label>
-                                <Input
-                                    id="last_name"
-                                    value={data.last_name}
-                                    onChange={(event) =>
-                                        setData('last_name', event.target.value)
-                                    }
-                                />
-                                <InputError message={errors.last_name} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="suffix">Suffix</Label>
-                                <NameSuffixSelect
-                                    id="suffix"
-                                    value={data.suffix ?? ''}
-                                    options={form_options.suffixes}
-                                    onValueChange={(suffix) =>
-                                        setData('suffix', suffix)
-                                    }
-                                />
-                                <InputError message={errors.suffix} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="birthday">Birthday</Label>
-                                <Input
-                                    id="birthday"
-                                    type="date"
-                                    value={data.birthday}
-                                    onChange={(event) =>
-                                        setData('birthday', event.target.value)
-                                    }
-                                />
-                                <InputError message={errors.birthday} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="sex">Sex</Label>
-                                <Select
-                                    value={data.sex}
-                                    onValueChange={(value) =>
-                                        setData('sex', value ?? '')
-                                    }
-                                >
-                                    <SelectTrigger id="sex">
-                                        <SelectValue placeholder="Select" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Male">Male</SelectItem>
-                                        <SelectItem value="Female">
-                                            Female
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <InputError message={errors.sex} />
-                            </div>
-                            <div className="space-y-2 sm:col-span-2">
-                                <Label htmlFor="mobile_number">Mobile number</Label>
-                                <Input
-                                    id="mobile_number"
-                                    value={data.mobile_number}
-                                    onChange={(event) =>
-                                        setData(
-                                            'mobile_number',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                            </div>
-                        </div>
+                        </FieldSet>
 
-                        <AddressCascadeSelect
-                            provinces={form_options.address_provinces}
-                            defaultProvinceId={form_options.default_province_id}
-                            cities={form_options.address_cities}
-                            barangays={form_options.address_barangays}
-                            value={data.address_barangay_id}
-                            onChange={(barangayId) =>
-                                setData('address_barangay_id', barangayId)
-                            }
-                            name="address_barangay_id"
-                            error={errors.address_barangay_id}
-                            idPrefix="public-intake"
-                        />
+                        <FieldSet>
+                            <FieldLegend>Address</FieldLegend>
+                            <AddressCascadeSelect
+                                provinces={form_options.address_provinces}
+                                defaultProvinceId={
+                                    form_options.default_province_id
+                                }
+                                cities={form_options.address_cities}
+                                barangays={form_options.address_barangays}
+                                value={data.address_barangay_id}
+                                onChange={(barangayId) =>
+                                    setData('address_barangay_id', barangayId)
+                                }
+                                name="address_barangay_id"
+                                error={errors.address_barangay_id}
+                                idPrefix="public-intake"
+                            />
+                        </FieldSet>
 
-                        <div className="grid gap-3">
-                            <label className="flex items-center gap-2 text-sm">
-                                <Input
-                                    type="checkbox"
-                                    checked={data.pwd}
-                                    onChange={(event) =>
-                                        setData('pwd', event.target.checked)
-                                    }
-                                    className="size-4"
-                                />
-                                Person with disability
-                            </label>
-                            <label className="flex items-center gap-2 text-sm">
-                                <Input
-                                    type="checkbox"
-                                    checked={data.is_4ps_beneficiary}
-                                    onChange={(event) =>
-                                        setData(
-                                            'is_4ps_beneficiary',
-                                            event.target.checked,
-                                        )
-                                    }
-                                    className="size-4"
-                                />
-                                4Ps beneficiary
-                            </label>
-                            <label className="flex items-center gap-2 text-sm">
-                                <Input
-                                    type="checkbox"
-                                    checked={data.is_solo_parent}
-                                    onChange={(event) =>
-                                        setData(
-                                            'is_solo_parent',
-                                            event.target.checked,
-                                        )
-                                    }
-                                    className="size-4"
-                                />
-                                Solo parent
-                            </label>
-                            <label className="flex items-center gap-2 text-sm">
-                                <Input
-                                    type="checkbox"
-                                    checked={data.indigenous}
-                                    onChange={(event) =>
-                                        setData('indigenous', event.target.checked)
-                                    }
-                                    className="size-4"
-                                />
-                                Indigenous peoples
-                            </label>
-                        </div>
+                        <FieldSet>
+                            <FieldLegend>Situation</FieldLegend>
+                            <FieldDescription>
+                                Select any that apply.
+                            </FieldDescription>
+                            <FieldGroup className="gap-3">
+                                <Field orientation="horizontal">
+                                    <Checkbox
+                                        id="pwd"
+                                        checked={data.pwd}
+                                        onCheckedChange={(checked) =>
+                                            setData('pwd', checked === true)
+                                        }
+                                    />
+                                    <FieldLabel
+                                        htmlFor="pwd"
+                                        className="font-normal"
+                                    >
+                                        Person with disability
+                                    </FieldLabel>
+                                </Field>
+                                <Field orientation="horizontal">
+                                    <Checkbox
+                                        id="is_4ps_beneficiary"
+                                        checked={data.is_4ps_beneficiary}
+                                        onCheckedChange={(checked) =>
+                                            setData(
+                                                'is_4ps_beneficiary',
+                                                checked === true,
+                                            )
+                                        }
+                                    />
+                                    <FieldLabel
+                                        htmlFor="is_4ps_beneficiary"
+                                        className="font-normal"
+                                    >
+                                        4Ps beneficiary
+                                    </FieldLabel>
+                                </Field>
+                                <Field orientation="horizontal">
+                                    <Checkbox
+                                        id="is_solo_parent"
+                                        checked={data.is_solo_parent}
+                                        onCheckedChange={(checked) =>
+                                            setData(
+                                                'is_solo_parent',
+                                                checked === true,
+                                            )
+                                        }
+                                    />
+                                    <FieldLabel
+                                        htmlFor="is_solo_parent"
+                                        className="font-normal"
+                                    >
+                                        Solo parent
+                                    </FieldLabel>
+                                </Field>
+                                <Field orientation="horizontal">
+                                    <Checkbox
+                                        id="indigenous"
+                                        checked={data.indigenous}
+                                        onCheckedChange={(checked) =>
+                                            setData(
+                                                'indigenous',
+                                                checked === true,
+                                            )
+                                        }
+                                    />
+                                    <FieldLabel
+                                        htmlFor="indigenous"
+                                        className="font-normal"
+                                    >
+                                        Indigenous peoples
+                                    </FieldLabel>
+                                </Field>
+                            </FieldGroup>
+                        </FieldSet>
 
                         {matchError ? (
                             <InputError message={matchError} />
@@ -407,13 +537,17 @@ export default function PublicApplyShow({
                 ) : null}
 
                 {step === 'match' ? (
-                    <div className="space-y-4">
-                        <h2 className="text-lg font-medium">Is this you?</h2>
-                        <p className="text-sm text-muted-foreground">
-                            A record already matches what you entered. Confirm
-                            it, or create a new profile.
-                        </p>
-                        <ul className="space-y-3">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-1">
+                            <h2 className="text-lg font-medium">
+                                Is this you?
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                A record already matches what you entered.
+                                Confirm it, or create a new profile.
+                            </p>
+                        </div>
+                        <ul className="flex flex-col gap-3">
                             {matches.map((match) => (
                                 <li key={match.id}>
                                     <button
@@ -426,50 +560,73 @@ export default function PublicApplyShow({
                                             setData('create_new', false);
                                             setStep('request');
                                         }}
-                                        className="w-full rounded-xl border border-border p-4 text-left hover:border-foreground/25 hover:bg-muted/30"
+                                        className="w-full rounded-xl border border-border bg-card p-4 text-left hover:border-foreground/25 hover:bg-muted/30"
                                     >
-                                        <p className="font-medium">{match.name}</p>
+                                        <p className="font-medium">
+                                            {match.name}
+                                        </p>
                                         <p className="text-sm text-muted-foreground">
-                                            {match.cais_number}
-                                            {match.birth_year
-                                                ? ` · Born ${match.birth_year}`
-                                                : ''}
-                                            {match.barangay
-                                                ? ` · ${match.barangay}`
-                                                : ''}
+                                            {[
+                                                match.cais_number,
+                                                match.birth_year
+                                                    ? `Born ${match.birth_year}`
+                                                    : null,
+                                                match.barangay,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(', ')}
                                         </p>
                                     </button>
                                 </li>
                             ))}
                         </ul>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                                setData('confirmed_beneficiary_id', null);
-                                setData('create_new', true);
-                                setStep('request');
-                            }}
-                        >
-                            None of these, create a new profile
-                        </Button>
+                        <div className="flex flex-wrap gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setStep('identity')}
+                            >
+                                Back
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => {
+                                    setData('confirmed_beneficiary_id', null);
+                                    setData('create_new', true);
+                                    setStep('request');
+                                }}
+                            >
+                                None of these, create a new profile
+                            </Button>
+                        </div>
                         <InputError message={errors.confirmed_beneficiary_id} />
                     </div>
                 ) : null}
 
                 {step === 'request' ? (
-                    <div className="space-y-4">
-                        <h2 className="text-lg font-medium">Requested items</h2>
-                        <InputError message={errors.item_details} />
-                        <InputError message={errors.eligibility} />
-                        <div className="space-y-3">
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-1">
+                            <h2 className="text-lg font-medium">
+                                Requested items
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Enter a quantity for at least one item before
+                                you submit.
+                            </p>
+                        </div>
+                        <InputError message={serverErrors.item_details} />
+                        <InputError message={serverErrors.eligibility} />
+                        <div className="flex flex-col gap-3">
                             {items.map((item) => (
                                 <div
                                     key={item.id}
-                                    className="flex items-center justify-between gap-4 rounded-xl border border-border p-3"
+                                    className="flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-3"
                                 >
                                     <div>
-                                        <p className="font-medium">{item.name}</p>
+                                        <p className="font-medium">
+                                            {item.name}
+                                        </p>
                                         {item.unit ? (
                                             <p className="text-xs text-muted-foreground">
                                                 {item.unit}
@@ -479,8 +636,11 @@ export default function PublicApplyShow({
                                     <Input
                                         type="number"
                                         min={0}
+                                        aria-label={`Quantity for ${item.name}`}
                                         className="w-24"
-                                        value={data.item_quantities[item.id] ?? 0}
+                                        value={
+                                            data.item_quantities[item.id] ?? 0
+                                        }
                                         onChange={(event) =>
                                             setData('item_quantities', {
                                                 ...data.item_quantities,
@@ -507,8 +667,8 @@ export default function PublicApplyShow({
                             idPrefix="public-field"
                         />
 
-                        <div className="space-y-2">
-                            <Label htmlFor="remark">Remarks</Label>
+                        <Field>
+                            <FieldLabel htmlFor="remark">Remarks</FieldLabel>
                             <Textarea
                                 id="remark"
                                 value={data.remark}
@@ -517,31 +677,45 @@ export default function PublicApplyShow({
                                 }
                                 rows={3}
                             />
-                        </div>
+                        </Field>
 
-                        <label className="flex items-start gap-2 text-sm">
-                            <Input
-                                type="checkbox"
+                        <Field orientation="horizontal">
+                            <Checkbox
+                                id="consent"
                                 checked={data.consent}
-                                onChange={(event) =>
-                                    setData('consent', event.target.checked)
+                                onCheckedChange={(checked) =>
+                                    setData('consent', checked === true)
                                 }
-                                className="mt-1 size-4"
+                                aria-invalid={errors.consent ? true : undefined}
+                                className="mt-0.5"
                             />
-                            <span>
+                            <FieldLabel
+                                htmlFor="consent"
+                                className="font-normal"
+                            >
                                 I consent to the collection and processing of my
-                                personal information for this assistance request.
-                            </span>
-                        </label>
+                                personal information for this assistance
+                                request.
+                            </FieldLabel>
+                        </Field>
                         <InputError message={errors.consent} />
 
                         <div className="flex flex-wrap gap-2">
                             <Button
                                 type="button"
+                                variant="outline"
+                                onClick={backFromRequest}
+                            >
+                                Back
+                            </Button>
+                            <Button
+                                type="button"
                                 disabled={processing}
                                 onClick={() => submitIntent('submit')}
                             >
-                                {processing ? 'Submitting...' : 'Submit request'}
+                                {processing
+                                    ? 'Submitting...'
+                                    : 'Submit request'}
                             </Button>
                             <Button
                                 type="button"
