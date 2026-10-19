@@ -22,7 +22,7 @@ The default pipeline is:
 3. **Evaluate.** Staff check eligibility, documents, and the items asked for. Target time: 72 hours.
 4. **Approve.** The request is approved for release. Target time: 48 hours.
 5. **Prepare.** Staff get the goods, cash, or service ready. Target time: 48 hours.
-6. **Release.** Staff record what was handed over.
+6. **Release.** Staff hand the assistance over in a distribution.
 7. **Completed.** The request is closed.
 
 From most steps, staff can also:
@@ -31,9 +31,9 @@ From most steps, staff can also:
 - **Deny** the request (a comment is required)
 - **Close** it without a release
 
-A walk-in pipeline is shorter: Submitted, then Release, then Completed. Staff can release at the counter in one visit.
+A walk-in workflow is shorter: Submitted, then Release, then Completed. The handover is still recorded as a distribution.
 
-Each program uses either the department’s default workflow or a workflow chosen for that program. The buttons on a request are the moves allowed from the current step.
+Each program uses either the department’s default workflow or a workflow chosen for that program. The buttons on a request are the moves allowed from the current step. CAIS will not mark the request delivered until an individual or batch distribution is complete.
 
 ```mermaid
 flowchart TD
@@ -43,7 +43,7 @@ flowchart TD
     verify --> evaluate[Evaluate]
     evaluate --> approve[Approve]
     approve --> prepare[Prepare]
-    prepare --> release[Release]
+    prepare --> release[Release through a distribution]
     release --> completed[Completed]
     submitted --> hold[On Hold]
     verify --> hold
@@ -98,18 +98,23 @@ A shared terminal can open the same form with a kiosk screen. After you submit o
 
 Sign in with the email and password on your account. If two-factor authentication is on, enter the code from your authenticator app, or a recovery code.
 
-After sign-in you land on your department dashboard. The sidebar shows the pages your role allows:
+After sign-in, department staff land on the department dashboard. An administrator lands on **Programs**. An executive lands on the executive dashboard.
+
+The sidebar shows the pages your role allows:
 
 | Page | What it is for |
 | --- | --- |
 | Dashboard | Counts, charts, and a short program list for your department |
-| Programs | The aid programs you encode into |
+| Programs | The aid programs you encode into, after they are approved |
+| Distributions | Individual releases and batch releases |
 | Queue | Requests assigned to you, and unassigned work for the team |
 | Beneficiaries | People and organizations |
 | Items | Goods, cash, and services, plus stock for goods |
 | Funds | The budgets linked to programs |
 | Notifications | Assignments, due work, returned tasks, and low stock |
-| Admin | Accounts and workflows. Super admins only |
+| Admin | Accounts, workflows, and distribution policies. Super admins only |
+
+An administrator’s sidebar is Programs and Distributions. An executive’s sidebar is Dashboard, Programs, and Distributions.
 
 A guided tour is available on the main department pages. It points at the sidebar, filters, and the create buttons.
 
@@ -123,7 +128,7 @@ You only see another department’s records if you are a super admin, an adminis
 
 ## Set up a program before requests arrive
 
-Do this once for a new aid run. Later requests reuse the same setup.
+Do this once for a new aid run. Later requests reuse the same setup. Staff encode into a program only after it is approved.
 
 ### 1. Add funds
 
@@ -149,12 +154,12 @@ When on-hand stock for a goods item runs low, CAIS sends a low-stock notificatio
 
 ### 3. Create the program
 
-Open **Programs** and start a new program.
+Open **Programs** and choose **Propose New Program**.
 
 Choose one type:
 
 - **One-off program.** Staff encode directly into this program.
-- **Program with batches.** The parent holds the name, description, items, questions, document rules, and eligibility. Staff encode only into a batch, such as Batch 1 for January to March. Add the first batch while you create the parent, or add later batches from the parent page.
+- **Program with batches.** The parent holds the name, description, items, questions, document rules, and eligibility. Staff encode only into a batch, such as Batch 1 for January to March. Add the first batch while you create the parent, or add later batches from the parent page. Submit each batch on its own. The parent itself is not submitted.
 
 Then set:
 
@@ -165,8 +170,17 @@ Then set:
 - a document checklist
 - eligibility rules
 - the workflow, if this program should not use the department default
+- **Distribution**: **Batch distribution** (needs executive approval), **Individual distribution** (a direct release of an already approved request), or **Individual and batch**
 - **Organization program**, when the aid is for groups rather than people
 - **Enable public intake**, on an individual one-off program or on an individual batch, when residents should apply from the public form
+
+### 4. Send it for approval
+
+1. Open the draft and choose **Endorse & Forward to Governor**. You can add a remark. The status becomes **Awaiting administrator**.
+2. The administrator opens **Programs**, finds it under **Awaiting administrator**, and chooses **Endorse**. The status becomes **Awaiting Governor Approval**. **Return** sends it back to the department.
+3. The executive opens **Programs**, finds it under **Awaiting Governor Approval**, and chooses **Approve**. The status becomes **Approved**. **Return to department** sends it back.
+
+If it comes back as **Returned / Shelved**, change it and send it again. After approval, the department can encode requests and start releases.
 
 Copy the public intake link from the program page and share it, or open it on a kiosk.
 
@@ -187,9 +201,9 @@ Open a beneficiary to see their assistance history.
 
 ## Record a request in the office
 
-Open an open one-off program or an open batch. A parent program has no encode button.
+Open an approved, open one-off program or an approved, open batch. A parent program has no encode button.
 
-Choose **Add** on the assistance list.
+Choose **Add Assistance** on the assistance list.
 
 1. Search for the beneficiary by CAIS number or name. Create the person or organization first if they are not in the registry.
 2. Choose how the request arrived: Letter, Text, Call, Email, Walk In, or Online. Public applications are stored as Online.
@@ -229,7 +243,7 @@ Open a row to see the request. If the current task has no assignee and you are a
 
 ## Work one request
 
-The request page shows the CAIS number, beneficiary, how the request arrived, who encoded it, who it is assigned to, and the current step.
+The request page shows the CAIS number, beneficiary, how the request arrived, who encoded it, who it is assigned to, and the current step. A **Distribution** section shows whether a release has started, where it is, and the receipt number once one exists.
 
 ### Move the workflow
 
@@ -239,31 +253,17 @@ Only the assignee for the current stage can change the status. If you are not th
 
 You can also change the assignee from **Assistance tracking** when you have permission to assign.
 
+Setting the status to Delivered from the request is refused until a distribution is complete. The message is: complete an individual or batch distribution before marking this request delivered.
+
 ### Attach documents
 
 The document section follows the program checklist. Typical files are a valid ID, an indigency certificate, a delivery photo, a signed acknowledgment, or another file.
 
 Each required document is due either **before Verified** or **before Delivered**. CAIS will not let the request reach that point while a required file is missing. You can still attach extra files that are not on the checklist.
 
-### Release the items
-
-When you set the status to a delivered status, record what was handed over.
-
-Keep the original request. Record the release separately.
-
-| What happened | What to record |
-| --- | --- |
-| You gave what they asked for | Mark that requested line received. You cannot release more than the remaining requested quantity on that same line. |
-| You gave only part of a line | Release the quantity you handed over. The rest stays pending, and the status can be Partially Delivered. |
-| You also gave something they never asked for | Add it as an **additional** item and enter a reason. |
-| You gave a different item instead | Mark the requested line as substituted, add the replacement as a **substitute**, and enter a reason. |
-| You gave more than they asked for | Release the requested quantity, then add the extra as an additional line of the same item. |
-
-Additional and substitute lines must still be items on the program. Released goods reduce stock. Eligibility caps count released quantities, including extras and substitutes.
-
 ### Print the acknowledgment
 
-Open the receipt from the request. It prints:
+After a release is recorded, open **Print acknowledgment** on the request, or open the receipt from the venue desk. It prints:
 
 - the CAIS number and beneficiary
 - the date requested and the date delivered
@@ -283,11 +283,52 @@ From a program’s assistance table you can:
 - transfer several selected rows
 - export the filtered list as CSV or Excel
 
+## Release the items
+
+Open **Distributions**. Individual releases go out directly. Batch distributions wait for executive approval. The program’s distribution setting decides which of those you can start.
+
+### Individual distribution
+
+Choose **Individual distribution** when one person is released at the counter and the request is already approved. Record the release at the venue desk. There is no approval queue for that batch.
+
+### Batch distribution
+
+1. Choose **Batch distribution** and build the roster from an approved program.
+2. On a draft or returned batch, choose **Validate**, then **Submit for approval**.
+3. The administrator endorses the batch. The executive approves the whole batch, or selected beneficiaries, then chooses **Finalize review**. **Return** sends the roster back. A reject closes that submission. **Reopen as draft** is available when the approval policy allows a resubmit.
+4. After approval, choose **Schedule** and enter the time and venue.
+5. Choose **Start distribution**.
+6. Open **Venue desk** and record each release.
+7. Choose **Complete** when every approved beneficiary has an outcome.
+
+**Cancel batch** is available before the batch is in progress. A void or a reprint stays on the release, for an officer who has that permission.
+
+### At the venue desk
+
+For each person, record who received the assistance and what was handed over.
+
+- Take a live photo. An officer who can waive the camera enters a reason when the camera cannot be used.
+- Save a signature, or tick **Recipient cannot sign** and enter the alternative acknowledgment.
+- Choose **Beneficiary** or **Authorized representative**. A representative needs the relationship and how the authorization was checked.
+- Confirm identity by control number, request reference, or officer attestation, and tick **I verified this recipient**.
+- Enter the quantity or cash amount for each line already on the request. Notes are required for a partial release.
+- Choose **Absent** when the person does not collect the assistance.
+
+| What happened | What to record |
+| --- | --- |
+| You gave what they asked for | Enter the remaining quantity or amount on that line. |
+| You gave only part of a line | Enter the quantity you handed over and add a note. The outcome can be partial, and the request can be Partially Delivered. |
+| The person did not collect | Choose **Absent**. |
+
+Released goods reduce stock. Eligibility caps count released quantities. The acknowledgment lists requested quantity and released quantity, including any additional or substitute lines already on the request.
+
 ## Read the dashboard
 
 The department dashboard summarizes the period you filter. Use the filters to change the dates and programs behind the numbers.
 
 You will see request and delivery counts, requests by status, items handed over by program, released quantities by UNSPSC classification, top delivered items, demographics, and a short list of programs.
+
+The executive dashboard shows the same kind of totals across departments.
 
 ## Notifications
 
@@ -314,7 +355,7 @@ From the account menu:
 - **Security** changes your password and turns two-factor authentication on or off. When you enable it, scan the QR code and store the recovery codes.
 - **Appearance** switches the theme.
 
-Use **Forgot password** on the sign-in page if you cannot get in. You need access to the email on the account.
+Use **Forgot your password?** on the sign-in page if you cannot get in. You need access to the email on the account.
 
 ## For super admins
 
@@ -322,7 +363,7 @@ Use **Forgot password** on the sign-in page if you cannot get in. You need acces
 
 Open **Admin**, then **Users**.
 
-Create a user with a name, email, department, and one or more roles. The person receives an invite and sets a password. Leave the department empty only for an account that should not work inside a department page.
+Create a user with a name, email, department, and one or more roles. The person receives an invite and sets a password. Leave the department empty for an administrator or an executive who should not work inside one department.
 
 You can update roles and department later, or remove an account.
 
@@ -340,7 +381,11 @@ When the pipeline is ready:
 
 You can duplicate a workflow or start a new version. On a live request you can reassign the current task or override it when the normal buttons are not enough.
 
-New departments start with an active **Standard Assistance Workflow**: Submitted, Verify beneficiary, Evaluate, Approve, Prepare, Release, and Completed, with On Hold and Denied beside that path.
+New departments start with an active **Standard Assistance Workflow**: Submitted, Verify beneficiary, Evaluate, Approve, Prepare, Release, and Completed, with On Hold and Denied beside that path. A **Walk-in** workflow is the shorter path.
+
+### Distribution policies
+
+Open **Distribution policies** to set the approval stages for a batch. The default stages are Administrator endorsement, then Executive approval.
 
 ## Status words
 
@@ -357,6 +402,20 @@ The request has a main status and a more specific reason.
 | Closed | Closed | The file is finished |
 | On Hold | Awaiting Information | Staff are waiting, and the time target is paused |
 
+While a batch distribution is open, the request can also show one of these reasons:
+
+| Reason | Meaning |
+| --- | --- |
+| Distribution draft | The roster is still being built |
+| For distribution validation | The batch is being checked |
+| For distribution approval | The administrator or the executive has not finished |
+| Distribution returned | The roster was sent back to the department |
+| Distribution rejected | That submission was refused |
+| Scheduled for release | A time and venue are set |
+| Release in progress | Staff are recording releases at the venue |
+| Distribution cancelled | The batch was cancelled before it finished |
+| Absent | The person did not collect the assistance |
+
 Delivered, Denied, and Closed are finished statuses. A finished request no longer sits in the active queue.
 
 ## Quick reference
@@ -366,10 +425,16 @@ Delivered, Denied, and Closed are finished statuses. A finished request no longe
 | Apply | Apply for assistance |
 | Check my request | Track a request, with CAIS number and last name |
 | See department totals | Dashboard |
+| Propose a program | Programs, then Propose New Program |
+| Send a program for approval | The program, then Endorse & Forward to Governor |
+| Endorse a program | Administrator, Programs, Awaiting administrator, Endorse |
+| Approve a program | Executive, Programs, Approve |
 | Add a person | Beneficiaries, then create |
-| Encode a walk-in | The open program or batch, then add assistance |
+| Encode a request | An approved program or batch, then Add Assistance |
 | Pick up unassigned work | Queue, Team queue, then Claim task |
-| Release goods | The request, set a delivered status, record the lines |
-| Print proof of release | The request receipt |
+| Release one person at the counter | Distributions, Individual distribution |
+| Release a roster | Distributions, Batch distribution, then Venue desk after Start distribution |
+| Print proof of release | Print acknowledgment on the request, or the receipt at the venue desk |
 | See what is assigned to me | Queue, My queue, or Notifications |
 | Let residents apply online | Program or batch, Enable public intake |
+| Update stock | Items, then the item’s stock drawer |
