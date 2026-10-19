@@ -1,6 +1,6 @@
 {
     "agents": [
-        "zed"
+        "cursor"
     ],
     "cloud": true,
     "packages": [
