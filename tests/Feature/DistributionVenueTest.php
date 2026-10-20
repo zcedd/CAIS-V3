@@ -5,7 +5,6 @@ use App\Enums\DistributionTransactionStatus;
 use App\Enums\RequestSubStatusCode;
 use App\Enums\RoleName;
 use App\Models\DistributionAcknowledgmentReceipt;
-use App\Models\DistributionBatch;
 use App\Models\DistributionEvidence;
 use App\Models\DistributionReleaseRecord;
 use App\Models\DistributionTransaction;
@@ -18,87 +17,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
-
-function openCashDistribution(array $fixture): DistributionBatch
-{
-    $batch = storeDistribution($fixture);
-    submitDistribution($fixture, $batch);
-
-    test()->actingAs($fixture['governor'])
-        ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
-        ->assertRedirect();
-
-    test()->actingAs($fixture['creator'])
-        ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
-            'scheduled_at' => now()->addDay()->format('Y-m-d H:i:s'),
-            'venue' => 'Covered court',
-            'venue_details' => 'Main hall',
-        ])
-        ->assertRedirect();
-
-    test()->actingAs($fixture['officer'])
-        ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))
-        ->assertRedirect();
-
-    return $batch->refresh();
-}
-
-/**
- * @param  array<string, mixed>  $overrides
- */
-function finalizeVenueRelease(array $fixture, DistributionBatch $batch, int $itemId, array $overrides = []): DistributionTransaction
-{
-    $key = (string) Str::uuid();
-
-    test()->actingAs($fixture['officer'])
-        ->post(route('user.distributions.transactions.store', [$fixture['department'], $batch, $itemId]), [
-            'idempotency_key' => $key,
-        ])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
-
-    $transaction = DistributionTransaction::query()->where('idempotency_key', $key)->firstOrFail();
-
-    test()->actingAs($fixture['officer'])
-        ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
-            'file' => UploadedFile::fake()->image('live.jpg'),
-            'evidence_type' => 'live_photo',
-            'capture_source' => 'camera',
-        ])
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
-
-    if (($overrides['acknowledgment_mode'] ?? 'signature') === 'signature') {
-        test()->actingAs($fixture['officer'])
-            ->post(route('user.distributions.transactions.evidence.store', [$fixture['department'], $batch, $transaction]), [
-                'file' => UploadedFile::fake()->image('sign.png'),
-                'evidence_type' => 'signature',
-            ])
-            ->assertRedirect()
-            ->assertSessionHasNoErrors();
-    }
-
-    $line = $batch->items()->findOrFail($itemId)->lines()->firstOrFail();
-    $payload = array_merge([
-        'received_by_type' => 'beneficiary',
-        'received_by_name' => 'Recipient Example',
-        'verification_method' => 'control_number',
-        'identity_verified' => true,
-        'acknowledgment_mode' => 'signature',
-        'privacy_acknowledged' => true,
-        'lines' => [[
-            'id' => $line->id,
-            'actual_amount' => '500',
-        ]],
-    ], $overrides);
-
-    test()->actingAs($fixture['officer'])
-        ->post(route('user.distributions.transactions.finalize', [$fixture['department'], $batch, $transaction]), $payload)
-        ->assertRedirect()
-        ->assertSessionHasNoErrors();
-
-    return $transaction->refresh();
-}
 
 test('a finalized distribution receipt uses the assistance acknowledgment layout', function () {
     Storage::fake('local');

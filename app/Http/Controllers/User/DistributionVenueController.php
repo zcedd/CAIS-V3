@@ -8,8 +8,6 @@ use App\Actions\Distribution\StartDistributionTransaction;
 use App\Actions\Distribution\VoidDistributionTransaction;
 use App\Enums\DistributionApprovalMode;
 use App\Enums\DistributionEvidenceType;
-use App\Enums\DistributionItemApprovalStatus;
-use App\Enums\DistributionReleaseOutcome;
 use App\Enums\PermissionName;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\Distribution\AssignDistributionPersonnelRequest;
@@ -29,8 +27,8 @@ use App\Services\Distribution\DistributionAudit;
 use App\Services\Distribution\DistributionEvidenceService;
 use App\Services\Distribution\DistributionReceiptService;
 use App\Services\Distribution\DistributionReconciliation;
+use App\Services\Mobile\DistributionOfflinePackage;
 use App\Services\User\AssistanceReceiptPage;
-use App\Support\DecimalAmount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -41,6 +39,8 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class DistributionVenueController extends Controller
 {
+    public function __construct(private DistributionOfflinePackage $offlinePackage) {}
+
     public function show(
         Request $request,
         Department $department,
@@ -78,7 +78,7 @@ class DistributionVenueController extends Controller
                 'name' => $item->beneficiary?->name,
                 'cais_number' => $item->beneficiary?->cais_number,
                 'approval_status' => $item->approval_status->value,
-                'release_status' => $this->releaseStatus($item),
+                'release_status' => $this->offlinePackage->releaseStatus($item),
             ]);
 
         $releaseOnly = $distributionBatch->approval_mode === DistributionApprovalMode::Beneficiary
@@ -138,13 +138,7 @@ class DistributionVenueController extends Controller
                 'id' => $assignment->user_id,
                 'name' => $assignment->user?->name,
             ])->all(),
-            'officers' => User::query()
-                ->where('department_id', $department->id)
-                ->orderBy('lastName')
-                ->limit(100)
-                ->get(['id', 'firstName', 'lastName'])
-                ->map(fn (User $user): array => ['id' => $user->id, 'name' => $user->name])
-                ->all(),
+            'officers' => $this->offlinePackage->officers((int) $department->id),
             'can' => [
                 'execute' => $request->user()?->can('execute', $distributionBatch) ?? false,
                 'assign' => $request->user()?->can('assignPersonnel', $distributionBatch) ?? false,
@@ -172,8 +166,8 @@ class DistributionVenueController extends Controller
                     ->all()
                 : [],
             'release_only' => $releaseOnly,
-            'privacy_notice' => 'Personal information, a live photograph, and a signature or alternative acknowledgment are collected to document the release of government assistance. The lawful basis is the agency\'s delivery of an approved assistance program and the Data Privacy Act of 2012. A camera image, timestamp, or file hash does not by itself prove identity or that the recipient was present.',
-            'retention_notice' => (string) config('distribution.evidence_retention'),
+            'privacy_notice' => $this->offlinePackage->privacyNotice(),
+            'retention_notice' => $this->offlinePackage->retentionNotice(),
         ]);
     }
 
@@ -369,27 +363,6 @@ class DistributionVenueController extends Controller
         return $receipt;
     }
 
-    private function releaseStatus(DistributionBatchItem $item): string
-    {
-        if ($item->approval_status === DistributionItemApprovalStatus::Excluded) {
-            return 'excluded';
-        }
-
-        if ($item->releases->contains(fn ($release): bool => $release->outcome === DistributionReleaseOutcome::Absent)) {
-            return 'absent';
-        }
-
-        if ($item->releases->contains(fn ($release): bool => $release->outcome === DistributionReleaseOutcome::Served)) {
-            return 'served';
-        }
-
-        if ($item->releases->isNotEmpty()) {
-            return 'partial';
-        }
-
-        return 'pending';
-    }
-
     /**
      * @return array<string, mixed>
      */
@@ -404,23 +377,7 @@ class DistributionVenueController extends Controller
             'cais_number' => $item->beneficiary?->cais_number,
             'approval_status' => $item->approval_status->value,
             'exclusion_reason' => $item->exclusion_reason,
-            'lines' => $item->lines->map(function ($line): array {
-                $releasedQuantity = DecimalAmount::of((string) $line->releases->sum('actual_quantity'));
-                $releasedAmount = DecimalAmount::of((string) $line->releases->sum('actual_amount'));
-
-                return [
-                    'id' => $line->id,
-                    'name' => $line->item?->name,
-                    'kind' => $line->item?->kind?->value,
-                    'unit' => $line->item?->kind?->isCash() ? null : $line->item?->unitMeasurement?->name,
-                    'approved_quantity' => $line->approved_quantity,
-                    'approved_amount' => $line->approved_amount,
-                    'released_quantity' => $releasedQuantity,
-                    'released_amount' => $releasedAmount,
-                    'remaining_quantity' => $line->approved_quantity === null ? null : DecimalAmount::sub($line->approved_quantity, $releasedQuantity),
-                    'remaining_amount' => $line->approved_amount === null ? null : DecimalAmount::sub($line->approved_amount, $releasedAmount),
-                ];
-            })->all(),
+            'lines' => $this->offlinePackage->lines($item),
             'transaction' => $transaction instanceof DistributionTransaction ? [
                 'id' => $transaction->id,
                 'number' => $transaction->transaction_number,
