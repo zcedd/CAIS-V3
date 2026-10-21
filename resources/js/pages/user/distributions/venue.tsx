@@ -151,6 +151,23 @@ function routeArgs(department: string, batchId: number) {
     return { department, distributionBatch: batchId };
 }
 
+function formatWhen(value: string | null): string {
+    if (!value) {
+        return '—';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('en-PH', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(date);
+}
+
 export default function DistributionVenue({
     department,
     batch,
@@ -210,10 +227,7 @@ export default function DistributionVenue({
                             {batch.program} · {department.name}
                             {batch.venue ? ` · ${batch.venue}` : ''}
                             {batch.scheduled_at
-                                ? ` · ${new Intl.DateTimeFormat('en-PH', {
-                                      dateStyle: 'medium',
-                                      timeStyle: 'short',
-                                  }).format(new Date(batch.scheduled_at))}`
+                                ? ` · ${formatWhen(batch.scheduled_at)}`
                                 : ''}
                         </p>
                     </div>
@@ -451,7 +465,7 @@ export default function DistributionVenue({
                             {audit.map((entry) => (
                                 <p key={entry.id}>
                                     {entry.event} · {entry.actor ?? 'System'} ·{' '}
-                                    {entry.created_at}
+                                    {formatWhen(entry.created_at)}
                                 </p>
                             ))}
                         </CardContent>

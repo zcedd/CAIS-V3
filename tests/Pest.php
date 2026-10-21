@@ -343,14 +343,6 @@ function openCashDistribution(array $fixture): DistributionBatch
         ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
         ->assertRedirect();
 
-    test()->actingAs($fixture['creator'])
-        ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
-            'scheduled_at' => now()->addDay()->format('Y-m-d H:i:s'),
-            'venue' => 'Covered court',
-            'venue_details' => 'Main hall',
-        ])
-        ->assertRedirect();
-
     test()->actingAs($fixture['officer'])
         ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))
         ->assertRedirect();

@@ -171,7 +171,7 @@ test('distribution status is copied onto the request and its workflow task', fun
 
     test()->actingAs($fixture['creator'])
         ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
-            'scheduled_at' => now()->addDay()->format('Y-m-d H:i:s'),
+            'scheduled_at' => $batch->refresh()->scheduled_at?->format('Y-m-d H:i:s'),
             'venue' => 'Covered court',
         ])
         ->assertRedirect()
@@ -194,6 +194,90 @@ test('distribution status is copied onto the request and its workflow task', fun
     expect($assistance->currentRequestSubStatus?->code)->toBe(RequestSubStatusCode::ReleaseInProgress)
         ->and($engine->currentTask($assistance)?->status)->toBe(WorkflowTaskStatus::InProgress)
         ->and($engine->currentTask($assistance)?->step?->step_type)->toBe(WorkflowStepType::Preparation);
+});
+
+test('an approved distribution can start on its current schedule', function () {
+    $fixture = distributionFixture();
+    $batch = storeDistribution($fixture);
+    submitDistribution($fixture, $batch);
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
+        ->assertRedirect();
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($batch->refresh()->status)->toBe(DistributionBatchStatus::InProgress)
+        ->and($batch->venue)->toBe('Covered court');
+});
+
+test('a schedule change after approval needs another approval before distribution can start', function () {
+    $fixture = distributionFixture();
+    $batch = storeDistribution($fixture);
+    submitDistribution($fixture, $batch);
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.decide', $batch), ['decision' => 'approved'])
+        ->assertRedirect();
+
+    $approvedAt = $batch->refresh()->scheduled_at?->format('Y-m-d H:i:s');
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.distributions.schedule', [$fixture['department'], $batch]), [
+            'scheduled_at' => now()->addDays(5)->format('Y-m-d H:i:s'),
+            'venue' => 'Barangay hall',
+        ])
+        ->assertSessionHasErrors('reason');
+
+    expect($batch->refresh()->status)->toBe(DistributionBatchStatus::Approved)
+        ->and($batch->venue)->toBe('Covered court')
+        ->and($batch->scheduled_at?->format('Y-m-d H:i:s'))->toBe($approvedAt);
+
+    test()->actingAs($fixture['creator'])
+        ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
+            'scheduled_at' => now()->addDays(5)->format('Y-m-d H:i:s'),
+            'venue' => 'Barangay hall',
+            'reason' => 'The covered court is unavailable.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    $batch->refresh();
+
+    expect($batch->status)->toBe(DistributionBatchStatus::ForApproval)
+        ->and($batch->revision)->toBe(2)
+        ->and($batch->venue)->toBe('Barangay hall')
+        ->and($batch->approved_at)->toBeNull();
+
+    test()->actingAs($fixture['creator'])
+        ->get(route('user.distributions.show', [$fixture['department'], $batch]))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('batch.status', 'for_approval')
+            ->where('batch.schedule_change.reason', 'The covered court is unavailable.')
+            ->where('batch.schedule_change.venue', 'Barangay hall'));
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.start', [$fixture['department'], $batch]))
+        ->assertSessionHasErrors('status');
+
+    test()->actingAs($fixture['governor'])
+        ->post(route('executive.distributions.decide', $batch->refresh()), ['decision' => 'approved'])
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($batch->refresh()->status)->toBe(DistributionBatchStatus::Approved)
+        ->and($batch->venue)->toBe('Barangay hall');
+
+    test()->actingAs($fixture['officer'])
+        ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))
+        ->assertRedirect()
+        ->assertSessionHasNoErrors();
+
+    expect($batch->refresh()->status)->toBe(DistributionBatchStatus::InProgress);
 });
 
 test('an executive can approve a whole batch', function () {
@@ -575,13 +659,6 @@ test('releases record absence partial service and stock movement', function () {
             'outcome' => 'served',
         ])
         ->assertSessionHasErrors('status');
-
-    test()->actingAs($fixture['creator'])
-        ->post(route('user.distributions.schedule', [$fixture['department'], $batch->refresh()]), [
-            'scheduled_at' => now()->addDay()->format('Y-m-d H:i:s'),
-            'venue' => 'Covered court',
-        ])
-        ->assertRedirect();
 
     test()->actingAs($fixture['officer'])
         ->post(route('user.distributions.start', [$fixture['department'], $batch->refresh()]))

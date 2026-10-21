@@ -387,9 +387,14 @@ class DistributionBatchController extends Controller
         ScheduleDistributionBatch $schedule,
     ): RedirectResponse {
         $this->scoped($department, $distributionBatch);
-        $schedule($distributionBatch, $request->user(), $request->validated());
+        $updated = $schedule($distributionBatch, $request->user(), $request->validated());
 
-        return back()->with('success', 'Distribution schedule updated.');
+        return back()->with(
+            'success',
+            $updated->status === DistributionBatchStatus::ForApproval
+                ? 'Schedule and venue sent for approval.'
+                : 'Distribution schedule updated.',
+        );
     }
 
     public function cancel(

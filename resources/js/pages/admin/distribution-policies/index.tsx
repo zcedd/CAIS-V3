@@ -72,7 +72,7 @@ function blankDraft(): PolicyDraft {
         allow_partial_finalization: false,
         allow_amount_modification: false,
         allow_self_approval: false,
-        reschedule_requires_reapproval: false,
+        reschedule_requires_reapproval: true,
         allow_resubmit_after_reject: false,
         block_active_batch_reuse: true,
     };
@@ -251,8 +251,7 @@ export default function DistributionPoliciesIndex({
                                         draft.allow_amount_modification,
                                     allow_self_approval:
                                         draft.allow_self_approval,
-                                    reschedule_requires_reapproval:
-                                        draft.reschedule_requires_reapproval,
+                                    reschedule_requires_reapproval: true,
                                     allow_resubmit_after_reject:
                                         draft.allow_resubmit_after_reject,
                                     block_active_batch_reuse:
@@ -494,7 +493,7 @@ export default function DistributionPoliciesIndex({
                                         ],
                                         [
                                             'reschedule_requires_reapproval',
-                                            'Reschedule requires reapproval',
+                                            'Schedule changes need another approval',
                                         ],
                                         [
                                             'allow_resubmit_after_reject',
@@ -511,7 +510,16 @@ export default function DistributionPoliciesIndex({
                                         className="flex items-center gap-2"
                                     >
                                         <Checkbox
-                                            checked={draft[key]}
+                                            checked={
+                                                key ===
+                                                'reschedule_requires_reapproval'
+                                                    ? true
+                                                    : draft[key]
+                                            }
+                                            disabled={
+                                                key ===
+                                                'reschedule_requires_reapproval'
+                                            }
                                             onCheckedChange={(checked) =>
                                                 setDraft((current) => ({
                                                     ...current,

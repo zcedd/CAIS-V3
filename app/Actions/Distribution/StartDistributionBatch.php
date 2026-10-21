@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Distribution\DistributionAudit;
 use App\Services\Distribution\DistributionBatchWorkflow;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class StartDistributionBatch
 {
@@ -20,6 +21,17 @@ class StartDistributionBatch
     {
         return DB::transaction(function () use ($batch, $actor): DistributionBatch {
             $batch = DistributionBatch::query()->whereKey($batch->id)->lockForUpdate()->firstOrFail();
+
+            if ($batch->scheduled_at === null) {
+                throw ValidationException::withMessages([
+                    'scheduled_at' => 'Set a schedule before starting distribution.',
+                ]);
+            }
+
+            if ($batch->status === DistributionBatchStatus::Approved) {
+                $batch = $this->workflow->move($batch, DistributionBatchStatus::Scheduled, $actor);
+            }
+
             $updated = $this->workflow->move($batch, DistributionBatchStatus::InProgress, $actor, [
                 'opened_at' => $batch->opened_at ?? now(),
             ]);

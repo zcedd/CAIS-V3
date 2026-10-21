@@ -148,7 +148,13 @@ type Batch = {
     title: string;
     description: string | null;
     venue: string | null;
+    venue_details: string | null;
     scheduled_at: string | null;
+    schedule_change: {
+        reason: string;
+        scheduled_at: string | null;
+        venue: string | null;
+    } | null;
     status: string;
     status_label: string;
     revision: number;
@@ -205,6 +211,22 @@ type Batch = {
 
 function routeArgs(department: string, batchId: number) {
     return { department, distributionBatch: batchId };
+}
+
+function toDateTimeLocal(value: string | null): string {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const pad = (part: number) => String(part).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function formatWhen(value: string | null): string {
@@ -385,6 +407,27 @@ export default function DistributionShow({
                     </Alert>
                 ) : null}
 
+                {batch.schedule_change ? (
+                    <Alert>
+                        <AlertTriangle />
+                        <AlertTitle>
+                            Schedule update waiting for approval
+                        </AlertTitle>
+                        <AlertDescription>
+                            Distribution can start after this schedule and
+                            venue are approved. {batch.schedule_change.reason}
+                        </AlertDescription>
+                    </Alert>
+                ) : null}
+
+                {batch.status === 'approved' ? (
+                    <p className="text-sm text-muted-foreground">
+                        Start distribution with the approved schedule and
+                        venue. Updating either one is optional and needs
+                        another approval before distribution can start.
+                    </p>
+                ) : null}
+
                 <div className="flex flex-wrap gap-2">
                     {can.update &&
                         ['draft', 'returned'].includes(batch.status) && (
@@ -415,27 +458,52 @@ export default function DistributionShow({
                             }
                         />
                     )}
-                    {can.schedule && batch.status === 'approved' && (
-                        <ScheduleForm
-                            onSubmit={(
-                                scheduledAt,
-                                venueName,
-                                details,
-                                visit,
-                            ) =>
-                                post(
-                                    schedule.url(args),
-                                    {
-                                        scheduled_at: scheduledAt,
-                                        venue: venueName,
-                                        venue_details: details,
-                                        lock_version: batch.lock_version,
-                                    },
+                    {can.execute &&
+                        (batch.status === 'approved' ||
+                            batch.status === 'scheduled') &&
+                        batch.scheduled_at && (
+                            <ConfirmActionButton
+                                label="Start distribution"
+                                title="Start this distribution?"
+                                description="Officers can record releases after the batch is in progress. The approved schedule and venue stay as they are."
+                                status="In progress"
+                                onConfirm={(visit) =>
+                                    post(start.url(args), {}, visit)
+                                }
+                            />
+                        )}
+                    {can.schedule &&
+                        (batch.status === 'approved' ||
+                            batch.status === 'scheduled') && (
+                            <ScheduleForm
+                                scheduledAt={batch.scheduled_at}
+                                venue={batch.venue}
+                                venueDetails={batch.venue_details}
+                                reasonError={messageList(pageErrors.reason)[0]}
+                                scheduleError={
+                                    messageList(pageErrors.scheduled_at)[0]
+                                }
+                                onSubmit={(
+                                    scheduledAt,
+                                    venueName,
+                                    details,
+                                    reason,
                                     visit,
-                                )
-                            }
-                        />
-                    )}
+                                ) =>
+                                    post(
+                                        schedule.url(args),
+                                        {
+                                            scheduled_at: scheduledAt,
+                                            venue: venueName,
+                                            venue_details: details,
+                                            reason,
+                                            lock_version: batch.lock_version,
+                                        },
+                                        visit,
+                                    )
+                                }
+                            />
+                        )}
                     {can.reopen &&
                         batch.status === 'rejected' &&
                         batch.policy?.allow_resubmit_after_reject && (
@@ -451,17 +519,6 @@ export default function DistributionShow({
                                 }
                             />
                         )}
-                    {can.execute && batch.status === 'scheduled' && (
-                        <ConfirmActionButton
-                            label="Start distribution"
-                            title="Start this distribution?"
-                            description="Officers can record releases after the batch is in progress."
-                            status="In progress"
-                            onConfirm={(visit) =>
-                                post(start.url(args), {}, visit)
-                            }
-                        />
-                    )}
                     {(batch.status === 'scheduled' ||
                         batch.status === 'in_progress') && (
                         <Button variant="outline" asChild>
@@ -1023,36 +1080,71 @@ function ReleaseForm({
 }
 
 function ScheduleForm({
+    scheduledAt: currentSchedule,
+    venue,
+    venueDetails,
+    reasonError,
+    scheduleError,
     onSubmit,
 }: {
+    scheduledAt: string | null;
+    venue: string | null;
+    venueDetails: string | null;
+    reasonError?: string;
+    scheduleError?: string;
     onSubmit: (
         scheduledAt: string,
         venue: string,
         details: string,
+        reason: string,
         visit: VisitCallbacks,
     ) => void;
 }) {
     const scheduleId = useId();
     const [open, setOpen] = useState(false);
     const [pending, setPending] = useState(false);
-    const [scheduledAt, setScheduledAt] = useState('');
-    const [venueName, setVenueName] = useState('');
-    const [details, setDetails] = useState('');
+    const [scheduledAt, setScheduledAt] = useState(() =>
+        toDateTimeLocal(currentSchedule),
+    );
+    const [venueName, setVenueName] = useState(venue ?? '');
+    const [details, setDetails] = useState(venueDetails ?? '');
+    const [reason, setReason] = useState('');
     const [notice, setNotice] = useState<string | null>(null);
+    const changed =
+        scheduledAt !== toDateTimeLocal(currentSchedule) ||
+        venueName.trim() !== (venue ?? '').trim() ||
+        details.trim() !== (venueDetails ?? '').trim();
+
+    useEffect(() => {
+        if (reasonError || scheduleError) {
+            setOpen(true);
+        }
+    }, [reasonError, scheduleError]);
 
     return (
         <>
-            <Button type="button" onClick={() => setOpen(true)}>
-                Schedule
+            <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                    setScheduledAt(toDateTimeLocal(currentSchedule));
+                    setVenueName(venue ?? '');
+                    setDetails(venueDetails ?? '');
+                    setReason('');
+                    setNotice(null);
+                    setOpen(true);
+                }}
+            >
+                Update schedule
             </Button>
             <StatusDialog
                 open={open}
                 onOpenChange={setOpen}
-                title="Schedule this distribution?"
-                description="Set when and where the batch will be released."
-                status="Scheduled"
+                title="Update the schedule and venue?"
+                description="This is optional. Distribution can start with the approved schedule. A change goes back for approval, and distribution can start after that approval."
+                status={changed ? 'For approval' : 'Approved'}
                 statusVariant="default"
-                confirmLabel="Schedule"
+                confirmLabel={changed ? 'Submit for approval' : 'Keep schedule'}
                 pending={pending}
                 onConfirm={() => {
                     if (scheduledAt.trim() === '') {
@@ -1061,7 +1153,23 @@ function ScheduleForm({
                         return;
                     }
 
-                    onSubmit(scheduledAt, venueName, details, {
+                    if (!changed) {
+                        setNotice(
+                            'Nothing changed. Start distribution with the approved schedule.',
+                        );
+
+                        return;
+                    }
+
+                    if (reason.trim() === '') {
+                        setNotice(
+                            'Explain why the schedule or venue is changing.',
+                        );
+
+                        return;
+                    }
+
+                    onSubmit(scheduledAt, venueName, details, reason, {
                         onStart: () => setPending(true),
                         onSuccess: () => setOpen(false),
                         onFinish: () => setPending(false),
@@ -1069,7 +1177,11 @@ function ScheduleForm({
                 }}
             >
                 <FieldGroup className="gap-4">
-                    <Field data-invalid={notice ? true : undefined}>
+                    <Field
+                        data-invalid={
+                            notice || scheduleError ? true : undefined
+                        }
+                    >
                         <FieldLabel htmlFor={scheduleId}>
                             Scheduled time
                         </FieldLabel>
@@ -1077,13 +1189,17 @@ function ScheduleForm({
                             id={scheduleId}
                             type="datetime-local"
                             value={scheduledAt}
-                            aria-invalid={notice ? true : undefined}
+                            aria-invalid={
+                                notice || scheduleError ? true : undefined
+                            }
                             onChange={(event) => {
                                 setScheduledAt(event.target.value);
                                 setNotice(null);
                             }}
                         />
-                        {notice ? <FieldError>{notice}</FieldError> : null}
+                        {scheduleError ? (
+                            <FieldError>{scheduleError}</FieldError>
+                        ) : null}
                     </Field>
                     <Field>
                         <FieldLabel htmlFor={`${scheduleId}-venue`}>
@@ -1092,10 +1208,15 @@ function ScheduleForm({
                         <Input
                             id={`${scheduleId}-venue`}
                             value={venueName}
-                            onChange={(event) =>
-                                setVenueName(event.target.value)
-                            }
+                            onChange={(event) => {
+                                setVenueName(event.target.value);
+                                setNotice(null);
+                            }}
                         />
+                        <FieldDescription>
+                            Leave the venue blank only when the release has no
+                            fixed place.
+                        </FieldDescription>
                     </Field>
                     <Field>
                         <FieldLabel htmlFor={`${scheduleId}-details`}>
@@ -1104,9 +1225,34 @@ function ScheduleForm({
                         <Textarea
                             id={`${scheduleId}-details`}
                             value={details}
-                            onChange={(event) => setDetails(event.target.value)}
+                            onChange={(event) => {
+                                setDetails(event.target.value);
+                                setNotice(null);
+                            }}
                         />
                     </Field>
+                    {changed ? (
+                        <Field data-invalid={notice || reasonError ? true : undefined}>
+                            <FieldLabel htmlFor={`${scheduleId}-reason`}>
+                                Reason for the change
+                            </FieldLabel>
+                            <Textarea
+                                id={`${scheduleId}-reason`}
+                                value={reason}
+                                aria-invalid={
+                                    notice || reasonError ? true : undefined
+                                }
+                                onChange={(event) => {
+                                    setReason(event.target.value);
+                                    setNotice(null);
+                                }}
+                            />
+                            {reasonError ? (
+                                <FieldError>{reasonError}</FieldError>
+                            ) : null}
+                        </Field>
+                    ) : null}
+                    {notice ? <FieldError>{notice}</FieldError> : null}
                 </FieldGroup>
             </StatusDialog>
         </>
