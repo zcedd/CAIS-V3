@@ -19,6 +19,7 @@ class DashboardController extends Controller
         $filters = $request->filters();
 
         return Inertia::render('executive/dashboard/index', [
+            'audience' => 'executive',
             'summary' => Inertia::defer(
                 fn () => $this->dashboardService->summary(null, $filters),
                 'kpis',

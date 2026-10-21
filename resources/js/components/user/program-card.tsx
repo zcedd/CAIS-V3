@@ -10,7 +10,7 @@ import {
     TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { ApprovalBadge } from '@/components/user/approval-badge';
-import { ApprovalTrailRow } from '@/components/user/approval-trail-row';
+import { ApprovalTrail, type ApprovalTrailEvent } from '@/components/user/approval-trail-row';
 import { CodeChip } from '@/components/user/code-chip';
 import { MetricRow } from '@/components/user/metric-row';
 import { formatPeso } from '@/lib/format-peso';
@@ -33,6 +33,7 @@ export type ProgramCardMetric = {
     individuals: number;
     submitted_at: string | null;
     approved_at: string | null;
+    approval_trail: ApprovalTrailEvent[];
 };
 
 export type ProgramCardModel = ProgramListRow & {
@@ -102,6 +103,7 @@ export function ProgramCard({
         individuals: 0,
         submitted_at: null,
         approved_at: null,
+        approval_trail: [],
     };
     const progress =
         card.budget > 0
@@ -247,19 +249,9 @@ export function ProgramCard({
             </div>
 
             <div className="space-y-2 border-t border-border pt-3">
-                <ApprovalTrailRow
+                <ApprovalTrail
                     className="text-xs"
-                    label="Department endorsement"
-                    done={card.submitted_at !== null}
-                    doneLabel="Signed & endorsed"
-                    when={card.submitted_at}
-                />
-                <ApprovalTrailRow
-                    className="text-xs"
-                    label="Governor sign-off"
-                    done={card.approved_at !== null}
-                    doneLabel="Governor approved"
-                    when={card.approved_at}
+                    events={card.approval_trail}
                 />
             </div>
 

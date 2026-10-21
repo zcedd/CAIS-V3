@@ -4,15 +4,18 @@ namespace App\Services\User;
 
 use App\Enums\ProgramApprovalAction;
 use App\Enums\ProgramApprovalStatus;
+use App\Enums\RoleName;
 use App\Models\Department;
 use App\Models\Program;
 use App\Models\ProgramApprovalEvent;
 use App\Models\User;
+use App\Notifications\ProgramDecisionNotification;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Pagination\LengthAwarePaginator as ProgramPaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 
 class ProgramApprovalService
@@ -64,6 +67,8 @@ class ProgramApprovalService
             ]);
             $this->record($program, $actor, ProgramApprovalAction::Approved, $remark);
         });
+
+        $this->notifyDepartmentHeads($program, $actor, ProgramApprovalAction::Approved, $remark);
     }
 
     public function returnToDepartment(Program $program, User $actor, ?string $remark): void
@@ -76,6 +81,8 @@ class ProgramApprovalService
             ]);
             $this->record($program, $actor, ProgramApprovalAction::Returned, $remark);
         });
+
+        $this->notifyDepartmentHeads($program, $actor, ProgramApprovalAction::Returned, $remark);
     }
 
     public function proposedCount(?int $departmentId): int
@@ -372,5 +379,19 @@ class ProgramApprovalService
             'action' => $action,
             'remark' => $remark,
         ]);
+    }
+
+    private function notifyDepartmentHeads(Program $program, User $actor, ProgramApprovalAction $action, ?string $remark): void
+    {
+        $heads = User::query()
+            ->where('department_id', $program->department_id)
+            ->whereKeyNot($actor->id)
+            ->role(RoleName::DepartmentHead->value)
+            ->get();
+
+        Notification::send(
+            $heads,
+            new ProgramDecisionNotification($program, $actor, $action, $remark),
+        );
     }
 }

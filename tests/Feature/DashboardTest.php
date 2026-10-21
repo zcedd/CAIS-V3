@@ -41,7 +41,7 @@ test('an executive without a department is redirected to the executive dashboard
         ->assertRedirect(route('executive.dashboard'));
 });
 
-test('an administrator without a department is redirected to the administrator program queue', function () {
+test('an administrator without a department is redirected to the administrator dashboard', function () {
     $this->seed(RolePermissionSeeder::class);
 
     $user = User::factory()->create([
@@ -51,7 +51,7 @@ test('an administrator without a department is redirected to the administrator p
 
     $this->actingAs($user)
         ->get(route('dashboard'))
-        ->assertRedirect(route('administrator.programs.index'));
+        ->assertRedirect(route('administrator.dashboard'));
 });
 
 test('an executive with a department is redirected to the department dashboard', function () {

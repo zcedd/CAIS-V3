@@ -6,6 +6,7 @@ use App\Models\Program;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class ShowRequest extends FormRequest
 {
@@ -21,6 +22,14 @@ class ShowRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [];
+        return [
+            'page' => ['nullable', 'integer', 'min:1'],
+            'per_page' => ['nullable', 'integer', Rule::in([10, 15, 20, 25])],
+        ];
+    }
+
+    public function perPage(): int
+    {
+        return (int) ($this->validated('per_page') ?? 15);
     }
 }

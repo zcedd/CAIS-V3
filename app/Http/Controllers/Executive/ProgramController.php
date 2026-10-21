@@ -75,6 +75,22 @@ class ProgramController extends Controller
                 ...$this->approvals->showPayload($program),
                 ...$this->programService->executiveReviewPayload($program),
             ],
+            'summary' => Inertia::defer(
+                fn () => $this->programService->summary($program),
+                'overview',
+            ),
+            'status_breakdown' => Inertia::defer(
+                fn () => $this->programService->statusBreakdown($program),
+                'overview',
+            ),
+            'program_metrics' => Inertia::defer(
+                fn () => $this->programService->cardMetrics(collect([$program]))[$program->id] ?? null,
+                'overview',
+            ),
+            'assistances' => Inertia::defer(
+                fn () => $this->programService->reviewAssistances($program, $request->perPage()),
+                'assistances',
+            ),
             'review' => [
                 'mode' => 'approve',
                 'audience' => 'Executive',

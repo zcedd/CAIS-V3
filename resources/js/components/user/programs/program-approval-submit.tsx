@@ -25,13 +25,13 @@ export function ProgramApprovalSubmit({
         <>
             <Button type="button" onClick={() => setOpen(true)}>
                 <Send data-icon="inline-start" />
-                Endorse & Forward to Governor
+                Submit for recommendation
             </Button>
             <ProgramDecisionDialog
                 open={open}
                 onOpenChange={setOpen}
                 programName={programName}
-                action="endorse"
+                action="submit"
                 url={submitProgramApproval.url({
                     department: departmentSlug,
                     program: programId,

@@ -30,7 +30,7 @@ class ProgramApprovalController extends Controller
 
         Inertia::flash('toast', [
             'type' => 'success',
-            'message' => 'Program submitted for executive approval.',
+            'message' => 'Program submitted for recommendation.',
         ]);
 
         return redirect()->back();

@@ -1,7 +1,7 @@
 import { Banknote, ClipboardList, Package, Wallet } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ApprovalTrailRow } from '@/components/user/approval-trail-row';
+import { ApprovalTrail } from '@/components/user/approval-trail-row';
 import { MetricRow } from '@/components/user/metric-row';
 import type { ProgramCardMetric } from '@/components/user/program-card';
 import { StatCard, StatCardSkeleton } from '@/components/user/stat-card';
@@ -203,18 +203,7 @@ export function ProgramReachCards({ metrics }: { metrics: ProgramCardMetric }) {
                 <h2 className="text-[15px] font-semibold tracking-tight">
                     Endorsement trail
                 </h2>
-                <ApprovalTrailRow
-                    label="Department endorsement"
-                    done={metrics.submitted_at !== null}
-                    doneLabel="Signed & endorsed"
-                    when={metrics.submitted_at}
-                />
-                <ApprovalTrailRow
-                    label="Governor sign-off"
-                    done={metrics.approved_at !== null}
-                    doneLabel="Governor approved"
-                    when={metrics.approved_at}
-                />
+                <ApprovalTrail events={metrics.approval_trail} />
             </section>
         </>
     );

@@ -3,6 +3,7 @@
 namespace App\Services\User;
 
 use App\Actions\User\CreateProgramBatch;
+use App\Actions\User\StoreProgramAttachments;
 use App\Enums\DocumentRequirementMilestone;
 use App\Enums\ItemKind;
 use App\Enums\ProgramApprovalAction;
@@ -11,11 +12,13 @@ use App\Enums\ProgramDistributionMode;
 use App\Enums\ProgramFieldType;
 use App\Enums\ProgramKind;
 use App\Enums\RoleName;
+use App\Models\Assistance;
 use App\Models\Department;
 use App\Models\Fund;
 use App\Models\Individual;
 use App\Models\Item;
 use App\Models\Program;
+use App\Models\ProgramAttachment;
 use App\Models\ProgramDocumentRequirement;
 use App\Models\ProgramEligibilityRule;
 use App\Models\ProgramField;
@@ -27,6 +30,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -44,6 +48,7 @@ class ProgramService
         private CreateProgramBatch $createProgramBatch,
         private WorkflowService $workflowService,
         private EnsureDepartmentWorkflow $ensureDepartmentWorkflow,
+        private StoreProgramAttachments $storeProgramAttachments,
     ) {}
 
     /**
@@ -213,6 +218,7 @@ class ProgramService
             ($this->createProgramBatch)($program, $validated['first_batch']);
         }
 
+        $this->syncAttachments($program, $validated);
         $this->forgetDashboardFilterOptions($department->id);
 
         return $program->refresh();
@@ -273,6 +279,7 @@ class ProgramService
         }
 
         $this->syncEligibility($program, $validated);
+        $this->syncAttachments($program, $validated);
         $this->forgetDashboardFilterOptions($program->department_id);
     }
 
@@ -324,21 +331,29 @@ class ProgramService
     }
 
     /**
-     * Program configuration the executive reviews, without beneficiaries.
+     * Full program record shown to the executive and the administrator.
      *
      * @return array{
      *     start_at: string|null,
      *     end_at: string|null,
+     *     start_at_input: string|null,
+     *     end_at_input: string|null,
      *     is_closed: bool,
      *     is_organization: bool,
      *     public_intake: bool,
+     *     distribution_mode: string,
+     *     distribution_mode_label: string,
+     *     workflow_name: string,
      *     kind_label: string|null,
      *     batch_name: string|null,
      *     parent: array{id: int, name: string}|null,
      *     funds: list<array{id: int, name: string, year: string|null, amount: float|null}>,
      *     items: list<array{id: int, name: string, unit: string|null}>,
+     *     stock: list<array{id: int, program_id: int, program_name: string, item_id: int, item_name: string, unit: string|null, remaining: int, on_hand: int, threshold: int|null, is_low: bool}>,
      *     fields: list<array{id: int, label: string, type_label: string, is_required: bool, options: list<string>|null}>,
      *     document_requirements: list<array{id: int, name: string, is_required: bool, required_before_label: string}>,
+     *     attachments: list<array{id: int, original_name: string, size: int, url: string}>,
+     *     batches: list<array<string, mixed>>,
      *     eligibility: array{
      *         cooldown_days: int|null,
      *         requirements: list<string>,
@@ -354,17 +369,24 @@ class ProgramService
             'item.unitMeasurement:id,name',
             'fields',
             'documentRequirements.documentType:id,name',
+            'attachments',
         ]);
 
         $parent = $program->parent;
         $kind = $program->kind;
+        $distribution = $this->reviewDistribution($program);
 
         return [
             'start_at' => $this->programDateLabel($program->getRawOriginal('start_at')),
             'end_at' => $this->programDateLabel($program->getRawOriginal('end_at')),
+            'start_at_input' => $this->programDateForInput($program->getRawOriginal('start_at')),
+            'end_at_input' => $this->programDateForInput($program->getRawOriginal('end_at')),
             'is_closed' => (bool) $program->is_closed,
             'is_organization' => (bool) $program->is_organization,
             'public_intake' => (bool) $program->public_intake,
+            'distribution_mode' => $distribution['distribution_mode'],
+            'distribution_mode_label' => $distribution['distribution_mode_label'],
+            'workflow_name' => $this->reviewWorkflowName($program),
             'kind_label' => $kind instanceof ProgramKind ? $kind->label() : null,
             'batch_name' => $program->batch_name,
             'parent' => $parent instanceof Program
@@ -412,8 +434,80 @@ class ProgramService
                 })
                 ->values()
                 ->all(),
+            'attachments' => $this->attachmentRows($program),
+            'stock' => $this->stockLedgerService->programStockTable($program),
+            'batches' => $program->isScheme() ? $this->schemeBatchesPayload($program) : [],
             'eligibility' => $this->executiveEligibility($program),
         ];
+    }
+
+    /**
+     * Assistance records on this program, including a scheme's batches.
+     */
+    public function reviewAssistances(Program $program, int $perPage = 15): LengthAwarePaginator
+    {
+        $programIds = $program->isScheme()
+            ? $program->batches()->pluck('id')->all()
+            : [$program->id];
+
+        return Assistance::query()
+            ->whereIn('program_id', $programIds)
+            ->with([
+                'beneficiary:id,cais_number,name',
+                'currentRequestSubStatus:id,name',
+                'modeOfRequest:id,name',
+                'program:id,name,batch_name',
+            ])
+            ->latest('id')
+            ->paginate($perPage)
+            ->withQueryString()
+            ->through(static function (Assistance $assistance): array {
+                return [
+                    'id' => $assistance->id,
+                    'cais_number' => $assistance->beneficiary?->cais_number,
+                    'beneficiary_name' => $assistance->beneficiary?->name ?? 'Unknown',
+                    'status' => $assistance->currentRequestSubStatus?->name ?? 'Unrequested',
+                    'mode_of_request' => $assistance->modeOfRequest?->name,
+                    'date_requested' => $assistance->date_requested?->format('M d, Y'),
+                    'date_delivered' => $assistance->date_delivered?->format('M d, Y'),
+                    'batch_name' => $assistance->program?->batch_name,
+                ];
+            });
+    }
+
+    /**
+     * @return array{distribution_mode: string, distribution_mode_label: string}
+     */
+    private function reviewDistribution(Program $program): array
+    {
+        $source = $program;
+
+        if ($program->isBatch()) {
+            $program->loadMissing('parent');
+
+            if ($program->parent instanceof Program) {
+                $source = $program->parent;
+            }
+        }
+
+        $mode = $source->resolvedDistributionMode();
+
+        return [
+            'distribution_mode' => $mode->value,
+            'distribution_mode_label' => $mode->label(),
+        ];
+    }
+
+    private function reviewWorkflowName(Program $program): string
+    {
+        $program->loadMissing(['workflow:id,name', 'parent.workflow:id,name']);
+        $workflow = $program->workflow;
+
+        if (! $workflow instanceof Workflow && $program->isBatch()) {
+            $workflow = $program->parent?->workflow;
+        }
+
+        return $workflow instanceof Workflow ? $workflow->name : 'Department default';
     }
 
     /**
@@ -472,6 +566,7 @@ class ProgramService
                     'name' => $parent->name,
                 ]
                 : null,
+            'attachments' => $this->attachmentRows($program),
         ];
     }
 
@@ -509,7 +604,51 @@ class ProgramService
             'document_requirements' => $this->documentRequirementsPayload($program),
             'eligibility' => $this->eligibilityPayload($program),
             'workflow_id' => $program->workflow_id,
+            'attachments' => $this->attachmentRows($program),
         ];
+    }
+
+    /**
+     * @return list<array{id: int, original_name: string, size: int, url: string}>
+     */
+    public function attachmentRows(Program $program): array
+    {
+        $program->loadMissing('attachments');
+
+        return $program->attachments
+            ->map(fn (ProgramAttachment $attachment): array => [
+                'id' => $attachment->id,
+                'original_name' => $attachment->original_name,
+                'size' => $attachment->size,
+                'url' => route('programs.attachments.show', [
+                    'program' => $program,
+                    'attachment' => $attachment,
+                ]),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncAttachments(Program $program, array $validated): void
+    {
+        $removeIds = $validated['remove_attachment_ids'] ?? [];
+
+        if (is_array($removeIds) && $removeIds !== []) {
+            $this->storeProgramAttachments->remove(
+                $program,
+                array_map(static fn (mixed $id): int => (int) $id, $removeIds),
+            );
+        }
+
+        $files = $validated['attachments'] ?? [];
+        $user = Auth::user();
+
+        if ($user instanceof User && is_array($files) && $files !== []) {
+            $this->storeProgramAttachments->store($program, $user, $files);
+        }
     }
 
     /**
@@ -842,6 +981,7 @@ class ProgramService
         }
 
         $this->syncEligibility($program, $validated);
+        $this->syncAttachments($program, $validated);
 
         $program->batches()->update([
             'distribution_mode' => $program->resolvedDistributionMode()->value,
@@ -1156,6 +1296,7 @@ class ProgramService
             'individuals' => 0,
             'submitted_at' => null,
             'approved_at' => null,
+            'approval_trail' => [],
         ];
     }
 
@@ -1396,29 +1537,44 @@ class ProgramService
 
         $rows = DB::table('program_approval_events')
             ->whereIn('program_id', $scopeIds)
-            ->whereIn('action', [
-                ProgramApprovalAction::Submitted->value,
-                ProgramApprovalAction::Approved->value,
-            ])
-            ->select('program_id', 'action')
-            ->selectRaw('MAX(created_at) as happened_at')
-            ->groupBy('program_id', 'action')
-            ->get();
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get(['program_id', 'action', 'remark', 'created_at']);
 
         foreach ($rows as $row) {
             $rootId = $childToRoot[(int) $row->program_id] ?? null;
 
-            if ($rootId === null || ! isset($metrics[$rootId]) || $row->happened_at === null) {
+            if ($rootId === null || ! isset($metrics[$rootId]) || $row->created_at === null) {
                 continue;
             }
 
-            $key = $row->action === ProgramApprovalAction::Approved->value
+            $action = ProgramApprovalAction::tryFrom((string) $row->action);
+
+            if (! $action instanceof ProgramApprovalAction) {
+                continue;
+            }
+
+            $happenedAt = (string) $row->created_at;
+            $remark = is_string($row->remark) ? trim($row->remark) : '';
+            $metrics[$rootId]['approval_trail'][] = [
+                'action' => $action->value,
+                'label' => $action->trailLabel(),
+                'done_label' => $action->trailDoneLabel(),
+                'remark' => $remark === '' ? null : $remark,
+                'happened_at' => $happenedAt,
+            ];
+
+            if (! in_array($action, [ProgramApprovalAction::Submitted, ProgramApprovalAction::Approved], true)) {
+                continue;
+            }
+
+            $key = $action === ProgramApprovalAction::Approved
                 ? 'approved_at'
                 : 'submitted_at';
             $current = $metrics[$rootId][$key];
 
-            if ($current === null || $row->happened_at > $current) {
-                $metrics[$rootId][$key] = (string) $row->happened_at;
+            if ($current === null || $happenedAt > $current) {
+                $metrics[$rootId][$key] = $happenedAt;
             }
         }
     }

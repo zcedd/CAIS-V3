@@ -36,6 +36,7 @@ import {
 import { KpiCardsSkeleton } from '@/pages/user/dashboard/kpi-cards';
 import { MunicipalityMapSkeleton } from '@/pages/user/dashboard/municipality-map-skeleton';
 import { TopDeliveredItemsSkeleton } from '@/pages/user/dashboard/top-delivered-items';
+import { dashboard as administratorDashboard } from '@/routes/administrator';
 import { dashboard as executiveDashboard } from '@/routes/executive';
 import type { BreadcrumbItem } from '@/types';
 import {
@@ -116,6 +117,7 @@ const MunicipalityMap = lazy(() =>
 );
 
 type DashboardPageProps = {
+    audience?: 'executive' | 'administrator';
     summary?: DashboardSummary;
     requestStatusChart?: RequestStatusChartPoint[];
     deliveredItemsChart?: DeliveredItemsChartPoint[];
@@ -136,6 +138,7 @@ type DashboardPageProps = {
 };
 
 export default function ExecutiveDashboardIndex({
+    audience = 'executive',
     summary,
     requestStatusChart,
     deliveredItemsChart,
@@ -152,24 +155,29 @@ export default function ExecutiveDashboardIndex({
     filterOptions,
     filters,
 }: DashboardPageProps) {
+    const dashboard =
+        audience === 'administrator' ? administratorDashboard : executiveDashboard;
+    const sectionTitle =
+        audience === 'administrator' ? 'Administrator' : 'Executive';
+
     useEffect(() => {
         setLayoutProps({
             breadcrumbs: [
                 {
-                    title: 'Executive',
-                    href: executiveDashboard(),
+                    title: sectionTitle,
+                    href: dashboard(),
                 },
                 {
                     title: 'Dashboard',
-                    href: executiveDashboard(),
+                    href: dashboard(),
                 },
             ] satisfies BreadcrumbItem[],
         });
-    }, []);
+    }, [dashboard, sectionTitle]);
 
     return (
         <>
-            <Head title="Executive dashboard" />
+            <Head title={`${sectionTitle} dashboard`} />
             <div className="flex h-full min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                     <div>
@@ -188,6 +196,7 @@ export default function ExecutiveDashboardIndex({
                     >
                         {filterOptions && filters ? (
                             <DashboardFiltersButton
+                                audience={audience}
                                 filters={filters}
                                 filterOptions={filterOptions}
                             />
@@ -519,7 +528,10 @@ export default function ExecutiveDashboardIndex({
                                         />
                                     }
                                 >
-                                    <ProgramsTable data={programsTable ?? []} />
+                                    <ProgramsTable
+                                        audience={audience}
+                                        data={programsTable ?? []}
+                                    />
                                 </Suspense>
                             </WhenVisible>
                         </div>

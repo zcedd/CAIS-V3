@@ -4,6 +4,7 @@ namespace App\Http\Requests\User\Program;
 
 use App\Enums\ProgramDistributionMode;
 use App\Http\Requests\User\Concerns\AuthorizesProgramWorkflowAssignment;
+use App\Http\Requests\User\Concerns\ValidatesProgramAttachments;
 use App\Http\Requests\User\Concerns\ValidatesProgramDocumentRequirements;
 use App\Http\Requests\User\Concerns\ValidatesProgramEligibilityRules;
 use App\Http\Requests\User\Concerns\ValidatesProgramFields;
@@ -19,6 +20,7 @@ use Illuminate\Validation\Validator;
 class UpdateRequest extends FormRequest
 {
     use AuthorizesProgramWorkflowAssignment;
+    use ValidatesProgramAttachments;
     use ValidatesProgramDocumentRequirements;
     use ValidatesProgramEligibilityRules;
     use ValidatesProgramFields;
@@ -86,6 +88,7 @@ class UpdateRequest extends FormRequest
             ],
             ...$this->programFieldDefinitionRules(),
             ...$this->programDocumentRequirementRules(),
+            ...$this->programAttachmentRules(! $isBatch, $isBatch),
             'workflow_id' => $this->canAssignWorkflow()
                 ? [
                     'nullable',
@@ -111,6 +114,7 @@ class UpdateRequest extends FormRequest
     {
         $this->afterProgramFieldDefinitions($validator);
         $this->afterProgramDocumentRequirements($validator);
+        $this->afterProgramAttachments($validator);
         $this->afterPublicIntakeValidation($validator);
 
         $program = $this->route('program');
@@ -184,6 +188,7 @@ class UpdateRequest extends FormRequest
             ...$this->programEligibilityAttributes(),
             ...$this->programFieldDefinitionAttributes(),
             ...$this->programDocumentRequirementAttributes(),
+            ...$this->programAttachmentAttributes(),
         ];
     }
 }

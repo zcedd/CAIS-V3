@@ -20,8 +20,8 @@ Use **Forgot your password?** on the sign-in page if you cannot get in. You need
 
 A program has to be approved before staff encode into it and before a batch distribution can be released.
 
-1. The **department head** creates the program and sends it on. The button is **Endorse & Forward to Governor**. The status becomes **Awaiting administrator**.
-2. The **administrator** opens **Programs**, finds the program under **Awaiting administrator**, and chooses **Endorse**. The status becomes **Awaiting Governor Approval**. **Return** sends it back to the department.
+1. The **department head** creates the program and sends it on. The button is **Submit for recommendation**. The status becomes **Awaiting administrator**.
+2. The **administrator** opens **Programs**, finds the program under **Awaiting administrator**, and chooses **Recommend for approval**. The status becomes **Awaiting Governor Approval**. **Return** sends it back to the department.
 3. The **executive** opens **Programs**, finds the program under **Awaiting Governor Approval**, and chooses **Approve**. The status becomes **Approved**. **Return to department** sends it back.
 
 A program with batches is submitted one batch at a time. The parent itself is not submitted.
@@ -54,7 +54,7 @@ The department head formulates the department’s programs and sends each one fo
 2. Open **Items** and add the goods, cash, or services the program can give. For goods, record stock from the item’s stock drawer.
 3. Open **Programs** and choose **Propose New Program**.
 4. Set the type, dates, whether it is open, the funds and items, questions, document rules, and eligibility. Turn on public intake when residents should apply online.
-5. Open the draft and choose **Endorse & Forward to Governor**. You can add a remark. The program locks for review until an administrator and then the executive decide.
+5. Open the draft and choose **Submit for recommendation**. You can add a remark. The program locks for review until an administrator and then the executive decide.
 6. If it comes back as **Returned**, change it and send it again.
 
 On a batch series, open the parent and submit each batch on its own. Staff encode on a batch, not on the parent.
@@ -139,7 +139,7 @@ The administrator endorses programs and distribution batches for the whole provi
 
 1. Open **Programs**.
 2. Choose **Awaiting administrator**, or read the count “awaiting endorsement”.
-3. Open the program. Choose **Endorse** to send it to the executive, or **Return** to send it back to the department. A remark is optional on endorse and expected on a return.
+3. Open the program. Choose **Recommend for approval** to send it to the executive, or **Return** to send it back to the department. A remark is optional on a recommendation and expected on a return.
 
 ### Endorse a distribution
 
@@ -229,8 +229,8 @@ These roles are permission sets. They do not have a separate sidebar of their ow
 | Apply without an account | Apply for assistance |
 | Check a public request | Track request, with the CAIS number and last name |
 | Propose a program | Programs, then Propose New Program |
-| Send a program for approval | The program, then Endorse & Forward to Governor |
-| Endorse a program | Administrator, Programs, Awaiting administrator, Endorse |
+| Send a program for approval | The program, then Submit for recommendation |
+| Recommend a program | Administrator, Programs, Awaiting administrator, Recommend for approval |
 | Approve a program | Executive, Programs, Approve |
 | Encode a request | An approved program or batch, then Add Assistance |
 | Verify a request | Queue, claim the task, then the move buttons |

@@ -176,8 +176,8 @@ Then set:
 
 ### 4. Send it for approval
 
-1. Open the draft and choose **Endorse & Forward to Governor**. You can add a remark. The status becomes **Awaiting administrator**.
-2. The administrator opens **Programs**, finds it under **Awaiting administrator**, and chooses **Endorse**. The status becomes **Awaiting Governor Approval**. **Return** sends it back to the department.
+1. Open the draft and choose **Submit for recommendation**. You can add a remark. The status becomes **Awaiting administrator**.
+2. The administrator opens **Programs**, finds it under **Awaiting administrator**, and chooses **Recommend for approval**. The status becomes **Awaiting Governor Approval**. **Return** sends it back to the department.
 3. The executive opens **Programs**, finds it under **Awaiting Governor Approval**, and chooses **Approve**. The status becomes **Approved**. **Return to department** sends it back.
 
 If it comes back as **Returned / Shelved**, change it and send it again. After approval, the department can encode requests and start releases.
@@ -426,8 +426,8 @@ Delivered, Denied, and Closed are finished statuses. A finished request no longe
 | Check my request | Track a request, with CAIS number and last name |
 | See department totals | Dashboard |
 | Propose a program | Programs, then Propose New Program |
-| Send a program for approval | The program, then Endorse & Forward to Governor |
-| Endorse a program | Administrator, Programs, Awaiting administrator, Endorse |
+| Send a program for approval | The program, then Submit for recommendation |
+| Recommend a program | Administrator, Programs, Awaiting administrator, Recommend for approval |
 | Approve a program | Executive, Programs, Approve |
 | Add a person | Beneficiaries, then create |
 | Encode a request | An approved program or batch, then Add Assistance |

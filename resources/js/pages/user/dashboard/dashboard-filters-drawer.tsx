@@ -40,6 +40,34 @@ function optionLabel(options: DashboardFilterOption[], value: string): string {
     return options.find((option) => option.value === value)?.label ?? value;
 }
 
+function FilterChip({
+    fieldLabel,
+    label,
+    onRemove,
+}: {
+    fieldLabel: string;
+    label: string;
+    onRemove: () => void;
+}) {
+    return (
+        <Badge
+            variant="secondary"
+            className="gap-1 rounded-md py-0.5 pr-1 pl-2 font-normal"
+        >
+            <span className="text-muted-foreground">{fieldLabel}:</span>
+            {label}
+            <button
+                type="button"
+                className="rounded-md p-0.5 hover:bg-muted-foreground/15"
+                aria-label={`Remove ${fieldLabel} ${label}`}
+                onClick={onRemove}
+            >
+                <X className="size-3" />
+            </button>
+        </Badge>
+    );
+}
+
 function FilterSelect({
     label,
     options,
@@ -192,17 +220,32 @@ export function DashboardFiltersDrawer<TKey extends string>({
     }, [demographicFields, fields, filters, options, showDemographics]);
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+            {activeChips.map((chip) => (
+                <FilterChip
+                    key={`${chip.key}-${chip.value}`}
+                    fieldLabel={chip.fieldLabel}
+                    label={chip.label}
+                    onRemove={() =>
+                        onChange(
+                            chip.key,
+                            filters[chip.key].filter(
+                                (entry) => entry !== chip.value,
+                            ),
+                        )
+                    }
+                />
+            ))}
             {hasActiveFilters ? (
                 <Button variant="ghost" onClick={onReset}>
-                    <RotateCcw className="size-4" />
+                    <RotateCcw data-icon="inline-start" />
                     Reset
                 </Button>
             ) : null}
             <Drawer direction="right">
                 <DrawerTrigger asChild>
                     <Button variant="outline" data-tour="dashboard-filters">
-                        <SlidersHorizontal className="size-4" />
+                        <SlidersHorizontal data-icon="inline-start" />
                         Filters
                         {activeChips.length > 0 ? (
                             <Badge
@@ -229,35 +272,21 @@ export function DashboardFiltersDrawer<TKey extends string>({
                                 </p>
                                 <div className="flex flex-wrap gap-1.5">
                                     {activeChips.map((chip) => (
-                                        <Badge
+                                        <FilterChip
                                             key={`${chip.key}-${chip.value}`}
-                                            variant="secondary"
-                                            className="gap-1 rounded-md py-0.5 pr-1 pl-2 font-normal"
-                                        >
-                                            <span className="text-muted-foreground">
-                                                {chip.fieldLabel}:
-                                            </span>
-                                            {chip.label}
-                                            <button
-                                                type="button"
-                                                className="rounded-md p-0.5 hover:bg-muted-foreground/15"
-                                                aria-label={`Remove ${chip.fieldLabel} ${chip.label}`}
-                                                onClick={() =>
-                                                    onChange(
-                                                        chip.key,
-                                                        filters[
-                                                            chip.key
-                                                        ].filter(
-                                                            (entry) =>
-                                                                entry !==
-                                                                chip.value,
-                                                        ),
-                                                    )
-                                                }
-                                            >
-                                                <X className="size-3" />
-                                            </button>
-                                        </Badge>
+                                            fieldLabel={chip.fieldLabel}
+                                            label={chip.label}
+                                            onRemove={() =>
+                                                onChange(
+                                                    chip.key,
+                                                    filters[chip.key].filter(
+                                                        (entry) =>
+                                                            entry !==
+                                                            chip.value,
+                                                    ),
+                                                )
+                                            }
+                                        />
                                     ))}
                                 </div>
                             </div>
@@ -305,7 +334,7 @@ export function DashboardFiltersDrawer<TKey extends string>({
                             disabled={!hasActiveFilters}
                             onClick={onReset}
                         >
-                            <RotateCcw className="size-4" />
+                            <RotateCcw data-icon="inline-start" />
                             Reset all
                         </Button>
                         <DrawerClose asChild>

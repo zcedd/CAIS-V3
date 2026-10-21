@@ -1,5 +1,4 @@
 import { Head, setLayoutProps, WhenVisible } from '@inertiajs/react';
-import { Ban, FolderKanban, FolderLock, Package } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { DataTableSkeleton } from '@/components/data-table/data-table-skeleton';
 import { Chart as ChartSkeleton } from '@/components/skeleton/chart';
@@ -153,16 +152,15 @@ export default function UserDashboardIndex({
 
     return (
         <>
-            <Head title={`Dashboard: ${department.name}`} />
+            <Head title={department.name} />
             <div className="flex min-w-0 flex-1 flex-col gap-4 overflow-x-clip rounded-xl p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
+                    <div className="flex flex-col gap-1">
                         <h1 className="text-2xl font-semibold tracking-tight">
-                            Dashboard
+                            {department.name}
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Requests, deliveries, and programs for{' '}
-                            {department.name}
+                            Requests, deliveries, and programs
                         </p>
                     </div>
                     <WhenVisible
@@ -189,7 +187,7 @@ export default function UserDashboardIndex({
                                 value="overview"
                                 data-tour="dashboard-tab-overview"
                             >
-                                Charts & Metrics
+                                Overview
                             </TabsTrigger>
                             <TabsTrigger
                                 value="insights"
@@ -201,7 +199,7 @@ export default function UserDashboardIndex({
                                 value="programs"
                                 data-tour="dashboard-tab-programs"
                             >
-                                Table View
+                                Programs
                             </TabsTrigger>
                         </TabsList>
                     </div>
@@ -385,22 +383,18 @@ export default function UserDashboardIndex({
                                         <StatCard
                                             label="Active programs"
                                             value={summary.active_programs.toLocaleString()}
-                                            icon={FolderKanban}
                                         />
                                         <StatCard
                                             label="Closed programs"
                                             value={summary.closed_programs.toLocaleString()}
-                                            icon={FolderLock}
                                         />
                                         <StatCard
                                             label="Delivered items"
                                             value={summary.total_delivered_items.toLocaleString()}
-                                            icon={Package}
                                         />
                                         <StatCard
                                             label="Denied requests"
                                             value={summary.denied_requests.toLocaleString()}
-                                            icon={Ban}
                                         />
                                     </div>
                                 ) : (
