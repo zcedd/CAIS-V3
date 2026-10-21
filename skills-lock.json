@@ -175,6 +175,12 @@
       "skillPath": "skills/migrate-radix-to-base/SKILL.md",
       "computedHash": "4fdc31bf287f674ba6bf91a648120f7b34cd7ef370f998f2cc116fed067789c5"
     },
+    "mobile-app-ui-design": {
+      "source": "ceorkm/mobile-app-ui-design",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "0f039cf367e8f72ca25d27e503e8a68f26210c6bbe31ed51c86d7263ecfe5f74"
+    },
     "react-joyride": {
       "source": "gilbarbara/react-joyride",
       "sourceType": "github",
