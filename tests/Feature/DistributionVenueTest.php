@@ -104,9 +104,17 @@ test('an acknowledgment receipt includes the signature and photo proof of delive
     $html = app(DistributionReceiptService::class)->html($receipt);
 
     expect($html)
-        ->toContain('BENEFICIARY')
+        ->toContain('Republic of the Philippines')
+        ->toContain('Acknowledgment receipt')
+        ->toContain('I. Beneficiary')
+        ->toContain('II. Particulars of assistance released')
+        ->toContain('Items actually released')
+        ->toContain('Items requested')
+        ->toContain('Cash aid')
         ->toContain('Proof of delivery')
         ->toContain('data:image/');
+
+    expect(app(DistributionReceiptService::class)->pdf($receipt))->toStartWith('%PDF');
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'distribution',
