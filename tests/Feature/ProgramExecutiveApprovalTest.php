@@ -25,20 +25,39 @@ test('the seeder grants office roles only their permissions', function () {
     $this->seed(RolePermissionSeeder::class);
 
     $governor = Role::findByName(RoleName::Executive->value);
+    $administrator = Role::findByName(RoleName::Administrator->value);
     $head = Role::findByName(RoleName::DepartmentHead->value);
     $officer = Role::findByName(RoleName::ReleasingOfficer->value);
+    $encoder = Role::findByName(RoleName::Encoder->value);
+    $verifier = Role::findByName(RoleName::Verifier->value);
+    $inventoryOfficer = Role::findByName(RoleName::InventoryOfficer->value);
 
     expect($governor->permissions->pluck('name')->all())
         ->toContain(PermissionName::ProgramApprove->value)
         ->not->toContain(PermissionName::ProgramSubmit->value)
+        ->not->toContain(PermissionName::ProgramEndorse->value)
+        ->and($administrator->permissions->pluck('name')->all())
+        ->toContain(PermissionName::ProgramEndorse->value)
+        ->not->toContain(PermissionName::ProgramApprove->value)
         ->and($head->permissions->pluck('name')->all())
         ->toContain(PermissionName::ProgramSubmit->value)
         ->not->toContain(PermissionName::ProgramApprove->value)
         ->not->toContain(PermissionName::AssistanceAdvance->value)
         ->and($officer->permissions->pluck('name')->all())
-        ->toContain(PermissionName::AssistanceAdvance->value)
+        ->toContain(PermissionName::DistributionCreate->value)
+        ->toContain(PermissionName::DistributionExecute->value)
+        ->not->toContain(PermissionName::DistributionApprove->value)
         ->not->toContain(PermissionName::ProgramSubmit->value)
-        ->not->toContain(PermissionName::ProgramApprove->value);
+        ->not->toContain(PermissionName::ProgramApprove->value)
+        ->and($encoder->permissions->pluck('name')->all())
+        ->toContain(PermissionName::AssistanceCreate->value)
+        ->not->toContain(PermissionName::AssistanceAdvance->value)
+        ->and($verifier->permissions->pluck('name')->all())
+        ->toContain(PermissionName::AssistanceAdvance->value)
+        ->not->toContain(PermissionName::AssistanceCreate->value)
+        ->and($inventoryOfficer->permissions->pluck('name')->all())
+        ->toContain(PermissionName::ItemUpdate->value)
+        ->not->toContain(PermissionName::AssistanceCreate->value);
 });
 
 test('the executive program list uses the department program cards', function () {
@@ -81,7 +100,7 @@ test('a department head submits a program without beneficiaries', function () {
         ->post(route('user.programs.approval.store', [$department, $program]))
         ->assertRedirect(route('user.programs.show', [$department, $program]));
 
-    expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor);
+    expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingAdministrator);
 });
 
 test('a department head submits a program that already has beneficiaries', function () {
@@ -94,7 +113,7 @@ test('a department head submits a program that already has beneficiaries', funct
         ->post(route('user.programs.approval.store', [$department, $program]))
         ->assertRedirect();
 
-    expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor);
+    expect($program->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingAdministrator);
 });
 
 test('executive approval leaves beneficiary statuses unchanged', function () {
@@ -107,6 +126,10 @@ test('executive approval leaves beneficiary statuses unchanged', function () {
 
     $this->actingAs($head)
         ->post(route('user.programs.approval.store', [$department, $program]))
+        ->assertRedirect();
+
+    $this->actingAs(administratorUser())
+        ->post(route('administrator.programs.endorse', $program))
         ->assertRedirect();
 
     $this->actingAs($governor)
@@ -130,6 +153,10 @@ test('returning a program leaves beneficiary statuses unchanged', function () {
 
     $this->actingAs($head)
         ->post(route('user.programs.approval.store', [$department, $program]))
+        ->assertRedirect();
+
+    $this->actingAs(administratorUser())
+        ->post(route('administrator.programs.endorse', $program))
         ->assertRedirect();
 
     $this->actingAs($governor)
@@ -256,8 +283,12 @@ test('each batch is submitted and approved separately', function () {
         ->assertRedirect();
 
     expect($scheme->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft)
-        ->and($batch->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingGovernor)
+        ->and($batch->refresh()->approval_status)->toBe(ProgramApprovalStatus::AwaitingAdministrator)
         ->and($otherBatch->refresh()->approval_status)->toBe(ProgramApprovalStatus::Draft);
+
+    $this->actingAs(administratorUser())
+        ->post(route('administrator.programs.endorse', $batch))
+        ->assertRedirect();
 
     $this->actingAs($governor)
         ->post(route('executive.programs.approve', $batch))
@@ -291,6 +322,18 @@ test('only a department head can endorse a program from the department index', f
         ->assertInertia(fn (Assert $page) => $page
             ->where('programs.data.0.can_submit_approval', false));
 });
+
+function administratorUser(): User
+{
+    seedRolesAndPermissions();
+
+    $user = User::factory()->create([
+        'department_id' => null,
+    ]);
+    $user->syncRoles([RoleName::Administrator->value]);
+
+    return $user->fresh() ?? $user;
+}
 
 function officeUser(RoleName $role, Department $department): User
 {

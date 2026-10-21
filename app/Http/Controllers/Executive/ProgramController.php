@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Executive;
 
+use App\Enums\ProgramApprovalStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Executive\Program\ApproveRequest;
 use App\Http\Requests\Executive\Program\IndexRequest;
@@ -24,13 +25,18 @@ class ProgramController extends Controller
 
     public function index(IndexRequest $request): Response
     {
-        $programs = $this->approvals->paginateForGovernor(
-            $request->search(),
-            $request->types(),
-            $request->statuses(),
-            $request->approvals(),
-            $request->departments(),
-            $request->perPage(),
+        $programs = $this->approvals->withDecisionUrls(
+            $this->approvals->paginateForGovernor(
+                $request->search(),
+                $request->types(),
+                $request->statuses(),
+                $request->approvals(),
+                $request->departments(),
+                $request->perPage(),
+            ),
+            'executive.programs.show',
+            'executive.programs.approve',
+            'executive.programs.return',
         );
 
         return Inertia::render('executive/programs/index', [
@@ -51,6 +57,14 @@ class ProgramController extends Controller
                 $request->departments(),
             ),
             'review_queue_count' => $this->approvals->awaitingGovernorCount(),
+            'review' => [
+                'mode' => 'approve',
+                'audience' => 'Executive',
+                'index_url' => route('executive.programs.index'),
+                'awaiting_status' => ProgramApprovalStatus::AwaitingGovernor->value,
+                'positive_action' => 'approve',
+                'positive_label' => 'Approve',
+            ],
         ]);
     }
 
@@ -60,6 +74,17 @@ class ProgramController extends Controller
             'program' => [
                 ...$this->approvals->showPayload($program),
                 ...$this->programService->executiveReviewPayload($program),
+            ],
+            'review' => [
+                'mode' => 'approve',
+                'audience' => 'Executive',
+                'index_url' => route('executive.programs.index'),
+                'show_url' => route('executive.programs.show', $program),
+                'positive_url' => route('executive.programs.approve', $program),
+                'return_url' => route('executive.programs.return', $program),
+                'awaiting_status' => ProgramApprovalStatus::AwaitingGovernor->value,
+                'positive_action' => 'approve',
+                'positive_label' => 'Approve',
             ],
         ]);
     }

@@ -7,6 +7,11 @@ const approvalStyles: Record<string, { label: string; className: string }> = {
         className:
             'border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400',
     },
+    awaiting_administrator: {
+        label: 'Awaiting administrator',
+        className:
+            'border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-400',
+    },
     awaiting_governor: {
         label: 'Awaiting Governor Approval',
         className:

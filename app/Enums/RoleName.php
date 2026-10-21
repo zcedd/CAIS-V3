@@ -6,8 +6,12 @@ enum RoleName: string
 {
     case SuperAdmin = 'super-admin';
     case Executive = 'executive';
+    case Administrator = 'administrator';
     case DepartmentHead = 'department-head';
+    case Encoder = 'encoder';
+    case Verifier = 'verifier';
     case ReleasingOfficer = 'releasing-officer';
+    case InventoryOfficer = 'inventory-officer';
     case Assistance = 'assistance';
     case Program = 'program';
     case Beneficiary = 'beneficiary';
@@ -56,8 +60,26 @@ enum RoleName: string
         return [
             self::SuperAdmin,
             self::Executive,
+            self::Administrator,
             self::DepartmentHead,
+            self::Encoder,
+            self::Verifier,
             self::ReleasingOfficer,
+            self::InventoryOfficer,
+        ];
+    }
+
+    /**
+     * Roles that review records from every department.
+     *
+     * @return list<string>
+     */
+    public static function provinceWideValues(): array
+    {
+        return [
+            self::SuperAdmin->value,
+            self::Executive->value,
+            self::Administrator->value,
         ];
     }
 
@@ -74,8 +96,12 @@ enum RoleName: string
         return match ($this) {
             self::SuperAdmin => 'Super admin',
             self::Executive => 'Executive',
+            self::Administrator => 'Administrator',
             self::DepartmentHead => 'Department head',
+            self::Encoder => 'Encoder',
+            self::Verifier => 'Verifier',
             self::ReleasingOfficer => 'Releasing officer',
+            self::InventoryOfficer => 'Inventory officer',
             self::Assistance => 'Assistance',
             self::Program => 'Program',
             self::Beneficiary => 'Beneficiary',
@@ -92,8 +118,12 @@ enum RoleName: string
         return match ($this) {
             self::SuperAdmin => 'Supreme',
             self::Executive => 'Executive',
+            self::Administrator => 'Administrator',
             self::DepartmentHead => 'Dept head',
+            self::Encoder => 'Field op',
+            self::Verifier => 'Field op',
             self::ReleasingOfficer => 'Field op',
+            self::InventoryOfficer => 'Field op',
             default => 'Staff',
         };
     }
@@ -103,8 +133,12 @@ enum RoleName: string
         return match ($this) {
             self::SuperAdmin => 'Highest authority in the system. Full access across modules, overrides, and user clearances.',
             self::Executive => 'Reviews program details and approves the program.',
+            self::Administrator => 'Endorses programs and distribution batches for executive approval.',
             self::DepartmentHead => 'Formulates assistance programs and submits them for executive approval.',
-            self::ReleasingOfficer => 'Enrolls beneficiaries and releases assistance after the executive approves it.',
+            self::Encoder => 'Encodes assistance requests onto a department program.',
+            self::Verifier => 'Updates assistance status and verifies requests.',
+            self::ReleasingOfficer => 'Manages distribution batches and releases assistance after approval.',
+            self::InventoryOfficer => 'Manages department items and stock.',
             default => $this->label(),
         };
     }

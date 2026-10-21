@@ -20,6 +20,7 @@ import {
 import { useAppNavItems } from '@/hooks/use-app-nav-items';
 import { useCloseMobileSidebar } from '@/hooks/use-close-mobile-sidebar';
 import { dashboard } from '@/routes';
+import { index as administratorProgramsIndex } from '@/routes/administrator/programs';
 import { dashboard as executiveDashboard } from '@/routes/executive';
 import { index as departmentDashboardIndex } from '@/routes/user/dashboard';
 import type { Auth } from '@/types/auth';
@@ -33,6 +34,7 @@ export function AppSidebar() {
     const {
         mainNavItems,
         executiveNavItems,
+        administratorNavItems,
         administrationNavItems,
         footerNavItems,
     } = useAppNavItems();
@@ -42,7 +44,9 @@ export function AppSidebar() {
         ? departmentDashboardIndex(departmentSlug)
         : executiveNavItems.length > 0
           ? executiveDashboard()
-          : dashboard();
+          : administratorNavItems.length > 0
+            ? administratorProgramsIndex()
+            : dashboard();
 
     return (
         <Sidebar collapsible="icon" variant="sidebar" data-tour="sidebar">
@@ -75,6 +79,12 @@ export function AppSidebar() {
                 {mainNavItems.length > 0 && <NavMain items={mainNavItems} />}
                 {executiveNavItems.length > 0 && (
                     <NavExecutive items={executiveNavItems} />
+                )}
+                {administratorNavItems.length > 0 && (
+                    <NavExecutive
+                        label="Administrator"
+                        items={administratorNavItems}
+                    />
                 )}
 
                 {administrationNavItems.length > 0 && (

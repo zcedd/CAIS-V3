@@ -75,7 +75,7 @@ class ProgramService
      *
      * @param  list<string>  $types
      * @param  list<string>  $statuses
-     * @return array{all: int, draft: int, awaiting_governor: int, approved: int, returned: int}
+     * @return array{all: int, draft: int, awaiting_administrator: int, awaiting_governor: int, approved: int, returned: int}
      */
     public function approvalCounts(
         Department $department,
@@ -95,6 +95,7 @@ class ProgramService
             ->pluck('aggregate', 'approval_status');
 
         $draft = (int) ($rows[ProgramApprovalStatus::Draft->value] ?? 0);
+        $awaitingAdministrator = (int) ($rows[ProgramApprovalStatus::AwaitingAdministrator->value] ?? 0);
         $awaiting = (int) ($rows[ProgramApprovalStatus::AwaitingGovernor->value] ?? 0);
         $approved = (int) ($rows[ProgramApprovalStatus::Approved->value] ?? 0);
         $returned = (int) ($rows[ProgramApprovalStatus::Returned->value] ?? 0);
@@ -108,6 +109,7 @@ class ProgramService
                 $statuses,
             )->count(),
             'draft' => $draft,
+            'awaiting_administrator' => $awaitingAdministrator,
             'awaiting_governor' => $awaiting,
             'approved' => $approved,
             'returned' => $returned,

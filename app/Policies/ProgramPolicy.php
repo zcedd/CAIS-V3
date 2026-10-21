@@ -18,7 +18,7 @@ class ProgramPolicy
      */
     public function viewAny(User $user, Department $department): bool
     {
-        if ($this->approvesPrograms($user)) {
+        if ($this->reviewsPrograms($user)) {
             return true;
         }
 
@@ -34,7 +34,7 @@ class ProgramPolicy
      */
     public function view(User $user, Program $program): bool
     {
-        if ($this->approvesPrograms($user)) {
+        if ($this->reviewsPrograms($user)) {
             return true;
         }
 
@@ -107,6 +107,12 @@ class ProgramPolicy
             );
     }
 
+    public function endorse(User $user, Program $program): bool
+    {
+        return $user->can(PermissionName::ProgramEndorse->value)
+            && $program->approval_status === ProgramApprovalStatus::AwaitingAdministrator;
+    }
+
     public function approve(User $user, Program $program): bool
     {
         return $user->can(PermissionName::ProgramApprove->value)
@@ -125,8 +131,9 @@ class ProgramPolicy
         );
     }
 
-    private function approvesPrograms(User $user): bool
+    private function reviewsPrograms(User $user): bool
     {
-        return $user->can(PermissionName::ProgramApprove->value);
+        return $user->can(PermissionName::ProgramApprove->value)
+            || $user->can(PermissionName::ProgramEndorse->value);
     }
 }

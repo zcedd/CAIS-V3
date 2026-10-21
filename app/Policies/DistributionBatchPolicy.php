@@ -24,7 +24,7 @@ class DistributionBatchPolicy
 
     public function view(User $user, DistributionBatch $batch): bool
     {
-        if ($user->hasRole(RoleName::Executive) && $user->can(PermissionName::DistributionView->value)) {
+        if ($user->hasAnyRole(RoleName::provinceWideValues()) && $user->can(PermissionName::DistributionView->value)) {
             return true;
         }
 
@@ -163,6 +163,6 @@ class DistributionBatchPolicy
             return true;
         }
 
-        return $user->hasRole(RoleName::Executive);
+        return $user->hasAnyRole(RoleName::provinceWideValues());
     }
 }

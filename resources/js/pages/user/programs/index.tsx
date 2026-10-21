@@ -93,6 +93,7 @@ type PaginatedPrograms = ServerPaginationMeta & {
 type ApprovalCounts = {
     all: number;
     draft: number;
+    awaiting_administrator: number;
     awaiting_governor: number;
     approved: number;
     returned: number;
@@ -399,6 +400,7 @@ export default function UserProgramsIndex({
     const counts: ApprovalCounts = approvalCounts ?? {
         all: programs.total,
         draft: 0,
+        awaiting_administrator: 0,
         awaiting_governor: 0,
         approved: 0,
         returned: 0,
@@ -477,6 +479,12 @@ export default function UserProgramsIndex({
                                 label: 'Approved & Active',
                                 count: counts.approved,
                                 dotClassName: 'bg-emerald-500',
+                            },
+                            {
+                                value: 'awaiting_administrator',
+                                label: 'Awaiting administrator',
+                                count: counts.awaiting_administrator,
+                                dotClassName: 'bg-sky-500',
                             },
                             {
                                 value: 'awaiting_governor',

@@ -113,7 +113,7 @@ test('a stage with approval tasks is marked so it cannot be removed', function (
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('admin/distribution-policies/index')
-            ->has('policies', 1)
+            ->has('policies', 2)
             ->where('policies.0.stages.0.has_tasks', true));
 });
 
@@ -168,7 +168,7 @@ test('deleting a policy hides it and keeps the approval record on an existing ba
     test()->actingAs($admin)
         ->get(route('admin.distribution-policies.index'))
         ->assertOk()
-        ->assertInertia(fn ($page) => $page->has('policies', 0));
+        ->assertInertia(fn ($page) => $page->has('policies', 1));
 
     $resolved = app(DistributionApprovalPolicyResolver::class)->resolve($fixture['program'], '500.00');
 

@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Department;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 
 class departmentSeeder extends Seeder
 {
@@ -59,6 +58,8 @@ class departmentSeeder extends Seeder
             ['name' => 'Vintar District Hospital'],
         ];
 
-        DB::table('Departments')->insert($department);
+        foreach ($department as $row) {
+            Department::query()->create($row);
+        }
     }
 }

@@ -1,9 +1,11 @@
 {
     "agents": [
-        "cursor"
+        "zed"
     ],
     "cloud": true,
-    "guidelines": true,
+    "packages": [
+        "spatie/laravel-permission"
+    ],
     "skills": [
         "infer-conventions",
         "deploying-to-cloud",
@@ -13,6 +15,7 @@
         "wayfinder-development",
         "inertia-react-development",
         "tailwindcss-development",
+        "laravel-permission-development",
         "deploying-laravel-cloud",
         "laravel-patterns",
         "laravel-specialist"

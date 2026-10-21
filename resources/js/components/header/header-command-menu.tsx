@@ -184,12 +184,14 @@ export function HeaderCommandMenu() {
     const {
         mainNavItems,
         executiveNavItems,
+        administratorNavItems,
         administrationNavItems,
         footerNavItems,
     } = useAppNavItems();
     const pages = [
         ...mainNavItems,
         ...executiveNavItems,
+        ...administratorNavItems,
         ...administrationNavItems,
         ...footerNavItems,
     ].filter((item) => commandMatches(parsed.text, item.title));

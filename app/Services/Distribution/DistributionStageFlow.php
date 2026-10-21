@@ -239,7 +239,7 @@ class DistributionStageFlow
 
         $query = User::role($stage->role_name);
 
-        if (! in_array($stage->role_name, [RoleName::Executive->value, RoleName::SuperAdmin->value], true)) {
+        if (! in_array($stage->role_name, RoleName::provinceWideValues(), true)) {
             $query->where('department_id', $batch->department_id);
         }
 
