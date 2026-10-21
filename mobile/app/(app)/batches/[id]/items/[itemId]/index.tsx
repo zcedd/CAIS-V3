@@ -1,19 +1,18 @@
 import * as Crypto from 'expo-crypto';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
-import { Text, View, type ScrollViewInstance } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Image, Text, View } from 'react-native';
 
 import { isReleaseSyncResult, type PackageLine, type ReleasePayload } from '@/api/types';
-import { Body, Button, Card, CheckRow, Choice, EmptyState, Field, Notice, Screen, StatusPill } from '@/components/ui';
+import { Body, Button, Card, CheckRow, Choice, EmptyState, Field, Notice, Screen, Segmented, StatusPill, StepTrack } from '@/components/ui';
 import type { BatchRecord, ItemRecord, OfficerRecord, OperationRecord } from '@/db/records';
 import { getBatch, getItem, insertOperation, listItemOperations, listOfficers } from '@/db/repositories';
 import { formatDecimal } from '@/domain/amounts';
 import { effectiveStatus, releaseBlockReason } from '@/domain/roster';
 import { formatWhen, shortReference } from '@/domain/text';
-import { CameraCapture } from '@/evidence/camera-capture';
+import { useEvidenceDraft } from '@/evidence/draft';
 import { deleteEvidence, persistPhoto, persistSignature, sha256OfFile } from '@/evidence/files';
 import { shareOfficialReceipt } from '@/evidence/receipt';
-import { SignaturePad } from '@/evidence/signature-pad';
 import {
     collectLines,
     defaultEntries,
@@ -109,9 +108,8 @@ export default function ReleaseScreen() {
     const [remarks, setRemarks] = useState('');
     const [witnessedBy, setWitnessedBy] = useState('');
     const [entries, setEntries] = useState<Record<number, LineEntry>>({});
-    const [photoUri, setPhotoUri] = useState<string | null>(null);
-    const [signatureData, setSignatureData] = useState<string | null>(null);
-    const bodyRef = useRef<ScrollViewInstance>(null);
+    const photoUri = useEvidenceDraft((state) => state.photoUri);
+    const signatureData = useEvidenceDraft((state) => state.signatureData);
     const [errors, setErrors] = useState<FieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -334,43 +332,74 @@ export default function ReleaseScreen() {
         }
     }
 
+    const releaseFooter =
+        item && batch && !missing && !blockReason && mode === 'release' ? (
+            <View className="flex-row gap-3">
+                {stepIndex > 0 ? (
+                    <View className="flex-1">
+                        <Button label="Back" variant="secondary" onPress={() => setStep(STEPS[stepIndex - 1] ?? 'identity')} />
+                    </View>
+                ) : null}
+                <View className="flex-1">
+                    {step === 'review' ? (
+                        <Button
+                            label={busy ? 'Saving…' : 'Save on this device'}
+                            disabled={busy || !batch.canIssueReceipt}
+                            onPress={() => void saveRelease()}
+                        />
+                    ) : (
+                        <Button label="Next" onPress={() => setStep(STEPS[stepIndex + 1] ?? 'review')} />
+                    )}
+                </View>
+            </View>
+        ) : null;
+    const blockedFooter =
+        item && batch && !missing && blockReason && (status === 'conflict' || status === 'pending_sync') ? (
+            <Button label="Open sync queue" variant="secondary" onPress={() => router.push('/sync')} />
+        ) : null;
+
     return (
         <Screen
             title={item?.name ?? 'Beneficiary'}
             subtitle={item ? `${item.caisNumber ? `CAIS ${item.caisNumber} · ` : ''}Request ${item.assistanceId}` : 'Release'}
             onBack={() => router.back()}
+            footer={releaseFooter ?? blockedFooter}
         >
-            <Body ref={bodyRef}>
+            <Body>
                 {missing ? (
                     <EmptyState title="Beneficiary not on this device" body="Go back to the roster and confirm the batch is downloaded." />
                 ) : item && batch ? (
                     <>
                         <View className="flex-row items-center justify-between">
                             <StatusPill status={status} />
-                            <Text className="text-base text-stone-600">{batch.batchCode}</Text>
+                            <Text className="text-base text-ink/60">{batch.batchCode}</Text>
                         </View>
-                        {operations.map((operation) => (
-                            <Acknowledgment
-                                key={operation.clientOperationId}
-                                operation={operation}
-                                onReceiptError={setReceiptError}
-                            />
-                        ))}
+                        {operations.length > 0 ? (
+                            <View className="gap-3">
+                                {operations.map((operation) => (
+                                    <Acknowledgment
+                                        key={operation.clientOperationId}
+                                        operation={operation}
+                                        onReceiptError={setReceiptError}
+                                    />
+                                ))}
+                            </View>
+                        ) : null}
                         {receiptError ? <Notice tone="error">{receiptError}</Notice> : null}
                         {blockReason ? (
                             <Notice tone={status === 'conflict' ? 'error' : 'info'}>{blockReason}</Notice>
                         ) : (
-                            <Card>
-                                <View className="flex-row gap-3">
-                                    <View className="flex-1">
-                                        <Button label="Release" variant={mode === 'release' ? 'primary' : 'secondary'} onPress={() => setMode('release')} />
-                                    </View>
-                                    <View className="flex-1">
-                                        <Button label="Mark absent" variant={mode === 'absent' ? 'primary' : 'secondary'} onPress={() => setMode('absent')} />
-                                    </View>
-                                </View>
+                            <View className="gap-4">
+                                <Segmented
+                                    value={mode}
+                                    options={[
+                                        { value: 'release', label: 'Release' },
+                                        { value: 'absent', label: 'Mark absent' },
+                                    ]}
+                                    onChange={setMode}
+                                />
                                 {mode === 'absent' ? (
-                                    <>
+                                    <View className="gap-4">
                                         <Field
                                             label="Why is the beneficiary absent?"
                                             value={remarks}
@@ -380,12 +409,10 @@ export default function ReleaseScreen() {
                                         />
                                         {formError ? <Notice tone="error">{formError}</Notice> : null}
                                         <Button label={busy ? 'Saving…' : 'Save absence on this device'} disabled={busy} onPress={() => void saveAbsent()} />
-                                    </>
+                                    </View>
                                 ) : (
-                                    <>
-                                        <Text className="text-base font-semibold text-stone-600">
-                                            Step {stepIndex + 1} of {STEPS.length}: {STEP_TITLE[step]}
-                                        </Text>
+                                    <View className="gap-4">
+                                        <StepTrack step={stepIndex} total={STEPS.length} label={STEP_TITLE[step]} />
                                         {step === 'identity' ? (
                                             <IdentityStep
                                                 batch={batch}
@@ -415,7 +442,7 @@ export default function ReleaseScreen() {
                                                 photoUri={photoUri}
                                                 waiver={cameraWaiverReason}
                                                 onWaiver={setCameraWaiverReason}
-                                                onPhoto={setPhotoUri}
+                                                onOpenCamera={() => router.push(`/batches/${batchId}/items/${itemId}/camera`)}
                                                 errors={errors}
                                             />
                                         ) : null}
@@ -426,11 +453,7 @@ export default function ReleaseScreen() {
                                                 reason={alternativeReason}
                                                 setReason={setAlternativeReason}
                                                 signature={signatureData}
-                                                onSignature={setSignatureData}
-                                                onClear={() => setSignatureData(null)}
-                                                onDrawingChange={(drawing) => {
-                                                    bodyRef.current?.setNativeProps({ scrollEnabled: !drawing });
-                                                }}
+                                                onOpenSignature={() => router.push(`/batches/${batchId}/items/${itemId}/signature`)}
                                                 errors={errors}
                                             />
                                         ) : null}
@@ -462,31 +485,10 @@ export default function ReleaseScreen() {
                                         {!batch.canIssueReceipt ? (
                                             <Notice tone="warning">You can review this beneficiary, but your account cannot issue the receipt.</Notice>
                                         ) : null}
-                                        <View className="flex-row gap-3">
-                                            {stepIndex > 0 ? (
-                                                <View className="flex-1">
-                                                    <Button label="Back" variant="secondary" onPress={() => setStep(STEPS[stepIndex - 1] ?? 'identity')} />
-                                                </View>
-                                            ) : null}
-                                            <View className="flex-1">
-                                                {step === 'review' ? (
-                                                    <Button
-                                                        label={busy ? 'Saving…' : 'Save on this device'}
-                                                        disabled={busy || !batch.canIssueReceipt}
-                                                        onPress={() => void saveRelease()}
-                                                    />
-                                                ) : (
-                                                    <Button label="Next" onPress={() => setStep(STEPS[stepIndex + 1] ?? 'review')} />
-                                                )}
-                                            </View>
-                                        </View>
-                                    </>
+                                    </View>
                                 )}
-                            </Card>
+                            </View>
                         )}
-                        {status === 'conflict' || status === 'pending_sync' ? (
-                            <Button label="Open sync queue" variant="secondary" onPress={() => router.push('/sync')} />
-                        ) : null}
                     </>
                 ) : null}
             </Body>
@@ -503,48 +505,73 @@ function Acknowledgment({
 }) {
     const applied = operation.status === 'applied';
     const payload = operation.payload;
+    const releaseResult = isReleaseSyncResult(operation.result) ? operation.result : null;
+    const absenceId = operation.result && 'distribution_release_id' in operation.result ? operation.result.distribution_release_id : null;
+    const hero = releaseResult?.receipt_number ?? releaseResult?.transaction_number ?? (absenceId != null ? String(absenceId) : null);
+    const heroLabel = releaseResult?.receipt_number
+        ? 'Official receipt'
+        : releaseResult
+          ? 'Transaction'
+          : absenceId != null
+            ? 'Absence record'
+            : null;
 
     return (
-        <Card>
-            <Text className="text-lg font-semibold text-stone-900">
-                {applied
-                    ? operation.type === 'absent'
-                        ? 'Synced absence'
-                        : 'Synced release'
-                    : 'Provisional acknowledgment'}
-            </Text>
-            <Text className="text-base text-stone-800">Reference {shortReference(operation.clientOperationId)}</Text>
-            <Text className="text-base text-stone-800">
-                {'beneficiary_name' in payload ? payload.beneficiary_name : operation.itemName}
-            </Text>
+        <Card tone={applied ? 'success' : 'default'}>
+            <View className="gap-1">
+                <Text className="text-xl font-semibold text-ink">
+                    {applied
+                        ? operation.type === 'absent'
+                            ? 'Absence recorded'
+                            : 'Release recorded'
+                        : operation.type === 'absent'
+                          ? 'Absence saved on this device'
+                          : 'Saved on this device'}
+                </Text>
+                <Text className="text-base text-ink/60">
+                    {applied
+                        ? 'The server accepted this record.'
+                        : operation.type === 'release'
+                          ? 'The official receipt number is issued when this device syncs.'
+                          : 'This absence stays on the device until it syncs.'}
+                </Text>
+            </View>
+            {hero && heroLabel ? (
+                <View className="gap-1">
+                    <Text selectable className="text-3xl font-semibold text-ink">
+                        {hero}
+                    </Text>
+                    <Text className="text-base text-ink/60">{heroLabel}</Text>
+                </View>
+            ) : (
+                <Text selectable className="text-lg text-ink/80">
+                    Reference {shortReference(operation.clientOperationId)}
+                </Text>
+            )}
+            {hero ? (
+                <Text selectable className="text-base text-ink/70">
+                    Reference {shortReference(operation.clientOperationId)}
+                </Text>
+            ) : null}
+            {releaseResult?.receipt_number ? (
+                <Text selectable className="text-lg text-ink">
+                    Transaction {releaseResult.transaction_number}
+                </Text>
+            ) : null}
+            <Text className="text-lg text-ink">{'beneficiary_name' in payload ? payload.beneficiary_name : operation.itemName}</Text>
             {'lines' in payload
                 ? payload.lines.map((line) => (
-                      <Text key={line.id} className="text-base text-stone-700">
+                      <Text key={line.id} className="text-base text-ink/80">
                           {lineSummary(line)}
                       </Text>
                   ))
                 : null}
-            {'remarks' in payload && !('lines' in payload) ? <Text className="text-base text-stone-700">{payload.remarks}</Text> : null}
-            <Text className="text-base text-stone-600">Captured {formatWhen(operation.capturedAt)}</Text>
+            {'remarks' in payload && !('lines' in payload) ? <Text className="text-base text-ink/80">{payload.remarks}</Text> : null}
+            <Text className="text-base text-ink/60">Captured {formatWhen(operation.capturedAt)}</Text>
             {'photo_sha256' in payload && payload.photo_sha256 ? (
-                <Text className="text-base text-stone-600">Photo SHA-256 {payload.photo_sha256}</Text>
-            ) : null}
-            {applied && isReleaseSyncResult(operation.result) ? (
-                <Text className="text-base font-semibold text-stone-900">Transaction {operation.result.transaction_number}</Text>
-            ) : null}
-            {applied && isReleaseSyncResult(operation.result) && operation.result.receipt_number ? (
-                <Text className="text-base font-semibold text-stone-900">Receipt {operation.result.receipt_number}</Text>
-            ) : null}
-            {applied && operation.result && 'distribution_release_id' in operation.result ? (
-                <Text className="text-base font-semibold text-stone-900">Absence record {operation.result.distribution_release_id}</Text>
-            ) : null}
-            {!applied && operation.type === 'release' ? (
-                <Text className="text-base text-stone-700">
-                    The official receipt number is issued when this device syncs.
+                <Text selectable className="text-base text-ink/60">
+                    Photo SHA-256 {payload.photo_sha256}
                 </Text>
-            ) : null}
-            {!applied && operation.type === 'absent' ? (
-                <Text className="text-base text-stone-700">This absence stays on the device until it syncs.</Text>
             ) : null}
             {isReleaseSyncResult(operation.result) ? (
                 <Button
@@ -592,8 +619,8 @@ function IdentityStep(props: {
 }) {
     return (
         <View className="gap-3">
-            {props.batch.privacyNotice ? <Text className="text-base text-stone-800">{props.batch.privacyNotice}</Text> : null}
-            {props.batch.retentionNotice ? <Text className="text-base text-stone-600">{props.batch.retentionNotice}</Text> : null}
+            {props.batch.privacyNotice ? <Text className="text-base text-ink/80">{props.batch.privacyNotice}</Text> : null}
+            {props.batch.retentionNotice ? <Text className="text-base text-ink/60">{props.batch.retentionNotice}</Text> : null}
             <Choice label="Beneficiary" selected={props.receivedByType === 'beneficiary'} onPress={() => props.setReceivedByType('beneficiary')} />
             <Choice label="Authorized representative" selected={props.receivedByType === 'representative'} onPress={() => props.setReceivedByType('representative')} />
             <Field label="Name of person receiving" value={props.receivedByName} onChangeText={props.setReceivedByName} error={props.errors.received_by_name} />
@@ -603,11 +630,11 @@ function IdentityStep(props: {
                     <Field label="How was the authorization checked?" value={props.verificationDetails} onChangeText={props.setVerificationDetails} multiline error={props.errors.representative_verification} />
                 </>
             ) : null}
-            <Text className="text-base font-semibold text-stone-800">How identity was checked</Text>
+            <Text className="text-lg font-semibold text-ink">How identity was checked</Text>
             <Choice label="Control number" selected={props.verificationMethod === 'control_number'} onPress={() => props.setVerificationMethod('control_number')} />
             <Choice label="Request reference" selected={props.verificationMethod === 'request_reference'} onPress={() => props.setVerificationMethod('request_reference')} />
             <Choice label="Officer attestation" selected={props.verificationMethod === 'officer_attestation'} onPress={() => props.setVerificationMethod('officer_attestation')} />
-            {props.errors.verification_method ? <Text className="text-base text-red-700">{props.errors.verification_method}</Text> : null}
+            {props.errors.verification_method ? <Text className="text-base text-red-800">{props.errors.verification_method}</Text> : null}
             <CheckRow label="I confirmed the recipient." checked={props.identityVerified} onPress={() => props.setIdentityVerified(!props.identityVerified)} error={props.errors.identity_verified} />
             <CheckRow label="The privacy notice was acknowledged." checked={props.privacyAcknowledged} onPress={() => props.setPrivacyAcknowledged(!props.privacyAcknowledged)} error={props.errors.privacy_acknowledged} />
         </View>
@@ -627,7 +654,7 @@ function LinesStep({
 }) {
     return (
         <View className="gap-4">
-            <Text className="text-base text-stone-700">Use whole numbers. Leave a line blank to release it later. A smaller amount needs a note on the next steps.</Text>
+            <Text className="text-base text-ink/70">Use whole numbers. Leave a line blank to release it later. A smaller amount needs a note on the next steps.</Text>
             {error ? <Notice tone="error">{error}</Notice> : null}
             {lines.map((line) => {
                 const entry = entries[line.id] ?? { quantity: '', amount: '' };
@@ -635,9 +662,9 @@ function LinesStep({
                 const showAmount = line.remaining_amount != null && Number(line.remaining_amount) > 0;
 
                 return (
-                    <View key={line.id} className="gap-2 rounded-xl bg-stone-50 p-3">
-                        <Text className="text-lg font-semibold text-stone-900">{line.name}</Text>
-                        <Text className="text-base text-stone-600">
+                    <View key={line.id} className="gap-3 rounded-3xl bg-white p-4" style={{ borderCurve: 'continuous' }}>
+                        <Text className="text-lg font-semibold text-ink">{line.name}</Text>
+                        <Text className="text-base text-ink/60">
                             {line.kind}
                             {line.unit ? ` · ${line.unit}` : ''} · remaining qty {formatDecimal(line.remaining_quantity)} · remaining amount {formatDecimal(line.remaining_amount)}
                         </Text>
@@ -647,7 +674,7 @@ function LinesStep({
                         {showAmount ? (
                             <Field label="Amount" value={entry.amount} onChangeText={(value) => onChange(line.id, 'amount', value)} keyboardType="number-pad" />
                         ) : null}
-                        {!showQuantity && !showAmount ? <Text className="text-base text-stone-600">Nothing remaining on this line.</Text> : null}
+                        {!showQuantity && !showAmount ? <Text className="text-base text-ink/60">Nothing remaining on this line.</Text> : null}
                     </View>
                 );
             })}
@@ -660,26 +687,33 @@ function PhotoStep({
     photoUri,
     waiver,
     onWaiver,
-    onPhoto,
+    onOpenCamera,
     errors,
 }: {
     canWaive: boolean;
     photoUri: string | null;
     waiver: string;
     onWaiver: (value: string) => void;
-    onPhoto: (uri: string | null) => void;
+    onOpenCamera: () => void;
     errors: FieldErrors;
 }) {
     return (
         <View className="gap-3">
-            <Text className="text-base text-stone-700">Take the photo with this device camera. A photo from the gallery cannot be used.</Text>
-            {photoUri ? <Notice>Live photo saved for this release.</Notice> : <CameraCapture onCapture={onPhoto} />}
-            {photoUri ? <Button label="Retake photo" variant="secondary" onPress={() => onPhoto(null)} /> : null}
+            <Text className="text-base text-ink/70">Take the photo with this device camera. A photo from the gallery cannot be used.</Text>
+            {photoUri ? (
+                <>
+                    <Image source={{ uri: photoUri }} resizeMode="cover" style={{ width: '100%', height: 220, borderRadius: 24 }} />
+                    <Notice>Live photo saved for this release.</Notice>
+                    <Button label="Retake photo" variant="secondary" onPress={onOpenCamera} />
+                </>
+            ) : (
+                <Button label="Open camera" onPress={onOpenCamera} />
+            )}
             {errors.live_photo ? <Notice tone="error">{errors.live_photo}</Notice> : null}
             {canWaive ? (
                 <Field label="Camera waiver reason" value={waiver} onChangeText={onWaiver} multiline error={errors.camera_waiver_reason} placeholder="Use only when the camera cannot take the photo" />
             ) : (
-                <Text className="text-base text-stone-600">A live photo is required. Your account cannot waive it.</Text>
+                <Text className="text-base text-ink/60">A live photo is required. Your account cannot waive it.</Text>
             )}
         </View>
     );
@@ -691,9 +725,7 @@ function SignatureStep({
     reason,
     setReason,
     signature,
-    onSignature,
-    onClear,
-    onDrawingChange,
+    onOpenSignature,
     errors,
 }: {
     mode: 'signature' | 'alternative';
@@ -701,33 +733,24 @@ function SignatureStep({
     reason: string;
     setReason: (value: string) => void;
     signature: string | null;
-    onSignature: (dataUrl: string) => void;
-    onClear: () => void;
-    onDrawingChange: (drawing: boolean) => void;
+    onOpenSignature: () => void;
     errors: FieldErrors;
 }) {
     return (
         <View className="gap-3">
-            <Choice
-                label="Signature"
-                selected={mode === 'signature'}
-                onPress={() => {
-                    onDrawingChange(false);
-                    setMode('signature');
-                }}
-            />
-            <Choice
-                label="Alternative acknowledgment"
-                selected={mode === 'alternative'}
-                onPress={() => {
-                    onDrawingChange(false);
-                    setMode('alternative');
-                }}
-            />
+            <Choice label="Signature" selected={mode === 'signature'} onPress={() => setMode('signature')} />
+            <Choice label="Alternative acknowledgment" selected={mode === 'alternative'} onPress={() => setMode('alternative')} />
             {mode === 'signature' ? (
                 <>
-                    {signature ? <Notice>Signature saved for this release.</Notice> : null}
-                    <SignaturePad value={signature} onSave={onSignature} onClear={onClear} onDrawingChange={onDrawingChange} />
+                    {signature ? (
+                        <>
+                            <Image source={{ uri: signature }} resizeMode="contain" style={{ width: '100%', height: 180, borderRadius: 24, backgroundColor: '#fff' }} />
+                            <Notice>Signature saved for this release.</Notice>
+                            <Button label="Sign again" variant="secondary" onPress={onOpenSignature} />
+                        </>
+                    ) : (
+                        <Button label="Open signature" onPress={onOpenSignature} />
+                    )}
                     {errors.acknowledgment_mode ? <Notice tone="error">{errors.acknowledgment_mode}</Notice> : null}
                 </>
             ) : (
@@ -762,7 +785,7 @@ function WitnessStep({
 }) {
     return (
         <View className="gap-3">
-            <Text className="text-base font-semibold text-stone-800">Witness</Text>
+            <Text className="text-lg font-semibold text-ink">Witness</Text>
             <Choice label="No witness" selected={witnessedBy === ''} onPress={() => setWitnessedBy('')} />
             {officers.map((officer) => (
                 <Choice
@@ -772,7 +795,7 @@ function WitnessStep({
                     onPress={() => setWitnessedBy(String(officer.id))}
                 />
             ))}
-            {errors.witnessed_by ? <Text className="text-base text-red-700">{errors.witnessed_by}</Text> : null}
+            {errors.witnessed_by ? <Text className="text-base text-red-800">{errors.witnessed_by}</Text> : null}
             {partial ? <Notice tone="warning">This is a partial release. Write the reason below before you continue.</Notice> : null}
             <Field label="Notes" value={notes} onChangeText={setNotes} multiline error={errors.notes} />
         </View>
@@ -795,18 +818,27 @@ function ReviewStep({
     const collected = collectLines(lines, entries);
 
     return (
-        <View className="gap-2">
-            <Text className="text-lg text-stone-900">Recipient: {name.trim() || 'Not entered'}</Text>
-            <Text className="text-base text-stone-700">{photo ? 'Live photo attached.' : 'No live photo yet.'}</Text>
-            <Text className="text-base text-stone-700">{signature ? 'Acknowledgment recorded.' : 'Acknowledgment missing.'}</Text>
-            {'lines' in collected
-                ? collected.lines.map((line) => (
-                      <Text key={line.id} className="text-base text-stone-800">
-                          {lineSummary(line)}
-                      </Text>
-                  ))
-                : <Text className="text-base text-red-700">{collected.error}</Text>}
-            <Text className="text-base text-stone-700">
+        <View className="gap-4">
+            <View className="gap-1">
+                <Text className="text-3xl font-semibold text-ink">{name.trim() || 'Name missing'}</Text>
+                <Text className="text-base text-ink/60">Recipient</Text>
+            </View>
+            <Text className={`text-lg ${photo ? 'text-ink' : 'text-red-800'}`}>{photo ? 'Live photo attached' : 'Live photo still needed'}</Text>
+            <Text className={`text-lg ${signature ? 'text-ink' : 'text-red-800'}`}>
+                {signature ? 'Acknowledgment recorded' : 'Acknowledgment still needed'}
+            </Text>
+            {'lines' in collected ? (
+                <View className="gap-2">
+                    {collected.lines.map((line) => (
+                        <Text key={line.id} className="text-lg text-ink">
+                            {lineSummary(line)}
+                        </Text>
+                    ))}
+                </View>
+            ) : (
+                <Text className="text-base text-red-800">{collected.error}</Text>
+            )}
+            <Text className="text-base text-ink/70">
                 Saving keeps this release on the device. The official receipt number is issued when the device syncs.
             </Text>
         </View>

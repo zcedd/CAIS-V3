@@ -1,5 +1,7 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import * as SystemUI from 'expo-system-ui';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -18,6 +20,7 @@ export default function RootLayout() {
     const [booted, setBooted] = useState(false);
 
     useEffect(() => {
+        void SystemUI.setBackgroundColorAsync('#EFEDE8');
         void hydrate().finally(() => setBooted(true));
     }, [hydrate]);
 
@@ -37,14 +40,17 @@ export default function RootLayout() {
 
     if (!booted || !ready) {
         return (
-            <View className="flex-1 items-center justify-center bg-stone-100">
-                <Text className="text-lg text-stone-700">Opening CAIS Field…</Text>
+            <View className="flex-1 items-center justify-center gap-3 bg-paper">
+                <StatusBar style="dark" />
+                <Text className="text-3xl font-semibold tracking-tight text-ink">CAIS Field</Text>
+                <Text className="text-lg text-ink/60">Opening your distributions</Text>
             </View>
         );
     }
 
     return (
-        <GestureHandlerRootView style={{ flex: 1 }}>
+        <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#EFEDE8' }}>
+            <StatusBar style="dark" />
             <SafeAreaProvider>
                 <Stack screenOptions={{ headerShown: false }} />
             </SafeAreaProvider>

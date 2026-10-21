@@ -1,9 +1,10 @@
 import { Redirect, router } from 'expo-router';
 import { useState } from 'react';
+import { View } from 'react-native';
 
 import { ApiError, formatApiError } from '@/api/errors';
 import { verifyTwoFactor } from '@/api/mobile';
-import { Body, Button, Card, Field, Notice, Screen } from '@/components/ui';
+import { Body, Button, Field, Notice, Screen } from '@/components/ui';
 import { useSessionStore } from '@/session/store';
 
 export default function TwoFactorScreen() {
@@ -18,16 +19,13 @@ export default function TwoFactorScreen() {
     }
 
     return (
-        <Screen title="Two-factor code" subtitle="Enter the code from your authenticator app, or a recovery code." onBack={() => router.back()}>
-            <Body>
-                <Card>
-                    <Field
-                        label="Code"
-                        value={code}
-                        onChangeText={setCode}
-                        autoCapitalize="none"
-                        placeholder="123456"
-                    />
+        <Screen
+            kicker="CAIS Field"
+            title="Two-factor code"
+            subtitle="Enter the code from your authenticator app, or a recovery code."
+            onBack={() => router.back()}
+            footer={
+                <View className="gap-3">
                     {error ? <Notice tone="error">{error}</Notice> : null}
                     <Button
                         label={busy ? 'Checking…' : 'Continue'}
@@ -56,7 +54,11 @@ export default function TwoFactorScreen() {
                             })();
                         }}
                     />
-                </Card>
+                </View>
+            }
+        >
+            <Body>
+                <Field label="Code" value={code} onChangeText={setCode} autoCapitalize="none" placeholder="123456" />
             </Body>
         </Screen>
     );

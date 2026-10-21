@@ -1,8 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 
-import { Body, Button, Card, EmptyState, Field, Notice, Screen } from '@/components/ui';
+import { Body, Button, Card, EmptyState, Field, Notice, Screen, SectionTitle } from '@/components/ui';
 import type { BatchRecord } from '@/db/records';
 import { countUnsynced, listBatches, removeBatch } from '@/db/repositories';
 import { DEFAULT_API_URL, getApiBaseUrl, setApiBaseUrl } from '@/db/settings';
@@ -97,11 +97,14 @@ export default function SettingsScreen() {
         <Screen title="Settings" subtitle="Account and this device" onBack={() => router.back()}>
             <Body>
                 <Card>
-                    <Text className="text-xl font-semibold text-stone-900">{user?.name ?? 'Officer'}</Text>
-                    <Text className="text-base text-stone-700">{user?.email}</Text>
-                    <Text className="text-base text-stone-700">{department?.name ?? 'Department not loaded yet'}</Text>
+                    <View className="gap-1">
+                        <Text className="text-xl font-semibold text-ink">{user?.name ?? 'Officer'}</Text>
+                        <Text className="text-lg text-ink/80">{user?.email}</Text>
+                        <Text className="text-base text-ink/60">{department?.name ?? 'Department not loaded yet'}</Text>
+                    </View>
                 </Card>
-                <Card>
+                <View className="gap-4">
+                    <SectionTitle>Server</SectionTitle>
                     <Field
                         label="API base URL"
                         value={apiUrl}
@@ -109,7 +112,7 @@ export default function SettingsScreen() {
                         autoCapitalize="none"
                         placeholder="http://10.0.2.2:8000"
                     />
-                    <Text className="text-base text-stone-600">
+                    <Text className="text-base text-ink/60">
                         Current: {savedUrl}. Android emulator reaches the computer at 10.0.2.2. Leave this as the example value to use EXPO_PUBLIC_API_URL.
                     </Text>
                     <Button
@@ -125,21 +128,25 @@ export default function SettingsScreen() {
                             })();
                         }}
                     />
-                </Card>
+                </View>
                 {message ? <Notice>{message}</Notice> : null}
                 {error ? <Notice tone="error">{error}</Notice> : null}
-                <Text className="text-xl font-semibold text-stone-900">Downloaded batches</Text>
-                {batches.length === 0 ? (
-                    <EmptyState title="No downloaded batches" body="Batches you download appear here so you can remove them from the device." />
-                ) : (
-                    batches.map((batch) => (
-                        <Card key={batch.id}>
-                            <Text className="text-lg font-semibold text-stone-900">{batch.title}</Text>
-                            <Text className="text-base text-stone-600">{batch.batchCode}</Text>
-                            <Button label="Remove from device" variant="danger" onPress={() => confirmRemove(batch)} />
-                        </Card>
-                    ))
-                )}
+                <View className="gap-3">
+                    <SectionTitle>Downloaded batches</SectionTitle>
+                    {batches.length === 0 ? (
+                        <EmptyState title="No downloaded batches" body="Batches you download appear here so you can remove them from the device." />
+                    ) : (
+                        batches.map((batch) => (
+                            <Card key={batch.id}>
+                                <View className="gap-1">
+                                    <Text className="text-xl font-semibold text-ink">{batch.title}</Text>
+                                    <Text className="text-base text-ink/60">{batch.batchCode}</Text>
+                                </View>
+                                <Button label="Remove from device" variant="danger" onPress={() => confirmRemove(batch)} />
+                            </Card>
+                        ))
+                    )}
+                </View>
                 <Button label="Sign out" variant="secondary" onPress={confirmSignOut} />
             </Body>
         </Screen>

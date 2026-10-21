@@ -11,7 +11,7 @@ export function CameraCapture({ onCapture }: { onCapture: (uri: string) => void 
     const [error, setError] = useState<string | null>(null);
 
     if (!permission) {
-        return <Text className="text-base text-stone-700">Checking the camera…</Text>;
+        return <Text className="text-lg text-ink/70">Checking the camera…</Text>;
     }
 
     if (!permission.granted) {
@@ -24,8 +24,8 @@ export function CameraCapture({ onCapture }: { onCapture: (uri: string) => void 
     }
 
     return (
-        <View className="gap-3">
-            <View className="h-80 overflow-hidden rounded-2xl bg-black">
+        <View className="flex-1 gap-3">
+            <View className="flex-1 overflow-hidden rounded-3xl bg-black">
                 <CameraView ref={camera} facing="back" style={{ flex: 1 }} />
             </View>
             {error ? <Notice tone="error">{error}</Notice> : null}

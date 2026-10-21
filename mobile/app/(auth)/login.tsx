@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { ApiError, formatApiError } from '@/api/errors';
 import { login } from '@/api/mobile';
-import { Body, Button, Card, Field, Notice, Screen } from '@/components/ui';
+import { Body, Button, Field, Notice, Screen } from '@/components/ui';
 import { getApiBaseUrl, setApiBaseUrl } from '@/db/settings';
 import { useSessionStore } from '@/session/store';
 
@@ -26,31 +26,12 @@ export default function LoginScreen() {
     }, []);
 
     return (
-        <Screen title="CAIS Field" subtitle="Sign in to download a distribution and record releases offline.">
-            <Body>
-                <Card>
-                    <Field
-                        label="Email"
-                        value={email}
-                        onChangeText={setEmail}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        placeholder="name@agency.gov"
-                    />
-                    <Field
-                        label="Password"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        autoCapitalize="none"
-                    />
-                    <Field
-                        label="Server address"
-                        value={apiUrl}
-                        onChangeText={setApiUrl}
-                        autoCapitalize="none"
-                        placeholder="http://10.0.2.2:8000"
-                    />
+        <Screen
+            kicker="CAIS Field"
+            title="Sign in"
+            subtitle="Download a distribution, then record releases offline."
+            footer={
+                <View className="gap-3">
                     {error ? <Notice tone="error">{error}</Notice> : null}
                     <Button
                         label={busy ? 'Signing in…' : 'Sign in'}
@@ -81,10 +62,29 @@ export default function LoginScreen() {
                             })();
                         }}
                     />
-                </Card>
-                <Text className="text-base text-stone-600">
-                    Use the same account you use on the web. Two-factor codes are entered on the next screen.
-                </Text>
+                </View>
+            }
+        >
+            <Body>
+                <View className="gap-4">
+                    <Field
+                        label="Email"
+                        value={email}
+                        onChangeText={setEmail}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
+                        placeholder="name@agency.gov"
+                    />
+                    <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" />
+                    <Field
+                        label="Server address"
+                        value={apiUrl}
+                        onChangeText={setApiUrl}
+                        autoCapitalize="none"
+                        placeholder="http://10.0.2.2:8000"
+                    />
+                </View>
+                <Text className="text-base text-ink/60">Use the same account you use on the web. Two-factor codes are entered on the next screen.</Text>
             </Body>
         </Screen>
     );
