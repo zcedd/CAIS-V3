@@ -19,3 +19,7 @@ Schedule::command('workflow-tasks:notify-due')
 Schedule::command('distribution:notify-upcoming')
     ->daily()
     ->withoutOverlapping();
+
+Schedule::command('stock:notify-low')
+    ->daily()
+    ->withoutOverlapping();
