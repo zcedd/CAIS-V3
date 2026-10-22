@@ -61,7 +61,7 @@ class SaveDistributionApprovalPolicy
                 'allow_partial_finalization' => (bool) ($data['allow_partial_finalization'] ?? false),
                 'allow_amount_modification' => (bool) ($data['allow_amount_modification'] ?? false),
                 'allow_self_approval' => (bool) ($data['allow_self_approval'] ?? false),
-                'reschedule_requires_reapproval' => (bool) ($data['reschedule_requires_reapproval'] ?? false),
+                'reschedule_requires_reapproval' => true,
                 'allow_resubmit_after_reject' => (bool) ($data['allow_resubmit_after_reject'] ?? false),
                 'block_active_batch_reuse' => (bool) ($data['block_active_batch_reuse'] ?? true),
                 'min_amount' => $data['min_amount'] ?? null,

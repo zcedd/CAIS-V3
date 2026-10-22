@@ -75,6 +75,11 @@ type Batch = {
     title: string;
     venue: string | null;
     scheduled_at: string | null;
+    schedule_change: {
+        reason: string;
+        scheduled_at: string | null;
+        venue: string | null;
+    } | null;
     status: string;
     status_label: string;
     revision: number;
@@ -190,6 +195,19 @@ export default function ExecutiveDistributionShow({
                               }).format(new Date(batch.scheduled_at))}`
                             : ''}
                     </p>
+                    {batch.schedule_change ? (
+                        <Alert>
+                            <AlertTriangle />
+                            <AlertTitle>
+                                Schedule update waiting for approval
+                            </AlertTitle>
+                            <AlertDescription>
+                                Approve this schedule and venue before
+                                distribution can start.{' '}
+                                {batch.schedule_change.reason}
+                            </AlertDescription>
+                        </Alert>
+                    ) : null}
                 </div>
 
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">

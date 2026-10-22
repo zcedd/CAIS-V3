@@ -45,64 +45,16 @@ class ScheduleDistributionBatch
             $before = [
                 'scheduled_at' => $batch->scheduled_at?->toIso8601String(),
                 'venue' => $batch->venue,
+                'venue_details' => $batch->venue_details,
             ];
             $venue = $data['venue'] ?? $batch->venue;
-            $changingExistingSchedule = $batch->status === DistributionBatchStatus::Scheduled
-                && (
-                    $batch->scheduled_at?->toIso8601String() !== Carbon::parse($data['scheduled_at'])->toIso8601String()
-                    || $batch->venue !== $venue
-                );
+            $awaitingRelease = in_array($batch->status, [
+                DistributionBatchStatus::Approved,
+                DistributionBatchStatus::Scheduled,
+            ], true);
 
-            if ($changingExistingSchedule && $batch->policy?->reschedule_requires_reapproval) {
-                $reason = trim((string) ($data['reason'] ?? ''));
-
-                if ($reason === '') {
-                    throw ValidationException::withMessages([
-                        'reason' => 'Explain why the distribution is being rescheduled.',
-                    ]);
-                }
-
-                $policy = $batch->policy;
-
-                if (! $policy instanceof DistributionApprovalPolicy) {
-                    throw ValidationException::withMessages([
-                        'approval' => 'This distribution batch has no approval policy.',
-                    ]);
-                }
-
-                $batch->revision = ((int) $batch->revision) + 1;
-                $batch->scheduled_at = $data['scheduled_at'];
-                $batch->venue = $venue;
-                $this->fillVenue($batch, $data);
-                $batch->approved_at = null;
-                $batch->finalization_scope = null;
-                $batch->save();
-
-                DistributionBatchRevision::query()->create([
-                    'distribution_batch_id' => $batch->id,
-                    'revision' => $batch->revision,
-                    'snapshot' => [
-                        'scheduled_at' => $batch->scheduled_at?->toIso8601String(),
-                        'venue' => $batch->venue,
-                        'reason' => $reason,
-                    ],
-                    'submitted_by' => $actor->id,
-                ]);
-
-                $updated = $this->workflow->move($batch->refresh(), DistributionBatchStatus::ForApproval, $actor);
-                $this->stages->assignTasks($updated, $policy);
-
-                $this->audit->record($actor, $updated, 'rescheduled', [
-                    'revision' => $updated->revision,
-                    'before' => $before,
-                    'after' => [
-                        'scheduled_at' => $updated->scheduled_at?->toIso8601String(),
-                        'venue' => $updated->venue,
-                    ],
-                    'reason' => $reason,
-                ]);
-
-                return $updated->refresh();
+            if ($awaitingRelease && $this->scheduleChanged($batch, $data)) {
+                return $this->submitForReapproval($batch, $actor, $data, $venue, $before);
             }
 
             $attributes = [
@@ -143,6 +95,117 @@ class ScheduleDistributionBatch
 
             return $updated->refresh();
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  array{scheduled_at: string|null, venue: string|null, venue_details: string|null}  $before
+     */
+    private function submitForReapproval(
+        DistributionBatch $batch,
+        User $actor,
+        array $data,
+        mixed $venue,
+        array $before,
+    ): DistributionBatch {
+        $reason = trim((string) ($data['reason'] ?? ''));
+
+        if ($reason === '') {
+            throw ValidationException::withMessages([
+                'reason' => 'Explain why the schedule or venue is changing.',
+            ]);
+        }
+
+        $policy = $batch->policy;
+
+        if (! $policy instanceof DistributionApprovalPolicy) {
+            throw ValidationException::withMessages([
+                'approval' => 'This distribution batch has no approval policy.',
+            ]);
+        }
+
+        $batch->revision = ((int) $batch->revision) + 1;
+        $batch->scheduled_at = $data['scheduled_at'];
+        $batch->venue = is_string($venue) ? $venue : null;
+        $this->fillVenue($batch, $data);
+        $batch->approved_at = null;
+        $batch->save();
+
+        DistributionBatchRevision::query()->create([
+            'distribution_batch_id' => $batch->id,
+            'revision' => $batch->revision,
+            'snapshot' => [
+                'scheduled_at' => $batch->scheduled_at?->toIso8601String(),
+                'venue' => $batch->venue,
+                'venue_details' => $batch->venue_details,
+                'reason' => $reason,
+            ],
+            'submitted_by' => $actor->id,
+        ]);
+
+        $updated = $this->workflow->move($batch->refresh(), DistributionBatchStatus::ForApproval, $actor);
+        $this->stages->assignTasks($updated, $policy);
+
+        $this->audit->record($actor, $updated, 'rescheduled', [
+            'revision' => $updated->revision,
+            'before' => $before,
+            'after' => [
+                'scheduled_at' => $updated->scheduled_at?->toIso8601String(),
+                'venue' => $updated->venue,
+                'venue_details' => $updated->venue_details,
+            ],
+            'reason' => $reason,
+        ]);
+
+        return $updated->refresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function scheduleChanged(DistributionBatch $batch, array $data): bool
+    {
+        if ($batch->scheduled_at === null) {
+            return true;
+        }
+
+        $incoming = Carbon::parse($data['scheduled_at'])->startOfMinute();
+        $current = $batch->scheduled_at->copy()->startOfMinute();
+
+        if (! $incoming->equalTo($current)) {
+            return true;
+        }
+
+        $venue = array_key_exists('venue', $data) ? $data['venue'] : $batch->venue;
+
+        if ($this->plain($venue) !== $this->plain($batch->venue)) {
+            return true;
+        }
+
+        foreach (['venue_details', 'venue_latitude', 'venue_longitude'] as $field) {
+            if (! array_key_exists($field, $data)) {
+                continue;
+            }
+
+            if ($this->plain($data[$field]) !== $this->plain($batch->{$field})) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function plain(mixed $value): string
+    {
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_int($value) || is_float($value)) {
+            return rtrim(rtrim(number_format((float) $value, 7, '.', ''), '0'), '.');
+        }
+
+        return trim((string) $value);
     }
 
     /**

@@ -106,7 +106,7 @@ class DistributionApprovalPolicyResolver
             'allow_partial_finalization' => false,
             'allow_amount_modification' => false,
             'allow_self_approval' => false,
-            'reschedule_requires_reapproval' => false,
+            'reschedule_requires_reapproval' => true,
             'allow_resubmit_after_reject' => false,
             'block_active_batch_reuse' => true,
             'is_active' => true,

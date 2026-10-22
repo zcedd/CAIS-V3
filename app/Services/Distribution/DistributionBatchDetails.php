@@ -2,10 +2,12 @@
 
 namespace App\Services\Distribution;
 
+use App\Enums\DistributionBatchStatus;
 use App\Enums\DistributionItemApprovalStatus;
 use App\Enums\DistributionType;
 use App\Models\DistributionBatch;
 use App\Models\DistributionBatchItem;
+use App\Models\DistributionBatchRevision;
 
 class DistributionBatchDetails
 {
@@ -169,6 +171,37 @@ class DistributionBatchDetails
                 'created_at' => $revision->created_at?->toIso8601String(),
             ])->all(),
             'reconciliation' => $this->reconciliation->summarize($batch),
+            'schedule_change' => $this->scheduleChange($batch),
+        ];
+    }
+
+    /**
+     * @return array{reason: string, scheduled_at: string|null, venue: string|null}|null
+     */
+    private function scheduleChange(DistributionBatch $batch): ?array
+    {
+        if ($batch->status !== DistributionBatchStatus::ForApproval) {
+            return null;
+        }
+
+        $revision = $batch->revisions->first(
+            fn (DistributionBatchRevision $row): bool => (int) $row->revision === (int) $batch->revision,
+        );
+
+        if (! $revision instanceof DistributionBatchRevision || ! is_array($revision->snapshot)) {
+            return null;
+        }
+
+        $reason = trim((string) ($revision->snapshot['reason'] ?? ''));
+
+        if ($reason === '') {
+            return null;
+        }
+
+        return [
+            'reason' => $reason,
+            'scheduled_at' => isset($revision->snapshot['scheduled_at']) ? (string) $revision->snapshot['scheduled_at'] : null,
+            'venue' => isset($revision->snapshot['venue']) ? (string) $revision->snapshot['venue'] : null,
         ];
     }
 }
