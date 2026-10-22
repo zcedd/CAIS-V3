@@ -480,7 +480,7 @@ class AssistanceController extends Controller
             'request_sub_status_options' => $this->assistanceService->requestSubStatusesForSelect($program),
             'staff_options' => $this->assistanceService->departmentStaffForSelect($program),
             'documents' => $this->assistanceDocumentService->profilePayload($assistance),
-            'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            'document_types' => $this->assistanceDocumentService->documentTypesForAssistance($assistance),
             'distribution' => $distributionState->summarize($department, $assistance),
             'can_distribute' => $request->user()?->can('create', [DistributionBatch::class, $department]) ?? false,
         ]);

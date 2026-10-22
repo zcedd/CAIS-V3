@@ -20,7 +20,7 @@ trait ValidatesItemKind
             ->whereKey($this->integer('item_unit_measurement_id'))
             ->value('name');
 
-        if (! is_string($unitName) || strcasecmp($unitName, 'php') !== 0) {
+        if (! is_string($unitName) || strcasecmp($unitName, ItemUnitMeasurement::CASH_NAME) !== 0) {
             $validator->errors()->add(
                 'item_unit_measurement_id',
                 'Cash items must use the php unit of measurement.',

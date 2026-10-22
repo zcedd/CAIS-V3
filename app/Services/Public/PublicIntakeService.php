@@ -465,7 +465,7 @@ class PublicIntakeService
     private function onlineModeOfRequestId(): int
     {
         return (int) ModeOfRequest::query()->firstOrCreate(
-            ['name' => 'Online'],
+            ['name' => ModeOfRequest::PUBLIC_INTAKE_NAME],
         )->id;
     }
 

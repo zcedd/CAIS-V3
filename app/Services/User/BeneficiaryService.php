@@ -24,6 +24,8 @@ use Illuminate\Support\Facades\DB;
 
 class BeneficiaryService
 {
+    public const FORM_OPTIONS_CACHE_KEY = 'beneficiary.form_options.v4';
+
     private const BENEFICIARIES_PER_PAGE = 25;
 
     private const ASSISTANCES_PER_PAGE = 10;
@@ -373,10 +375,8 @@ class BeneficiaryService
      */
     public function formOptions(): array
     {
-        Cache::forget('beneficiary.form_options');
-
         $options = Cache::remember(
-            'beneficiary.form_options.v2',
+            self::FORM_OPTIONS_CACHE_KEY,
             now()->addDay(),
             function (): array {
                 $defaultProvince = AddressProvince::query()

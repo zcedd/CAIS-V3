@@ -39,7 +39,7 @@ class ItemController extends Controller
             'search' => $request->search(),
             'sort' => $request->sort(),
             'direction' => $request->direction(),
-            'unit_measurements' => $this->itemService->unitMeasurementsForSelect(),
+            'unit_measurements' => $this->itemService->unitMeasurementsForSelect($department),
         ]);
     }
 

@@ -2,39 +2,36 @@
 
 namespace App\Models;
 
-use Spatie\Searchable\Searchable;
-use Spatie\Searchable\SearchResult;
-use Illuminate\Database\Eloquent\Model;
-use Laravel\Scout\Searchable as Search;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Sector extends Model
 {
     use HasFactory;
-    use Search;
     use SoftDeletes;
 
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'is_active'];
 
-    public function toSearchableArray()
+    /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'is_active' => true,
+    ];
+
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
     {
-        $array = $this->toArray();
-        return $array;
+        return [
+            'is_active' => 'boolean',
+        ];
     }
 
-    public function getSearchResult(): SearchResult
-    {
-        $url = route('sector.department', $this->id);
-
-        return new SearchResult(
-            $this,
-            $this->name,
-            $url
-        );
-    }
-    
-    public function department()
+    public function department(): BelongsToMany
     {
         return $this->belongsToMany(Department::class);
     }

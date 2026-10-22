@@ -171,11 +171,30 @@ class ItemService
     }
 
     /**
+     * Active units, plus any unit already used by an item in the department.
+     *
      * @return list<array{id: int, name: string}>
      */
-    public function unitMeasurementsForSelect(): array
+    public function unitMeasurementsForSelect(?Department $department = null): array
     {
+        $includeIds = $department === null
+            ? []
+            : Item::query()
+                ->where('department_id', $department->id)
+                ->whereNotNull('item_unit_measurement_id')
+                ->distinct()
+                ->pluck('item_unit_measurement_id')
+                ->map(static fn (mixed $id): int => (int) $id)
+                ->all();
+
         return ItemUnitMeasurement::query()
+            ->where(function ($query) use ($includeIds): void {
+                $query->where('is_active', true);
+
+                if ($includeIds !== []) {
+                    $query->orWhereIn('id', $includeIds);
+                }
+            })
             ->orderBy('name')
             ->get(['id', 'name'])
             ->map(static fn (ItemUnitMeasurement $unit): array => [

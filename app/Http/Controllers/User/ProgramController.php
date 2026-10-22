@@ -71,7 +71,7 @@ class ProgramController extends Controller
             'items' => Inertia::defer(
                 fn () => $this->programService->departmentItemsForSelect($department),
             ),
-            'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            'document_types' => $this->assistanceDocumentService->documentTypesForDepartment($department),
             'workflow_options' => $this->programService->workflowOptions($department),
         ]);
     }
@@ -156,7 +156,7 @@ class ProgramController extends Controller
                     fn () => $this->programService->departmentItemsForSelect($department),
                     'edit',
                 ),
-                'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+                'document_types' => $this->assistanceDocumentService->documentTypesForProgram($program),
                 'workflow_options' => $this->programService->workflowOptions($department),
             ]);
         }
@@ -227,7 +227,7 @@ class ProgramController extends Controller
                 'table',
             ),
             'mode_of_request_options' => Inertia::defer(
-                fn () => $this->assistanceService->modesOfRequestForSelect(),
+                fn () => $this->assistanceService->modesOfRequestForSelect($program),
                 'table',
             ),
             'program_items' => Inertia::defer(
@@ -250,7 +250,7 @@ class ProgramController extends Controller
                 fn () => $this->programService->transferProgramsForSelect($department, $program),
                 'table',
             ),
-            'document_types' => $this->assistanceDocumentService->documentTypesForSelect(),
+            'document_types' => $this->assistanceDocumentService->documentTypesForProgram($program),
             'document_requirements' => $this->programService->documentRequirementsPayload($program),
             'workflow_options' => $this->programService->workflowOptions($department),
         ]);

@@ -1,6 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\DistributionApprovalPolicyController as AdminDistributionApprovalPolicyController;
+use App\Http\Controllers\Admin\DocumentTypeController as AdminDocumentTypeController;
+use App\Http\Controllers\Admin\ModeOfRequestController as AdminModeOfRequestController;
+use App\Http\Controllers\Admin\SectorController as AdminSectorController;
+use App\Http\Controllers\Admin\UnitMeasurementController as AdminUnitMeasurementController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Admin\WorkflowController as AdminWorkflowController;
 use App\Http\Controllers\Administrator\DashboardController as AdministratorDashboardController;
@@ -101,6 +105,26 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('distribution-policies', [AdminDistributionApprovalPolicyController::class, 'store'])->name('distribution-policies.store');
         Route::put('distribution-policies/{policy}', [AdminDistributionApprovalPolicyController::class, 'update'])->name('distribution-policies.update');
         Route::delete('distribution-policies/{policy}', [AdminDistributionApprovalPolicyController::class, 'destroy'])->name('distribution-policies.destroy');
+
+        Route::get('modes-of-request', [AdminModeOfRequestController::class, 'index'])->name('modes-of-request.index');
+        Route::post('modes-of-request', [AdminModeOfRequestController::class, 'store'])->name('modes-of-request.store');
+        Route::put('modes-of-request/{modeOfRequest}', [AdminModeOfRequestController::class, 'update'])->name('modes-of-request.update');
+        Route::delete('modes-of-request/{modeOfRequest}', [AdminModeOfRequestController::class, 'destroy'])->name('modes-of-request.destroy');
+
+        Route::get('document-types', [AdminDocumentTypeController::class, 'index'])->name('document-types.index');
+        Route::post('document-types', [AdminDocumentTypeController::class, 'store'])->name('document-types.store');
+        Route::put('document-types/{documentType}', [AdminDocumentTypeController::class, 'update'])->name('document-types.update');
+        Route::delete('document-types/{documentType}', [AdminDocumentTypeController::class, 'destroy'])->name('document-types.destroy');
+
+        Route::get('unit-measurements', [AdminUnitMeasurementController::class, 'index'])->name('unit-measurements.index');
+        Route::post('unit-measurements', [AdminUnitMeasurementController::class, 'store'])->name('unit-measurements.store');
+        Route::put('unit-measurements/{unitMeasurement}', [AdminUnitMeasurementController::class, 'update'])->name('unit-measurements.update');
+        Route::delete('unit-measurements/{unitMeasurement}', [AdminUnitMeasurementController::class, 'destroy'])->name('unit-measurements.destroy');
+
+        Route::get('sectors', [AdminSectorController::class, 'index'])->name('sectors.index');
+        Route::post('sectors', [AdminSectorController::class, 'store'])->name('sectors.store');
+        Route::put('sectors/{sector}', [AdminSectorController::class, 'update'])->name('sectors.update');
+        Route::delete('sectors/{sector}', [AdminSectorController::class, 'destroy'])->name('sectors.destroy');
     });
 
     Route::prefix('{department}')->middleware(EnsureUserBelongsToDepartment::class)->group(function () {

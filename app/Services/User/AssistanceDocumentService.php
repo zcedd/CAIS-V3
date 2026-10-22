@@ -7,6 +7,7 @@ use App\Enums\RequestStatusCode;
 use App\Enums\RequestSubStatusCode;
 use App\Models\Assistance;
 use App\Models\AssistanceDocument;
+use App\Models\Department;
 use App\Models\DocumentType;
 use App\Models\Program;
 use App\Models\ProgramDocumentRequirement;
@@ -18,11 +19,26 @@ use Inertia\Inertia;
 class AssistanceDocumentService
 {
     /**
+     * Active document types, plus any id already attached to the record being edited.
+     *
+     * @param  list<int>  $includeIds
      * @return list<array{id: int, name: string, slug: string}>
      */
-    public function documentTypesForSelect(): array
+    public function documentTypesForSelect(array $includeIds = []): array
     {
+        $includeIds = array_values(array_unique(array_map(
+            static fn (mixed $id): int => (int) $id,
+            $includeIds,
+        )));
+
         return DocumentType::query()
+            ->where(function ($query) use ($includeIds): void {
+                $query->where('is_active', true);
+
+                if ($includeIds !== []) {
+                    $query->orWhereIn('id', $includeIds);
+                }
+            })
             ->orderBy('id')
             ->get(['id', 'name', 'slug'])
             ->map(static fn (DocumentType $type): array => [
@@ -32,6 +48,53 @@ class AssistanceDocumentService
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return list<array{id: int, name: string, slug: string}>
+     */
+    public function documentTypesForDepartment(Department $department): array
+    {
+        $ids = ProgramDocumentRequirement::query()
+            ->whereIn('program_id', $department->programs()->select('programs.id'))
+            ->pluck('document_type_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        return $this->documentTypesForSelect($ids);
+    }
+
+    /**
+     * @return list<array{id: int, name: string, slug: string}>
+     */
+    public function documentTypesForProgram(Program $program): array
+    {
+        $ids = $program->documentRequirements()
+            ->pluck('document_type_id')
+            ->map(static fn (mixed $id): int => (int) $id)
+            ->all();
+
+        return $this->documentTypesForSelect($ids);
+    }
+
+    /**
+     * @return list<array{id: int, name: string, slug: string}>
+     */
+    public function documentTypesForAssistance(Assistance $assistance): array
+    {
+        $assistance->loadMissing('program');
+
+        $ids = $assistance->documents()->pluck('document_type_id');
+
+        if ($assistance->program !== null) {
+            $ids = $ids->merge(
+                $assistance->program->documentRequirements()->pluck('document_type_id'),
+            );
+        }
+
+        return $this->documentTypesForSelect(
+            $ids->map(static fn (mixed $id): int => (int) $id)->unique()->values()->all(),
+        );
     }
 
     /**

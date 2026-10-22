@@ -451,13 +451,35 @@ class AssistanceService
     }
 
     /**
+     * Active modes, plus any mode already used by the program being edited.
+     *
      * @return list<array{id: int, name: string}>
      */
-    public function modesOfRequestForSelect(): array
+    public function modesOfRequestForSelect(?Program $program = null): array
     {
+        $includeIds = $program === null
+            ? []
+            : $program->assistances()
+                ->whereNotNull('mode_of_request_id')
+                ->distinct()
+                ->pluck('mode_of_request_id')
+                ->map(static fn (mixed $id): int => (int) $id)
+                ->all();
+
         return ModeOfRequest::query()
+            ->where(function ($query) use ($includeIds): void {
+                $query->where('is_active', true);
+
+                if ($includeIds !== []) {
+                    $query->orWhereIn('mode_of_requests.id', $includeIds);
+                }
+            })
             ->orderBy('name')
             ->get(['id', 'name'])
+            ->map(static fn (ModeOfRequest $mode): array => [
+                'id' => $mode->id,
+                'name' => $mode->name,
+            ])
             ->all();
     }
 
