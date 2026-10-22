@@ -7,7 +7,9 @@ use App\Enums\DistributionTransactionStatus;
 use App\Models\DistributionEvidence;
 use App\Models\DistributionTransaction;
 use App\Models\User;
+use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -57,18 +59,25 @@ class DistributionEvidenceService
         $previousPath = $existing?->path;
         $previousDisk = $existing?->disk;
 
+        $storedMetadata = [
+            'capture_source' => $metadata['capture_source'] ?? null,
+        ];
+        $source = $metadata['source'] ?? null;
+
+        if (is_string($source) && $source !== '') {
+            $storedMetadata['source'] = $source;
+        }
+
         $attributes = [
             'disk' => $disk,
             'path' => $path,
             'mime_type' => $mime,
             'file_size' => strlen($contents),
             'sha256_hash' => hash('sha256', $contents),
-            'captured_at' => now(),
+            'captured_at' => $this->capturedAt($metadata),
             'received_at' => now(),
             'captured_by' => $actor->id,
-            'metadata' => [
-                'capture_source' => $metadata['capture_source'] ?? null,
-            ],
+            'metadata' => $storedMetadata,
         ];
 
         if ($existing instanceof DistributionEvidence) {
@@ -134,6 +143,20 @@ class DistributionEvidenceService
         }
 
         return hash_equals($evidence->sha256_hash, hash('sha256', $contents));
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function capturedAt(array $metadata): DateTimeInterface
+    {
+        $value = $metadata['captured_at'] ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            return now();
+        }
+
+        return Carbon::parse($value);
     }
 
     private function assertImage(string $contents, int|false $size, DistributionEvidenceType $type): void

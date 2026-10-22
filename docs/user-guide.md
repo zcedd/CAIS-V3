@@ -305,6 +305,8 @@ Choose **Individual distribution** when one person is released at the counter an
 
 ### At the venue desk
 
+The same release can be recorded on a phone with [CAIS Field](mobile-user-guide.md) after the batch is started on the web. The phone keeps the release when the signal drops and uploads it later.
+
 For each person, record who received the assistance and what was handed over.
 
 - Take a live photo. An officer who can waive the camera enters a reason when the camera cannot be used.

@@ -22,6 +22,8 @@ use App\Services\Distribution\DistributionAudit;
 use App\Services\Distribution\DistributionReceiptService;
 use App\Services\Distribution\DistributionReferenceNumbers;
 use App\Support\DecimalAmount;
+use DateTimeInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -79,10 +81,20 @@ class FinalizeDistributionTransaction
 
             $witness = $this->witness($batch, $data['witnessed_by'] ?? null);
             $receiptNumber = $this->numbers->receiptNumber();
+            $capturedAt = $this->capturedAt($data);
             $releasedLines = [];
 
             foreach ($data['lines'] as $row) {
-                $releasedLines[] = $this->releaseLine($batch, $item, $transaction, $actor, $row, $receiptNumber, (string) ($data['notes'] ?? ''));
+                $releasedLines[] = $this->releaseLine(
+                    $batch,
+                    $item,
+                    $transaction,
+                    $actor,
+                    $row,
+                    $receiptNumber,
+                    (string) ($data['notes'] ?? ''),
+                    $capturedAt,
+                );
             }
 
             if ($releasedLines === []) {
@@ -108,7 +120,7 @@ class FinalizeDistributionTransaction
                 'notes' => $data['notes'] ?? null,
                 'released_by' => $actor->id,
                 'witnessed_by' => $witness?->id,
-                'captured_at' => now(),
+                'captured_at' => $capturedAt,
                 'finalized_at' => now(),
                 'status' => DistributionTransactionStatus::Finalized,
                 'updated_by' => $actor->id,
@@ -199,6 +211,7 @@ class FinalizeDistributionTransaction
         array $row,
         string $receiptNumber,
         string $notes,
+        DateTimeInterface $capturedAt,
     ): array {
         $line = DistributionBatchItemLine::query()
             ->where('distribution_batch_item_id', $item->id)
@@ -268,7 +281,7 @@ class FinalizeDistributionTransaction
             'outcome' => $outcome,
             'actual_quantity' => $actualQuantity,
             'actual_amount' => $actualAmount,
-            'released_at' => now(),
+            'released_at' => $capturedAt,
             'released_by' => $actor->id,
             'receipt_reference' => $receiptNumber,
             'identity_verified' => true,
@@ -282,6 +295,20 @@ class FinalizeDistributionTransaction
             'amount' => $actualAmount,
             'outcome' => $outcome->value,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function capturedAt(array $data): DateTimeInterface
+    {
+        $value = $data['captured_at'] ?? null;
+
+        if (! is_string($value) || trim($value) === '') {
+            return now();
+        }
+
+        return Carbon::parse($value);
     }
 
     private function witness(DistributionBatch $batch, mixed $userId): ?User

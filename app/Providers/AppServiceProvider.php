@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
@@ -102,6 +103,18 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('public-intake-write', function (Request $request) {
             return Limit::perMinute(10)->by((string) $request->ip());
+        });
+
+        RateLimiter::for('api', function (Request $request): Limit {
+            $user = $request->user();
+
+            return Limit::perMinute(60)->by($user instanceof User ? (string) $user->id : (string) $request->ip());
+        });
+
+        RateLimiter::for('mobile-login', function (Request $request): Limit {
+            $email = Str::lower($request->string('email')->toString());
+
+            return Limit::perMinute(5)->by(Str::transliterate($email.'|'.$request->ip()));
         });
     }
 }
