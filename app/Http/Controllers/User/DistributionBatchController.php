@@ -42,6 +42,7 @@ use App\Models\Program;
 use App\Models\User;
 use App\Services\Distribution\DistributionBatchDetails;
 use App\Services\Distribution\DistributionDashboard;
+use App\Services\Distribution\DistributionFieldSync;
 use App\Services\Distribution\DistributionReconciliation;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -249,8 +250,12 @@ class DistributionBatchController extends Controller
             ->with('success', 'Distribution batch created.');
     }
 
-    public function show(Department $department, DistributionBatch $distributionBatch, DistributionBatchDetails $details): Response
-    {
+    public function show(
+        Department $department,
+        DistributionBatch $distributionBatch,
+        DistributionBatchDetails $details,
+        DistributionFieldSync $fieldSync,
+    ): Response {
         $this->scoped($department, $distributionBatch);
         Gate::authorize('view', $distributionBatch);
 
@@ -260,6 +265,7 @@ class DistributionBatchController extends Controller
             'department' => $department->only(['id', 'name', 'slug']),
             'batch' => $details->payload($distributionBatch),
             'can' => $this->abilities($user instanceof User ? $user : null, $distributionBatch),
+            'field_sync' => $fieldSync->summarize($distributionBatch),
         ]);
     }
 

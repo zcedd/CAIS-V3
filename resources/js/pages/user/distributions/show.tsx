@@ -59,6 +59,8 @@ import {
     decide as decideItem,
 } from '@/routes/user/distributions/items';
 import { store as storeRelease } from '@/routes/user/distributions/releases';
+import { FieldSyncPanel, useFieldSyncPoll } from './field-sync-panel';
+import type { FieldSyncSummary } from './field-sync-panel';
 
 type VisitData = {
     [key: string]:
@@ -254,13 +256,17 @@ export default function DistributionShow({
     department,
     batch,
     can = closedAbilities,
+    field_sync,
 }: {
     department: DepartmentSummary;
     batch: Batch;
     can?: DistributionAbilities;
+    field_sync: FieldSyncSummary | null;
 }) {
     const [selected, setSelected] = useState<number[]>([]);
     const args = routeArgs(department.slug, batch.id);
+
+    useFieldSyncPoll(batch.status === 'in_progress');
     const batchDecisions = [
         can.approve ? { value: 'approved', label: 'Approve' } : null,
         can.return ? { value: 'returned', label: 'Return' } : null,
@@ -315,7 +321,9 @@ export default function DistributionShow({
                         </h1>
                         <div className="flex flex-wrap items-center gap-1.5">
                             <CodeChip>{batch.batch_code}</CodeChip>
-                            <Badge variant="outline">{batch.status_label}</Badge>
+                            <Badge variant="outline">
+                                {batch.status_label}
+                            </Badge>
                             {batch.distribution_type_label ? (
                                 <Badge variant="outline">
                                     {batch.distribution_type_label}
@@ -414,17 +422,17 @@ export default function DistributionShow({
                             Schedule update waiting for approval
                         </AlertTitle>
                         <AlertDescription>
-                            Distribution can start after this schedule and
-                            venue are approved. {batch.schedule_change.reason}
+                            Distribution can start after this schedule and venue
+                            are approved. {batch.schedule_change.reason}
                         </AlertDescription>
                     </Alert>
                 ) : null}
 
                 {batch.status === 'approved' ? (
                     <p className="text-sm text-muted-foreground">
-                        Start distribution with the approved schedule and
-                        venue. Updating either one is optional and needs
-                        another approval before distribution can start.
+                        Start distribution with the approved schedule and venue.
+                        Updating either one is optional and needs another
+                        approval before distribution can start.
                     </p>
                 ) : null}
 
@@ -903,53 +911,54 @@ export default function DistributionShow({
                             Approval history
                         </h2>
                         <ul className="flex flex-col gap-2 text-sm">
-                                {batch.decisions.map((decision) => (
-                                    <li key={decision.id}>
-                                        Rev {decision.revision}:{' '}
-                                        {decision.decision} by {decision.actor}
-                                        {decision.remarks
-                                            ? ` — ${decision.remarks}`
-                                            : ''}
+                            {batch.decisions.map((decision) => (
+                                <li key={decision.id}>
+                                    Rev {decision.revision}: {decision.decision}{' '}
+                                    by {decision.actor}
+                                    {decision.remarks
+                                        ? ` — ${decision.remarks}`
+                                        : ''}
+                                </li>
+                            ))}
+                            {batch.tasks
+                                .filter(
+                                    (task) => task.revision === batch.revision,
+                                )
+                                .map((task) => (
+                                    <li key={task.id}>
+                                        {task.stage}: {task.status}
                                     </li>
                                 ))}
-                                {batch.tasks
-                                    .filter(
-                                        (task) =>
-                                            task.revision === batch.revision,
-                                    )
-                                    .map((task) => (
-                                        <li key={task.id}>
-                                            {task.stage}: {task.status}
-                                        </li>
-                                    ))}
-                            </ul>
-                            <div className="flex flex-wrap gap-2">
-                                {[
-                                    'roster',
-                                    'acknowledgements',
-                                    'history',
-                                    'releases',
-                                    'reconciliation',
-                                ].map((report) => (
-                                    <Button
-                                        key={report}
-                                        variant="outline"
-                                        size="sm"
-                                        asChild
+                        </ul>
+                        <div className="flex flex-wrap gap-2">
+                            {[
+                                'roster',
+                                'acknowledgements',
+                                'history',
+                                'releases',
+                                'reconciliation',
+                            ].map((report) => (
+                                <Button
+                                    key={report}
+                                    variant="outline"
+                                    size="sm"
+                                    asChild
+                                >
+                                    <a
+                                        href={exportReport.url({
+                                            ...args,
+                                            report,
+                                        })}
                                     >
-                                        <a
-                                            href={exportReport.url({
-                                                ...args,
-                                                report,
-                                            })}
-                                        >
-                                            {report}
-                                        </a>
-                                    </Button>
-                                ))}
-                            </div>
+                                        {report}
+                                    </a>
+                                </Button>
+                            ))}
+                        </div>
                     </section>
                 </section>
+
+                {field_sync ? <FieldSyncPanel sync={field_sync} /> : null}
 
                 <section className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4">
                     <h2 className="text-[15px] font-semibold tracking-tight">
@@ -1232,7 +1241,11 @@ function ScheduleForm({
                         />
                     </Field>
                     {changed ? (
-                        <Field data-invalid={notice || reasonError ? true : undefined}>
+                        <Field
+                            data-invalid={
+                                notice || reasonError ? true : undefined
+                            }
+                        >
                             <FieldLabel htmlFor={`${scheduleId}-reason`}>
                                 Reason for the change
                             </FieldLabel>

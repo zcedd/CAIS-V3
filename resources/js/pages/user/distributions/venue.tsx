@@ -46,6 +46,8 @@ import {
     voidMethod,
 } from '@/routes/user/distributions/transactions';
 import { store as storeEvidence } from '@/routes/user/distributions/transactions/evidence';
+import { FieldSyncAlert, useFieldSyncPoll } from './field-sync-panel';
+import type { FieldSyncAlertData } from './field-sync-panel';
 
 type DepartmentSummary = { slug: string; name: string };
 type Officer = { id: number; name: string };
@@ -145,6 +147,7 @@ type VenueProps = {
     privacy_notice: string;
     retention_notice: string;
     release_only?: boolean;
+    field_sync: FieldSyncAlertData | null;
 };
 
 function routeArgs(department: string, batchId: number) {
@@ -182,8 +185,11 @@ export default function DistributionVenue({
     privacy_notice,
     retention_notice,
     release_only = false,
+    field_sync,
 }: VenueProps) {
     const args = routeArgs(department.slug, batch.id);
+
+    useFieldSyncPoll(batch.status === 'in_progress');
 
     useEffect(() => {
         const breadcrumbArgs = routeArgs(department.slug, batch.id);
@@ -218,7 +224,7 @@ export default function DistributionVenue({
         return (
             <>
                 <Head title="Release" />
-                <div className="mx-auto flex h-full min-w-0 w-full max-w-3xl flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
+                <div className="mx-auto flex h-full w-full max-w-3xl min-w-0 flex-1 flex-col gap-4 overflow-x-hidden rounded-xl p-4">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">
                             Release
@@ -231,6 +237,11 @@ export default function DistributionVenue({
                                 : ''}
                         </p>
                     </div>
+                    <FieldSyncAlert
+                        sync={field_sync}
+                        department={department.slug}
+                        batchId={batch.id}
+                    />
                     {selected ? (
                         <ReleasePanel
                             department={department.slug}
@@ -311,6 +322,12 @@ export default function DistributionVenue({
                     />
                 </div>
 
+                <FieldSyncAlert
+                    sync={field_sync}
+                    department={department.slug}
+                    batchId={batch.id}
+                />
+
                 <section className="flex flex-col gap-4 rounded-xl border border-border bg-card p-4">
                     <h2 className="text-[15px] font-semibold tracking-tight">
                         Release progress
@@ -322,7 +339,9 @@ export default function DistributionVenue({
                     <p className="text-sm text-muted-foreground">
                         Excluded beneficiaries are not counted as released.
                     </p>
-                    <DistributionComposition composition={summary.composition} />
+                    <DistributionComposition
+                        composition={summary.composition}
+                    />
                 </section>
 
                 {can.assign && (
@@ -395,12 +414,10 @@ export default function DistributionVenue({
                             ))}
                             <div className="flex gap-2">
                                 {beneficiaries.prev_page_url ? (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        asChild
-                                    >
-                                        <Link href={beneficiaries.prev_page_url}>
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link
+                                            href={beneficiaries.prev_page_url}
+                                        >
                                             Previous
                                         </Link>
                                     </Button>
@@ -414,12 +431,10 @@ export default function DistributionVenue({
                                     </Button>
                                 )}
                                 {beneficiaries.next_page_url ? (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        asChild
-                                    >
-                                        <Link href={beneficiaries.next_page_url}>
+                                    <Button variant="outline" size="sm" asChild>
+                                        <Link
+                                            href={beneficiaries.next_page_url}
+                                        >
                                             Next
                                         </Link>
                                     </Button>

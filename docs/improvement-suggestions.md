@@ -14,15 +14,11 @@ Stock movements already call `notifyIfNeeded()`. `stock:notify-low` is scheduled
 
 The scheduler still has to be running in production (`schedule:run` or `schedule:work`). `composer run dev` starts the queue listener and does not start the scheduler.
 
-#### 2. Field-sync panel on the distribution
+#### 2. Field sync on the distribution
 
-`distribution_sync_operations` records every mobile release, replay, and conflict. Nothing under `resources/js/pages/user/distributions` reads it. A Field sync panel on the batch and venue pages should show:
+The batch page and the venue desk read `distribution_sync_operations`. The panel shows accepted and refused phone records, the server's reason for a refusal, the time captured on the device against the time the server accepted the record, and upload lag. An assigned officer with nothing received yet is listed too.
 
-- pending operations per officer
-- conflicts with the server reason
-- device-captured time against the time the server accepted the record
-
-That lets the office see a stuck phone before the batch is completed.
+A record still waiting on the phone is not on the server, so the panel cannot show it. Seeing that queue would need a phone check-in.
 
 #### 3. Mobile device management
 
@@ -161,7 +157,7 @@ The mobile project has no tests. These are pure and easy to cover first: `featur
 
 **Website, this week**
 
-Field sync panel → device revoke on admin users.
+Device revoke on admin users.
 
 **Website, next**
 

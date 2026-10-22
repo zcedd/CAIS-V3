@@ -109,7 +109,7 @@ The releasing officer builds distribution batches and records what was handed ov
 3. On a draft or returned batch, choose **Validate**, then **Submit for approval**.
 4. Wait for the administrator and the executive. If the batch is returned, edit the roster and submit it again. If it is rejected, **Reopen as draft** when that option is available.
 5. After approval, choose **Schedule** and enter the time and venue.
-6. Choose **Start distribution**. Open **Venue desk** and record each release. Issue the acknowledgment receipt from the release.
+6. Choose **Start distribution**. Open **Venue desk** and record each release. Issue the acknowledgment receipt from the release. If a phone record is refused, the venue desk and the batch page show the reason under Field sync.
 7. Choose **Complete** when every approved beneficiary has a release outcome.
 
 **Cancel** is available before the batch is in progress. A void or a reprint stays on the release, for an officer who has that permission.

@@ -25,6 +25,7 @@ use App\Models\DistributionTransaction;
 use App\Models\User;
 use App\Services\Distribution\DistributionAudit;
 use App\Services\Distribution\DistributionEvidenceService;
+use App\Services\Distribution\DistributionFieldSync;
 use App\Services\Distribution\DistributionReceiptService;
 use App\Services\Distribution\DistributionReconciliation;
 use App\Services\Mobile\DistributionOfflinePackage;
@@ -46,6 +47,7 @@ class DistributionVenueController extends Controller
         Department $department,
         DistributionBatch $distributionBatch,
         DistributionReconciliation $reconciliation,
+        DistributionFieldSync $fieldSync,
     ): Response {
         $this->scoped($department, $distributionBatch);
         Gate::authorize('view', $distributionBatch);
@@ -166,6 +168,7 @@ class DistributionVenueController extends Controller
                     ->all()
                 : [],
             'release_only' => $releaseOnly,
+            'field_sync' => $fieldSync->alert($distributionBatch),
             'privacy_notice' => $this->offlinePackage->privacyNotice(),
             'retention_notice' => $this->offlinePackage->retentionNotice(),
         ]);

@@ -335,6 +335,30 @@ class DistributionReconciliation
         return DecimalAmount::isPositive($approved) ? $approved : $proposed;
     }
 
+    /**
+     * Approved beneficiaries who still have no recorded outcome.
+     *
+     * @return list<int>
+     */
+    public function unservedItemIds(DistributionBatch $batch): array
+    {
+        $batch->loadMissing(['items.lines', 'items.releases']);
+
+        $ids = [];
+
+        foreach ($batch->items as $item) {
+            if ($item->approval_status !== DistributionItemApprovalStatus::Approved) {
+                continue;
+            }
+
+            if ($this->outcomeFor($item) === 'outstanding') {
+                $ids[] = (int) $item->id;
+            }
+        }
+
+        return $ids;
+    }
+
     private function outcomeFor(DistributionBatchItem $item): string
     {
         if ($item->releases->contains(fn (DistributionReleaseRecord $release): bool => $release->outcome === DistributionReleaseOutcome::Absent)) {

@@ -42,4 +42,17 @@ return [
 
     'evidence_retention' => 'Retain with the distribution record until the agency records schedule authorizes secure disposal. Do not delete evidence from this application automatically.',
 
+    /*
+    |--------------------------------------------------------------------------
+    | Field sync
+    |--------------------------------------------------------------------------
+    |
+    | A phone record is flagged when the server accepts it more than this many
+    | minutes after the time captured on the device. A device clock that is
+    | ahead of the server is not flagged.
+    |
+    */
+
+    'sync_lag_warning_minutes' => 30,
+
 ];
